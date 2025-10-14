@@ -24,6 +24,8 @@ import Clientes from './Clientes';
 import RelatoriosEnvios from './RelatoriosEnvios';
 import Fechamentos from './Fechamentos';
 import Admin from './Admin';
+import GestaoMateriais from './admin/GestaoMateriais';
+import GestaoDesigners from './admin/GestaoDesigners';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -349,6 +351,22 @@ export default function Dashboard() {
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <Admin />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/materiais" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoMateriais />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/designers" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoDesigners />
                 </ProtectedRoute>
               } 
             />
