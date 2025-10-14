@@ -63,3 +63,5 @@ export const exportToPDF = (orders: OrderWithItems[]) => {
   doc.save(`pedidos_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
+
+

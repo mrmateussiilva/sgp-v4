@@ -168,3 +168,194 @@ pub struct UpdateClienteRequest {
     pub telefone: String,
 }
 
+// ========================================
+// Materiais
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Material {
+    pub id: i32,
+    pub nome: String,
+    pub tipo: String,
+    pub valor_metro: rust_decimal::Decimal,
+    pub estoque_metros: rust_decimal::Decimal,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateMaterialRequest {
+    pub nome: String,
+    pub tipo: String,
+    pub valor_metro: f64,
+    pub estoque_metros: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateMaterialRequest {
+    pub id: i32,
+    pub nome: String,
+    pub tipo: String,
+    pub valor_metro: f64,
+    pub estoque_metros: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+// ========================================
+// Designers
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Designer {
+    pub id: i32,
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateDesignerRequest {
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateDesignerRequest {
+    pub id: i32,
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+// ========================================
+// Vendedores
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Vendedor {
+    pub id: i32,
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub comissao_percentual: rust_decimal::Decimal,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateVendedorRequest {
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub comissao_percentual: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateVendedorRequest {
+    pub id: i32,
+    pub nome: String,
+    pub email: Option<String>,
+    pub telefone: Option<String>,
+    pub comissao_percentual: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+// ========================================
+// Formas de Envio
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct FormaEnvio {
+    pub id: i32,
+    pub nome: String,
+    pub valor: rust_decimal::Decimal,
+    pub prazo_dias: i32,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateFormaEnvioRequest {
+    pub nome: String,
+    pub valor: f64,
+    pub prazo_dias: i32,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateFormaEnvioRequest {
+    pub id: i32,
+    pub nome: String,
+    pub valor: f64,
+    pub prazo_dias: i32,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+// ========================================
+// Formas de Pagamento
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct FormaPagamento {
+    pub id: i32,
+    pub nome: String,
+    pub parcelas_max: i32,
+    pub taxa_percentual: rust_decimal::Decimal,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateFormaPagamentoRequest {
+    pub nome: String,
+    pub parcelas_max: i32,
+    pub taxa_percentual: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateFormaPagamentoRequest {
+    pub id: i32,
+    pub nome: String,
+    pub parcelas_max: i32,
+    pub taxa_percentual: f64,
+    pub ativo: bool,
+    pub observacao: Option<String>,
+}
+
