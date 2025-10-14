@@ -28,8 +28,7 @@ export default function Login() {
       const response = await api.login({ username, password });
 
       if (response.success && response.user_id && response.username) {
-        // TODO: Backend precisa retornar is_admin
-        const isAdmin = response.username === 'admin'; // Temporário
+        const isAdmin = response.is_admin || false;
         login(response.user_id, response.username, isAdmin);
         toast({
           title: "Login realizado!",

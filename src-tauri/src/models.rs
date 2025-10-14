@@ -67,6 +67,7 @@ pub struct LoginResponse {
     pub success: bool,
     pub user_id: Option<i32>,
     pub username: Option<String>,
+    pub is_admin: Option<bool>,
     pub message: String,
 }
 

@@ -13,7 +13,7 @@ pub async fn login(
 
     // Buscar usuário no banco de dados
     let user_result = sqlx::query_as::<_, User>(
-        "SELECT id, username, password_hash, created_at FROM users WHERE username = $1"
+        "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE username = $1"
     )
     .bind(&request.username)
     .fetch_optional(pool.inner())
@@ -29,7 +29,8 @@ pub async fn login(
                         Ok(LoginResponse {
                             success: true,
                             user_id: Some(user.id),
-                            username: Some(user.username),
+                            username: Some(user.username.clone()),
+                            is_admin: Some(user.is_admin),
                             message: "Login realizado com sucesso".to_string(),
                         })
                     } else {
@@ -38,6 +39,7 @@ pub async fn login(
                             success: false,
                             user_id: None,
                             username: None,
+                            is_admin: None,
                             message: "Usuário ou senha inválidos".to_string(),
                         })
                     }
@@ -54,6 +56,7 @@ pub async fn login(
                 success: false,
                 user_id: None,
                 username: None,
+                is_admin: None,
                 message: "Usuário ou senha inválidos".to_string(),
             })
         }
