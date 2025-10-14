@@ -254,78 +254,78 @@ export default function CreateOrderComplete() {
   };
 
   return (
-    <div className="space-y-3 max-w-7xl mx-auto pb-8">
+    <div className="space-y-4 max-w-7xl mx-auto pb-8">
       {/* 1. DADOS DO PEDIDO - Roxo */}
       <Card className="border-l-4 border-l-purple-500 bg-purple-50/30">
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-6 space-y-4">
           {/* Linha 1 */}
-          <div className="grid grid-cols-4 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">ID</Label>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium">ID</Label>
               <Input
                 value={formData.numero}
                 disabled
-                className="bg-white/50 font-mono h-10"
+                className="bg-white/50 font-mono h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Nome do Cliente *</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Nome do Cliente *</Label>
               <Input
                 value={formData.cliente}
                 onChange={(e) => handleChange('cliente', e.target.value)}
                 placeholder="Digite o nome"
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Telefone</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Telefone</Label>
               <Input
                 value={formData.telefone_cliente}
                 onChange={(e) => handleChange('telefone_cliente', e.target.value)}
                 placeholder="(11) 99999-9999"
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Cidade</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Cidade</Label>
               <Input
                 value={formData.cidade_cliente}
                 onChange={(e) => handleChange('cidade_cliente', e.target.value)}
                 placeholder="São Paulo"
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
           </div>
 
           {/* Linha 2 */}
-          <div className="grid grid-cols-4 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Data Entrada</Label>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Data Entrada</Label>
               <Input
                 type="date"
                 value={formData.data_entrada}
                 onChange={(e) => handleChange('data_entrada', e.target.value)}
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Data Entrega *</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Data Entrega *</Label>
               <Input
                 type="date"
                 value={formData.data_entrega}
                 onChange={(e) => handleChange('data_entrega', e.target.value)}
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Prioridade</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Prioridade</Label>
               <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
-                <SelectTrigger className="bg-white h-10">
+                <SelectTrigger className="bg-white h-12 text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,13 +335,13 @@ export default function CreateOrderComplete() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Observações</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Observações</Label>
               <Input
                 value={formData.observacao}
                 onChange={(e) => handleChange('observacao', e.target.value)}
                 placeholder="Observações..."
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
           </div>
@@ -350,24 +350,23 @@ export default function CreateOrderComplete() {
 
       {/* 2. ITENS - Verde */}
       <Card className="border-l-4 border-l-green-500 bg-green-50/30">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <Label className="text-base font-semibold">Itens do Pedido</Label>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <Label className="text-lg font-semibold">Itens do Pedido</Label>
             <Button 
               onClick={handleAddTab}
-              size="sm"
-              className="h-9 gap-1.5 bg-green-600 hover:bg-green-700"
+              className="h-11 gap-2 bg-green-600 hover:bg-green-700"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-5 w-5" />
               Adicionar
             </Button>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-green-100 h-9">
+            <TabsList className="bg-green-100 h-11">
               {tabs.map((tabId, index) => (
                 <div key={tabId} className="flex items-center">
-                  <TabsTrigger value={tabId} className="text-sm h-8 px-3">
+                  <TabsTrigger value={tabId} className="text-base h-9 px-4">
                     Item {index + 1}
                     {tabs.length > 1 && (
                       <button
@@ -375,9 +374,9 @@ export default function CreateOrderComplete() {
                           e.stopPropagation();
                           handleRemoveTab(tabId);
                         }}
-                        className="ml-1.5 hover:bg-red-100 rounded-full p-0.5"
+                        className="ml-2 hover:bg-red-100 rounded-full p-1"
                       >
-                        <X className="h-3 w-3 text-red-600" />
+                        <X className="h-4 w-4 text-red-600" />
                       </button>
                     )}
                   </TabsTrigger>
@@ -386,15 +385,15 @@ export default function CreateOrderComplete() {
             </TabsList>
 
             {tabs.map((tabId) => (
-              <TabsContent key={tabId} value={tabId} className="space-y-3 mt-3">
+              <TabsContent key={tabId} value={tabId} className="space-y-4 mt-4">
                 {/* Tipo de Produção */}
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">Tipo de Produção *</Label>
+                <div className="space-y-2">
+                  <Label className="text-base font-medium">Tipo de Produção *</Label>
                   <Select 
                     value={tabsData[tabId]?.tipo_producao || ''} 
                     onValueChange={(value) => handleTabDataChange(tabId, 'tipo_producao', value)}
                   >
-                    <SelectTrigger className="bg-white h-10">
+                    <SelectTrigger className="bg-white h-12 text-base">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -408,59 +407,59 @@ export default function CreateOrderComplete() {
                 </div>
 
                 {tabsData[tabId]?.tipo_producao && (
-                  <div className="space-y-3 border border-green-200 rounded p-3 bg-white">
+                  <div className="space-y-4 border border-green-200 rounded p-4 bg-white">
                     {/* Descrição */}
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">Descrição *</Label>
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Descrição *</Label>
                       <Input
                         value={tabsData[tabId]?.descricao || ''}
                         onChange={(e) => handleTabDataChange(tabId, 'descricao', e.target.value)}
                         placeholder="Ex: Banner 3x2m"
-                        className="h-10"
+                        className="h-12 text-base"
                       />
                     </div>
 
                     {/* Medidas */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Largura (m)</Label>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Largura (m)</Label>
                         <Input
                           value={tabsData[tabId]?.largura || ''}
                           onChange={(e) => handleTabDataChange(tabId, 'largura', e.target.value)}
                           placeholder="3,00"
-                          className="h-10"
+                          className="h-12 text-base"
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Altura (m)</Label>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Altura (m)</Label>
                         <Input
                           value={tabsData[tabId]?.altura || ''}
                           onChange={(e) => handleTabDataChange(tabId, 'altura', e.target.value)}
                           placeholder="2,00"
-                          className="h-10"
+                          className="h-12 text-base"
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Área (m²)</Label>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Área (m²)</Label>
                         <Input
                           value={tabsData[tabId]?.metro_quadrado || '0,00'}
                           disabled
-                          className="bg-green-100 font-bold text-green-800 h-10"
+                          className="bg-green-100 font-bold text-green-800 h-12 text-base"
                         />
                       </div>
                     </div>
 
                     {/* Vendedor, Designer, Tecido */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Vendedor</Label>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Vendedor</Label>
                         <Select 
                           value={tabsData[tabId]?.vendedor || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'vendedor', value)}
                         >
-                          <SelectTrigger className="bg-white h-10">
+                          <SelectTrigger className="bg-white h-12 text-base">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -471,13 +470,13 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Designer</Label>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Designer</Label>
                         <Select 
                           value={tabsData[tabId]?.designer || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'designer', value)}
                         >
-                          <SelectTrigger className="bg-white h-10">
+                          <SelectTrigger className="bg-white h-12 text-base">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -488,13 +487,13 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Tecido</Label>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Tecido</Label>
                         <Select 
                           value={tabsData[tabId]?.tecido || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'tecido', value)}
                         >
-                          <SelectTrigger className="bg-white h-10">
+                          <SelectTrigger className="bg-white h-12 text-base">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -507,38 +506,38 @@ export default function CreateOrderComplete() {
                     </div>
 
                     {/* Acabamentos */}
-                    <div className="flex items-center gap-4 p-3 bg-green-50 rounded border border-green-200">
-                      <Label className="text-sm font-medium">Acabamentos:</Label>
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-1.5">
+                    <div className="flex items-center gap-6 p-4 bg-green-50 rounded border border-green-200">
+                      <Label className="text-base font-medium">Acabamentos:</Label>
+                      <div className="flex gap-6">
+                        <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`overloque-${tabId}`}
                             checked={tabsData[tabId]?.overloque || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'overloque', checked)}
                           />
-                          <label htmlFor={`overloque-${tabId}`} className="text-sm cursor-pointer">
+                          <label htmlFor={`overloque-${tabId}`} className="text-base cursor-pointer">
                             Overloque
                           </label>
                         </div>
 
-                        <div className="flex items-center space-x-1.5">
+                        <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`elastico-${tabId}`}
                             checked={tabsData[tabId]?.elastico || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'elastico', checked)}
                           />
-                          <label htmlFor={`elastico-${tabId}`} className="text-sm cursor-pointer">
+                          <label htmlFor={`elastico-${tabId}`} className="text-base cursor-pointer">
                             Elástico
                           </label>
                         </div>
 
-                        <div className="flex items-center space-x-1.5">
+                        <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`ilhos-${tabId}`}
                             checked={tabsData[tabId]?.ilhos || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'ilhos', checked)}
                           />
-                          <label htmlFor={`ilhos-${tabId}`} className="text-sm cursor-pointer">
+                          <label htmlFor={`ilhos-${tabId}`} className="text-base cursor-pointer">
                             Ilhós
                           </label>
                         </div>
@@ -546,14 +545,14 @@ export default function CreateOrderComplete() {
                     </div>
 
                     {/* Emenda e Valor */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Emenda</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Emenda</Label>
                         <Select 
                           value={tabsData[tabId]?.emenda || 'sem-emenda'} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'emenda', value)}
                         >
-                          <SelectTrigger className="bg-white h-10">
+                          <SelectTrigger className="bg-white h-12 text-base">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -563,26 +562,26 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">Valor Unitário (R$)</Label>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Valor Unitário (R$)</Label>
                         <Input
                           value={tabsData[tabId]?.valor_unitario || '0,00'}
                           onChange={(e) => handleTabDataChange(tabId, 'valor_unitario', e.target.value)}
                           placeholder="0,00"
-                          className="bg-white h-10 font-semibold"
+                          className="bg-white h-12 text-base font-semibold"
                         />
                       </div>
                     </div>
 
                     {/* Observações */}
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">Observações</Label>
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Observações</Label>
                       <Textarea
                         value={tabsData[tabId]?.observacao || ''}
                         onChange={(e) => handleTabDataChange(tabId, 'observacao', e.target.value)}
                         placeholder="Obs do item..."
-                        rows={2}
-                        className="bg-white"
+                        rows={3}
+                        className="bg-white text-base"
                       />
                     </div>
                   </div>
@@ -595,11 +594,11 @@ export default function CreateOrderComplete() {
 
       {/* 3. PAGAMENTO - Laranja */}
       <Card className="border-l-4 border-l-orange-500 bg-orange-50/30">
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-6 space-y-4">
           {/* Linha 1 */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Forma de Envio</Label>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Forma de Envio</Label>
               <Select 
                 value={formData.forma_envio} 
                 onValueChange={(value) => {
@@ -610,7 +609,7 @@ export default function CreateOrderComplete() {
                   }
                 }}
               >
-                <SelectTrigger className="bg-white h-10">
+                <SelectTrigger className="bg-white h-12 text-base">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -623,13 +622,13 @@ export default function CreateOrderComplete() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Forma de Pagamento</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Forma de Pagamento</Label>
               <Select 
                 value={formData.tipo_pagamento} 
                 onValueChange={(value) => handleChange('tipo_pagamento', value)}
               >
-                <SelectTrigger className="bg-white h-10">
+                <SelectTrigger className="bg-white h-12 text-base">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -640,13 +639,13 @@ export default function CreateOrderComplete() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Desconto</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Desconto</Label>
               <Select 
                 value={formData.desconto_tipo} 
                 onValueChange={(value) => handleChange('desconto_tipo', value)}
               >
-                <SelectTrigger className="bg-white h-10">
+                <SelectTrigger className="bg-white h-12 text-base">
                   <SelectValue placeholder="Sem desconto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -659,31 +658,31 @@ export default function CreateOrderComplete() {
           </div>
 
           {/* Linha 2 - Valores */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Valor Frete (R$)</Label>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Valor Frete (R$)</Label>
               <Input
                 value={formData.valor_frete}
                 onChange={(e) => handleChange('valor_frete', e.target.value)}
-                className="bg-white h-10"
+                className="bg-white h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Valor Itens (R$)</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Valor Itens (R$)</Label>
               <Input
                 value={calcularValorItens().toFixed(2).replace('.', ',')}
                 disabled
-                className="bg-orange-100 font-bold text-orange-900 h-10"
+                className="bg-orange-100 font-bold text-orange-900 h-12 text-base"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Valor Total (R$)</Label>
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Valor Total (R$)</Label>
               <Input
                 value={calcularTotal()}
                 disabled
-                className="bg-emerald-100 font-bold text-emerald-900 h-10 text-lg"
+                className="bg-emerald-100 font-bold text-emerald-900 h-12 text-xl"
               />
             </div>
           </div>
@@ -691,18 +690,19 @@ export default function CreateOrderComplete() {
       </Card>
 
       {/* Botões de Ação */}
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         <Button 
           variant="outline"
-          className="gap-1.5"
+          className="gap-2 h-11 text-base"
           onClick={() => toast({ title: "Em espera" })}
         >
-          <Clock className="h-4 w-4" />
+          <Clock className="h-5 w-5" />
           Em Espera
         </Button>
 
         <Button 
           variant="outline"
+          className="h-11 text-base"
           onClick={() => navigate('/dashboard/orders')}
         >
           Cancelar
@@ -710,18 +710,18 @@ export default function CreateOrderComplete() {
 
         <Button 
           variant="secondary"
-          className="gap-1.5"
+          className="gap-2 h-11 text-base"
           onClick={handleSalvar}
         >
-          <Eye className="h-4 w-4" />
+          <Eye className="h-5 w-5" />
           Resumo
         </Button>
 
         <Button 
           onClick={handleSalvar}
-          className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 ml-auto"
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700 ml-auto h-11 text-base"
         >
-          <Save className="h-4 w-4" />
+          <Save className="h-5 w-5" />
           Salvar Pedido
         </Button>
       </div>
