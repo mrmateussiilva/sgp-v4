@@ -18,8 +18,8 @@ interface Material {
   id: number;
   nome: string;
   tipo: string;
-  valor_metro: number;
-  estoque_metros: number;
+  valor_metro: number | string;
+  estoque_metros: number | string;
   ativo: boolean;
   observacao?: string;
 }
@@ -279,10 +279,10 @@ export default function GestaoMateriais() {
                         <Badge variant="outline">{material.tipo}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        R$ {material.valor_metro.toFixed(2).replace('.', ',')}
+                        R$ {Number(material.valor_metro).toFixed(2).replace('.', ',')}
                       </TableCell>
                       <TableCell className="text-right">
-                        {material.estoque_metros.toFixed(2).replace('.', ',')}
+                        {Number(material.estoque_metros).toFixed(2).replace('.', ',')}
                       </TableCell>
                       <TableCell className="text-center">
                         {material.ativo ? (
