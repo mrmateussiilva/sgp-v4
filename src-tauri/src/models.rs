@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
 // ========================================
@@ -28,7 +27,8 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub is_admin: bool,
-    pub created_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -37,8 +37,10 @@ pub struct Order {
     pub customer_name: String,
     pub address: String,
     pub total_value: rust_decimal::Decimal,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
     pub status: OrderStatus,
 }
 
@@ -77,8 +79,10 @@ pub struct OrderWithItems {
     pub customer_name: String,
     pub address: String,
     pub total_value: rust_decimal::Decimal,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
     pub status: OrderStatus,
     pub items: Vec<OrderItem>,
 }
