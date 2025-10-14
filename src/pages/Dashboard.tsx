@@ -26,6 +26,9 @@ import Fechamentos from './Fechamentos';
 import Admin from './Admin';
 import GestaoMateriais from './admin/GestaoMateriais';
 import GestaoDesigners from './admin/GestaoDesigners';
+import GestaoVendedores from './admin/GestaoVendedores';
+import GestaoFormasEnvio from './admin/GestaoFormasEnvio';
+import GestaoFormasPagamento from './admin/GestaoFormasPagamento';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -331,11 +334,11 @@ export default function Dashboard() {
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Routes>
-            <Route path="/" element={<OrderList />} />
-            <Route path="/orders" element={<OrderList />} />
+        <Routes>
+          <Route path="/" element={<OrderList />} />
+          <Route path="/orders" element={<OrderList />} />
             <Route path="/orders/new" element={<CreateOrderComplete />} />
-            <Route path="/orders/edit/:id" element={<OrderForm />} />
+          <Route path="/orders/edit/:id" element={<OrderForm />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/relatorios-envios" element={<RelatoriosEnvios />} />
             <Route 
@@ -370,7 +373,31 @@ export default function Dashboard() {
                 </ProtectedRoute>
               } 
             />
-          </Routes>
+            <Route 
+              path="/admin/vendedores" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoVendedores />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/formas-envio" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoFormasEnvio />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/formas-pagamento" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoFormasPagamento />
+                </ProtectedRoute>
+              } 
+            />
+        </Routes>
         </main>
       </div>
     </div>
