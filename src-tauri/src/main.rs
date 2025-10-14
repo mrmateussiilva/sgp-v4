@@ -89,6 +89,12 @@ async fn main() {
             commands::formas_pagamento::create_forma_pagamento,
             commands::formas_pagamento::update_forma_pagamento,
             commands::formas_pagamento::delete_forma_pagamento,
+            // Users
+            commands::users::get_users,
+            commands::users::get_user_by_id,
+            commands::users::create_user,
+            commands::users::update_user,
+            commands::users::delete_user,
         ])
         .run(tauri::generate_context!())
         .expect("Erro ao executar aplicação Tauri");

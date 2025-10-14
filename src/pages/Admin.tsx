@@ -47,10 +47,10 @@ export default function Admin() {
       bgColor: 'bg-emerald-50 hover:bg-emerald-100',
     },
     {
-      title: 'Configurações',
-      description: 'Configurações gerais do sistema',
+      title: 'Usuários',
+      description: 'Gerencie usuários e permissões',
       icon: Settings,
-      path: '/dashboard/admin/configuracoes',
+      path: '/dashboard/admin/usuarios',
       color: 'text-gray-500',
       bgColor: 'bg-gray-50 hover:bg-gray-100',
     },

@@ -29,6 +29,7 @@ import GestaoDesigners from './admin/GestaoDesigners';
 import GestaoVendedores from './admin/GestaoVendedores';
 import GestaoFormasEnvio from './admin/GestaoFormasEnvio';
 import GestaoFormasPagamento from './admin/GestaoFormasPagamento';
+import GestaoUsuarios from './admin/GestaoUsuarios';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -397,7 +398,15 @@ export default function Dashboard() {
                 </ProtectedRoute>
               } 
             />
-        </Routes>
+            <Route 
+              path="/admin/usuarios" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <GestaoUsuarios />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
         </main>
       </div>
     </div>

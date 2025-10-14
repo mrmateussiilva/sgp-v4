@@ -25,7 +25,9 @@ pub enum OrderStatus {
 pub struct User {
     pub id: i32,
     pub username: String,
+    #[serde(skip_serializing)]
     pub password_hash: String,
+    pub is_admin: bool,
     pub created_at: Option<DateTime<Utc>>,
 }
 
