@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Save, Calendar, User, Phone, MapPin, FileText, Truck, CreditCard, Package, Scissors, Clock, Eye } from 'lucide-react';
+import { Plus, X, Save, Calendar, User, Phone, MapPin, Truck, CreditCard, Package, Scissors, Clock, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
@@ -44,7 +44,6 @@ export default function CreateOrderComplete() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Estado do formulário principal
   const [formData, setFormData] = useState({
     numero: '',
     cliente: '',
@@ -60,7 +59,6 @@ export default function CreateOrderComplete() {
     valor_frete: '0,00',
   });
 
-  // Sistema de Tabs para itens
   const [tabs, setTabs] = useState<string[]>(['tab-1']);
   const [activeTab, setActiveTab] = useState('tab-1');
   const [tabsData, setTabsData] = useState<Record<string, TabItem>>({
@@ -83,11 +81,9 @@ export default function CreateOrderComplete() {
     }
   });
 
-  // Modal de resumo
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Dados auxiliares
   const [vendedores] = useState(['Vendedor 1', 'Vendedor 2', 'Vendedor 3']);
   const [designers] = useState(['Designer 1', 'Designer 2', 'Designer 3']);
   const [tecidos] = useState(['Oxford', 'Cetim', 'Blackout', 'Lona']);
@@ -110,6 +106,16 @@ export default function CreateOrderComplete() {
     setFormData(prev => ({ ...prev, numero }));
   }, []);
 
+  useEffect(() => {
+    const currentData = tabsData[activeTab];
+    if (currentData && currentData.largura && currentData.altura) {
+      const largura = parseFloat(currentData.largura.replace(',', '.')) || 0;
+      const altura = parseFloat(currentData.altura.replace(',', '.')) || 0;
+      const area = (largura * altura).toFixed(2).replace('.', ',');
+      handleTabDataChange(activeTab, 'metro_quadrado', area);
+    }
+  }, [tabsData[activeTab]?.largura, tabsData[activeTab]?.altura, activeTab]);
+
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -123,17 +129,6 @@ export default function CreateOrderComplete() {
       }
     }));
   };
-
-  // Calcular área automaticamente
-  useEffect(() => {
-    const currentData = tabsData[activeTab];
-    if (currentData && currentData.largura && currentData.altura) {
-      const largura = parseFloat(currentData.largura.replace(',', '.')) || 0;
-      const altura = parseFloat(currentData.altura.replace(',', '.')) || 0;
-      const area = (largura * altura).toFixed(2).replace('.', ',');
-      handleTabDataChange(activeTab, 'metro_quadrado', area);
-    }
-  }, [tabsData[activeTab]?.largura, tabsData[activeTab]?.altura, activeTab]);
 
   const handleAddTab = () => {
     const newTabId = `tab-${tabs.length + 1}`;
@@ -165,7 +160,7 @@ export default function CreateOrderComplete() {
     if (tabs.length === 1) {
       toast({
         title: "Erro",
-        description: "Deve haver pelo menos uma aba de produção.",
+        description: "Deve haver pelo menos uma aba.",
         variant: "destructive",
       });
       return;
@@ -181,11 +176,6 @@ export default function CreateOrderComplete() {
     if (activeTab === tabId) {
       setActiveTab(newTabs[0]);
     }
-
-    toast({
-      title: "Aba removida",
-      description: "Aba de produção removida.",
-    });
   };
 
   const calcularValorItens = () => {
@@ -196,7 +186,6 @@ export default function CreateOrderComplete() {
       return sum + valor;
     }, 0);
 
-    // Aplicar desconto
     const desconto = descontos.find(d => d.name === formData.desconto_tipo);
     if (desconto && desconto.type !== 'none') {
       if (desconto.type === 'percentual') {
@@ -246,7 +235,6 @@ export default function CreateOrderComplete() {
     setIsSaving(true);
 
     try {
-      // TODO: Implementar chamada para API
       toast({
         title: "Pedido criado!",
         description: `Pedido ${formData.numero} criado com sucesso!`,
@@ -266,106 +254,88 @@ export default function CreateOrderComplete() {
     }
   };
 
-  const currentTabData = tabsData[activeTab] || tabsData['tab-1'];
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-purple-100/50 p-6 rounded-lg border shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Novo Pedido</h1>
-          <p className="text-muted-foreground">Preencha os dados abaixo</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">Número</p>
-          <p className="text-3xl font-mono font-bold text-primary">#{formData.numero}</p>
+    <div className="space-y-2 max-w-7xl mx-auto pb-8">
+      {/* Header Compacto */}
+      <div className="flex items-center justify-between p-2 bg-slate-100 rounded border">
+        <h1 className="text-xl font-bold">Novo Pedido</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Nº</span>
+          <span className="text-xl font-mono font-bold text-primary">#{formData.numero}</span>
         </div>
       </div>
 
       {/* 1. DADOS DO PEDIDO - Roxo */}
-      <Card className="border-l-4 border-l-purple-500 shadow-md">
-        <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100/50">
-          <CardTitle className="flex items-center gap-2 text-purple-900">
-            <FileText className="h-5 w-5 text-purple-600" />
-            Dados do Pedido
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4 bg-purple-50/20">
-          {/* Linha 1: ID - Nome - Telefone - Cidade */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label className="font-medium">ID</Label>
+      <Card className="border-l-4 border-l-purple-500 bg-purple-50/30">
+        <CardContent className="p-2 space-y-2">
+          {/* Linha 1 */}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">ID</Label>
               <Input
                 value={formData.numero}
                 disabled
-                className="bg-white/50 font-mono text-sm"
+                className="bg-white/50 font-mono text-xs h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cliente" className="font-medium">Nome do Cliente *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome do Cliente *</Label>
               <Input
-                id="cliente"
                 value={formData.cliente}
                 onChange={(e) => handleChange('cliente', e.target.value)}
                 placeholder="Digite o nome"
-                required
-                className="bg-white border-purple-200"
+                className="bg-white h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="telefone_cliente" className="font-medium">Telefone</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Telefone</Label>
               <Input
-                id="telefone_cliente"
                 value={formData.telefone_cliente}
                 onChange={(e) => handleChange('telefone_cliente', e.target.value)}
                 placeholder="(11) 99999-9999"
-                className="bg-white border-purple-200"
+                className="bg-white h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cidade_cliente" className="font-medium">Cidade</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Cidade</Label>
               <Input
-                id="cidade_cliente"
                 value={formData.cidade_cliente}
                 onChange={(e) => handleChange('cidade_cliente', e.target.value)}
                 placeholder="São Paulo"
-                className="bg-white border-purple-200"
+                className="bg-white h-9"
               />
             </div>
           </div>
 
-          {/* Linha 2: Data Entrada - Data Entrega - Prioridade */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="data_entrada" className="font-medium">Data de Entrada</Label>
+          {/* Linha 2 */}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Data Entrada</Label>
               <Input
-                id="data_entrada"
                 type="date"
                 value={formData.data_entrada}
                 onChange={(e) => handleChange('data_entrada', e.target.value)}
-                className="bg-white border-purple-200"
+                className="bg-white h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="data_entrega" className="font-medium">Data de Entrega *</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Data Entrega *</Label>
               <Input
-                id="data_entrega"
                 type="date"
                 value={formData.data_entrega}
                 onChange={(e) => handleChange('data_entrega', e.target.value)}
-                required
-                className="bg-white border-purple-200"
+                className="bg-white h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="prioridade" className="font-medium">Prioridade</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Prioridade</Label>
               <Select value={formData.prioridade} onValueChange={(value) => handleChange('prioridade', value)}>
-                <SelectTrigger className="bg-white border-purple-200">
+                <SelectTrigger className="bg-white h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -374,50 +344,40 @@ export default function CreateOrderComplete() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Linha 3: Observações */}
-          <div className="space-y-2">
-            <Label htmlFor="observacao" className="font-medium">Observações</Label>
-            <Textarea
-              id="observacao"
-              value={formData.observacao}
-              onChange={(e) => handleChange('observacao', e.target.value)}
-              placeholder="Observações gerais do pedido..."
-              rows={3}
-              className="bg-white border-purple-200"
-            />
+            <div className="space-y-1">
+              <Label className="text-xs">Observações</Label>
+              <Input
+                value={formData.observacao}
+                onChange={(e) => handleChange('observacao', e.target.value)}
+                placeholder="Obs..."
+                className="bg-white h-9"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. ITENS DO PEDIDO - Verde (Sistema de Tabs) */}
-      <Card className="border-l-4 border-l-green-500 shadow-md">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-green-100/50">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-green-900">
-                <Package className="h-5 w-5 text-green-600" />
-                Itens do Pedido
-              </CardTitle>
-              <CardDescription>Use as abas para adicionar múltiplos itens</CardDescription>
-            </div>
+      {/* 2. ITENS - Verde */}
+      <Card className="border-l-4 border-l-green-500 bg-green-50/30">
+        <CardContent className="p-2">
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-semibold">Itens do Pedido</Label>
             <Button 
               onClick={handleAddTab}
               size="sm"
-              className="gap-2 bg-green-600 hover:bg-green-700"
+              className="h-8 gap-1 bg-green-600 hover:bg-green-700"
             >
-              <Plus className="h-4 w-4" />
-              Adicionar Produção
+              <Plus className="h-3 w-3" />
+              Adicionar
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="pt-6 bg-green-50/20">
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-green-100">
+            <TabsList className="bg-green-100 h-8">
               {tabs.map((tabId, index) => (
                 <div key={tabId} className="flex items-center">
-                  <TabsTrigger value={tabId} className="relative">
+                  <TabsTrigger value={tabId} className="text-xs h-7 px-2">
                     Item {index + 1}
                     {tabs.length > 1 && (
                       <button
@@ -425,9 +385,9 @@ export default function CreateOrderComplete() {
                           e.stopPropagation();
                           handleRemoveTab(tabId);
                         }}
-                        className="ml-2 hover:bg-red-100 rounded-full p-0.5"
+                        className="ml-1 hover:bg-red-100 rounded-full p-0.5"
                       >
-                        <X className="h-3 w-3 text-red-600" />
+                        <X className="h-2 w-2 text-red-600" />
                       </button>
                     )}
                   </TabsTrigger>
@@ -436,16 +396,16 @@ export default function CreateOrderComplete() {
             </TabsList>
 
             {tabs.map((tabId) => (
-              <TabsContent key={tabId} value={tabId} className="space-y-4 mt-4">
-                {/* Select de Tipo de Produção */}
-                <div className="space-y-2">
-                  <Label className="font-medium text-base">Tipo de Produção *</Label>
+              <TabsContent key={tabId} value={tabId} className="space-y-2 mt-2">
+                {/* Tipo de Produção */}
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo de Produção *</Label>
                   <Select 
                     value={tabsData[tabId]?.tipo_producao || ''} 
                     onValueChange={(value) => handleTabDataChange(tabId, 'tipo_producao', value)}
                   >
-                    <SelectTrigger className="bg-white border-green-200 h-11">
-                      <SelectValue placeholder="Selecione o tipo" />
+                    <SelectTrigger className="bg-white h-9">
+                      <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
                       {TIPOS_PRODUCAO.map(tipo => (
@@ -457,58 +417,60 @@ export default function CreateOrderComplete() {
                   </Select>
                 </div>
 
-                {/* Campos do Item */}
                 {tabsData[tabId]?.tipo_producao && (
-                  <div className="space-y-4 border-2 border-green-200 rounded-lg p-4 bg-white">
-                    <div className="space-y-2">
-                      <Label className="font-medium">Descrição *</Label>
+                  <div className="space-y-2 border border-green-200 rounded p-2 bg-white">
+                    {/* Descrição */}
+                    <div className="space-y-1">
+                      <Label className="text-xs">Descrição *</Label>
                       <Input
                         value={tabsData[tabId]?.descricao || ''}
                         onChange={(e) => handleTabDataChange(tabId, 'descricao', e.target.value)}
                         placeholder="Ex: Banner 3x2m"
-                        className="border-green-200"
+                        className="h-9"
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="font-medium">Largura (m)</Label>
+                    {/* Medidas */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Largura (m)</Label>
                         <Input
                           value={tabsData[tabId]?.largura || ''}
                           onChange={(e) => handleTabDataChange(tabId, 'largura', e.target.value)}
                           placeholder="3,00"
-                          className="border-green-200"
+                          className="h-9"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-medium">Altura (m)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Altura (m)</Label>
                         <Input
                           value={tabsData[tabId]?.altura || ''}
                           onChange={(e) => handleTabDataChange(tabId, 'altura', e.target.value)}
                           placeholder="2,00"
-                          className="border-green-200"
+                          className="h-9"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-medium">Área (m²)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Área (m²)</Label>
                         <Input
                           value={tabsData[tabId]?.metro_quadrado || '0,00'}
                           disabled
-                          className="bg-green-100 font-bold text-green-800"
+                          className="bg-green-100 font-bold text-green-800 h-9"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="font-medium">Vendedor</Label>
+                    {/* Vendedor, Designer, Tecido */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Vendedor</Label>
                         <Select 
                           value={tabsData[tabId]?.vendedor || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'vendedor', value)}
                         >
-                          <SelectTrigger className="bg-white border-green-200">
+                          <SelectTrigger className="bg-white h-9">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -519,13 +481,13 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-medium">Designer</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Designer</Label>
                         <Select 
                           value={tabsData[tabId]?.designer || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'designer', value)}
                         >
-                          <SelectTrigger className="bg-white border-green-200">
+                          <SelectTrigger className="bg-white h-9">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -536,13 +498,13 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-medium">Tecido</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tecido</Label>
                         <Select 
                           value={tabsData[tabId]?.tecido || ''} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'tecido', value)}
                         >
-                          <SelectTrigger className="bg-white border-green-200">
+                          <SelectTrigger className="bg-white h-9">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -555,55 +517,53 @@ export default function CreateOrderComplete() {
                     </div>
 
                     {/* Acabamentos */}
-                    <div className="space-y-3 bg-green-50 p-4 rounded-lg border border-green-200">
-                      <Label className="font-medium flex items-center gap-2">
-                        <Scissors className="h-4 w-4 text-green-600" />
-                        Acabamentos
-                      </Label>
-                      <div className="flex flex-wrap gap-6">
-                        <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-4 p-2 bg-green-50 rounded border border-green-200">
+                      <Label className="text-xs font-medium">Acabamentos:</Label>
+                      <div className="flex gap-3">
+                        <div className="flex items-center space-x-1">
                           <Checkbox
                             id={`overloque-${tabId}`}
                             checked={tabsData[tabId]?.overloque || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'overloque', checked)}
                           />
-                          <label htmlFor={`overloque-${tabId}`} className="text-sm font-medium cursor-pointer">
+                          <label htmlFor={`overloque-${tabId}`} className="text-xs cursor-pointer">
                             Overloque
                           </label>
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <Checkbox
                             id={`elastico-${tabId}`}
                             checked={tabsData[tabId]?.elastico || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'elastico', checked)}
                           />
-                          <label htmlFor={`elastico-${tabId}`} className="text-sm font-medium cursor-pointer">
+                          <label htmlFor={`elastico-${tabId}`} className="text-xs cursor-pointer">
                             Elástico
                           </label>
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           <Checkbox
                             id={`ilhos-${tabId}`}
                             checked={tabsData[tabId]?.ilhos || false}
                             onCheckedChange={(checked) => handleTabDataChange(tabId, 'ilhos', checked)}
                           />
-                          <label htmlFor={`ilhos-${tabId}`} className="text-sm font-medium cursor-pointer">
+                          <label htmlFor={`ilhos-${tabId}`} className="text-xs cursor-pointer">
                             Ilhós
                           </label>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="font-medium">Emenda</Label>
+                    {/* Emenda e Valor */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Emenda</Label>
                         <Select 
                           value={tabsData[tabId]?.emenda || 'sem-emenda'} 
                           onValueChange={(value) => handleTabDataChange(tabId, 'emenda', value)}
                         >
-                          <SelectTrigger className="bg-white border-green-200">
+                          <SelectTrigger className="bg-white h-9">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -613,25 +573,26 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="font-medium">Valor Unitário (R$)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Valor Unitário (R$)</Label>
                         <Input
                           value={tabsData[tabId]?.valor_unitario || '0,00'}
                           onChange={(e) => handleTabDataChange(tabId, 'valor_unitario', e.target.value)}
                           placeholder="0,00"
-                          className="bg-white border-green-200 text-lg font-semibold"
+                          className="bg-white h-9 font-semibold"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="font-medium">Observações do Item</Label>
+                    {/* Observações */}
+                    <div className="space-y-1">
+                      <Label className="text-xs">Observações</Label>
                       <Textarea
                         value={tabsData[tabId]?.observacao || ''}
                         onChange={(e) => handleTabDataChange(tabId, 'observacao', e.target.value)}
-                        placeholder="Observações específicas..."
+                        placeholder="Obs do item..."
                         rows={2}
-                        className="bg-white border-green-200"
+                        className="bg-white text-sm"
                       />
                     </div>
                   </div>
@@ -643,18 +604,12 @@ export default function CreateOrderComplete() {
       </Card>
 
       {/* 3. PAGAMENTO - Laranja */}
-      <Card className="border-l-4 border-l-orange-500 shadow-md">
-        <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100/50">
-          <CardTitle className="flex items-center gap-2 text-orange-900">
-            <CreditCard className="h-5 w-5 text-orange-600" />
-            Pagamento
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4 bg-orange-50/20">
-          {/* Linha 1: Forma Envio - Forma Pagamento - Tipo Desconto */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="font-medium">Forma de Envio</Label>
+      <Card className="border-l-4 border-l-orange-500 bg-orange-50/30">
+        <CardContent className="p-2 space-y-2">
+          {/* Linha 1 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de Envio</Label>
               <Select 
                 value={formData.forma_envio} 
                 onValueChange={(value) => {
@@ -665,7 +620,7 @@ export default function CreateOrderComplete() {
                   }
                 }}
               >
-                <SelectTrigger className="bg-white border-orange-200">
+                <SelectTrigger className="bg-white h-9">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -678,13 +633,13 @@ export default function CreateOrderComplete() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-medium">Forma de Pagamento</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Forma de Pagamento</Label>
               <Select 
                 value={formData.tipo_pagamento} 
                 onValueChange={(value) => handleChange('tipo_pagamento', value)}
               >
-                <SelectTrigger className="bg-white border-orange-200">
+                <SelectTrigger className="bg-white h-9">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -695,13 +650,13 @@ export default function CreateOrderComplete() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-medium">Tipo de Desconto</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Desconto</Label>
               <Select 
                 value={formData.desconto_tipo} 
                 onValueChange={(value) => handleChange('desconto_tipo', value)}
               >
-                <SelectTrigger className="bg-white border-orange-200">
+                <SelectTrigger className="bg-white h-9">
                   <SelectValue placeholder="Sem desconto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -713,51 +668,53 @@ export default function CreateOrderComplete() {
             </div>
           </div>
 
-          {/* Linha 2: Valor Frete - Valor Itens - Valor Total */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="font-medium">Valor Frete (R$)</Label>
+          {/* Linha 2 - Valores */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Valor Frete (R$)</Label>
               <Input
                 value={formData.valor_frete}
                 onChange={(e) => handleChange('valor_frete', e.target.value)}
-                className="bg-white border-orange-200 text-base font-semibold"
+                className="bg-white h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-medium">Valor Itens (R$)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Valor Itens (R$)</Label>
               <Input
                 value={calcularValorItens().toFixed(2).replace('.', ',')}
                 disabled
-                className="bg-orange-100 font-bold text-orange-900 text-base"
+                className="bg-orange-100 font-bold text-orange-900 h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="font-medium">Valor Total (R$)</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Valor Total (R$)</Label>
               <Input
                 value={calcularTotal()}
                 disabled
-                className="bg-emerald-100 font-bold text-emerald-900 text-lg border-2 border-emerald-500"
+                className="bg-emerald-100 font-bold text-emerald-900 h-9 text-base"
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 4. BOTÕES DE AÇÃO */}
-      <div className="flex flex-wrap gap-3">
+      {/* Botões de Ação */}
+      <div className="flex gap-2">
         <Button 
           variant="outline"
-          className="gap-2"
-          onClick={() => toast({ title: "Em espera", description: "Pedido colocado em espera." })}
+          size="sm"
+          className="gap-1"
+          onClick={() => toast({ title: "Em espera" })}
         >
-          <Clock className="h-4 w-4" />
-          Colocar em Espera
+          <Clock className="h-3 w-3" />
+          Em Espera
         </Button>
 
         <Button 
           variant="outline"
+          size="sm"
           onClick={() => navigate('/dashboard/orders')}
         >
           Cancelar
@@ -765,18 +722,20 @@ export default function CreateOrderComplete() {
 
         <Button 
           variant="secondary"
-          className="gap-2"
+          size="sm"
+          className="gap-1"
           onClick={handleSalvar}
         >
-          <Eye className="h-4 w-4" />
+          <Eye className="h-3 w-3" />
           Resumo
         </Button>
 
         <Button 
+          size="sm"
           onClick={handleSalvar}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 ml-auto"
+          className="gap-1 bg-emerald-600 hover:bg-emerald-700 ml-auto"
         >
-          <Save className="h-4 w-4" />
+          <Save className="h-3 w-3" />
           Salvar Pedido
         </Button>
       </div>
@@ -804,8 +763,15 @@ export default function CreateOrderComplete() {
 
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <h3 className="font-semibold mb-2 text-green-900">Itens ({tabs.length})</h3>
-              {/* TODO: Listar itens aqui */}
-              <p className="text-sm text-muted-foreground">Itens serão listados aqui...</p>
+              {tabs.map((tabId, index) => {
+                const item = tabsData[tabId];
+                if (!item?.tipo_producao) return null;
+                return (
+                  <div key={tabId} className="text-sm mb-2">
+                    <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label} - R$ {item.valor_unitario}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
@@ -833,14 +799,13 @@ export default function CreateOrderComplete() {
               variant="outline" 
               onClick={() => setShowResumoModal(false)}
               disabled={isSaving}
-              className="flex-1"
             >
               Voltar
             </Button>
             <Button 
               onClick={handleConfirmSave}
               disabled={isSaving}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700"
             >
               {isSaving ? 'Salvando...' : '✓ Confirmar e Salvar'}
             </Button>
