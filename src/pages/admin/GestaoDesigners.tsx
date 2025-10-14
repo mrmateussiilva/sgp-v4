@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import { Plus, Search, Edit, Trash2, Palette } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Edit, Trash2, Palette, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,7 @@ interface Designer {
 
 export default function GestaoDesigners() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -191,6 +193,15 @@ export default function GestaoDesigners() {
 
   return (
     <div className="space-y-4 p-6">
+      <Button
+        variant="ghost"
+        onClick={() => navigate('/dashboard/admin')}
+        className="gap-2 mb-4"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Voltar para Admin
+      </Button>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
