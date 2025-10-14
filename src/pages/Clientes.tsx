@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, Eye, Upload } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { InputWithMask } from '@/components/ui/input-mask';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -21,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface Cliente {
   id: number;
@@ -34,11 +36,8 @@ interface Cliente {
 export default function Clientes() {
   const { toast } = useToast();
   
-  // Lista de clientes
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
-  
-  // Busca e filtros
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal de criar/editar
@@ -52,6 +51,16 @@ export default function Clientes() {
     telefone: '',
   });
   const [buscandoCep, setBuscandoCep] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  
+  // Validações em tempo real
+  const [erros, setErros] = useState({
+    nome: '',
+    cep: '',
+    cidade: '',
+    estado: '',
+    telefone: '',
+  });
   
   // Modal de visualização
   const [showViewModal, setShowViewModal] = useState(false);
@@ -60,6 +69,7 @@ export default function Clientes() {
   // Modal de exclusão
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,14 +82,15 @@ export default function Clientes() {
   const carregarClientes = async () => {
     setLoading(true);
     try {
-      // TODO: Implementar chamada à API
-      // const res = await api.getAllClientes();
-      // setClientes(res.data);
+      // TODO: Implementar chamada à API Rust
+      // const res = await invoke('get_clientes');
+      // setClientes(res);
       
-      // Dados de exemplo
+      // Dados de exemplo por enquanto
       setClientes([
-        { id: 1, nome: 'Cliente Teste 1', cep: '01310-100', cidade: 'São Paulo', estado: 'SP', telefone: '(11) 99999-9999' },
-        { id: 2, nome: 'Cliente Teste 2', cep: '20040-020', cidade: 'Rio de Janeiro', estado: 'RJ', telefone: '(21) 98888-8888' },
+        { id: 1, nome: 'João Silva', cep: '01310-100', cidade: 'São Paulo', estado: 'SP', telefone: '(11) 99999-9999' },
+        { id: 2, nome: 'Maria Santos', cep: '20040-020', cidade: 'Rio de Janeiro', estado: 'RJ', telefone: '(21) 98888-8888' },
+        { id: 3, nome: 'Pedro Oliveira', cep: '30130-100', cidade: 'Belo Horizonte', estado: 'MG', telefone: '(31) 97777-7777' },
       ]);
     } catch (error) {
       toast({
@@ -95,9 +106,13 @@ export default function Clientes() {
   const buscarCep = async (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
     
-    if (cepLimpo.length !== 8) return;
+    if (cepLimpo.length !== 8) {
+      setErros(prev => ({ ...prev, cep: 'CEP deve ter 8 dígitos' }));
+      return;
+    }
 
     setBuscandoCep(true);
+    setErros(prev => ({ ...prev, cep: '' }));
     
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
@@ -115,6 +130,7 @@ export default function Clientes() {
           description: `${data.localidade} - ${data.uf}`,
         });
       } else {
+        setErros(prev => ({ ...prev, cep: 'CEP não encontrado' }));
         toast({
           title: "CEP não encontrado",
           description: "Verifique o CEP digitado.",
@@ -122,9 +138,78 @@ export default function Clientes() {
         });
       }
     } catch (error) {
+      setErros(prev => ({ ...prev, cep: 'Erro ao buscar CEP' }));
       console.error('Erro ao buscar CEP:', error);
     } finally {
       setBuscandoCep(false);
+    }
+  };
+
+  const validarCampo = (campo: string, valor: string) => {
+    let erro = '';
+
+    switch (campo) {
+      case 'nome':
+        if (!valor.trim()) {
+          erro = 'Nome é obrigatório';
+        } else if (valor.trim().length < 3) {
+          erro = 'Nome deve ter no mínimo 3 caracteres';
+        }
+        break;
+      
+      case 'cep':
+        const cepLimpo = valor.replace(/\D/g, '');
+        if (!cepLimpo) {
+          erro = 'CEP é obrigatório';
+        } else if (cepLimpo.length !== 8) {
+          erro = 'CEP deve ter 8 dígitos';
+        }
+        break;
+      
+      case 'cidade':
+        if (!valor.trim()) {
+          erro = 'Cidade é obrigatória';
+        }
+        break;
+      
+      case 'estado':
+        if (!valor.trim()) {
+          erro = 'Estado é obrigatório';
+        } else if (!/^[A-Z]{2}$/.test(valor)) {
+          erro = 'Estado deve ter 2 letras maiúsculas (ex: SP)';
+        }
+        break;
+      
+      case 'telefone':
+        const telLimpo = valor.replace(/\D/g, '');
+        if (!telLimpo) {
+          erro = 'Telefone é obrigatório';
+        } else if (telLimpo.length !== 11) {
+          erro = 'Telefone deve ter 11 dígitos';
+        }
+        break;
+    }
+
+    setErros(prev => ({ ...prev, [campo]: erro }));
+    return erro === '';
+  };
+
+  const handleFormChange = (campo: string, valor: string) => {
+    setForm(prev => ({ ...prev, [campo]: valor }));
+    
+    // Validar em tempo real
+    if (valor) {
+      validarCampo(campo, valor);
+    } else {
+      setErros(prev => ({ ...prev, [campo]: '' }));
+    }
+
+    // Buscar CEP automaticamente quando completo
+    if (campo === 'cep') {
+      const cepLimpo = valor.replace(/\D/g, '');
+      if (cepLimpo.length === 8) {
+        buscarCep(valor);
+      }
     }
   };
 
@@ -148,48 +233,54 @@ export default function Clientes() {
       });
       setEditando(null);
     }
+    setErros({ nome: '', cep: '', cidade: '', estado: '', telefone: '' });
     setShowModal(true);
   };
 
   const salvarCliente = async () => {
-    // Validações
-    if (!form.nome.trim() || !form.cidade.trim() || !form.estado.trim() || !form.telefone.trim()) {
+    // Validar todos os campos
+    const nomeValido = validarCampo('nome', form.nome);
+    const cepValido = validarCampo('cep', form.cep);
+    const cidadeValida = validarCampo('cidade', form.cidade);
+    const estadoValido = validarCampo('estado', form.estado);
+    const telefoneValido = validarCampo('telefone', form.telefone);
+
+    if (!nomeValido || !cepValido || !cidadeValida || !estadoValido || !telefoneValido) {
       toast({
-        title: "Erro",
-        description: "Todos os campos são obrigatórios!",
+        title: "Erro de validação",
+        description: "Corrija os erros antes de salvar.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!/^\([0-9]{2}\)\s[0-9]{5}-[0-9]{4}$/.test(form.telefone)) {
-      toast({
-        title: "Erro",
-        description: "Telefone inválido. Use o formato (11) 99999-9999",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!/^[A-Z]{2}$/.test(form.estado)) {
-      toast({
-        title: "Erro",
-        description: "Estado deve conter exatamente 2 letras maiúsculas (ex: SP)",
-        variant: "destructive",
-      });
-      return;
-    }
+    setSalvando(true);
 
     try {
-      // TODO: Implementar chamada à API
       if (editando) {
-        // await api.updateCliente(editando, form);
+        // TODO: Implementar API Rust
+        // await invoke('update_cliente', { id: editando, cliente: form });
+        
+        // Atualizar localmente
+        setClientes(prev => prev.map(c => 
+          c.id === editando ? { ...c, ...form } : c
+        ));
+        
         toast({
           title: "Cliente atualizado!",
           description: "Cliente atualizado com sucesso!",
         });
       } else {
-        // await api.postCliente(form);
+        // TODO: Implementar API Rust
+        // const novoCliente = await invoke('create_cliente', { cliente: form });
+        
+        // Criar localmente (temporário)
+        const novoCliente = { 
+          id: Math.max(...clientes.map(c => c.id), 0) + 1, 
+          ...form 
+        };
+        setClientes(prev => [novoCliente, ...prev]);
+        
         toast({
           title: "Cliente cadastrado!",
           description: "Cliente cadastrado com sucesso!",
@@ -199,22 +290,29 @@ export default function Clientes() {
       setShowModal(false);
       setForm({ nome: '', cep: '', cidade: '', estado: '', telefone: '' });
       setEditando(null);
-      carregarClientes();
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível salvar o cliente.",
         variant: "destructive",
       });
+      console.error('Erro ao salvar cliente:', error);
+    } finally {
+      setSalvando(false);
     }
   };
 
   const confirmarExclusao = async () => {
     if (!clienteParaExcluir) return;
 
+    setExcluindo(true);
+
     try {
-      // TODO: Implementar chamada à API
-      // await api.deleteCliente(clienteParaExcluir.id);
+      // TODO: Implementar API Rust
+      // await invoke('delete_cliente', { id: clienteParaExcluir.id });
+      
+      // Excluir localmente
+      setClientes(prev => prev.filter(c => c.id !== clienteParaExcluir.id));
       
       toast({
         title: "Cliente excluído!",
@@ -223,13 +321,14 @@ export default function Clientes() {
       
       setShowDeleteModal(false);
       setClienteParaExcluir(null);
-      carregarClientes();
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível excluir o cliente.",
         variant: "destructive",
       });
+    } finally {
+      setExcluindo(false);
     }
   };
 
@@ -255,27 +354,26 @@ export default function Clientes() {
           <h1 className="text-3xl font-bold tracking-tight">Cadastro de Clientes</h1>
           <p className="text-muted-foreground">Gerencie os clientes do sistema</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => abrirModal()} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Cliente
-          </Button>
-        </div>
+        <Button onClick={() => abrirModal()} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Novo Cliente
+        </Button>
       </div>
 
       {/* Busca */}
-      <Card className="border-l-4 border-l-blue-500 bg-blue-50/20">
-        <CardHeader className="bg-blue-50/50">
+      <Card className="border-l-4 border-l-blue-500 shadow-md">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100/50">
           <CardTitle className="text-blue-900">Buscar Clientes</CardTitle>
+          <CardDescription>Pesquise por nome, cidade ou telefone</CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
+        <CardContent className="pt-4 bg-blue-50/20">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome, cidade ou telefone..."
+              placeholder="Digite para buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white"
+              className="pl-10 bg-white border-blue-200"
             />
           </div>
         </CardContent>
@@ -290,10 +388,10 @@ export default function Clientes() {
                 <TableRow>
                   <TableHead className="w-[80px]">ID</TableHead>
                   <TableHead>Nome</TableHead>
-                  <TableHead>CEP</TableHead>
+                  <TableHead className="w-[120px]">CEP</TableHead>
                   <TableHead>Cidade</TableHead>
-                  <TableHead className="w-[80px]">UF</TableHead>
-                  <TableHead>Telefone</TableHead>
+                  <TableHead className="w-[60px]">UF</TableHead>
+                  <TableHead className="w-[150px]">Telefone</TableHead>
                   <TableHead className="text-right w-[120px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -307,7 +405,7 @@ export default function Clientes() {
                 ) : clientesPaginados.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      Nenhum cliente encontrado
+                      {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -317,7 +415,7 @@ export default function Clientes() {
                       <TableCell className="font-medium">{cliente.nome}</TableCell>
                       <TableCell>{cliente.cep}</TableCell>
                       <TableCell>{cliente.cidade}</TableCell>
-                      <TableCell>{cliente.estado}</TableCell>
+                      <TableCell className="font-semibold">{cliente.estado}</TableCell>
                       <TableCell>{cliente.telefone}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -377,6 +475,9 @@ export default function Clientes() {
             >
               Anterior
             </Button>
+            <span className="flex items-center px-3 text-sm">
+              Página {currentPage} de {totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"
@@ -390,58 +491,73 @@ export default function Clientes() {
       )}
 
       {/* Modal de Criar/Editar Cliente */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog open={showModal} onOpenChange={(open) => {
+        setShowModal(open);
+        if (!open) {
+          setErros({ nome: '', cep: '', cidade: '', estado: '', telefone: '' });
+        }
+      }}>
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle className="text-xl">
               {editando ? 'Editar Cliente' : 'Novo Cliente'}
             </DialogTitle>
             <DialogDescription>
-              Preencha os dados do cliente abaixo
+              {editando ? 'Atualize os dados do cliente' : 'Preencha os dados do novo cliente'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Nome */}
             <div className="space-y-2">
-              <Label htmlFor="nome" className="font-medium">Nome Completo *</Label>
+              <Label htmlFor="nome" className="font-medium">
+                Nome Completo *
+              </Label>
               <Input
                 id="nome"
                 value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                onChange={(e) => handleFormChange('nome', e.target.value)}
+                onBlur={() => validarCampo('nome', form.nome)}
                 placeholder="Digite o nome completo"
-                className="bg-white"
+                className={cn(
+                  "bg-white",
+                  erros.nome && "border-destructive focus-visible:ring-destructive"
+                )}
               />
+              {erros.nome && (
+                <p className="text-sm text-destructive">{erros.nome}</p>
+              )}
             </div>
 
             {/* CEP */}
             <div className="space-y-2">
               <Label htmlFor="cep" className="font-medium">CEP *</Label>
               <div className="flex gap-2">
-                <Input
-                  id="cep"
-                  value={form.cep}
-                  onChange={(e) => {
-                    const valor = e.target.value;
-                    setForm({ ...form, cep: valor });
-                    
-                    // Buscar CEP automaticamente quando completo
-                    const cepLimpo = valor.replace(/\D/g, '');
-                    if (cepLimpo.length === 8) {
-                      buscarCep(valor);
-                    }
-                  }}
-                  placeholder="00000-000"
-                  maxLength={9}
-                  className="bg-white"
-                />
+                <div className="flex-1">
+                  <InputWithMask
+                    id="cep"
+                    mask="99999-999"
+                    value={form.cep}
+                    onChange={(e) => handleFormChange('cep', e.target.value)}
+                    onBlur={() => validarCampo('cep', form.cep)}
+                    placeholder="00000-000"
+                    className={cn(
+                      "bg-white",
+                      erros.cep && "border-destructive"
+                    )}
+                  />
+                  {erros.cep && (
+                    <p className="text-sm text-destructive mt-1">{erros.cep}</p>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => buscarCep(form.cep)}
                   disabled={buscandoCep}
+                  className="min-w-[100px]"
                 >
-                  {buscandoCep ? 'Buscando...' : 'Buscar'}
+                  {buscandoCep ? 'Buscando...' : 'Buscar CEP'}
                 </Button>
               </div>
             </div>
@@ -453,10 +569,17 @@ export default function Clientes() {
                 <Input
                   id="cidade"
                   value={form.cidade}
-                  onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+                  onChange={(e) => handleFormChange('cidade', e.target.value)}
+                  onBlur={() => validarCampo('cidade', form.cidade)}
                   placeholder="São Paulo"
-                  className="bg-white"
+                  className={cn(
+                    "bg-white",
+                    erros.cidade && "border-destructive"
+                  )}
                 />
+                {erros.cidade && (
+                  <p className="text-sm text-destructive">{erros.cidade}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -464,24 +587,39 @@ export default function Clientes() {
                 <Input
                   id="estado"
                   value={form.estado}
-                  onChange={(e) => setForm({ ...form, estado: e.target.value.toUpperCase() })}
+                  onChange={(e) => handleFormChange('estado', e.target.value.toUpperCase())}
+                  onBlur={() => validarCampo('estado', form.estado)}
                   placeholder="SP"
                   maxLength={2}
-                  className="bg-white uppercase"
+                  className={cn(
+                    "bg-white uppercase",
+                    erros.estado && "border-destructive"
+                  )}
                 />
+                {erros.estado && (
+                  <p className="text-sm text-destructive">{erros.estado}</p>
+                )}
               </div>
             </div>
 
             {/* Telefone */}
             <div className="space-y-2">
               <Label htmlFor="telefone" className="font-medium">Telefone *</Label>
-              <Input
+              <InputWithMask
                 id="telefone"
+                mask="(99) 99999-9999"
                 value={form.telefone}
-                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-                placeholder="(11) 99999-9999"
-                className="bg-white"
+                onChange={(e) => handleFormChange('telefone', e.target.value)}
+                onBlur={() => validarCampo('telefone', form.telefone)}
+                placeholder="(00) 00000-0000"
+                className={cn(
+                  "bg-white",
+                  erros.telefone && "border-destructive"
+                )}
               />
+              {erros.telefone && (
+                <p className="text-sm text-destructive">{erros.telefone}</p>
+              )}
             </div>
           </div>
 
@@ -489,8 +627,8 @@ export default function Clientes() {
             <Button variant="outline" onClick={() => setShowModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={salvarCliente}>
-              {editando ? 'Atualizar' : 'Cadastrar'}
+            <Button onClick={salvarCliente} disabled={salvando}>
+              {salvando ? 'Salvando...' : (editando ? 'Atualizar' : 'Cadastrar')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -505,25 +643,32 @@ export default function Clientes() {
 
           {clienteParaVisualizar && (
             <div className="space-y-3 py-4">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-sm text-muted-foreground">ID:</span>
-                <span className="font-medium">#{clienteParaVisualizar.id}</span>
+              <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
+                <div className="col-span-3">
+                  <p className="text-xs text-muted-foreground">ID</p>
+                  <p className="font-semibold">#{clienteParaVisualizar.id}</p>
+                </div>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-sm text-muted-foreground">Nome:</span>
-                <span className="font-medium">{clienteParaVisualizar.nome}</span>
+              
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-blue-600 font-medium mb-1">NOME</p>
+                <p className="font-semibold text-lg">{clienteParaVisualizar.nome}</p>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-sm text-muted-foreground">CEP:</span>
-                <span className="font-medium">{clienteParaVisualizar.cep}</span>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">CEP</p>
+                  <p className="font-semibold">{clienteParaVisualizar.cep}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Telefone</p>
+                  <p className="font-semibold">{clienteParaVisualizar.telefone}</p>
+                </div>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-sm text-muted-foreground">Cidade/UF:</span>
-                <span className="font-medium">{clienteParaVisualizar.cidade} - {clienteParaVisualizar.estado}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Telefone:</span>
-                <span className="font-medium">{clienteParaVisualizar.telefone}</span>
+              
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">Localização</p>
+                <p className="font-semibold">{clienteParaVisualizar.cidade} - {clienteParaVisualizar.estado}</p>
               </div>
             </div>
           )}
@@ -545,11 +690,19 @@ export default function Clientes() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteModal(false)}
+              disabled={excluindo}
+            >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmarExclusao}>
-              Excluir
+            <Button 
+              variant="destructive" 
+              onClick={confirmarExclusao}
+              disabled={excluindo}
+            >
+              {excluindo ? 'Excluindo...' : 'Excluir'}
             </Button>
           </DialogFooter>
         </DialogContent>
