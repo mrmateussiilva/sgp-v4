@@ -1,4 +1,3 @@
-use crate::db::get_db_pool;
 use crate::models::{Cliente, CreateClienteRequest, UpdateClienteRequest};
 use tauri::State;
 use sqlx::PgPool;
