@@ -143,8 +143,10 @@ pub struct Cliente {
     pub cidade: String,
     pub estado: String,
     pub telefone: String,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
