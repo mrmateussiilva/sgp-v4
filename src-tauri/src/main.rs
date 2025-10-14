@@ -46,6 +46,11 @@ async fn main() {
             commands::orders::update_order,
             commands::orders::delete_order,
             commands::orders::get_orders_with_filters,
+            commands::clientes::get_clientes,
+            commands::clientes::get_cliente_by_id,
+            commands::clientes::create_cliente,
+            commands::clientes::update_cliente,
+            commands::clientes::delete_cliente,
         ])
         .run(tauri::generate_context!())
         .expect("Erro ao executar aplicação Tauri");

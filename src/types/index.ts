@@ -98,3 +98,35 @@ export interface PaginatedOrders {
   total_pages: number;
 }
 
+// ========================================
+// Cliente
+// ========================================
+
+export interface Cliente {
+  id: number;
+  nome: string;
+  cep: string;
+  cidade: string;
+  estado: string;
+  telefone: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateClienteRequest {
+  nome: string;
+  cep: string;
+  cidade: string;
+  estado: string;
+  telefone: string;
+}
+
+export interface UpdateClienteRequest {
+  id: number;
+  nome: string;
+  cep: string;
+  cidade: string;
+  estado: string;
+  telefone: string;
+}
+

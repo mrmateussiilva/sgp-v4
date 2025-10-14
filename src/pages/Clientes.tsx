@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react';
+import { api } from '../services/api';
+import { Cliente } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputWithMask } from '@/components/ui/input-mask';
@@ -23,15 +25,6 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-interface Cliente {
-  id: number;
-  nome: string;
-  cep: string;
-  cidade: string;
-  estado: string;
-  telefone: string;
-}
 
 export default function Clientes() {
   const { toast } = useToast();
@@ -82,22 +75,15 @@ export default function Clientes() {
   const carregarClientes = async () => {
     setLoading(true);
     try {
-      // TODO: Implementar chamada à API Rust
-      // const res = await invoke('get_clientes');
-      // setClientes(res);
-      
-      // Dados de exemplo por enquanto
-      setClientes([
-        { id: 1, nome: 'João Silva', cep: '01310-100', cidade: 'São Paulo', estado: 'SP', telefone: '(11) 99999-9999' },
-        { id: 2, nome: 'Maria Santos', cep: '20040-020', cidade: 'Rio de Janeiro', estado: 'RJ', telefone: '(21) 98888-8888' },
-        { id: 3, nome: 'Pedro Oliveira', cep: '30130-100', cidade: 'Belo Horizonte', estado: 'MG', telefone: '(31) 97777-7777' },
-      ]);
+      const clientes = await api.getClientes();
+      setClientes(clientes);
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível carregar os clientes.",
         variant: "destructive",
       });
+      console.error('Erro ao carregar clientes:', error);
     } finally {
       setLoading(false);
     }
@@ -258,28 +244,17 @@ export default function Clientes() {
 
     try {
       if (editando) {
-        // TODO: Implementar API Rust
-        // await invoke('update_cliente', { id: editando, cliente: form });
-        
-        // Atualizar localmente
-        setClientes(prev => prev.map(c => 
-          c.id === editando ? { ...c, ...form } : c
-        ));
+        await api.updateCliente({
+          id: editando,
+          ...form
+        });
         
         toast({
           title: "Cliente atualizado!",
           description: "Cliente atualizado com sucesso!",
         });
       } else {
-        // TODO: Implementar API Rust
-        // const novoCliente = await invoke('create_cliente', { cliente: form });
-        
-        // Criar localmente (temporário)
-        const novoCliente = { 
-          id: Math.max(...clientes.map(c => c.id), 0) + 1, 
-          ...form 
-        };
-        setClientes(prev => [novoCliente, ...prev]);
+        await api.createCliente(form);
         
         toast({
           title: "Cliente cadastrado!",
@@ -290,6 +265,9 @@ export default function Clientes() {
       setShowModal(false);
       setForm({ nome: '', cep: '', cidade: '', estado: '', telefone: '' });
       setEditando(null);
+      
+      // Recarregar lista do banco
+      await carregarClientes();
     } catch (error) {
       toast({
         title: "Erro",
@@ -308,11 +286,7 @@ export default function Clientes() {
     setExcluindo(true);
 
     try {
-      // TODO: Implementar API Rust
-      // await invoke('delete_cliente', { id: clienteParaExcluir.id });
-      
-      // Excluir localmente
-      setClientes(prev => prev.filter(c => c.id !== clienteParaExcluir.id));
+      await api.deleteCliente(clienteParaExcluir.id);
       
       toast({
         title: "Cliente excluído!",
@@ -321,12 +295,16 @@ export default function Clientes() {
       
       setShowDeleteModal(false);
       setClienteParaExcluir(null);
+      
+      // Recarregar lista do banco
+      await carregarClientes();
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível excluir o cliente.",
         variant: "destructive",
       });
+      console.error('Erro ao excluir cliente:', error);
     } finally {
       setExcluindo(false);
     }

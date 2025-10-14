@@ -7,6 +7,9 @@ import {
   UpdateOrderRequest,
   OrderFilters,
   PaginatedOrders,
+  Cliente,
+  CreateClienteRequest,
+  UpdateClienteRequest,
 } from '../types';
 
 export const api = {
@@ -38,6 +41,27 @@ export const api = {
 
   getOrdersWithFilters: async (filters: OrderFilters): Promise<PaginatedOrders> => {
     return await invoke<PaginatedOrders>('get_orders_with_filters', { filters });
+  },
+
+  // Clientes
+  getClientes: async (): Promise<Cliente[]> => {
+    return await invoke<Cliente[]>('get_clientes');
+  },
+
+  getClienteById: async (clienteId: number): Promise<Cliente> => {
+    return await invoke<Cliente>('get_cliente_by_id', { clienteId });
+  },
+
+  createCliente: async (request: CreateClienteRequest): Promise<Cliente> => {
+    return await invoke<Cliente>('create_cliente', { request });
+  },
+
+  updateCliente: async (request: UpdateClienteRequest): Promise<Cliente> => {
+    return await invoke<Cliente>('update_cliente', { request });
+  },
+
+  deleteCliente: async (clienteId: number): Promise<boolean> => {
+    return await invoke<boolean>('delete_cliente', { clienteId });
   },
 };
 

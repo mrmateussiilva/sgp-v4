@@ -131,3 +131,38 @@ pub struct PaginatedOrders {
     pub total_pages: i64,
 }
 
+// ========================================
+// Cliente
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Cliente {
+    pub id: i32,
+    pub nome: String,
+    pub cep: String,
+    pub cidade: String,
+    pub estado: String,
+    pub telefone: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateClienteRequest {
+    pub nome: String,
+    pub cep: String,
+    pub cidade: String,
+    pub estado: String,
+    pub telefone: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateClienteRequest {
+    pub id: i32,
+    pub nome: String,
+    pub cep: String,
+    pub cidade: String,
+    pub estado: String,
+    pub telefone: String,
+}
+
