@@ -1,0 +1,30 @@
+[package]
+name = "sgp-v4"
+version = "1.0.0"
+description = "Sistema de Gerenciamento de Pedidos"
+authors = ["SGP Team"]
+license = ""
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5.1", features = [] }
+
+[dependencies]
+tauri = { version = "1.5.4", features = ["shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "macros", "chrono", "uuid", "rust_decimal"] }
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+bcrypt = "0.15"
+dotenv = "0.15"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+rust_decimal = "1.39.0"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
