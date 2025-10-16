@@ -233,7 +233,7 @@ export default function OrderList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Pedidos</h1>
@@ -291,10 +291,10 @@ export default function OrderList() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-        <Table>
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardContent className="p-0 flex-1 flex flex-col">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
+        <Table className="min-w-[800px]">
               <TableHeader>
             <TableRow>
                   <TableHead className="w-[80px]">Nº</TableHead>

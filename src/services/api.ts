@@ -63,5 +63,31 @@ export const api = {
   deleteCliente: async (clienteId: number): Promise<boolean> => {
     return await invoke<boolean>('delete_cliente', { clienteId });
   },
+
+  // Catálogos (Vendedores, Designers, Materiais/Tecidos)
+  getVendedoresAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
+    return await invoke<Array<{ id: number; nome: string }>>('get_vendedores_ativos');
+  },
+
+  getDesignersAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
+    return await invoke<Array<{ id: number; nome: string }>>('get_designers_ativos');
+  },
+
+  getTecidosAtivos: async (): Promise<string[]> => {
+    const materiais = await invoke<Array<{ id: number; nome: string; tipo: string; ativo: boolean }>>('get_materiais_ativos');
+    return (materiais || [])
+      .filter((m) => (m as any).tipo?.toLowerCase() === 'tecido')
+      .map((m) => m.nome);
+  },
+
+  // Formas de Envio
+  getFormasEnvioAtivas: async (): Promise<any[]> => {
+    return await invoke<any[]>('get_formas_envio_ativas');
+  },
+
+  // Formas de Pagamento
+  getFormasPagamentoAtivas: async (): Promise<any[]> => {
+    return await invoke<any[]>('get_formas_pagamento_ativas');
+  },
 };
 

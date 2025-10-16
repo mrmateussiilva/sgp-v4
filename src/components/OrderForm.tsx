@@ -186,7 +186,7 @@ export default function OrderForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -205,7 +205,7 @@ export default function OrderForm() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-6 overflow-auto">
         <Card>
           <CardHeader>
             <CardTitle>Dados do Cliente</CardTitle>

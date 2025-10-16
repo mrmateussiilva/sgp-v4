@@ -131,3 +131,39 @@ export interface UpdateClienteRequest {
   telefone: string;
 }
 
+// ========================================
+// TabItem para formulário de produção
+// ========================================
+
+export interface TabItem {
+  id: string;
+  tipo_producao: string;
+  descricao: string;
+  largura: string;
+  altura: string;
+  metro_quadrado: string;
+  vendedor: string;
+  designer: string;
+  tecido: string;
+  overloque: boolean;
+  elastico: boolean;
+  tipo_acabamento: 'ilhos' | 'cordinha' | 'nenhum';
+  // Campos para ilhós
+  quantidade_ilhos: string;
+  espaco_ilhos: string;
+  valor_ilhos: string;
+  // Campos para cordinha
+  quantidade_cordinha: string;
+  espaco_cordinha: string;
+  valor_cordinha: string;
+  // Campos extras
+  imagem: string;
+  valor_painel: string;
+  valores_adicionais: string;
+  quantidade_paineis: string;
+  emenda: string;
+  emendaQtd: string;
+  observacao: string;
+  valor_unitario: string;
+}
+
