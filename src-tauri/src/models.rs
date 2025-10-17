@@ -34,14 +34,42 @@ pub struct User {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Order {
     pub id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numero: Option<String>,
     pub customer_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
     pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cidade_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telefone_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrada: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrega: Option<chrono::NaiveDate>,
     pub total_value: rust_decimal::Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_total: Option<rust_decimal::Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::NaiveDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<chrono::NaiveDateTime>,
     pub status: OrderStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prioridade: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub financeiro: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conferencia: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sublimacao: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub costura: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expedicao: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -76,14 +104,42 @@ pub struct LoginResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderWithItems {
     pub id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numero: Option<String>,
     pub customer_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
     pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cidade_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telefone_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrada: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrega: Option<chrono::NaiveDate>,
     pub total_value: rust_decimal::Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_total: Option<rust_decimal::Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::NaiveDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<chrono::NaiveDateTime>,
     pub status: OrderStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prioridade: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub financeiro: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conferencia: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sublimacao: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub costura: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expedicao: Option<bool>,
     pub items: Vec<OrderItem>,
 }
 
@@ -117,6 +173,16 @@ pub struct UpdateOrderItemRequest {
     pub item_name: String,
     pub quantity: i32,
     pub unit_price: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateOrderStatusRequest {
+    pub id: i32,
+    pub financeiro: Option<bool>,
+    pub conferencia: Option<bool>,
+    pub sublimacao: Option<bool>,
+    pub costura: Option<bool>,
+    pub expedicao: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -365,4 +431,3 @@ pub struct UpdateFormaPagamentoRequest {
     pub ativo: bool,
     pub observacao: Option<String>,
 }
-

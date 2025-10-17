@@ -10,6 +10,7 @@ import {
   Cliente,
   CreateClienteRequest,
   UpdateClienteRequest,
+  UpdateOrderStatusRequest,
 } from '../types';
 
 export const api = {
@@ -33,6 +34,10 @@ export const api = {
 
   updateOrder: async (request: UpdateOrderRequest): Promise<OrderWithItems> => {
     return await invoke<OrderWithItems>('update_order', { request });
+  },
+
+  updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
+    return await invoke<OrderWithItems>('update_order_status_flags', { request });
   },
 
   deleteOrder: async (orderId: number): Promise<boolean> => {
@@ -90,4 +95,3 @@ export const api = {
     return await invoke<any[]>('get_formas_pagamento_ativas');
   },
 };
-

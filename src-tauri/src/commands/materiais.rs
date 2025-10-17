@@ -1,7 +1,7 @@
-use crate::models::{Material, CreateMaterialRequest, UpdateMaterialRequest};
-use tauri::State;
-use sqlx::PgPool;
+use crate::models::{CreateMaterialRequest, Material, UpdateMaterialRequest};
 use rust_decimal::Decimal;
+use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_materiais(pool: State<'_, PgPool>) -> Result<Vec<Material>, String> {
@@ -33,7 +33,10 @@ pub async fn get_materiais_ativos(pool: State<'_, PgPool>) -> Result<Vec<Materia
 }
 
 #[tauri::command]
-pub async fn get_material_by_id(pool: State<'_, PgPool>, material_id: i32) -> Result<Material, String> {
+pub async fn get_material_by_id(
+    pool: State<'_, PgPool>,
+    material_id: i32,
+) -> Result<Material, String> {
     let material = sqlx::query_as::<_, Material>(
         "SELECT id, nome, tipo, valor_metro, estoque_metros, ativo, observacao, created_at, updated_at 
          FROM materiais 
@@ -52,8 +55,8 @@ pub async fn create_material(
     pool: State<'_, PgPool>,
     request: CreateMaterialRequest,
 ) -> Result<Material, String> {
-    let valor_metro = Decimal::from_f64_retain(request.valor_metro)
-        .ok_or("Erro ao converter valor_metro")?;
+    let valor_metro =
+        Decimal::from_f64_retain(request.valor_metro).ok_or("Erro ao converter valor_metro")?;
     let estoque_metros = Decimal::from_f64_retain(request.estoque_metros)
         .ok_or("Erro ao converter estoque_metros")?;
 
@@ -80,8 +83,8 @@ pub async fn update_material(
     pool: State<'_, PgPool>,
     request: UpdateMaterialRequest,
 ) -> Result<Material, String> {
-    let valor_metro = Decimal::from_f64_retain(request.valor_metro)
-        .ok_or("Erro ao converter valor_metro")?;
+    let valor_metro =
+        Decimal::from_f64_retain(request.valor_metro).ok_or("Erro ao converter valor_metro")?;
     let estoque_metros = Decimal::from_f64_retain(request.estoque_metros)
         .ok_or("Erro ao converter estoque_metros")?;
 
@@ -115,4 +118,3 @@ pub async fn delete_material(pool: State<'_, PgPool>, material_id: i32) -> Resul
 
     Ok(result.rows_affected() > 0)
 }
-

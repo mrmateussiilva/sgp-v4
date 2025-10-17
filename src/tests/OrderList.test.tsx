@@ -5,7 +5,7 @@ import OrderList from '../components/OrderList';
 
 // Mock Tauri API
 vi.mock('@tauri-apps/api/tauri', () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock react-toastify
@@ -35,10 +35,9 @@ describe('OrderList Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Exportar CSV')).toBeInTheDocument();
-    expect(screen.getByText('Exportar PDF')).toBeInTheDocument();
+    expect(screen.getByText('CSV')).toBeInTheDocument();
+    expect(screen.getByText('PDF')).toBeInTheDocument();
   });
 });
-
 
 

@@ -1,13 +1,13 @@
-use crate::models::{Designer, CreateDesignerRequest, UpdateDesignerRequest};
-use tauri::State;
+use crate::models::{CreateDesignerRequest, Designer, UpdateDesignerRequest};
 use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_designers(pool: State<'_, PgPool>) -> Result<Vec<Designer>, String> {
     let designers = sqlx::query_as::<_, Designer>(
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -22,7 +22,7 @@ pub async fn get_designers_ativos(pool: State<'_, PgPool>) -> Result<Vec<Designe
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
          WHERE ativo = true
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -32,11 +32,14 @@ pub async fn get_designers_ativos(pool: State<'_, PgPool>) -> Result<Vec<Designe
 }
 
 #[tauri::command]
-pub async fn get_designer_by_id(pool: State<'_, PgPool>, designer_id: i32) -> Result<Designer, String> {
+pub async fn get_designer_by_id(
+    pool: State<'_, PgPool>,
+    designer_id: i32,
+) -> Result<Designer, String> {
     let designer = sqlx::query_as::<_, Designer>(
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
-         WHERE id = $1"
+         WHERE id = $1",
     )
     .bind(designer_id)
     .fetch_one(pool.inner())
@@ -54,7 +57,7 @@ pub async fn create_designer(
     let designer = sqlx::query_as::<_, Designer>(
         "INSERT INTO designers (nome, email, telefone, ativo, observacao) 
          VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, nome, email, telefone, ativo, observacao, created_at, updated_at"
+         RETURNING id, nome, email, telefone, ativo, observacao, created_at, updated_at",
     )
     .bind(&request.nome)
     .bind(&request.email)
@@ -102,4 +105,3 @@ pub async fn delete_designer(pool: State<'_, PgPool>, designer_id: i32) -> Resul
 
     Ok(result.rows_affected() > 0)
 }
-

@@ -1,14 +1,14 @@
-use crate::models::{FormaEnvio, CreateFormaEnvioRequest, UpdateFormaEnvioRequest};
-use tauri::State;
-use sqlx::PgPool;
+use crate::models::{CreateFormaEnvioRequest, FormaEnvio, UpdateFormaEnvioRequest};
 use rust_decimal::Decimal;
+use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_formas_envio(pool: State<'_, PgPool>) -> Result<Vec<FormaEnvio>, String> {
     let formas = sqlx::query_as::<_, FormaEnvio>(
         "SELECT id, nome, valor, prazo_dias, ativo, observacao, created_at, updated_at 
          FROM formas_envio 
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -23,7 +23,7 @@ pub async fn get_formas_envio_ativas(pool: State<'_, PgPool>) -> Result<Vec<Form
         "SELECT id, nome, valor, prazo_dias, ativo, observacao, created_at, updated_at 
          FROM formas_envio 
          WHERE ativo = true
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -33,11 +33,14 @@ pub async fn get_formas_envio_ativas(pool: State<'_, PgPool>) -> Result<Vec<Form
 }
 
 #[tauri::command]
-pub async fn get_forma_envio_by_id(pool: State<'_, PgPool>, forma_id: i32) -> Result<FormaEnvio, String> {
+pub async fn get_forma_envio_by_id(
+    pool: State<'_, PgPool>,
+    forma_id: i32,
+) -> Result<FormaEnvio, String> {
     let forma = sqlx::query_as::<_, FormaEnvio>(
         "SELECT id, nome, valor, prazo_dias, ativo, observacao, created_at, updated_at 
          FROM formas_envio 
-         WHERE id = $1"
+         WHERE id = $1",
     )
     .bind(forma_id)
     .fetch_one(pool.inner())
@@ -52,13 +55,12 @@ pub async fn create_forma_envio(
     pool: State<'_, PgPool>,
     request: CreateFormaEnvioRequest,
 ) -> Result<FormaEnvio, String> {
-    let valor = Decimal::from_f64_retain(request.valor)
-        .ok_or("Erro ao converter valor")?;
+    let valor = Decimal::from_f64_retain(request.valor).ok_or("Erro ao converter valor")?;
 
     let forma = sqlx::query_as::<_, FormaEnvio>(
         "INSERT INTO formas_envio (nome, valor, prazo_dias, ativo, observacao) 
          VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, nome, valor, prazo_dias, ativo, observacao, created_at, updated_at"
+         RETURNING id, nome, valor, prazo_dias, ativo, observacao, created_at, updated_at",
     )
     .bind(&request.nome)
     .bind(valor)
@@ -77,8 +79,7 @@ pub async fn update_forma_envio(
     pool: State<'_, PgPool>,
     request: UpdateFormaEnvioRequest,
 ) -> Result<FormaEnvio, String> {
-    let valor = Decimal::from_f64_retain(request.valor)
-        .ok_or("Erro ao converter valor")?;
+    let valor = Decimal::from_f64_retain(request.valor).ok_or("Erro ao converter valor")?;
 
     let forma = sqlx::query_as::<_, FormaEnvio>(
         "UPDATE formas_envio 
@@ -109,4 +110,3 @@ pub async fn delete_forma_envio(pool: State<'_, PgPool>, forma_id: i32) -> Resul
 
     Ok(result.rows_affected() > 0)
 }
-

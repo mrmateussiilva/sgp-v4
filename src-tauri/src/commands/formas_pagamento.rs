@@ -1,14 +1,14 @@
-use crate::models::{FormaPagamento, CreateFormaPagamentoRequest, UpdateFormaPagamentoRequest};
-use tauri::State;
-use sqlx::PgPool;
+use crate::models::{CreateFormaPagamentoRequest, FormaPagamento, UpdateFormaPagamentoRequest};
 use rust_decimal::Decimal;
+use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_formas_pagamento(pool: State<'_, PgPool>) -> Result<Vec<FormaPagamento>, String> {
     let formas = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -18,12 +18,14 @@ pub async fn get_formas_pagamento(pool: State<'_, PgPool>) -> Result<Vec<FormaPa
 }
 
 #[tauri::command]
-pub async fn get_formas_pagamento_ativas(pool: State<'_, PgPool>) -> Result<Vec<FormaPagamento>, String> {
+pub async fn get_formas_pagamento_ativas(
+    pool: State<'_, PgPool>,
+) -> Result<Vec<FormaPagamento>, String> {
     let formas = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
          WHERE ativo = true
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -33,11 +35,14 @@ pub async fn get_formas_pagamento_ativas(pool: State<'_, PgPool>) -> Result<Vec<
 }
 
 #[tauri::command]
-pub async fn get_forma_pagamento_by_id(pool: State<'_, PgPool>, forma_id: i32) -> Result<FormaPagamento, String> {
+pub async fn get_forma_pagamento_by_id(
+    pool: State<'_, PgPool>,
+    forma_id: i32,
+) -> Result<FormaPagamento, String> {
     let forma = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
-         WHERE id = $1"
+         WHERE id = $1",
     )
     .bind(forma_id)
     .fetch_one(pool.inner())
@@ -100,7 +105,10 @@ pub async fn update_forma_pagamento(
 }
 
 #[tauri::command]
-pub async fn delete_forma_pagamento(pool: State<'_, PgPool>, forma_id: i32) -> Result<bool, String> {
+pub async fn delete_forma_pagamento(
+    pool: State<'_, PgPool>,
+    forma_id: i32,
+) -> Result<bool, String> {
     let result = sqlx::query("DELETE FROM formas_pagamento WHERE id = $1")
         .bind(forma_id)
         .execute(pool.inner())
@@ -109,4 +117,3 @@ pub async fn delete_forma_pagamento(pool: State<'_, PgPool>, forma_id: i32) -> R
 
     Ok(result.rows_affected() > 0)
 }
-

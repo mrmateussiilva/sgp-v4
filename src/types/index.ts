@@ -17,17 +17,17 @@ export interface OrderItem {
 export interface OrderWithItems {
   id: number;
   numero?: string;
-  customer_name?: string;
+  customer_name: string;
   cliente?: string;
-  address?: string;
+  address: string;
   cidade_cliente?: string;
   telefone_cliente?: string;
   data_entrada?: string;
   data_entrega?: string;
-  total_value?: number;
-  valor_total?: number;
-  created_at: string;
-  updated_at: string;
+  total_value: number | string;
+  valor_total?: number | string;
+  created_at?: string | null;
+  updated_at?: string | null;
   status: OrderStatus;
   prioridade?: string;
   
@@ -67,6 +67,15 @@ export interface UpdateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+}
+
+export interface UpdateOrderStatusRequest {
+  id: number;
+  financeiro: boolean;
+  conferencia: boolean;
+  sublimacao: boolean;
+  costura: boolean;
+  expedicao: boolean;
 }
 
 export interface LoginRequest {
@@ -166,4 +175,3 @@ export interface TabItem {
   observacao: string;
   valor_unitario: string;
 }
-

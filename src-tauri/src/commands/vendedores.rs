@@ -1,7 +1,7 @@
-use crate::models::{Vendedor, CreateVendedorRequest, UpdateVendedorRequest};
-use tauri::State;
-use sqlx::PgPool;
+use crate::models::{CreateVendedorRequest, UpdateVendedorRequest, Vendedor};
 use rust_decimal::Decimal;
+use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_vendedores(pool: State<'_, PgPool>) -> Result<Vec<Vendedor>, String> {
@@ -33,7 +33,10 @@ pub async fn get_vendedores_ativos(pool: State<'_, PgPool>) -> Result<Vec<Vended
 }
 
 #[tauri::command]
-pub async fn get_vendedor_by_id(pool: State<'_, PgPool>, vendedor_id: i32) -> Result<Vendedor, String> {
+pub async fn get_vendedor_by_id(
+    pool: State<'_, PgPool>,
+    vendedor_id: i32,
+) -> Result<Vendedor, String> {
     let vendedor = sqlx::query_as::<_, Vendedor>(
         "SELECT id, nome, email, telefone, comissao_percentual, ativo, observacao, created_at, updated_at 
          FROM vendedores 
@@ -111,4 +114,3 @@ pub async fn delete_vendedor(pool: State<'_, PgPool>, vendedor_id: i32) -> Resul
 
     Ok(result.rows_affected() > 0)
 }
-

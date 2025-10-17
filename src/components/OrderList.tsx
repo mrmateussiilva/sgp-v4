@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Eye, Download, FileText, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
-import { OrderStatus, OrderWithItems } from '../types';
+import { OrderStatus, OrderWithItems, UpdateOrderStatusRequest } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import OrderDetails from './OrderDetails';
 import { exportToCSV, exportToPDF } from '../utils/exportUtils';
@@ -38,7 +38,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 export default function OrderList() {
   const navigate = useNavigate();
-  const { orders, setOrders, removeOrder, setSelectedOrder } = useOrderStore();
+  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,49 +179,45 @@ export default function OrderList() {
 
   const handleConfirmStatusChange = async () => {
     const { pedidoId, campo, novoValor } = statusConfirmModal;
-    
+    const targetOrder = orders.find((order) => order.id === pedidoId);
+
+    if (!targetOrder) {
+      setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
+      return;
+    }
+
+    let payload: UpdateOrderStatusRequest = {
+      id: pedidoId,
+      financeiro: campo === 'financeiro' ? novoValor : targetOrder.financeiro === true,
+      conferencia: campo === 'conferencia' ? novoValor : targetOrder.conferencia === true,
+      sublimacao: campo === 'sublimacao' ? novoValor : targetOrder.sublimacao === true,
+      costura: campo === 'costura' ? novoValor : targetOrder.costura === true,
+      expedicao: campo === 'expedicao' ? novoValor : targetOrder.expedicao === true,
+    };
+
+    if (!payload.financeiro) {
+      payload = {
+        ...payload,
+        conferencia: false,
+        sublimacao: false,
+        costura: false,
+        expedicao: false,
+      };
+    }
+
     try {
-      console.log('Atualizando pedido:', { pedidoId, campo, novoValor });
-      
-      // Atualizar localmente PRIMEIRO
-      const updatedOrders = orders.map(order => {
-        if (order.id === pedidoId) {
-          let updated = { ...order, [campo]: novoValor };
-          
-          // Se está DESMARCANDO o Financeiro, desmarcar todos os outros também
-          if (campo === 'financeiro' && novoValor === false) {
-            updated = {
-              ...updated,
-              financeiro: false,
-              conferencia: false,
-              sublimacao: false,
-              costura: false,
-              expedicao: false,
-            };
-          }
-          
-          console.log('Pedido atualizado:', updated);
-          return updated;
-        }
-        return order;
-      });
-      
-      setOrders(updatedOrders);
-      
-      const mensagem = campo === 'financeiro' && novoValor === false
-        ? 'Financeiro desmarcado. Todos os status foram resetados.'
-        : `${statusConfirmModal.nomeSetor} ${novoValor ? 'marcado' : 'desmarcado'} com sucesso!`;
-      
+      const updatedOrder = await api.updateOrderStatus(payload);
+      updateOrder(updatedOrder);
+
+      const mensagem =
+        payload.financeiro === false && campo === 'financeiro'
+          ? 'Financeiro desmarcado. Todos os status foram resetados.'
+          : `${statusConfirmModal.nomeSetor} ${novoValor ? 'marcado' : 'desmarcado'} com sucesso!`;
+
       toast({
         title: "Status atualizado",
         description: mensagem,
       });
-      
-      setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
-      
-      // TODO: Implementar atualização no backend
-      // await api.updateOrder({ id: pedidoId, [campo]: novoValor });
-      // await loadOrders(); // Recarregar após salvar no backend
     } catch (error) {
       toast({
         title: "Erro",
@@ -229,6 +225,8 @@ export default function OrderList() {
         variant: "destructive",
       });
       console.error('Error updating status:', error);
+    } finally {
+      setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
     }
   };
 
@@ -325,16 +323,7 @@ export default function OrderList() {
                 </TableCell>
               </TableRow>
             ) : (
-                  paginatedOrders.map((order: any) => {
-                    // Debug: verificar dados do pedido
-                    console.log('Pedido #' + order.id, {
-                      financeiro: order.financeiro,
-                      conferencia: order.conferencia,
-                      sublimacao: order.sublimacao,
-                      costura: order.costura,
-                      expedicao: order.expedicao
-                    });
-                    
+                  paginatedOrders.map((order: OrderWithItems) => {
                     return (
                       <TableRow key={order.id} className="hover:bg-muted/50">
                         <TableCell className="font-mono font-medium">

@@ -13,7 +13,7 @@ pub async fn login(
 
     // Buscar usuário no banco de dados
     let user_result = sqlx::query_as::<_, User>(
-        "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE username = $1"
+        "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE username = $1",
     )
     .bind(&request.username)
     .fetch_optional(pool.inner())
@@ -66,6 +66,3 @@ pub async fn login(
         }
     }
 }
-
-
-

@@ -1,13 +1,13 @@
 use crate::models::{Cliente, CreateClienteRequest, UpdateClienteRequest};
-use tauri::State;
 use sqlx::PgPool;
+use tauri::State;
 
 #[tauri::command]
 pub async fn get_clientes(pool: State<'_, PgPool>) -> Result<Vec<Cliente>, String> {
     let clientes = sqlx::query_as::<_, Cliente>(
         "SELECT id, nome, cep, cidade, estado, telefone, created_at, updated_at 
          FROM clientes 
-         ORDER BY nome ASC"
+         ORDER BY nome ASC",
     )
     .fetch_all(pool.inner())
     .await
@@ -17,11 +17,14 @@ pub async fn get_clientes(pool: State<'_, PgPool>) -> Result<Vec<Cliente>, Strin
 }
 
 #[tauri::command]
-pub async fn get_cliente_by_id(pool: State<'_, PgPool>, cliente_id: i32) -> Result<Cliente, String> {
+pub async fn get_cliente_by_id(
+    pool: State<'_, PgPool>,
+    cliente_id: i32,
+) -> Result<Cliente, String> {
     let cliente = sqlx::query_as::<_, Cliente>(
         "SELECT id, nome, cep, cidade, estado, telefone, created_at, updated_at 
          FROM clientes 
-         WHERE id = $1"
+         WHERE id = $1",
     )
     .bind(cliente_id)
     .fetch_one(pool.inner())
@@ -39,7 +42,7 @@ pub async fn create_cliente(
     let cliente = sqlx::query_as::<_, Cliente>(
         "INSERT INTO clientes (nome, cep, cidade, estado, telefone) 
          VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, nome, cep, cidade, estado, telefone, created_at, updated_at"
+         RETURNING id, nome, cep, cidade, estado, telefone, created_at, updated_at",
     )
     .bind(&request.nome)
     .bind(&request.cep)
@@ -87,4 +90,3 @@ pub async fn delete_cliente(pool: State<'_, PgPool>, cliente_id: i32) -> Result<
 
     Ok(true)
 }
-
