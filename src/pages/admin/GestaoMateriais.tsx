@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Package, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { invoke } from '@tauri-apps/api/tauri';
+import { useAuthStore } from '../../store/authStore';
 
 interface Material {
   id: number;
@@ -44,6 +45,7 @@ export default function GestaoMateriais() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
     id: 0,
@@ -62,7 +64,12 @@ export default function GestaoMateriais() {
   const loadMateriais = async () => {
     setIsLoading(true);
     try {
-      const data = await invoke<Material[]>('get_materiais');
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await invoke<Material[]>('get_materiais', { sessionToken });
       setMateriais(data);
     } catch (error) {
       toast({
@@ -136,7 +143,13 @@ export default function GestaoMateriais() {
       const estoque_metros = parseFloat(form.estoque_metros.replace(',', '.')) || 0;
 
       if (isEditing) {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('update_material', {
+          sessionToken,
           request: {
             id: form.id,
             nome: form.nome,
@@ -152,7 +165,13 @@ export default function GestaoMateriais() {
           description: 'Material atualizado com sucesso!',
         });
       } else {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('create_material', {
+          sessionToken,
           request: {
             nome: form.nome,
             tipo: form.tipo,
@@ -187,7 +206,12 @@ export default function GestaoMateriais() {
 
     setIsLoading(true);
     try {
-      await invoke('delete_material', { materialId: materialToDelete.id });
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      await invoke('delete_material', { sessionToken, materialId: materialToDelete.id });
       toast({
         title: 'Sucesso',
         description: 'Material excluído com sucesso!',
@@ -443,4 +467,3 @@ export default function GestaoMateriais() {
     </div>
   );
 }
-

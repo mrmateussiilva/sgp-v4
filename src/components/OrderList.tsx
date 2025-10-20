@@ -6,6 +6,7 @@ import { useOrderStore } from '../store/orderStore';
 import { OrderStatus, OrderWithItems, UpdateOrderStatusRequest } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import OrderDetails from './OrderDetails';
+import { OrderViewModal } from './OrderViewModal';
 import { exportToCSV, exportToPDF } from '../utils/exportUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +46,8 @@ export default function OrderList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(10);
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
@@ -90,6 +93,11 @@ export default function OrderList() {
   const handleView = (order: OrderWithItems) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
+  };
+
+  const handleViewOrder = (order: OrderWithItems) => {
+    setSelectedOrderForView(order);
+    setViewModalOpen(true);
   };
 
   const handleDeleteClick = (orderId: number) => {
@@ -292,33 +300,34 @@ export default function OrderList() {
       <Card className="flex-1 flex flex-col min-h-0">
         <CardContent className="p-0 flex-1 flex flex-col">
           <div className="overflow-x-auto overflow-y-auto flex-1">
-        <Table className="min-w-[800px]">
+        <Table className="min-w-[1460px]">
               <TableHeader>
             <TableRow>
-                  <TableHead className="w-[80px]">Nº</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="hidden lg:table-cell">Cidade</TableHead>
-                  <TableHead className="hidden md:table-cell">Entrega</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-center">Fin.</TableHead>
-                  <TableHead className="text-center">Conf.</TableHead>
-                  <TableHead className="text-center">Subl.</TableHead>
-                  <TableHead className="text-center">Cost.</TableHead>
-                  <TableHead className="text-center">Exp.</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[80px]">ID</TableHead>
+                  <TableHead>Nome Cliente</TableHead>
+                  <TableHead className="w-[120px]">Data Entrega</TableHead>
+                  <TableHead className="w-[100px]">Prioridade</TableHead>
+                  <TableHead className="w-[150px]">Cidade/UF</TableHead>
+                  <TableHead className="text-center w-[60px]">Fin.</TableHead>
+                  <TableHead className="text-center w-[60px]">Conf.</TableHead>
+                  <TableHead className="text-center w-[60px]">Subl.</TableHead>
+                  <TableHead className="text-center w-[60px]">Cost.</TableHead>
+                  <TableHead className="text-center w-[60px]">Exp.</TableHead>
+                  <TableHead className="text-center w-[60px]">Pronto</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="text-right w-[120px]">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8">
+                    <TableCell colSpan={13} className="text-center py-8">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : paginatedOrders.length === 0 ? (
               <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8">
+                    <TableCell colSpan={13} className="text-center py-8">
                   Nenhum pedido encontrado
                 </TableCell>
               </TableRow>
@@ -329,17 +338,26 @@ export default function OrderList() {
                         <TableCell className="font-mono font-medium">
                           #{order.numero || order.id}
                         </TableCell>
-                        <TableCell>{order.cliente || order.customer_name}</TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {order.cidade_cliente || '-'}
+                        <TableCell className="font-medium">
+                          {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell>
                           {order.data_entrega 
                             ? new Date(order.data_entrega).toLocaleDateString('pt-BR')
                             : '-'}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
-                          R$ {Number(order.valor_total || order.total_value || 0).toFixed(2)}
+                        <TableCell>
+                          <Badge 
+                            variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {order.prioridade || 'NORMAL'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {order.cidade_cliente && order.estado_cliente 
+                            ? `${order.cidade_cliente}/${order.estado_cliente}`
+                            : order.cidade_cliente || '-'}
                         </TableCell>
                         
                         {/* Checkboxes de Status */}
@@ -385,9 +403,19 @@ export default function OrderList() {
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
                           />
-                  </TableCell>
+                        </TableCell>
+                        
+                        {/* Pronto - Campo calculado automaticamente */}
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={order.pronto ? 'success' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {order.pronto ? 'Pronto' : 'Em Andamento'}
+                          </Badge>
+                        </TableCell>
                       
-                  <TableCell>
+                        <TableCell>
                         <Badge variant={getStatusVariant(order.status)}>
                           {order.status}
                         </Badge>
@@ -397,8 +425,18 @@ export default function OrderList() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            onClick={() => handleViewOrder(order)}
+                            className="h-8 w-8"
+                            title="Visualizar Pedido"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             onClick={() => handleView(order)}
                             className="h-8 w-8"
+                            title="Detalhes"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -485,23 +523,25 @@ export default function OrderList() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Alteração de Status</DialogTitle>
-            <DialogDescription className="space-y-2">
-              {statusConfirmModal.novoValor ? (
-                <div>
-                  Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído para o pedido #{statusConfirmModal.pedidoId}?
-                </div>
-              ) : (
-                <div>
+            <DialogDescription asChild>
+              <div className="space-y-2">
+                {statusConfirmModal.novoValor ? (
                   <div>
-                    Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o pedido #{statusConfirmModal.pedidoId}?
+                    Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído para o pedido #{statusConfirmModal.pedidoId}?
                   </div>
-                  {statusConfirmModal.campo === 'financeiro' && (
-                    <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                      ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Sublimação, Costura e Expedição) também serão desmarcados!
+                ) : (
+                  <div>
+                    <div>
+                      Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o pedido #{statusConfirmModal.pedidoId}?
                     </div>
-                  )}
-                </div>
-              )}
+                    {statusConfirmModal.campo === 'financeiro' && (
+                      <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                        ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Sublimação, Costura e Expedição) também serão desmarcados!
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -519,6 +559,12 @@ export default function OrderList() {
       </Dialog>
 
       <OrderDetails open={detailsOpen} onClose={() => setDetailsOpen(false)} />
+      
+      <OrderViewModal 
+        isOpen={viewModalOpen} 
+        onClose={() => setViewModalOpen(false)} 
+        order={selectedOrderForView}
+      />
     </div>
   );
 }

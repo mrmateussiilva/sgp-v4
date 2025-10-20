@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { invoke } from '@tauri-apps/api/tauri';
+import { useAuthStore } from '../../store/authStore';
 
 interface Vendedor {
   id: number;
@@ -33,6 +34,7 @@ export default function GestaoVendedores() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [vendedorToDelete, setVendedorToDelete] = useState<Vendedor | null>(null);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
     id: 0,
@@ -51,7 +53,12 @@ export default function GestaoVendedores() {
   const loadVendedores = async () => {
     setIsLoading(true);
     try {
-      const data = await invoke<Vendedor[]>('get_vendedores');
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await invoke<Vendedor[]>('get_vendedores', { sessionToken });
       setVendedores(data);
     } catch (error) {
       toast({
@@ -124,7 +131,13 @@ export default function GestaoVendedores() {
       const comissao = parseFloat(form.comissao_percentual.replace(',', '.')) || 0;
 
       if (isEditing) {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('update_vendedor', {
+          sessionToken,
           request: {
             id: form.id,
             nome: form.nome,
@@ -140,7 +153,13 @@ export default function GestaoVendedores() {
           description: 'Vendedor atualizado com sucesso!',
         });
       } else {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('create_vendedor', {
+          sessionToken,
           request: {
             nome: form.nome,
             email: form.email || null,
@@ -175,7 +194,12 @@ export default function GestaoVendedores() {
 
     setIsLoading(true);
     try {
-      await invoke('delete_vendedor', { vendedorId: vendedorToDelete.id });
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      await invoke('delete_vendedor', { sessionToken, vendedorId: vendedorToDelete.id });
       toast({
         title: 'Sucesso',
         description: 'Vendedor excluído com sucesso!',
@@ -420,4 +444,3 @@ export default function GestaoVendedores() {
     </div>
   );
 }
-

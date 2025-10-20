@@ -16,6 +16,7 @@ import {
   Truck
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { api } from '../services/api';
 import OrderList from '../components/OrderList';
 import OrderForm from '../components/OrderForm';
 import CreateOrderComplete from '../components/CreateOrderComplete';
@@ -40,10 +41,10 @@ export default function Dashboard() {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { username, logout, isAdmin } = useAuthStore();
+  const { username, isAdmin } = useAuthStore();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await api.logout();
     navigate('/login');
   };
 

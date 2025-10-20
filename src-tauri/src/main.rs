@@ -1,16 +1,20 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod commands;
-mod db;
-mod migrator;
-mod models;
-
 use dotenv::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::env;
 use tracing::info;
 use tracing_subscriber;
+
+mod commands;
+mod db;
+mod migrator;
+mod models;
+mod session;
+
+use crate::migrator::MIGRATOR;
+use crate::session::SessionManager;
 
 #[tokio::main]
 async fn main() {
@@ -36,12 +40,21 @@ async fn main() {
 
     info!("Conexão com banco de dados estabelecida!");
 
+    info!("Verificando migrações pendentes...");
+    MIGRATOR
+        .run(&pool)
+        .await
+        .expect("Falha ao aplicar migrações do banco de dados");
+    info!("Migrações aplicadas com sucesso!");
+
     // Executar aplicação Tauri
     tauri::Builder::default()
         .manage(pool)
+        .manage(SessionManager::new(12))
         .invoke_handler(tauri::generate_handler![
             // Auth
             commands::auth::login,
+            commands::auth::logout,
             // Orders
             commands::orders::get_orders,
             commands::orders::get_order_by_id,
@@ -50,6 +63,7 @@ async fn main() {
             commands::orders::update_order_status_flags,
             commands::orders::delete_order,
             commands::orders::get_orders_with_filters,
+            commands::orders::get_orders_by_delivery_date,
             // Clientes
             commands::clientes::get_clientes,
             commands::clientes::get_cliente_by_id,

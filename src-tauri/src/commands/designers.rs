@@ -1,9 +1,18 @@
 use crate::models::{CreateDesignerRequest, Designer, UpdateDesignerRequest};
+use crate::session::SessionManager;
 use sqlx::PgPool;
 use tauri::State;
 
 #[tauri::command]
-pub async fn get_designers(pool: State<'_, PgPool>) -> Result<Vec<Designer>, String> {
+pub async fn get_designers(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<Designer>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let designers = sqlx::query_as::<_, Designer>(
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
@@ -17,7 +26,15 @@ pub async fn get_designers(pool: State<'_, PgPool>) -> Result<Vec<Designer>, Str
 }
 
 #[tauri::command]
-pub async fn get_designers_ativos(pool: State<'_, PgPool>) -> Result<Vec<Designer>, String> {
+pub async fn get_designers_ativos(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<Designer>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let designers = sqlx::query_as::<_, Designer>(
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
@@ -34,8 +51,14 @@ pub async fn get_designers_ativos(pool: State<'_, PgPool>) -> Result<Vec<Designe
 #[tauri::command]
 pub async fn get_designer_by_id(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     designer_id: i32,
 ) -> Result<Designer, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let designer = sqlx::query_as::<_, Designer>(
         "SELECT id, nome, email, telefone, ativo, observacao, created_at, updated_at 
          FROM designers 
@@ -52,8 +75,14 @@ pub async fn get_designer_by_id(
 #[tauri::command]
 pub async fn create_designer(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: CreateDesignerRequest,
 ) -> Result<Designer, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let designer = sqlx::query_as::<_, Designer>(
         "INSERT INTO designers (nome, email, telefone, ativo, observacao) 
          VALUES ($1, $2, $3, $4, $5) 
@@ -74,8 +103,14 @@ pub async fn create_designer(
 #[tauri::command]
 pub async fn update_designer(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateDesignerRequest,
 ) -> Result<Designer, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let designer = sqlx::query_as::<_, Designer>(
         "UPDATE designers 
          SET nome = $1, email = $2, telefone = $3, ativo = $4, observacao = $5, updated_at = CURRENT_TIMESTAMP
@@ -96,7 +131,16 @@ pub async fn update_designer(
 }
 
 #[tauri::command]
-pub async fn delete_designer(pool: State<'_, PgPool>, designer_id: i32) -> Result<bool, String> {
+pub async fn delete_designer(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    designer_id: i32,
+) -> Result<bool, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let result = sqlx::query("DELETE FROM designers WHERE id = $1")
         .bind(designer_id)
         .execute(pool.inner())

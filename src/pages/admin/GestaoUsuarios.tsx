@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Users, ArrowLeft, Shield, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuthStore } from '../../store/authStore';
+import { invoke } from '@tauri-apps/api/tauri';
 
 interface Usuario {
   id: number;
@@ -29,6 +30,7 @@ export default function GestaoUsuarios() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [usuarioToDelete, setUsuarioToDelete] = useState<Usuario | null>(null);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
     id: 0,
@@ -45,7 +47,12 @@ export default function GestaoUsuarios() {
   const loadUsuarios = async () => {
     setIsLoading(true);
     try {
-      const data = await invoke<Usuario[]>('get_users');
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await invoke<Usuario[]>('get_users', { sessionToken });
       setUsuarios(data);
     } catch (error) {
       toast({
@@ -138,7 +145,13 @@ export default function GestaoUsuarios() {
     setIsLoading(true);
     try {
       if (isEditing) {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('update_user', {
+          sessionToken,
           request: {
             id: form.id,
             username: form.username,
@@ -151,7 +164,13 @@ export default function GestaoUsuarios() {
           description: 'Usuário atualizado com sucesso!',
         });
       } else {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('create_user', {
+          sessionToken,
           request: {
             username: form.username,
             password: form.password,
@@ -183,7 +202,12 @@ export default function GestaoUsuarios() {
 
     setIsLoading(true);
     try {
-      await invoke('delete_user', { userId: usuarioToDelete.id });
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      await invoke('delete_user', { sessionToken, userId: usuarioToDelete.id });
       toast({
         title: 'Sucesso',
         description: 'Usuário excluído com sucesso!',
@@ -428,4 +452,3 @@ export default function GestaoUsuarios() {
     </div>
   );
 }
-

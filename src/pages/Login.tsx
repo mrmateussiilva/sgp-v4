@@ -27,16 +27,21 @@ export default function Login() {
     try {
       const response = await api.login({ username, password });
 
-      if (response.success && response.user_id && response.username) {
+      if (response.success && response.user_id && response.username && response.session_token) {
         const isAdmin = response.is_admin || false;
-        login(response.user_id, response.username, isAdmin);
+        login({
+          userId: response.user_id,
+          username: response.username,
+          sessionToken: response.session_token,
+          isAdmin,
+        });
         toast({
           title: "Login realizado!",
           description: "Bem-vindo ao sistema de gerenciamento de pedidos.",
         });
         navigate('/dashboard');
       } else {
-        setError(response.message);
+        setError(response.message || 'Não foi possível autenticar.');
       }
     } catch (err) {
       setError('Erro ao conectar com o servidor');

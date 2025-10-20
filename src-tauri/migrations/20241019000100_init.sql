@@ -1,8 +1,13 @@
 -- Base schema for integration tests
 
-CREATE TYPE order_status AS ENUM ('Pendente', 'Em Processamento', 'Concluído', 'Cancelado');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+        CREATE TYPE order_status AS ENUM ('Pendente', 'Em Processamento', 'Concluído', 'Cancelado');
+    END IF;
+END $$;
 
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     numero VARCHAR(50),
     customer_name VARCHAR(255) NOT NULL,
@@ -26,7 +31,7 @@ CREATE TABLE orders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     item_name VARCHAR(255) NOT NULL,

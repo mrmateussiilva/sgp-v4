@@ -1,18 +1,27 @@
 use crate::db::DbPool;
 use crate::models::*;
+use crate::session::SessionManager;
 use rust_decimal::Decimal;
 use sqlx::Row;
 use tauri::State;
 use tracing::{error, info};
 
 #[tauri::command]
-pub async fn get_orders(pool: State<'_, DbPool>) -> Result<Vec<OrderWithItems>, String> {
+pub async fn get_orders(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<OrderWithItems>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     info!("Buscando todos os pedidos");
 
     let orders_result = sqlx::query_as::<_, Order>(
-        "SELECT id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao, 
-                financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at 
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
+                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders ORDER BY created_at DESC"
     )
     .fetch_all(pool.inner())
@@ -40,14 +49,20 @@ pub async fn get_orders(pool: State<'_, DbPool>) -> Result<Vec<OrderWithItems>, 
 #[tauri::command]
 pub async fn get_order_by_id(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     order_id: i32,
 ) -> Result<OrderWithItems, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     info!("Buscando pedido com ID: {}", order_id);
 
     let order_result = sqlx::query_as::<_, Order>(
-        "SELECT id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao, 
-                financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at 
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
+                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE id = $1"
     )
     .bind(order_id)
@@ -70,8 +85,14 @@ pub async fn get_order_by_id(
 #[tauri::command]
 pub async fn create_order(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: CreateOrderRequest,
 ) -> Result<OrderWithItems, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     create_order_internal(pool.inner(), request).await
 }
 
@@ -79,10 +100,7 @@ pub(crate) async fn create_order_internal(
     pool: &DbPool,
     request: CreateOrderRequest,
 ) -> Result<OrderWithItems, String> {
-    info!(
-        "Criando novo pedido para cliente: {}",
-        request.customer_name
-    );
+    info!("Criando novo pedido para cliente: {}", request.cliente);
 
     // Calcular total
     let total_value: f64 = request
@@ -96,23 +114,61 @@ pub(crate) async fn create_order_internal(
         "Erro ao criar pedido".to_string()
     })?;
 
+    // Converter data_entrega de string para NaiveDate se fornecida
+    let data_entrega_parsed = request
+        .data_entrega
+        .as_ref()
+        .and_then(|date_str| chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok());
+
+    // Gerar número do pedido se não fornecido
+    let numero_pedido = request.numero.unwrap_or_else(|| {
+        // Gerar número baseado no timestamp ou ID sequencial
+        format!("{:010}", chrono::Utc::now().timestamp())
+    });
+
+    // Converter data_entrada de string para NaiveDate (obrigatório)
+    let data_entrada_parsed = chrono::NaiveDate::parse_from_str(&request.data_entrada, "%Y-%m-%d")
+        .map_err(|e| {
+            error!("Erro ao parsear data_entrada '{}': {}", request.data_entrada, e);
+            "Data de entrada inválida".to_string()
+        })?;
+    
+    info!("Data entrada recebida: {}", request.data_entrada);
+    info!("Data entrada parseada: {:?}", data_entrada_parsed);
+
     // Inserir pedido
     let order_result = sqlx::query_as::<_, Order>(
-        "INSERT INTO orders (customer_name, address, total_value, status) 
-         VALUES ($1, $2, $3, $4) 
-         RETURNING id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao,
-                   financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at"
+        "INSERT INTO orders (numero, customer_name, cliente, address, cidade_cliente, estado_cliente, total_value, status, data_entrada, data_entrega, forma_envio, forma_pagamento_id, prioridade, observacao, telefone_cliente, pronto) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+         RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
-    .bind(&request.customer_name)
-    .bind(&request.address)
+    .bind(&numero_pedido)
+    .bind(&request.cliente) // customer_name
+    .bind(&request.cliente) // cliente
+    .bind(&request.cidade_cliente) // address
+    .bind(&request.cidade_cliente)
+    .bind(&request.estado_cliente)
     .bind(Decimal::from_f64_retain(total_value).unwrap_or_default())
     .bind(&request.status)
+    .bind(data_entrada_parsed)
+    .bind(data_entrega_parsed)
+    .bind(&request.forma_envio)
+    .bind(&request.forma_pagamento_id)
+    .bind(&request.prioridade)
+    .bind(&request.observacao)
+    .bind(&request.telefone_cliente)
+    .bind(false)
     .fetch_one(&mut *tx)
     .await;
 
     let order = match order_result {
-        Ok(order) => order,
+        Ok(order) => {
+            info!("Pedido criado com sucesso - ID: {}, Data entrada: {:?}, Data entrega: {:?}", 
+                  order.id, order.data_entrada, order.data_entrega);
+            order
+        },
         Err(e) => {
             error!("Erro ao inserir pedido: {}", e);
             tx.rollback().await.ok();
@@ -126,15 +182,46 @@ pub(crate) async fn create_order_internal(
         let subtotal = item_req.quantity as f64 * item_req.unit_price;
 
         let item_result = sqlx::query_as::<_, OrderItem>(
-            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal) 
-             VALUES ($1, $2, $3, $4, $5) 
-             RETURNING id, order_id, item_name, quantity, unit_price, subtotal",
+            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal, 
+                                      tipo_producao, descricao, largura, altura, metro_quadrado, 
+                                      vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) 
+             RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
+                       tipo_producao, descricao, largura, altura, metro_quadrado, 
+                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
         .bind(item_req.quantity)
         .bind(Decimal::from_f64_retain(item_req.unit_price).unwrap_or_default())
         .bind(Decimal::from_f64_retain(subtotal).unwrap_or_default())
+        .bind(&item_req.tipo_producao)
+        .bind(&item_req.descricao)
+        .bind(&item_req.largura)
+        .bind(&item_req.altura)
+        .bind(&item_req.metro_quadrado)
+        .bind(&item_req.vendedor)
+        .bind(&item_req.designer)
+        .bind(&item_req.tecido)
+        .bind(&item_req.overloque)
+        .bind(&item_req.elastico)
+        .bind(&item_req.tipo_acabamento)
+        .bind(&item_req.quantidade_ilhos)
+        .bind(&item_req.espaco_ilhos)
+        .bind(&item_req.valor_ilhos)
+        .bind(&item_req.quantidade_cordinha)
+        .bind(&item_req.espaco_cordinha)
+        .bind(&item_req.valor_cordinha)
+        .bind(&item_req.observacao)
+        .bind(&item_req.imagem)
+        .bind(&item_req.quantidade_paineis)
+        .bind(&item_req.valor_unitario)
+        .bind(&item_req.emenda)
+        .bind(&item_req.emenda_qtd)
         .fetch_one(&mut *tx)
         .await;
 
@@ -161,8 +248,14 @@ pub(crate) async fn create_order_internal(
 #[tauri::command]
 pub async fn update_order(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateOrderRequest,
 ) -> Result<OrderWithItems, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     info!("Atualizando pedido ID: {}", request.id);
 
     // Calcular novo total
@@ -179,14 +272,14 @@ pub async fn update_order(
 
     // Atualizar pedido
     let order_result = sqlx::query_as::<_, Order>(
-        "UPDATE orders SET customer_name = $1, address = $2, total_value = $3, status = $4 
+        "UPDATE orders SET cliente = $1, cidade_cliente = $2, total_value = $3, status = $4 
          WHERE id = $5 
-         RETURNING id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao,
-                   financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at"
+         RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
-    .bind(&request.customer_name)
-    .bind(&request.address)
+    .bind(&request.cliente)
+    .bind(&request.cidade_cliente)
     .bind(Decimal::from_f64_retain(total_value).unwrap_or_default())
     .bind(&request.status)
     .bind(request.id)
@@ -218,15 +311,46 @@ pub async fn update_order(
         let subtotal = item_req.quantity as f64 * item_req.unit_price;
 
         let item_result = sqlx::query_as::<_, OrderItem>(
-            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal) 
-             VALUES ($1, $2, $3, $4, $5) 
-             RETURNING id, order_id, item_name, quantity, unit_price, subtotal",
+            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal, 
+                                      tipo_producao, descricao, largura, altura, metro_quadrado, 
+                                      vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) 
+             RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
+                       tipo_producao, descricao, largura, altura, metro_quadrado, 
+                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
         .bind(item_req.quantity)
         .bind(Decimal::from_f64_retain(item_req.unit_price).unwrap_or_default())
         .bind(Decimal::from_f64_retain(subtotal).unwrap_or_default())
+        .bind(&item_req.tipo_producao)
+        .bind(&item_req.descricao)
+        .bind(&item_req.largura)
+        .bind(&item_req.altura)
+        .bind(&item_req.metro_quadrado)
+        .bind(&item_req.vendedor)
+        .bind(&item_req.designer)
+        .bind(&item_req.tecido)
+        .bind(&item_req.overloque)
+        .bind(&item_req.elastico)
+        .bind(&item_req.tipo_acabamento)
+        .bind(&item_req.quantidade_ilhos)
+        .bind(&item_req.espaco_ilhos)
+        .bind(&item_req.valor_ilhos)
+        .bind(&item_req.quantidade_cordinha)
+        .bind(&item_req.espaco_cordinha)
+        .bind(&item_req.valor_cordinha)
+        .bind(&item_req.observacao)
+        .bind(&item_req.imagem)
+        .bind(&item_req.quantidade_paineis)
+        .bind(&item_req.valor_unitario)
+        .bind(&item_req.emenda)
+        .bind(&item_req.emenda_qtd)
         .fetch_one(&mut *tx)
         .await;
 
@@ -253,8 +377,14 @@ pub async fn update_order(
 #[tauri::command]
 pub async fn update_order_status_flags(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateOrderStatusRequest,
 ) -> Result<OrderWithItems, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     update_order_status_flags_internal(pool.inner(), request).await
 }
 
@@ -273,9 +403,9 @@ pub(crate) async fn update_order_status_flags_internal(
     })?;
 
     let existing_order = sqlx::query_as::<_, Order>(
-        "SELECT id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao, 
-                financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at 
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
+                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE id = $1"
     )
     .bind(request.id)
@@ -294,22 +424,23 @@ pub(crate) async fn update_order_status_flags_internal(
         }
     };
 
-    let (financeiro, conferencia, sublimacao, costura, expedicao) =
+    let (financeiro, conferencia, sublimacao, costura, expedicao, pronto) =
         normalize_status_flags(&existing_order, &request);
 
     let updated_order = sqlx::query_as::<_, Order>(
         "UPDATE orders 
-         SET financeiro = $1, conferencia = $2, sublimacao = $3, costura = $4, expedicao = $5 
-         WHERE id = $6 
-         RETURNING id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao,
-                   financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at"
+         SET financeiro = $1, conferencia = $2, sublimacao = $3, costura = $4, expedicao = $5, pronto = $6 
+         WHERE id = $7 
+         RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
     .bind(financeiro)
     .bind(conferencia)
     .bind(sublimacao)
     .bind(costura)
     .bind(expedicao)
+    .bind(pronto)
     .bind(request.id)
     .fetch_one(&mut *tx)
     .await
@@ -334,7 +465,16 @@ pub(crate) async fn update_order_status_flags_internal(
 }
 
 #[tauri::command]
-pub async fn delete_order(pool: State<'_, DbPool>, order_id: i32) -> Result<bool, String> {
+pub async fn delete_order(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    order_id: i32,
+) -> Result<bool, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     info!("Deletando pedido ID: {}", order_id);
 
     let result = sqlx::query("DELETE FROM orders WHERE id = $1")
@@ -361,8 +501,14 @@ pub async fn delete_order(pool: State<'_, DbPool>, order_id: i32) -> Result<bool
 #[tauri::command]
 pub async fn get_orders_with_filters(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     filters: OrderFilters,
 ) -> Result<PaginatedOrders, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     info!("Buscando pedidos com filtros");
 
     let page = filters.page.unwrap_or(1);
@@ -370,9 +516,9 @@ pub async fn get_orders_with_filters(
     let offset = (page - 1) * page_size;
 
     let mut query = String::from(
-        "SELECT id, numero, customer_name, cliente, address, cidade_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, valor_total, status, prioridade, observacao, 
-                financeiro, conferencia, sublimacao, costura, expedicao, created_at, updated_at 
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
+                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE 1=1"
     );
 
@@ -383,16 +529,16 @@ pub async fn get_orders_with_filters(
         count_query.push_str(" AND status = $1");
     }
 
-    if filters.customer_name.is_some() {
+    if filters.cliente.is_some() {
         let param_num = if filters.status.is_some() { 2 } else { 1 };
-        query.push_str(&format!(" AND customer_name ILIKE ${}", param_num));
-        count_query.push_str(&format!(" AND customer_name ILIKE ${}", param_num));
+        query.push_str(&format!(" AND cliente ILIKE ${}", param_num));
+        count_query.push_str(&format!(" AND cliente ILIKE ${}", param_num));
     }
 
     query.push_str(" ORDER BY created_at DESC LIMIT $");
-    let limit_param = if filters.status.is_some() && filters.customer_name.is_some() {
+    let limit_param = if filters.status.is_some() && filters.cliente.is_some() {
         3
-    } else if filters.status.is_some() || filters.customer_name.is_some() {
+    } else if filters.status.is_some() || filters.cliente.is_some() {
         2
     } else {
         1
@@ -405,7 +551,7 @@ pub async fn get_orders_with_filters(
 
     // Mover search_pattern para fora do escopo para evitar lifetime issues
     let search_pattern = filters
-        .customer_name
+        .cliente
         .as_ref()
         .map(|customer| format!("%{}%", customer));
 
@@ -456,15 +602,13 @@ fn build_order_with_items(order: Order, items: Vec<OrderItem>) -> OrderWithItems
     OrderWithItems {
         id: order.id,
         numero: order.numero,
-        customer_name: order.customer_name,
         cliente: order.cliente,
-        address: order.address,
         cidade_cliente: order.cidade_cliente,
+        estado_cliente: order.estado_cliente,
         telefone_cliente: order.telefone_cliente,
         data_entrada: order.data_entrada,
         data_entrega: order.data_entrega,
         total_value: order.total_value,
-        valor_total: order.valor_total,
         created_at: order.created_at,
         updated_at: order.updated_at,
         status: order.status,
@@ -475,6 +619,9 @@ fn build_order_with_items(order: Order, items: Vec<OrderItem>) -> OrderWithItems
         sublimacao: order.sublimacao,
         costura: order.costura,
         expedicao: order.expedicao,
+        forma_envio: order.forma_envio,
+        forma_pagamento_id: order.forma_pagamento_id,
+        pronto: order.pronto,
         items,
     }
 }
@@ -482,7 +629,7 @@ fn build_order_with_items(order: Order, items: Vec<OrderItem>) -> OrderWithItems
 fn normalize_status_flags(
     existing_order: &Order,
     request: &UpdateOrderStatusRequest,
-) -> (bool, bool, bool, bool, bool) {
+) -> (bool, bool, bool, bool, bool, bool) {
     let financeiro = request
         .financeiro
         .unwrap_or(existing_order.financeiro.unwrap_or(false));
@@ -506,13 +653,20 @@ fn normalize_status_flags(
         expedicao = false;
     }
 
-    (financeiro, conferencia, sublimacao, costura, expedicao)
+    let pronto = financeiro && conferencia && sublimacao && costura && expedicao;
+
+    (financeiro, conferencia, sublimacao, costura, expedicao, pronto)
 }
 
 // Função auxiliar para buscar itens de um pedido
 async fn get_order_items(pool: &DbPool, order_id: i32) -> Result<Vec<OrderItem>, String> {
     sqlx::query_as::<_, OrderItem>(
-        "SELECT id, order_id, item_name, quantity, unit_price, subtotal 
+        "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
+                tipo_producao, descricao, largura, altura, metro_quadrado, 
+                vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
+                emenda, emenda_qtd
          FROM order_items WHERE order_id = $1 ORDER BY id",
     )
     .bind(order_id)
@@ -522,6 +676,57 @@ async fn get_order_items(pool: &DbPool, order_id: i32) -> Result<Vec<OrderItem>,
         error!("Erro ao buscar itens do pedido {}: {}", order_id, e);
         "Erro ao buscar itens do pedido".to_string()
     })
+}
+
+#[tauri::command]
+pub async fn get_orders_by_delivery_date(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    delivery_date: String,
+) -> Result<Vec<OrderWithItems>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    info!("Buscando pedidos para data de entrega: {}", delivery_date);
+
+    // Converter string para NaiveDate
+    let parsed_date = chrono::NaiveDate::parse_from_str(&delivery_date, "%Y-%m-%d")
+        .map_err(|_| "Data inválida. Use o formato YYYY-MM-DD".to_string())?;
+
+    info!("Data parseada: {}", parsed_date);
+
+    let orders_result = sqlx::query_as::<_, Order>(
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
+                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
+         FROM orders 
+         WHERE data_entrega = $1 
+         ORDER BY forma_envio, cliente"
+    )
+    .bind(parsed_date)
+    .fetch_all(pool.inner())
+    .await;
+
+    match orders_result {
+        Ok(orders) => {
+            let mut orders_with_items = Vec::new();
+
+            for order in orders {
+                info!("Pedido encontrado - ID: {}, Data entrega: {}", order.id, order.data_entrega.unwrap_or_default());
+                let items = get_order_items(&pool, order.id).await?;
+                orders_with_items.push(build_order_with_items(order, items));
+            }
+
+            info!("Retornando {} pedidos para data {}", orders_with_items.len(), delivery_date);
+            Ok(orders_with_items)
+        }
+        Err(e) => {
+            error!("Erro ao buscar pedidos por data de entrega: {}", e);
+            Err("Erro ao buscar pedidos".to_string())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -553,15 +758,13 @@ mod tests {
         Order {
             id: 1,
             numero: Some("PED-0001".to_string()),
-            customer_name: "Cliente Teste".to_string(),
-            cliente: Some("Cliente Teste".to_string()),
-            address: "Rua A, 123".to_string(),
+            cliente: "Cliente Teste".to_string(),
             cidade_cliente: Some("Cidade".to_string()),
+            estado_cliente: Some("SP".to_string()),
             telefone_cliente: Some("999999999".to_string()),
             data_entrada: Some(make_date()),
             data_entrega: Some(make_date()),
             total_value: Decimal::new(1000, 2),
-            valor_total: Some(Decimal::new(1000, 2)),
             created_at: Some(make_datetime()),
             updated_at: Some(make_datetime()),
             status: OrderStatus::Pendente,
@@ -572,6 +775,11 @@ mod tests {
             sublimacao: Some(sublimacao),
             costura: Some(costura),
             expedicao: Some(expedicao),
+            forma_envio: Some("Correios".to_string()),
+            forma_pagamento_id: Some(1),
+            pronto: Some(
+                financeiro && conferencia && sublimacao && costura && expedicao
+            ),
         }
     }
 
@@ -587,7 +795,7 @@ mod tests {
             expedicao: None,
         };
 
-        let (financeiro, conferencia, sublimacao, costura, expedicao) =
+        let (financeiro, conferencia, sublimacao, costura, expedicao, pronto) =
             normalize_status_flags(&existing, &request);
 
         assert!(!financeiro);
@@ -595,6 +803,7 @@ mod tests {
         assert!(!sublimacao);
         assert!(!costura);
         assert!(!expedicao);
+        assert!(!pronto);
     }
 
     #[test]
@@ -609,7 +818,7 @@ mod tests {
             expedicao: Some(true),
         };
 
-        let (financeiro, conferencia, sublimacao, costura, expedicao) =
+        let (financeiro, conferencia, sublimacao, costura, expedicao, pronto) =
             normalize_status_flags(&existing, &request);
 
         assert!(financeiro);
@@ -617,6 +826,7 @@ mod tests {
         assert!(sublimacao);
         assert!(costura);
         assert!(expedicao);
+        assert!(pronto);
     }
 
     #[test]
@@ -635,7 +845,7 @@ mod tests {
 
         assert_eq!(result.id, order.id);
         assert_eq!(result.numero, order.numero);
-        assert_eq!(result.customer_name, order.customer_name);
+        assert_eq!(result.cliente, order.cliente);
         assert_eq!(result.cidade_cliente, order.cidade_cliente);
         assert_eq!(result.financeiro, order.financeiro);
         assert_eq!(result.costura, order.costura);
@@ -694,8 +904,8 @@ mod tests {
     async fn create_order_persists_order_and_items() {
         run_with_pool(|pool| async move {
             let request = CreateOrderRequest {
-                customer_name: "Cliente Teste".into(),
-                address: "Rua A, 123".into(),
+                cliente: "Cliente Teste".into(),
+                cidade_cliente: "Rua A, 123".into(),
                 status: OrderStatus::Pendente,
                 items: vec![
                     CreateOrderItemRequest {
@@ -736,8 +946,8 @@ mod tests {
     async fn update_order_status_flags_resets_dependents() {
         run_with_pool(|pool| async move {
             let request = CreateOrderRequest {
-                customer_name: "Cliente Teste".into(),
-                address: "Rua B, 456".into(),
+                cliente: "Cliente Teste".into(),
+                cidade_cliente: "Rua B, 456".into(),
                 status: OrderStatus::Pendente,
                 items: vec![CreateOrderItemRequest {
                     item_name: "Produto".into(),

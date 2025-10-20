@@ -1,10 +1,19 @@
 use crate::models::{CreateFormaPagamentoRequest, FormaPagamento, UpdateFormaPagamentoRequest};
+use crate::session::SessionManager;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tauri::State;
 
 #[tauri::command]
-pub async fn get_formas_pagamento(pool: State<'_, PgPool>) -> Result<Vec<FormaPagamento>, String> {
+pub async fn get_formas_pagamento(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<FormaPagamento>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let formas = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
@@ -20,7 +29,13 @@ pub async fn get_formas_pagamento(pool: State<'_, PgPool>) -> Result<Vec<FormaPa
 #[tauri::command]
 pub async fn get_formas_pagamento_ativas(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
 ) -> Result<Vec<FormaPagamento>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let formas = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
@@ -37,8 +52,14 @@ pub async fn get_formas_pagamento_ativas(
 #[tauri::command]
 pub async fn get_forma_pagamento_by_id(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     forma_id: i32,
 ) -> Result<FormaPagamento, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let forma = sqlx::query_as::<_, FormaPagamento>(
         "SELECT id, nome, parcelas_max, taxa_percentual, ativo, observacao, created_at, updated_at 
          FROM formas_pagamento 
@@ -55,8 +76,14 @@ pub async fn get_forma_pagamento_by_id(
 #[tauri::command]
 pub async fn create_forma_pagamento(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: CreateFormaPagamentoRequest,
 ) -> Result<FormaPagamento, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let taxa = Decimal::from_f64_retain(request.taxa_percentual)
         .ok_or("Erro ao converter taxa_percentual")?;
 
@@ -80,8 +107,14 @@ pub async fn create_forma_pagamento(
 #[tauri::command]
 pub async fn update_forma_pagamento(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateFormaPagamentoRequest,
 ) -> Result<FormaPagamento, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let taxa = Decimal::from_f64_retain(request.taxa_percentual)
         .ok_or("Erro ao converter taxa_percentual")?;
 
@@ -107,8 +140,14 @@ pub async fn update_forma_pagamento(
 #[tauri::command]
 pub async fn delete_forma_pagamento(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     forma_id: i32,
 ) -> Result<bool, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let result = sqlx::query("DELETE FROM formas_pagamento WHERE id = $1")
         .bind(forma_id)
         .execute(pool.inner())

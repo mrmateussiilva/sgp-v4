@@ -1,10 +1,19 @@
 use crate::models::{CreateVendedorRequest, UpdateVendedorRequest, Vendedor};
+use crate::session::SessionManager;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use tauri::State;
 
 #[tauri::command]
-pub async fn get_vendedores(pool: State<'_, PgPool>) -> Result<Vec<Vendedor>, String> {
+pub async fn get_vendedores(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<Vendedor>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let vendedores = sqlx::query_as::<_, Vendedor>(
         "SELECT id, nome, email, telefone, comissao_percentual, ativo, observacao, created_at, updated_at 
          FROM vendedores 
@@ -18,7 +27,15 @@ pub async fn get_vendedores(pool: State<'_, PgPool>) -> Result<Vec<Vendedor>, St
 }
 
 #[tauri::command]
-pub async fn get_vendedores_ativos(pool: State<'_, PgPool>) -> Result<Vec<Vendedor>, String> {
+pub async fn get_vendedores_ativos(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<Vendedor>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let vendedores = sqlx::query_as::<_, Vendedor>(
         "SELECT id, nome, email, telefone, comissao_percentual, ativo, observacao, created_at, updated_at 
          FROM vendedores 
@@ -35,8 +52,14 @@ pub async fn get_vendedores_ativos(pool: State<'_, PgPool>) -> Result<Vec<Vended
 #[tauri::command]
 pub async fn get_vendedor_by_id(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     vendedor_id: i32,
 ) -> Result<Vendedor, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let vendedor = sqlx::query_as::<_, Vendedor>(
         "SELECT id, nome, email, telefone, comissao_percentual, ativo, observacao, created_at, updated_at 
          FROM vendedores 
@@ -53,8 +76,14 @@ pub async fn get_vendedor_by_id(
 #[tauri::command]
 pub async fn create_vendedor(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: CreateVendedorRequest,
 ) -> Result<Vendedor, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let comissao = Decimal::from_f64_retain(request.comissao_percentual)
         .ok_or("Erro ao converter comissao_percentual")?;
 
@@ -79,8 +108,14 @@ pub async fn create_vendedor(
 #[tauri::command]
 pub async fn update_vendedor(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateVendedorRequest,
 ) -> Result<Vendedor, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let comissao = Decimal::from_f64_retain(request.comissao_percentual)
         .ok_or("Erro ao converter comissao_percentual")?;
 
@@ -105,7 +140,16 @@ pub async fn update_vendedor(
 }
 
 #[tauri::command]
-pub async fn delete_vendedor(pool: State<'_, PgPool>, vendedor_id: i32) -> Result<bool, String> {
+pub async fn delete_vendedor(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    vendedor_id: i32,
+) -> Result<bool, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let result = sqlx::query("DELETE FROM vendedores WHERE id = $1")
         .bind(vendedor_id)
         .execute(pool.inner())

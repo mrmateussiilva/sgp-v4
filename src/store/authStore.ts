@@ -6,7 +6,8 @@ interface AuthState {
   userId: number | null;
   username: string | null;
   isAdmin: boolean;
-  login: (userId: number, username: string, isAdmin?: boolean) => void;
+  sessionToken: string | null;
+  login: (payload: { userId: number; username: string; sessionToken: string; isAdmin?: boolean }) => void;
   logout: () => void;
 }
 
@@ -17,13 +18,20 @@ export const useAuthStore = create<AuthState>()(
       userId: null,
       username: null,
       isAdmin: false,
-      login: (userId: number, username: string, isAdmin: boolean = false) =>
-        set({ isAuthenticated: true, userId, username, isAdmin }),
-      logout: () => set({ isAuthenticated: false, userId: null, username: null, isAdmin: false }),
+      sessionToken: null,
+      login: ({ userId, username, sessionToken, isAdmin = false }) =>
+        set({ isAuthenticated: true, userId, username, isAdmin, sessionToken }),
+      logout: () =>
+        set({
+          isAuthenticated: false,
+          userId: null,
+          username: null,
+          isAdmin: false,
+          sessionToken: null,
+        }),
     }),
     {
       name: 'auth-storage',
     }
   )
 );
-

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Palette, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { invoke } from '@tauri-apps/api/tauri';
+import { useAuthStore } from '../../store/authStore';
 
 interface Designer {
   id: number;
@@ -32,6 +33,7 @@ export default function GestaoDesigners() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [designerToDelete, setDesignerToDelete] = useState<Designer | null>(null);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
     id: 0,
@@ -49,7 +51,12 @@ export default function GestaoDesigners() {
   const loadDesigners = async () => {
     setIsLoading(true);
     try {
-      const data = await invoke<Designer[]>('get_designers');
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await invoke<Designer[]>('get_designers', { sessionToken });
       setDesigners(data);
     } catch (error) {
       toast({
@@ -117,7 +124,13 @@ export default function GestaoDesigners() {
     setIsLoading(true);
     try {
       if (isEditing) {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('update_designer', {
+          sessionToken,
           request: {
             id: form.id,
             nome: form.nome,
@@ -132,7 +145,13 @@ export default function GestaoDesigners() {
           description: 'Designer atualizado com sucesso!',
         });
       } else {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('create_designer', {
+          sessionToken,
           request: {
             nome: form.nome,
             email: form.email || null,
@@ -166,7 +185,12 @@ export default function GestaoDesigners() {
 
     setIsLoading(true);
     try {
-      await invoke('delete_designer', { designerId: designerToDelete.id });
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      await invoke('delete_designer', { sessionToken, designerId: designerToDelete.id });
       toast({
         title: 'Sucesso',
         description: 'Designer excluído com sucesso!',
@@ -395,4 +419,3 @@ export default function GestaoDesigners() {
     </div>
   );
 }
-

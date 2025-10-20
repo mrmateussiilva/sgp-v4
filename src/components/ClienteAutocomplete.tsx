@@ -106,7 +106,7 @@ export function ClienteAutocomplete({
               value={searchTerm}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Digite o nome do cliente..."
-              className="pl-10 h-12 text-base"
+              className="pl-10 h-12 text-base w-full"
             />
             {loading && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -115,8 +115,8 @@ export function ClienteAutocomplete({
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <div className="max-h-64 overflow-auto">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <div className="max-h-80 overflow-auto">
             {clientesFiltrados.length === 0 && !loading && searchTerm.length >= 2 && (
               <div className="p-4 text-center text-gray-500">
                 Nenhum cliente encontrado para "{searchTerm}"
@@ -137,15 +137,15 @@ export function ClienteAutocomplete({
                   <div
                     key={cliente.id}
                     onClick={() => handleSelect(cliente)}
-                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 group"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{cliente.nome}</span>
-                      <span className="text-sm text-gray-500">
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-medium text-gray-900 group-hover:text-blue-900 truncate">{cliente.nome}</span>
+                      <span className="text-sm text-gray-500 group-hover:text-blue-600">
                         {cliente.telefone} • {cliente.cidade}
                       </span>
                     </div>
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-5 w-5 text-green-600 flex-shrink-0 ml-2" />
                   </div>
                 ))}
               </div>

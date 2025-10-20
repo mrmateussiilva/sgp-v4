@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Truck, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { invoke } from '@tauri-apps/api/tauri';
+import { useAuthStore } from '../../store/authStore';
 
 interface FormaEnvio {
   id: number;
@@ -32,6 +33,7 @@ export default function GestaoFormasEnvio() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formaToDelete, setFormaToDelete] = useState<FormaEnvio | null>(null);
+  const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
     id: 0,
@@ -49,7 +51,12 @@ export default function GestaoFormasEnvio() {
   const loadFormas = async () => {
     setIsLoading(true);
     try {
-      const data = await invoke<FormaEnvio[]>('get_formas_envio');
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      const data = await invoke<FormaEnvio[]>('get_formas_envio', { sessionToken });
       setFormas(data);
     } catch (error) {
       toast({
@@ -120,7 +127,13 @@ export default function GestaoFormasEnvio() {
       const prazo = parseInt(form.prazo_dias) || 0;
 
       if (isEditing) {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('update_forma_envio', {
+          sessionToken,
           request: {
             id: form.id,
             nome: form.nome,
@@ -135,7 +148,13 @@ export default function GestaoFormasEnvio() {
           description: 'Forma de envio atualizada com sucesso!',
         });
       } else {
+        if (!sessionToken) {
+          navigate('/login');
+          return;
+        }
+
         await invoke('create_forma_envio', {
+          sessionToken,
           request: {
             nome: form.nome,
             valor,
@@ -169,7 +188,12 @@ export default function GestaoFormasEnvio() {
 
     setIsLoading(true);
     try {
-      await invoke('delete_forma_envio', { formaId: formaToDelete.id });
+      if (!sessionToken) {
+        navigate('/login');
+        return;
+      }
+
+      await invoke('delete_forma_envio', { sessionToken, formaId: formaToDelete.id });
       toast({
         title: 'Sucesso',
         description: 'Forma de envio excluída com sucesso!',
@@ -401,4 +425,3 @@ export default function GestaoFormasEnvio() {
     </div>
   );
 }
-

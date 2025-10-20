@@ -1,4 +1,5 @@
 use crate::models::User;
+use crate::session::SessionManager;
 use bcrypt::{hash, DEFAULT_COST};
 use sqlx::PgPool;
 use tauri::State;
@@ -19,7 +20,15 @@ pub struct UpdateUserRequest {
 }
 
 #[tauri::command]
-pub async fn get_users(pool: State<'_, PgPool>) -> Result<Vec<User>, String> {
+pub async fn get_users(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<User>, String> {
+    sessions
+        .require_admin(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let users = sqlx::query_as::<_, User>(
         "SELECT id, username, password_hash, is_admin, created_at 
          FROM users 
@@ -33,7 +42,16 @@ pub async fn get_users(pool: State<'_, PgPool>) -> Result<Vec<User>, String> {
 }
 
 #[tauri::command]
-pub async fn get_user_by_id(pool: State<'_, PgPool>, user_id: i32) -> Result<User, String> {
+pub async fn get_user_by_id(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    user_id: i32,
+) -> Result<User, String> {
+    sessions
+        .require_admin(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     let user = sqlx::query_as::<_, User>(
         "SELECT id, username, password_hash, is_admin, created_at 
          FROM users 
@@ -50,8 +68,14 @@ pub async fn get_user_by_id(pool: State<'_, PgPool>, user_id: i32) -> Result<Use
 #[tauri::command]
 pub async fn create_user(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: CreateUserRequest,
 ) -> Result<User, String> {
+    sessions
+        .require_admin(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     // Hash da senha
     let password_hash = hash(&request.password, DEFAULT_COST)
         .map_err(|e| format!("Erro ao gerar hash da senha: {}", e))?;
@@ -74,8 +98,14 @@ pub async fn create_user(
 #[tauri::command]
 pub async fn update_user(
     pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
     request: UpdateUserRequest,
 ) -> Result<User, String> {
+    sessions
+        .require_admin(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     // Se tem nova senha, gera hash
     if let Some(password) = request.password {
         let password_hash = hash(&password, DEFAULT_COST)
@@ -116,7 +146,16 @@ pub async fn update_user(
 }
 
 #[tauri::command]
-pub async fn delete_user(pool: State<'_, PgPool>, user_id: i32) -> Result<bool, String> {
+pub async fn delete_user(
+    pool: State<'_, PgPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    user_id: i32,
+) -> Result<bool, String> {
+    sessions
+        .require_admin(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
     // Não permite deletar o último admin
     let admin_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_admin = true")
         .fetch_one(pool.inner())

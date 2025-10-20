@@ -12,6 +12,32 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  
+  // Campos detalhados do painel
+  tipo_producao?: string;
+  descricao?: string;
+  largura?: string;
+  altura?: string;
+  metro_quadrado?: string;
+  vendedor?: string;
+  designer?: string;
+  tecido?: string;
+  overloque?: boolean;
+  elastico?: boolean;
+  tipo_acabamento?: string;
+  quantidade_ilhos?: string;
+  espaco_ilhos?: string;
+  valor_ilhos?: string;
+  quantidade_cordinha?: string;
+  espaco_cordinha?: string;
+  valor_cordinha?: string;
+  observacao?: string;
+  imagem?: string;
+  quantidade_paineis?: string;
+  valor_unitario?: string;
+  emenda?: string;
+  emenda_qtd?: string;
+  emendaQtd?: string;
 }
 
 export interface OrderWithItems {
@@ -21,6 +47,7 @@ export interface OrderWithItems {
   cliente?: string;
   address: string;
   cidade_cliente?: string;
+  estado_cliente?: string;
   telefone_cliente?: string;
   data_entrada?: string;
   data_entrega?: string;
@@ -30,6 +57,9 @@ export interface OrderWithItems {
   updated_at?: string | null;
   status: OrderStatus;
   prioridade?: string;
+  forma_envio?: string;
+  forma_pagamento_id?: number;
+  observacao?: string;
   
   // Status de produção (checkboxes)
   financeiro?: boolean;
@@ -37,21 +67,57 @@ export interface OrderWithItems {
   sublimacao?: boolean;
   costura?: boolean;
   expedicao?: boolean;
+  pronto?: boolean;
   
   items: OrderItem[];
 }
 
 export interface CreateOrderRequest {
-  customer_name: string;
-  address: string;
+  cliente: string;
+  cidade_cliente: string;
   status: OrderStatus;
   items: CreateOrderItemRequest[];
+  // Campos adicionais do formulário
+  numero?: string;
+  data_entrada: string; // Obrigatório
+  data_entrega?: string;
+  forma_envio?: string;
+  forma_pagamento_id?: number;
+  prioridade?: string;
+  observacao?: string;
+  telefone_cliente?: string;
+  estado_cliente?: string;
 }
 
 export interface CreateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  
+  // Campos detalhados do painel
+  tipo_producao?: string;
+  descricao?: string;
+  largura?: string;
+  altura?: string;
+  metro_quadrado?: string;
+  vendedor?: string;
+  designer?: string;
+  tecido?: string;
+  overloque?: boolean;
+  elastico?: boolean;
+  tipo_acabamento?: string;
+  quantidade_ilhos?: string;
+  espaco_ilhos?: string;
+  valor_ilhos?: string;
+  quantidade_cordinha?: string;
+  espaco_cordinha?: string;
+  valor_cordinha?: string;
+  observacao?: string;
+  imagem?: string;
+  quantidade_paineis?: string;
+  valor_unitario?: string;
+  emenda?: string;
+  emenda_qtd?: string;
 }
 
 export interface UpdateOrderRequest {
@@ -67,6 +133,8 @@ export interface UpdateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  emenda?: string;
+  emenda_qtd?: string;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -88,6 +156,7 @@ export interface LoginResponse {
   user_id?: number;
   username?: string;
   is_admin?: boolean;
+  session_token?: string;
   message: string;
 }
 

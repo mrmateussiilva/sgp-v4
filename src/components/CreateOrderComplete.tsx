@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
-import { Cliente, OrderStatus } from '@/types';
+import { Cliente, OrderStatus, CreateOrderRequest } from '@/types';
 import { api } from '@/services/api';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 
@@ -50,6 +50,7 @@ interface TabItem {
   imagem: string;
   valor_painel: string;
   valores_adicionais: string;
+  quantidade_paineis: string;
   emenda: string;
   observacao: string;
   valor_unitario: string;
@@ -64,6 +65,7 @@ export default function CreateOrderComplete() {
     cliente: '',
     telefone_cliente: '',
     cidade_cliente: '',
+    estado_cliente: '',
     data_entrada: new Date().toISOString().split('T')[0],
     data_entrega: '',
     prioridade: 'NORMAL',
@@ -118,6 +120,7 @@ export default function CreateOrderComplete() {
       imagem: '',
       valor_painel: '0,00',
       valores_adicionais: '0,00',
+      quantidade_paineis: '1',
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
@@ -129,6 +132,11 @@ export default function CreateOrderComplete() {
 
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Estados para validação de item
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [optionalWarnings, setOptionalWarnings] = useState<string[]>([]);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
@@ -211,6 +219,56 @@ export default function CreateOrderComplete() {
     }
   }, [tabsData[activeTab]?.largura, tabsData[activeTab]?.altura, activeTab]);
 
+  // Calcular valor unitário automaticamente para painéis
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'painel') {
+        // Calcular valor total do painel baseado nos campos específicos
+        const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        
+        // Calcular valor dos ilhós se aplicável
+        let valorIlhos = 0;
+        if (item.tipo_acabamento === 'ilhos') {
+          const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
+          const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          valorIlhos = qtdIlhos * valorUnitIlhos;
+        }
+        
+        // Calcular valor da cordinha se aplicável
+        let valorCordinha = 0;
+        if (item.tipo_acabamento === 'cordinha') {
+          const qtdCordinha = parseInt(item.quantidade_cordinha || '0');
+          const valorUnitCordinha = parseFloat(String(item.valor_cordinha || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          valorCordinha = qtdCordinha * valorUnitCordinha;
+        }
+        
+        // Calcular valor total
+        const valorTotal = valorPainel + valoresAdicionais + valorIlhos + valorCordinha;
+        
+        // Converter para formato brasileiro (sem multiplicar pela quantidade aqui)
+        const valorFormatado = valorTotal.toFixed(2).replace('.', ',');
+        
+        // Atualizar valor unitário apenas se mudou
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    // Dependências específicas para painéis
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_painel),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.tipo_acabamento),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_ilhos),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_ilhos),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_cordinha),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_cordinha),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_paineis),
+  ]);
+
 
   // Funções de validação completas
   const validateClientData = () => {
@@ -287,8 +345,20 @@ export default function CreateOrderComplete() {
 
         // Validar valor unitário
         const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-        if (valorUnitario <= 0) {
-          errors[`item_${tabId}_valor`] = 'Valor unitário deve ser maior que zero';
+        
+        // Para painéis, verificar se pelo menos um campo de valor foi preenchido
+        if (item.tipo_producao === 'painel') {
+          const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          
+          if (valorPainel <= 0 && valoresAdicionais <= 0) {
+            errors[`item_${tabId}_valor`] = 'Preencha pelo menos o valor do painel ou valores adicionais';
+          }
+        } else {
+          // Para outros tipos, validar valor unitário diretamente
+          if (valorUnitario <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor unitário deve ser maior que zero';
+          }
         }
       }
     });
@@ -458,6 +528,7 @@ export default function CreateOrderComplete() {
         imagem: '',
         valor_painel: '0,00',
         valores_adicionais: '0,00',
+        quantidade_paineis: '1',
         emenda: 'sem-emenda',
         observacao: '',
         valor_unitario: '0,00',
@@ -500,31 +571,113 @@ export default function CreateOrderComplete() {
     }
   };
 
+  const validateItemComplete = (tabId: string) => {
+    const item = tabsData[tabId];
+    if (!item) return { errors: [], warnings: [] };
+
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Campos obrigatórios
+    if (!item.descricao || item.descricao.trim().length < 3) {
+      errors.push("Descrição é obrigatória (mínimo 3 caracteres)");
+    }
+
+    if (!item.largura || parseFloat(item.largura.replace(',', '.')) <= 0) {
+      errors.push("Largura é obrigatória e deve ser maior que zero");
+    }
+
+    if (!item.altura || parseFloat(item.altura.replace(',', '.')) <= 0) {
+      errors.push("Altura é obrigatória e deve ser maior que zero");
+    }
+
+    if (!item.tecido || item.tecido.trim().length === 0) {
+      errors.push("Material/Tecido é obrigatório");
+    }
+
+    if (!item.designer || item.designer.trim().length === 0) {
+      errors.push("Designer é obrigatório");
+    }
+
+    if (!item.vendedor || item.vendedor.trim().length === 0) {
+      errors.push("Vendedor é obrigatório");
+    }
+
+    if (!item.imagem || item.imagem.trim().length === 0) {
+      errors.push("Imagem é obrigatória");
+    }
+
+    // Validar valor
+    if (item.tipo_producao === 'painel') {
+      const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      
+      if (valorPainel <= 0 && valoresAdicionais <= 0) {
+        errors.push("Valor é obrigatório (preencha pelo menos o valor do painel ou valores adicionais)");
+      }
+    } else {
+      const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      if (valorUnitario <= 0) {
+        errors.push("Valor unitário é obrigatório e deve ser maior que zero");
+      }
+    }
+
+    // Validar quantidade
+    if (item.tipo_producao === 'painel') {
+      const quantidade = parseInt(item.quantidade_paineis || '0');
+      if (quantidade <= 0) {
+        errors.push("Quantidade de painéis é obrigatória e deve ser maior que zero");
+      }
+    }
+
+    // Campos opcionais - gerar avisos
+    if (!item.overloque) {
+      warnings.push("Overloque não será aplicado");
+    }
+
+    if (!item.elastico) {
+      warnings.push("Elástico não será aplicado");
+    }
+
+    if (item.emenda === 'sem-emenda') {
+      warnings.push("Emenda não será aplicada");
+    }
+
+    if (item.tipo_acabamento === 'nenhum') {
+      warnings.push("Nenhum acabamento especial será aplicado");
+    }
+
+    return { errors, warnings };
+  };
+
   const handleSaveItem = (tabId: string) => {
-    const currentItemData = tabsData[tabId];
-    if (!currentItemData) return;
-
-    // Validar se o item tem dados mínimos
-    if (!currentItemData.tipo_producao || !currentItemData.descricao) {
-      toast({
-        title: "Erro",
-        description: "Preencha pelo menos o tipo de produção e descrição.",
-        variant: "destructive",
-      });
+    const validation = validateItemComplete(tabId);
+    
+    if (!validation) return;
+    
+    if (validation.errors.length > 0) {
+      // Mostrar modal de erros obrigatórios
+      setValidationErrors(validation.errors);
+      setOptionalWarnings(validation.warnings);
+      setShowValidationModal(true);
       return;
     }
 
-    // Validar valor unitário
-    const valorUnitario = parseFloat(String(currentItemData.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-    if (valorUnitario <= 0) {
-      toast({
-        title: "Erro",
-        description: "O valor unitário deve ser maior que zero.",
-        variant: "destructive",
-      });
+    if (validation.warnings.length > 0) {
+      // Mostrar confirmação com avisos opcionais
+      const confirmMessage = `Tem certeza que deseja salvar este item?\n\nAvisos:\n${validation.warnings.map(w => `• ${w}`).join('\n')}`;
+      
+      if (window.confirm(confirmMessage)) {
+        saveItemConfirmed(tabId);
+      }
       return;
     }
 
+    // Salvar diretamente se não há erros nem avisos
+    saveItemConfirmed(tabId);
+  };
+
+  const saveItemConfirmed = (tabId: string) => {
     // Marcar que não há mudanças não salvas
     setItemHasUnsavedChanges(prev => ({
       ...prev,
@@ -561,6 +714,7 @@ export default function CreateOrderComplete() {
       imagem: '',
       valor_painel: '0,00',
       valores_adicionais: '0,00',
+      quantidade_paineis: '1',
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
@@ -592,6 +746,12 @@ export default function CreateOrderComplete() {
       // Converter valor unitário corretamente
       const valorUnitario = String(item.valor_unitario || '0,00');
       const valor = parseFloat(valorUnitario.replace(/\./g, '').replace(',', '.')) || 0;
+      
+      // Para painéis, considerar a quantidade
+      if (item.tipo_producao === 'painel') {
+        const quantidade = parseInt(item.quantidade_paineis || '1');
+        return sum + (valor * quantidade);
+      }
       
       return sum + valor;
     }, 0);
@@ -639,6 +799,7 @@ export default function CreateOrderComplete() {
       cliente: '',
       telefone_cliente: '',
       cidade_cliente: '',
+      estado_cliente: '',
       data_entrada: new Date().toISOString().split('T')[0],
       data_entrega: '',
       prioridade: 'NORMAL',
@@ -672,6 +833,7 @@ export default function CreateOrderComplete() {
       imagem: '',
       valor_painel: '0,00',
       valores_adicionais: '0,00',
+      quantidade_paineis: '1',
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
@@ -704,12 +866,59 @@ export default function CreateOrderComplete() {
           const item = tabsData[tabId];
           const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
           
+          // Para painéis, usar a quantidade específica
+          const quantidade = item.tipo_producao === 'painel' 
+            ? parseInt(item.quantidade_paineis || '1') 
+            : 1;
+          
           return {
             item_name: `${item.tipo_producao.toUpperCase()}: ${item.descricao}`,
-            quantity: 1,
+            quantity: quantidade,
             unit_price: valorUnitario,
+            
+            // Campos detalhados do painel
+            tipo_producao: item.tipo_producao,
+            descricao: item.descricao,
+            largura: item.largura,
+            altura: item.altura,
+            metro_quadrado: item.metro_quadrado,
+            vendedor: item.vendedor,
+            designer: item.designer,
+            tecido: item.tecido,
+            overloque: item.overloque,
+            elastico: item.elastico,
+            tipo_acabamento: item.tipo_acabamento,
+            quantidade_ilhos: item.quantidade_ilhos,
+            espaco_ilhos: item.espaco_ilhos,
+            valor_ilhos: item.valor_ilhos,
+            quantidade_cordinha: item.quantidade_cordinha,
+            espaco_cordinha: item.espaco_cordinha,
+            valor_cordinha: item.valor_cordinha,
+            observacao: item.observacao,
+            imagem: item.imagem,
+            quantidade_paineis: item.quantidade_paineis,
+            valor_unitario: item.valor_unitario,
+            emenda: item.emenda,
+            emenda_qtd:
+              item.emenda && item.emenda !== 'sem-emenda'
+                ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                  ? item.emendaQtd
+                  : undefined
+                : undefined,
           };
         });
+
+      console.log('Itens processados:', items);
+
+      // Validações adicionais
+      if (!formData.cliente || formData.cliente.trim().length === 0) {
+        toast({
+          title: "Erro",
+          description: "Nome do cliente é obrigatório.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (items.length === 0) {
         toast({
@@ -720,14 +929,50 @@ export default function CreateOrderComplete() {
         return;
       }
 
-      const createOrderRequest = {
-        customer_name: formData.cliente,
-        address: `${formData.cidade_cliente}, ${formData.telefone_cliente}`, // Usando cidade e telefone como endereço temporário
+      // Construir endereço de forma mais robusta
+      const addressParts = [];
+      if (formData.cidade_cliente) addressParts.push(formData.cidade_cliente);
+      if (formData.telefone_cliente) addressParts.push(formData.telefone_cliente);
+      const address = addressParts.length > 0 ? addressParts.join(', ') : 'Endereço não informado';
+
+      // Preparar data de entrega no formato correto (YYYY-MM-DD)
+      let dataEntregaFormatted = null;
+      if (formData.data_entrega) {
+        try {
+          // Se a data está no formato DD/MM/YYYY, converter para YYYY-MM-DD
+          if (formData.data_entrega.includes('/')) {
+            const [day, month, year] = formData.data_entrega.split('/');
+            dataEntregaFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } else {
+            dataEntregaFormatted = formData.data_entrega;
+          }
+        } catch (error) {
+          console.warn('Erro ao formatar data de entrega:', error);
+        }
+      }
+
+      // Construir request completo com todos os campos
+      const createOrderRequest: CreateOrderRequest = {
+        cliente: formData.cliente,
+        cidade_cliente: address,
         status: OrderStatus.Pendente,
-        items: items
+        items: items,
+        // Campos adicionais
+        ...(formData.numero && { numero: formData.numero }),
+        data_entrada: formData.data_entrada, // Sempre enviar data de entrada
+        ...(dataEntregaFormatted && { data_entrega: dataEntregaFormatted }),
+        ...(formData.forma_envio && { forma_envio: formData.forma_envio }),
+        ...(formData.tipo_pagamento && { forma_pagamento_id: parseInt(formData.tipo_pagamento) }),
+        ...(formData.prioridade && { prioridade: formData.prioridade }),
+        ...(formData.observacao && { observacao: formData.observacao }),
+        ...(formData.telefone_cliente && { telefone_cliente: formData.telefone_cliente }),
+        ...(formData.cidade_cliente && { cidade_cliente: formData.cidade_cliente }),
       };
 
       // Criar o pedido via API
+      console.log('Enviando pedido:', createOrderRequest);
+      console.log('Data entrada:', formData.data_entrada);
+      console.log('Data entrega:', formData.data_entrega);
       await api.createOrder(createOrderRequest);
 
       // Limpar rascunho após salvamento bem-sucedido
@@ -745,12 +990,12 @@ export default function CreateOrderComplete() {
       // Navegar para a lista de pedidos
       navigate('/dashboard/orders');
     } catch (error) {
+      console.error('Erro detalhado ao criar pedido:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível criar o pedido.",
+        description: `Não foi possível criar o pedido: ${error}`,
         variant: "destructive",
       });
-      console.error('Error:', error);
     } finally {
       setIsSaving(false);
     }
@@ -808,7 +1053,7 @@ export default function CreateOrderComplete() {
         <CardContent className="p-6 space-y-4">
           {/* Linha 1 - ID + Cliente + Telefone + Cidade */}
           <div className="grid grid-cols-12 gap-4">
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2 col-span-1">
               <Label className="text-base font-medium">ID</Label>
               <Input
                 value={formData.numero}
@@ -817,7 +1062,7 @@ export default function CreateOrderComplete() {
               />
             </div>
 
-            <div className="space-y-2 col-span-6">
+            <div className="space-y-2 col-span-7">
               <Label className="text-base font-medium">Nome do Cliente *</Label>
               <ClienteAutocomplete
                 value={formData.cliente}
@@ -1271,7 +1516,7 @@ export default function CreateOrderComplete() {
                 </SelectTrigger>
                 <SelectContent>
                   {formasPagamento.map(fp => (
-                    <SelectItem key={fp.id} value={fp.nome}>{fp.nome}</SelectItem>
+                    <SelectItem key={fp.id} value={fp.id.toString()}>{fp.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1383,6 +1628,69 @@ export default function CreateOrderComplete() {
         </Button>
       </div>
 
+      {/* Modal de Validação de Item */}
+      <Dialog open={showValidationModal} onOpenChange={setShowValidationModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-red-600">⚠️ Campos Obrigatórios</DialogTitle>
+            <DialogDescription>
+              Corrija os seguintes erros antes de salvar o item:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+              <h3 className="font-semibold mb-3 text-red-900">Erros encontrados:</h3>
+              <ul className="space-y-2">
+                {validationErrors.map((error, index) => (
+                  <li key={index} className="flex items-start gap-2 text-sm text-red-700">
+                    <span className="text-red-500 font-bold">•</span>
+                    <span>{error}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {optionalWarnings.length > 0 && (
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <h3 className="font-semibold mb-3 text-yellow-900">Avisos opcionais:</h3>
+                <ul className="space-y-1">
+                  {optionalWarnings.map((warning, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm text-yellow-700">
+                      <span className="text-yellow-500 font-bold">•</span>
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowValidationModal(false)}
+            >
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                setShowValidationModal(false);
+                // Focar no primeiro campo com erro (se possível)
+                toast({
+                  title: "Corrija os campos obrigatórios",
+                  description: "Preencha todos os campos marcados como obrigatórios.",
+                  variant: "destructive",
+                });
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Resumo */}
       <Dialog open={showResumoModal} onOpenChange={setShowResumoModal}>
         <DialogContent className="sm:max-w-2xl">
@@ -1409,9 +1717,25 @@ export default function CreateOrderComplete() {
               {tabs.map((tabId, index) => {
                 const item = tabsData[tabId];
                 if (!item?.tipo_producao) return null;
+                
+                // Calcular valor total do item considerando quantidade
+                const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+                let valorTotalItem = valorUnitario;
+                
+                if (item.tipo_producao === 'painel') {
+                  const quantidade = parseInt(item.quantidade_paineis || '1');
+                  valorTotalItem = valorUnitario * quantidade;
+                }
+                
+                const valorFormatado = valorTotalItem.toFixed(2).replace('.', ',');
+                
                 return (
                   <div key={tabId} className="text-sm mb-2">
-                    <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label} - R$ {item.valor_unitario}
+                    <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label}
+                    {item.tipo_producao === 'painel' && parseInt(item.quantidade_paineis || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_paineis})</span>
+                    )}
+                    <span> - R$ {valorFormatado}</span>
                   </div>
                 );
               })}

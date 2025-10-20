@@ -1,5 +1,6 @@
 use crate::db::DbPool;
 use crate::models::{LoginRequest, LoginResponse, User};
+use crate::session::SessionManager;
 use bcrypt::verify;
 use tauri::State;
 use tracing::{error, info};
@@ -7,6 +8,7 @@ use tracing::{error, info};
 #[tauri::command]
 pub async fn login(
     pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
     request: LoginRequest,
 ) -> Result<LoginResponse, String> {
     info!("Tentativa de login para usuário: {}", request.username);
@@ -26,11 +28,16 @@ pub async fn login(
                 Ok(is_valid) => {
                     if is_valid {
                         info!("Login bem-sucedido para usuário: {}", request.username);
+                        let token = sessions
+                            .create_session(user.id, user.username.clone(), user.is_admin)
+                            .await;
+
                         Ok(LoginResponse {
                             success: true,
                             user_id: Some(user.id),
                             username: Some(user.username.clone()),
                             is_admin: Some(user.is_admin),
+                            session_token: Some(token),
                             message: "Login realizado com sucesso".to_string(),
                         })
                     } else {
@@ -40,6 +47,7 @@ pub async fn login(
                             user_id: None,
                             username: None,
                             is_admin: None,
+                            session_token: None,
                             message: "Usuário ou senha inválidos".to_string(),
                         })
                     }
@@ -57,6 +65,7 @@ pub async fn login(
                 user_id: None,
                 username: None,
                 is_admin: None,
+                session_token: None,
                 message: "Usuário ou senha inválidos".to_string(),
             })
         }
@@ -65,4 +74,13 @@ pub async fn login(
             Err("Erro ao processar login".to_string())
         }
     }
+}
+
+#[tauri::command]
+pub async fn logout(
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<bool, String> {
+    sessions.invalidate(&session_token).await;
+    Ok(true)
 }
