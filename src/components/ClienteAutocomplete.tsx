@@ -89,7 +89,9 @@ export function ClienteAutocomplete({
       setOpen(true);
     } else {
       setOpen(false);
-      onSelect(null);
+      if (newValue.length === 0) {
+        onSelect(null);
+      }
     }
   };
 
@@ -103,6 +105,7 @@ export function ClienteAutocomplete({
               value={searchTerm}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Digite o nome do cliente..."
+              autoComplete="off"
               className="pl-10 h-12 text-base w-full"
             />
             {loading && (
@@ -112,7 +115,12 @@ export function ClienteAutocomplete({
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
           <div className="max-h-80 overflow-auto">
             {clientesFiltrados.length === 0 && !loading && searchTerm.length >= 2 && (
               <div className="p-4 text-center text-gray-500">

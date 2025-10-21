@@ -1960,16 +1960,7 @@ export default function CreateOrderComplete() {
       </Card>
 
       {/* Botões de Ação */}
-      <div className="flex gap-4 flex-wrap">
-        <Button
-          variant="outline"
-          className="gap-2 h-11 text-base"
-          onClick={() => toast({ title: "Em espera" })}
-        >
-          <Clock className="h-5 w-5" />
-          Em Espera
-        </Button>
-
+      <div className="flex gap-4 flex-wrap justify-end">
         <Button
           variant="outline"
           className="h-11 text-base"
@@ -1979,27 +1970,8 @@ export default function CreateOrderComplete() {
         </Button>
 
         <Button
-          variant="outline"
-          className="gap-2 h-11 text-base"
-          onClick={clearForm}
-        >
-          <Plus className="h-5 w-5" />
-          Novo Pedido
-        </Button>
-
-
-        <Button
-          variant="secondary"
-          className="gap-2 h-11 text-base"
           onClick={handleSalvar}
-        >
-          <Eye className="h-5 w-5" />
-          Resumo
-        </Button>
-
-        <Button
-          onClick={handleSalvar}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 ml-auto h-11 text-base"
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
         >
           <Save className="h-5 w-5" />
           Salvar Pedido

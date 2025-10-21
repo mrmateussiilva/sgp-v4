@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useOrderStore } from '../store/orderStore';
-import { OrderAuditLogEntry, OrderStatus } from '../types';
+import { OrderAuditLogEntry, OrderItem, OrderStatus } from '../types';
 import { api } from '@/services/api';
 import {
   Dialog,
@@ -111,6 +111,76 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
   const createdByStatusBadge = selectedOrder ? getStatusVariant(selectedOrder.status) : 'default';
   const valorFrete = formatCurrency(selectedOrder?.valor_frete);
   const valorTotal = formatCurrency(selectedOrder?.total_value);
+
+  const formatBooleanTag = (label: string, value: unknown) => {
+    if (typeof value === 'boolean') {
+      if (!value) return null;
+      return label;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'sim', 'yes'].includes(normalized)) {
+        return label;
+      }
+    }
+    if (typeof value === 'number') {
+      if (value === 1) return label;
+    }
+    return null;
+  };
+
+  const buildItemExtraDetails = (item: OrderItem) => {
+    const extras: string[] = [];
+    const tipo = item.tipo_producao?.toLowerCase() || '';
+
+    const pushIf = (label: string, value: unknown) => {
+      const formatted = formatBooleanTag(label, value);
+      if (formatted) extras.push(formatted);
+    };
+
+    if (tipo === 'painel' || tipo === 'generica') {
+      pushIf('Overloque', item.overloque);
+      pushIf('Elástico', item.elastico);
+
+      if (item.tipo_acabamento && item.tipo_acabamento !== 'nenhum') {
+        extras.push(`Acabamento: ${item.tipo_acabamento}`);
+      }
+      if (item.quantidade_ilhos) extras.push(`Ilhós: ${item.quantidade_ilhos}`);
+      if (item.quantidade_cordinha) extras.push(`Cordinha: ${item.quantidade_cordinha}`);
+      if (item.emenda && item.emenda !== 'sem-emenda') {
+        extras.push(`Emenda: ${item.emenda}${item.emenda_qtd ? ` (${item.emenda_qtd})` : ''}`);
+      }
+
+    if (tipo === 'generica') {
+      pushIf('Zíper', item.ziper);
+      pushIf('Cordinha extra', item.cordinha_extra);
+      pushIf('Alcinha', item.alcinha);
+      pushIf('Toalha pronta', item.toalha_pronta);
+      }
+    }
+
+    if (tipo === 'lona') {
+      pushIf('Terceirizado', item.terceirizado);
+      if (item.acabamento_lona) extras.push(`Acabamento lona: ${item.acabamento_lona}`);
+    }
+
+    if (tipo === 'totem') {
+      if (item.acabamento_totem) extras.push(`Acabamento totem: ${item.acabamento_totem}`);
+      if ((item as any).acabamento_totem_outro) {
+        extras.push(`Acabamento extra: ${(item as any).acabamento_totem_outro}`);
+      }
+    }
+
+    if (tipo === 'adesivo') {
+      if (item.tipo_adesivo) extras.push(`Tipo adesivo: ${item.tipo_adesivo}`);
+    }
+
+    if (extras.length === 0) {
+      extras.push('Sem detalhes adicionais.');
+    }
+
+    return extras;
+  };
 
   const historyRows = useMemo(() => {
     return history.map((entry) => {
@@ -244,6 +314,21 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="space-y-3">
+              {selectedOrder.items.map((item) => (
+                <div key={`details-${item.id}`} className="rounded-md border border-dashed border-muted px-3 py-2">
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">
+                    Detalhes {item.tipo_producao ? `(${item.tipo_producao.toUpperCase()})` : ''}
+                  </p>
+                  <ul className="text-sm space-y-1 list-disc list-inside">
+                    {buildItemExtraDetails(item).map((detail, idx) => (
+                      <li key={idx}>{detail}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </section>
 
