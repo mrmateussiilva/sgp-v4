@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, X, Save, Clock, Eye } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Plus, X, Save, Clock, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,13 +13,24 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
-import { Cliente, OrderStatus, CreateOrderRequest } from '@/types';
+import {
+  Cliente,
+  OrderStatus,
+  CreateOrderRequest,
+  CreateOrderItemRequest,
+  OrderItem,
+  OrderWithItems,
+  UpdateOrderRequest,
+  UpdateOrderItemRequest,
+  UpdateOrderMetadataRequest,
+} from '@/types';
 import { api } from '@/services/api';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
 import { FormTotemProducao } from '@/components/FormTotemProducao';
 import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
+import { useOrderStore } from '@/store/orderStore';
 
 const TIPOS_PRODUCAO = [
   { value: 'painel', label: 'Painel' },
@@ -33,6 +44,7 @@ const TIPOS_PRODUCAO = [
 
 interface TabItem {
   id: string;
+  orderItemId?: number;
   tipo_producao: string;
   descricao: string;
   largura: string;
@@ -82,31 +94,33 @@ interface TabItem {
   toalha_pronta: boolean;
 }
 
-export default function CreateOrderComplete() {
+interface CreateOrderCompleteProps {
+  mode?: 'create' | 'edit';
+}
+
+type NormalizedItem = CreateOrderItemRequest & { orderItemId?: number };
+
+export default function CreateOrderComplete({ mode = 'create' }: CreateOrderCompleteProps) {
   const navigate = useNavigate();
+  const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
+  const { orders, setOrders, updateOrder: updateOrderInStore } = useOrderStore();
 
-  const [formData, setFormData] = useState({
-    numero: '',
-    cliente: '',
-    telefone_cliente: '',
-    cidade_cliente: '',
-    estado_cliente: '',
-    data_entrada: new Date().toISOString().split('T')[0],
-    data_entrega: '',
-    prioridade: 'NORMAL',
-    observacao: '',
-    forma_envio: '',
-    tipo_pagamento: '',
-    desconto_tipo: '',
-    valor_frete: '0,00',
-  });
+  const isEditMode = mode === 'edit';
+  const initialSelectedId =
+    isEditMode && routeOrderId ? Number.parseInt(routeOrderId, 10) : null;
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(
+    Number.isNaN(initialSelectedId ?? NaN) ? null : initialSelectedId
+  );
+  const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
+  const [orderOptions, setOrderOptions] = useState<OrderWithItems[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(false);
 
-  const [tabs, setTabs] = useState<string[]>(['tab-1']);
-  const [activeTab, setActiveTab] = useState('tab-1');
-  const [tabsData, setTabsData] = useState<Record<string, TabItem>>({
-    'tab-1': {
-      id: 'tab-1',
+  function createEmptyTab(tabId: string): TabItem {
+    return {
+      id: tabId,
+      orderItemId: undefined,
       tipo_producao: '',
       descricao: '',
       largura: '',
@@ -150,7 +164,191 @@ export default function CreateOrderComplete() {
       cordinha_extra: false,
       alcinha: false,
       toalha_pronta: false,
+    };
+  }
+
+  function formatCurrencyValue(value?: string | number | null): string {
+    if (value === null || value === undefined) {
+      return '0,00';
     }
+
+    if (typeof value === 'number') {
+      return value.toFixed(2).replace('.', ',');
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return '0,00';
+    }
+
+    const cleaned = trimmed.replace(/[^0-9.,-]/g, '');
+    const hasComma = cleaned.includes(',');
+    const hasDot = cleaned.includes('.');
+
+    let normalized = cleaned;
+    if (hasComma && hasDot) {
+      normalized = normalized.replace(/\./g, '').replace(',', '.');
+    } else if (hasComma) {
+      normalized = normalized.replace(',', '.');
+    }
+
+    const parsed = Number.parseFloat(normalized);
+    if (Number.isNaN(parsed)) {
+      return '0,00';
+    }
+
+    return parsed.toFixed(2).replace('.', ',');
+  }
+
+  function toDateInputValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    if (trimmed.includes('T')) {
+      return trimmed.split('T')[0];
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split('/');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    return trimmed;
+  }
+
+  function mapItemToTab(item: OrderItem, tabId: string): TabItem {
+    const anyItem = item as Record<string, any>;
+    const tipoAcabamento =
+      (anyItem.tipo_acabamento as TabItem['tipo_acabamento'] | undefined) ?? 'nenhum';
+    const acabamentoLona =
+      (anyItem.acabamento_lona as TabItem['acabamento_lona'] | undefined) ?? 'refilar';
+    const acabamentoTotem =
+      (anyItem.acabamento_totem as TabItem['acabamento_totem'] | undefined) ?? 'com_pe';
+
+    return {
+      id: tabId,
+      orderItemId: item.id,
+      tipo_producao: item.tipo_producao ?? '',
+      descricao: item.descricao ?? item.item_name ?? '',
+      largura: item.largura ?? '',
+      altura: item.altura ?? '',
+      metro_quadrado: item.metro_quadrado ?? '',
+      vendedor: item.vendedor ?? '',
+      designer: item.designer ?? '',
+      tecido: item.tecido ?? '',
+      overloque: item.overloque ?? false,
+      elastico: item.elastico ?? false,
+      tipo_acabamento: tipoAcabamento,
+      quantidade_ilhos: anyItem.quantidade_ilhos ?? '',
+      espaco_ilhos: anyItem.espaco_ilhos ?? '',
+      valor_ilhos: formatCurrencyValue(anyItem.valor_ilhos),
+      quantidade_cordinha: anyItem.quantidade_cordinha ?? '',
+      espaco_cordinha: anyItem.espaco_cordinha ?? '',
+      valor_cordinha: formatCurrencyValue(anyItem.valor_cordinha),
+      imagem: anyItem.imagem ?? '',
+      valor_painel: formatCurrencyValue(
+        anyItem.valor_painel ?? anyItem.valor_unitario ?? item.unit_price
+      ),
+      valores_adicionais: formatCurrencyValue(anyItem.valores_adicionais ?? '0,00'),
+      quantidade_paineis:
+        anyItem.quantidade_paineis ?? (item.quantity ? item.quantity.toString() : '1'),
+      emenda: anyItem.emenda ?? 'sem-emenda',
+      observacao: anyItem.observacao ?? '',
+      valor_unitario: formatCurrencyValue(anyItem.valor_unitario ?? item.unit_price),
+      terceirizado: Boolean(anyItem.terceirizado),
+      acabamento_lona: acabamentoLona,
+      valor_lona: formatCurrencyValue(anyItem.valor_lona ?? '0,00'),
+      quantidade_lona: anyItem.quantidade_lona ?? '1',
+      outros_valores_lona: formatCurrencyValue(anyItem.outros_valores_lona ?? '0,00'),
+      acabamento_totem: acabamentoTotem,
+      acabamento_totem_outro: anyItem.acabamento_totem_outro ?? '',
+      valor_totem: formatCurrencyValue(anyItem.valor_totem ?? '0,00'),
+      quantidade_totem: anyItem.quantidade_totem ?? '1',
+      outros_valores_totem: formatCurrencyValue(anyItem.outros_valores_totem ?? '0,00'),
+      emendaQtd: anyItem.emenda_qtd ?? anyItem.emendaQtd ?? '',
+      tipo_adesivo: anyItem.tipo_adesivo ?? '',
+      valor_adesivo: formatCurrencyValue(anyItem.valor_adesivo ?? '0,00'),
+      quantidade_adesivo: anyItem.quantidade_adesivo ?? '1',
+      outros_valores_adesivo: formatCurrencyValue(anyItem.outros_valores_adesivo ?? '0,00'),
+      ziper: Boolean(anyItem.ziper),
+      cordinha_extra: Boolean(anyItem.cordinha_extra),
+      alcinha: Boolean(anyItem.alcinha),
+      toalha_pronta: Boolean(anyItem.toalha_pronta),
+    };
+  }
+
+  function populateFormFromOrder(order: OrderWithItems) {
+    setFormData((prev) => ({
+      ...prev,
+      numero: order.numero ?? '',
+      cliente: order.cliente ?? order.customer_name ?? '',
+      telefone_cliente: order.telefone_cliente ?? '',
+      cidade_cliente: order.cidade_cliente ?? '',
+      estado_cliente: order.estado_cliente ?? '',
+      data_entrada: toDateInputValue(order.data_entrada) || prev.data_entrada,
+      data_entrega: toDateInputValue(order.data_entrega),
+      prioridade: order.prioridade ?? 'NORMAL',
+      status: order.status ?? OrderStatus.Pendente,
+      observacao: order.observacao ?? '',
+      forma_envio: order.forma_envio ?? '',
+      tipo_pagamento: order.forma_pagamento_id
+        ? order.forma_pagamento_id.toString()
+        : '',
+      valor_frete: formatCurrencyValue(order.valor_frete ?? '0'),
+    }));
+
+    const items = order.items ?? [];
+    if (items.length === 0) {
+      setTabs(['tab-1']);
+      setTabsData({ 'tab-1': createEmptyTab('tab-1') });
+      setActiveTab('tab-1');
+      setItemHasUnsavedChanges({});
+      return;
+    }
+
+    const generatedTabs = items.map((_, index) => `tab-${index + 1}`);
+    const data: Record<string, TabItem> = {};
+    generatedTabs.forEach((tabId, index) => {
+      data[tabId] = mapItemToTab(items[index], tabId);
+    });
+    setTabs(generatedTabs);
+    setTabsData(data);
+    setActiveTab(generatedTabs[0]);
+    setItemHasUnsavedChanges(
+      generatedTabs.reduce<Record<string, boolean>>((acc, tabId) => {
+        acc[tabId] = false;
+        return acc;
+      }, {})
+    );
+  }
+
+  const [formData, setFormData] = useState({
+    numero: '',
+    cliente: '',
+    telefone_cliente: '',
+    cidade_cliente: '',
+    estado_cliente: '',
+    data_entrada: new Date().toISOString().split('T')[0],
+    data_entrega: '',
+    prioridade: 'NORMAL',
+    status: OrderStatus.Pendente,
+    observacao: '',
+    forma_envio: '',
+    tipo_pagamento: '',
+    desconto_tipo: '',
+    valor_frete: '0,00',
+  });
+
+  const [tabs, setTabs] = useState<string[]>(['tab-1']);
+  const [activeTab, setActiveTab] = useState('tab-1');
+  const [tabsData, setTabsData] = useState<Record<string, TabItem>>({
+    'tab-1': createEmptyTab('tab-1'),
   });
 
   // Estado para gerenciar mudanças não salvas de cada item
@@ -178,6 +376,114 @@ export default function CreateOrderComplete() {
     { id: 4, name: 'R$ 50,00', type: 'valor_fixo', value: 50 },
   ]);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const orderSelectOptions = useMemo(
+    () =>
+      orderOptions.map((order) => ({
+        value: order.id.toString(),
+        label: `${order.numero ? `#${order.numero}` : `#${order.id}`} - ${
+          order.cliente ?? order.customer_name ?? 'Sem cliente'
+        }`,
+      })),
+    [orderOptions]
+  );
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+    if (!routeOrderId) {
+      return;
+    }
+    const parsed = Number.parseInt(routeOrderId, 10);
+    if (!Number.isNaN(parsed)) {
+      setSelectedOrderId(parsed);
+    }
+  }, [isEditMode, routeOrderId]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+
+    if (orders.length > 0) {
+      setOrderOptions(orders);
+      return;
+    }
+
+    let active = true;
+    setOrdersLoading(true);
+    (async () => {
+      try {
+        const fetched = await api.getOrders();
+        if (!active) {
+          return;
+        }
+        setOrderOptions(fetched);
+        setOrders(fetched);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        console.error('Erro ao carregar pedidos disponíveis:', error);
+        toast({
+          title: 'Erro ao carregar pedidos',
+          description: 'Não foi possível listar os pedidos para edição.',
+          variant: 'destructive',
+        });
+      } finally {
+        if (active) {
+          setOrdersLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isEditMode, orders, setOrders, toast]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+
+    if (!selectedOrderId) {
+      setCurrentOrder(null);
+      return;
+    }
+
+    let active = true;
+    setLoadingOrder(true);
+    (async () => {
+      try {
+        const order = await api.getOrderById(selectedOrderId);
+        if (!active) {
+          return;
+        }
+        setCurrentOrder(order);
+        populateFormFromOrder(order);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        console.error('Erro ao carregar pedido para edição:', error);
+        toast({
+          title: 'Erro ao carregar pedido',
+          description: 'Não foi possível carregar os dados completos do pedido selecionado.',
+          variant: 'destructive',
+        });
+      } finally {
+        if (active) {
+          setLoadingOrder(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isEditMode, selectedOrderId, toast]);
 
   // Carregar catálogos do banco (ativos)
   useEffect(() => {
@@ -640,52 +946,7 @@ export default function CreateOrderComplete() {
     setTabs([...tabs, newTabId]);
     setTabsData(prev => ({
       ...prev,
-      [newTabId]: {
-        id: newTabId,
-        tipo_producao: '',
-        descricao: '',
-        largura: '',
-        altura: '',
-        metro_quadrado: '',
-        vendedor: '',
-        designer: '',
-        tecido: '',
-        overloque: false,
-        elastico: false,
-        tipo_acabamento: 'nenhum',
-        quantidade_ilhos: '',
-        espaco_ilhos: '',
-        valor_ilhos: '0,00',
-        quantidade_cordinha: '',
-        espaco_cordinha: '',
-        valor_cordinha: '0,00',
-        imagem: '',
-        valor_painel: '0,00',
-        valores_adicionais: '0,00',
-        quantidade_paineis: '1',
-        emenda: 'sem-emenda',
-        observacao: '',
-        valor_unitario: '0,00',
-        terceirizado: false,
-        acabamento_lona: 'refilar',
-        valor_lona: '0,00',
-        quantidade_lona: '1',
-        outros_valores_lona: '0,00',
-        acabamento_totem: 'com_pe',
-        acabamento_totem_outro: '',
-        valor_totem: '0,00',
-        quantidade_totem: '1',
-        outros_valores_totem: '0,00',
-        emendaQtd: '',
-        tipo_adesivo: '',
-        valor_adesivo: '0,00',
-        quantidade_adesivo: '1',
-        outros_valores_adesivo: '0,00',
-        ziper: false,
-        cordinha_extra: false,
-        alcinha: false,
-        toalha_pronta: false,
-      }
+      [newTabId]: createEmptyTab(newTabId)
     }));
 
     // Inicializar estados para o novo item
@@ -931,56 +1192,9 @@ export default function CreateOrderComplete() {
 
   const handleCancelItem = (tabId: string) => {
     // Limpar o item
-    const emptyItem: TabItem = {
-      id: tabId,
-      tipo_producao: '',
-      descricao: '',
-      largura: '',
-      altura: '',
-      metro_quadrado: '',
-      vendedor: '',
-      designer: '',
-      tecido: '',
-      overloque: false,
-      elastico: false,
-      tipo_acabamento: 'nenhum',
-      quantidade_ilhos: '',
-      espaco_ilhos: '',
-      valor_ilhos: '0,00',
-      quantidade_cordinha: '',
-      espaco_cordinha: '',
-      valor_cordinha: '0,00',
-      imagem: '',
-      valor_painel: '0,00',
-      valores_adicionais: '0,00',
-      quantidade_paineis: '1',
-      emenda: 'sem-emenda',
-      observacao: '',
-      valor_unitario: '0,00',
-      terceirizado: false,
-      acabamento_lona: 'refilar',
-      valor_lona: '0,00',
-      quantidade_lona: '1',
-      outros_valores_lona: '0,00',
-      acabamento_totem: 'com_pe',
-      acabamento_totem_outro: '',
-      valor_totem: '0,00',
-      quantidade_totem: '1',
-      outros_valores_totem: '0,00',
-      emendaQtd: '',
-      tipo_adesivo: '',
-      valor_adesivo: '0,00',
-      quantidade_adesivo: '1',
-      outros_valores_adesivo: '0,00',
-      ziper: false,
-      cordinha_extra: false,
-      alcinha: false,
-      toalha_pronta: false,
-    };
-
     setTabsData(prev => ({
       ...prev,
-      [tabId]: emptyItem
+      [tabId]: createEmptyTab(tabId)
     }));
 
     // Marcar que não há mudanças não salvas
@@ -1050,6 +1264,15 @@ export default function CreateOrderComplete() {
   };
 
   const handleSalvar = () => {
+    if (isEditMode && !selectedOrderId) {
+      toast({
+        variant: 'destructive',
+        title: 'Selecione um pedido',
+        description: 'Escolha um pedido para editar antes de salvar.',
+      });
+      return;
+    }
+
     // Executar validação completa
     const isValid = validateAll();
 
@@ -1078,6 +1301,7 @@ export default function CreateOrderComplete() {
       data_entrada: new Date().toISOString().split('T')[0],
       data_entrega: '',
       prioridade: 'NORMAL',
+      status: OrderStatus.Pendente,
       observacao: '',
       forma_envio: '',
       tipo_pagamento: '',
@@ -1086,51 +1310,8 @@ export default function CreateOrderComplete() {
     });
 
     // Limpar dados dos itens
-    const emptyItem: TabItem = {
-      id: 'tab-1',
-      tipo_producao: '',
-      descricao: '',
-      largura: '',
-      altura: '',
-      metro_quadrado: '',
-      vendedor: '',
-      designer: '',
-      tecido: '',
-      overloque: false,
-      elastico: false,
-      tipo_acabamento: 'nenhum',
-      quantidade_ilhos: '',
-      espaco_ilhos: '',
-      valor_ilhos: '0,00',
-      quantidade_cordinha: '',
-      espaco_cordinha: '',
-      valor_cordinha: '0,00',
-      imagem: '',
-      valor_painel: '0,00',
-      valores_adicionais: '0,00',
-      quantidade_paineis: '1',
-      emenda: 'sem-emenda',
-      observacao: '',
-      valor_unitario: '0,00',
-      terceirizado: false,
-      acabamento_lona: 'refilar',
-      valor_lona: '0,00',
-      quantidade_lona: '1',
-      outros_valores_lona: '0,00',
-      acabamento_totem: 'com_pe',
-      acabamento_totem_outro: '',
-      valor_totem: '0,00',
-      quantidade_totem: '1',
-      outros_valores_totem: '0,00',
-      emendaQtd: '',
-      tipo_adesivo: '',
-      valor_adesivo: '0,00',
-      quantidade_adesivo: '1',
-      outros_valores_adesivo: '0,00',
-    };
-
     setTabs(['tab-1']);
-    setTabsData({ 'tab-1': emptyItem });
+    setTabsData({ 'tab-1': createEmptyTab('tab-1') });
     setItemHasUnsavedChanges({});
     setActiveTab('tab-1');
     setErrors({});
@@ -1141,34 +1322,35 @@ export default function CreateOrderComplete() {
     setIsSaving(true);
 
     try {
-      // Converter dados do formulário para o formato esperado pelo backend
-      const items = tabs
-        .filter(tabId => {
+      const normalizedItems: NormalizedItem[] = tabs
+        .filter((tabId) => {
           const item = tabsData[tabId];
           return item && item.tipo_producao && item.descricao;
         })
-        .map(tabId => {
-          const item = tabsData[tabId];
-          const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-          
-          // Usar quantidade específica por tipo
-          const quantidadeRaw = (item.tipo_producao === 'painel' || item.tipo_producao === 'generica')
-            ? parseInt(item.quantidade_paineis || '1', 10)
-            : item.tipo_producao === 'totem'
-              ? parseInt(item.quantidade_totem || '1', 10)
-              : item.tipo_producao === 'lona'
-                ? parseInt(item.quantidade_lona || '1', 10)
-                : item.tipo_producao === 'adesivo'
-                  ? parseInt(item.quantidade_adesivo || '1', 10)
-                  : 1;
+        .map((tabId) => {
+          const item = tabsData[tabId]!;
+          const valorUnitario =
+            parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) ||
+            0;
+
+          const quantidadeRaw =
+            item.tipo_producao === 'painel' || item.tipo_producao === 'generica'
+              ? parseInt(item.quantidade_paineis || '1', 10)
+              : item.tipo_producao === 'totem'
+                ? parseInt(item.quantidade_totem || '1', 10)
+                : item.tipo_producao === 'lona'
+                  ? parseInt(item.quantidade_lona || '1', 10)
+                  : item.tipo_producao === 'adesivo'
+                    ? parseInt(item.quantidade_adesivo || '1', 10)
+                    : 1;
+
           const quantidade = Number.isNaN(quantidadeRaw) || quantidadeRaw <= 0 ? 1 : quantidadeRaw;
-          
-          return {
+
+          const payload: NormalizedItem = {
+            orderItemId: item.orderItemId,
             item_name: `${item.tipo_producao.toUpperCase()}: ${item.descricao}`,
-            quantity: quantidade,
+            quantity,
             unit_price: valorUnitario,
-            
-            // Campos detalhados do painel
             tipo_producao: item.tipo_producao,
             descricao: item.descricao,
             largura: item.largura,
@@ -1216,40 +1398,36 @@ export default function CreateOrderComplete() {
             alcinha: item.alcinha,
             toalha_pronta: item.toalha_pronta,
           };
+
+          return payload;
         });
 
-      console.log('Itens processados:', items);
-
-      // Validações adicionais
       if (!formData.cliente || formData.cliente.trim().length === 0) {
         toast({
-          title: "Erro",
-          description: "Nome do cliente é obrigatório.",
-          variant: "destructive",
+          title: 'Erro',
+          description: 'Nome do cliente é obrigatório.',
+          variant: 'destructive',
         });
         return;
       }
 
-      if (items.length === 0) {
+      if (normalizedItems.length === 0) {
         toast({
-          title: "Erro",
-          description: "Adicione pelo menos um item ao pedido.",
-          variant: "destructive",
+          title: 'Erro',
+          description: 'Adicione pelo menos um item ao pedido.',
+          variant: 'destructive',
         });
         return;
       }
 
-      // Construir endereço de forma mais robusta
-      const addressParts = [];
+      const addressParts: string[] = [];
       if (formData.cidade_cliente) addressParts.push(formData.cidade_cliente);
       if (formData.telefone_cliente) addressParts.push(formData.telefone_cliente);
       const address = addressParts.length > 0 ? addressParts.join(', ') : 'Endereço não informado';
 
-      // Preparar data de entrega no formato correto (YYYY-MM-DD)
-      let dataEntregaFormatted = null;
+      let dataEntregaFormatted: string | null = null;
       if (formData.data_entrega) {
         try {
-          // Se a data está no formato DD/MM/YYYY, converter para YYYY-MM-DD
           if (formData.data_entrega.includes('/')) {
             const [day, month, year] = formData.data_entrega.split('/');
             dataEntregaFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -1261,51 +1439,183 @@ export default function CreateOrderComplete() {
         }
       }
 
-      const valorFrete = parseFloat(String(formData.valor_frete || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorFrete =
+        parseFloat(String(formData.valor_frete || '0,00').replace(/\./g, '').replace(',', '.')) ||
+        0;
 
-      // Construir request completo com todos os campos
+      if (isEditMode && selectedOrderId) {
+        if (!currentOrder) {
+          toast({
+            title: 'Pedido não carregado',
+            description: 'Carregue o pedido antes de salvar as alterações.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const updateItemsPayload: UpdateOrderItemRequest[] = normalizedItems.map(
+          ({ orderItemId, ...rest }) => ({
+            id: orderItemId,
+            ...rest,
+          })
+        );
+
+        const updateRequest: UpdateOrderRequest = {
+          id: selectedOrderId,
+          cliente: formData.cliente,
+          cidade_cliente: address,
+          status: formData.status ?? OrderStatus.Pendente,
+          items: updateItemsPayload,
+          valor_frete: valorFrete,
+        };
+
+        const updatedOrder = await api.updateOrder(updateRequest);
+
+        const metadataPayload: UpdateOrderMetadataRequest = { id: selectedOrderId };
+        let metadataChanged = false;
+        const assignMetadataIfDiff = (
+          key: keyof UpdateOrderMetadataRequest,
+          newValue: any,
+          currentValue: any,
+          transform?: (value: any) => any,
+        ) => {
+          const normalize = (value: any) => {
+            const transformed = transform ? transform(value) : value;
+            if (transformed === null || transformed === undefined) {
+              return null;
+            }
+            if (typeof transformed === 'string') {
+              const trimmed = transformed.trim();
+              return trimmed === '' ? null : trimmed;
+            }
+            return transformed;
+          };
+
+          if (normalize(newValue) !== normalize(currentValue)) {
+            (metadataPayload as Record<string, any>)[key] = newValue;
+            metadataChanged = true;
+          }
+        };
+
+        assignMetadataIfDiff(
+          'telefone_cliente',
+          formData.telefone_cliente || '',
+          updatedOrder.telefone_cliente ?? '',
+        );
+        assignMetadataIfDiff(
+          'estado_cliente',
+          formData.estado_cliente || '',
+          updatedOrder.estado_cliente ?? '',
+        );
+        assignMetadataIfDiff(
+          'prioridade',
+          formData.prioridade || '',
+          updatedOrder.prioridade ?? '',
+        );
+        assignMetadataIfDiff(
+          'forma_envio',
+          formData.forma_envio || '',
+          updatedOrder.forma_envio ?? '',
+        );
+        assignMetadataIfDiff(
+          'observacao',
+          formData.observacao || '',
+          updatedOrder.observacao ?? '',
+        );
+        assignMetadataIfDiff(
+          'cidade_cliente',
+          formData.cidade_cliente || '',
+          updatedOrder.cidade_cliente ?? '',
+        );
+        assignMetadataIfDiff(
+          'data_entrega',
+          dataEntregaFormatted ?? '',
+          toDateInputValue(updatedOrder.data_entrega ?? null),
+        );
+        const newFormaPagamentoId = formData.tipo_pagamento
+          ? Number.parseInt(formData.tipo_pagamento, 10)
+          : null;
+        assignMetadataIfDiff(
+          'forma_pagamento_id',
+          newFormaPagamentoId,
+          updatedOrder.forma_pagamento_id ?? null,
+          (value) => (value === null || value === undefined ? null : Number(value)),
+        );
+
+        assignMetadataIfDiff(
+          'estado_cliente',
+          formData.estado_cliente || '',
+          updatedOrder.estado_cliente ?? '',
+        );
+
+        let finalOrder = updatedOrder;
+        if (metadataChanged) {
+          try {
+            finalOrder = await api.updateOrderMetadata(metadataPayload);
+          } catch (metadataError) {
+            const message =
+              metadataError instanceof Error ? metadataError.message : String(metadataError);
+            if (!message.toLowerCase().includes('nenhuma alteração')) {
+              throw metadataError;
+            }
+          }
+        }
+
+        const orderIdentifier = finalOrder.numero ?? finalOrder.id.toString();
+        toast({
+          title: 'Pedido atualizado!',
+          description: `Pedido ${orderIdentifier} atualizado com sucesso.`,
+        });
+
+        setShowResumoModal(false);
+        setItemHasUnsavedChanges({});
+        setCurrentOrder(finalOrder);
+        populateFormFromOrder(finalOrder);
+        updateOrderInStore(finalOrder);
+        navigate('/dashboard/orders');
+        return;
+      }
+
+      const createItems: CreateOrderItemRequest[] = normalizedItems.map(
+        ({ orderItemId, ...item }) => item
+      );
+
       const createOrderRequest: CreateOrderRequest = {
         cliente: formData.cliente,
         cidade_cliente: address,
-        status: OrderStatus.Pendente,
-        items: items,
-        data_entrada: formData.data_entrada, // Sempre enviar data de entrada
+        status: formData.status ?? OrderStatus.Pendente,
+        items: createItems,
+        data_entrada: formData.data_entrada,
         ...(dataEntregaFormatted && { data_entrega: dataEntregaFormatted }),
         ...(formData.forma_envio && { forma_envio: formData.forma_envio }),
-        ...(formData.tipo_pagamento && { forma_pagamento_id: parseInt(formData.tipo_pagamento) }),
+        ...(formData.tipo_pagamento && {
+          forma_pagamento_id: Number.parseInt(formData.tipo_pagamento, 10),
+        }),
         ...(formData.prioridade && { prioridade: formData.prioridade }),
         ...(formData.observacao && { observacao: formData.observacao }),
         ...(formData.telefone_cliente && { telefone_cliente: formData.telefone_cliente }),
         ...(formData.cidade_cliente && { cidade_cliente: formData.cidade_cliente }),
+        ...(formData.estado_cliente && { estado_cliente: formData.estado_cliente }),
         valor_frete: valorFrete,
       };
 
-      // Criar o pedido via API
-      console.log('Enviando pedido:', createOrderRequest);
-      console.log('Data entrada:', formData.data_entrada);
-      console.log('Data entrega:', formData.data_entrega);
       const createdOrder = await api.createOrder(createOrderRequest);
-
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
       toast({
-        title: "Pedido criado!",
+        title: 'Pedido criado!',
         description: `Pedido ${orderIdentifier} criado com sucesso!`,
       });
 
       setShowResumoModal(false);
-      
-      // Limpar formulário após salvamento bem-sucedido
       clearForm();
-      
-      // Navegar para a lista de pedidos
       navigate('/dashboard/orders');
     } catch (error) {
-      console.error('Erro detalhado ao criar pedido:', error);
+      console.error('Erro detalhado ao salvar pedido:', error);
       toast({
-        title: "Erro",
-        description: `Não foi possível criar o pedido: ${error}`,
-        variant: "destructive",
+        title: 'Erro',
+        description: `Não foi possível salvar o pedido: ${error}`,
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
