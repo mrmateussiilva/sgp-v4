@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::FromRow;
 
 // ========================================
@@ -151,6 +152,14 @@ pub struct OrderItem {
     pub quantidade_adesivo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outros_valores_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ziper: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cordinha_extra: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alcinha: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toalha_pronta: Option<bool>,
 }
 
 // ========================================
@@ -219,6 +228,19 @@ pub struct OrderWithItems {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pronto: Option<bool>,
     pub items: Vec<OrderItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct OrderAuditLogEntry {
+    pub id: i32,
+    pub order_id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changed_by: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changed_by_name: Option<String>,
+    pub changes: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,6 +334,14 @@ pub struct CreateOrderItemRequest {
     pub quantidade_adesivo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outros_valores_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ziper: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cordinha_extra: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alcinha: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toalha_pronta: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,6 +353,33 @@ pub struct UpdateOrderRequest {
     pub items: Vec<UpdateOrderItemRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valor_frete: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateOrderMetadataRequest {
+    pub id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cidade_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estado_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telefone_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrega: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prioridade: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forma_envio: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forma_pagamento_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<OrderStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -397,6 +454,14 @@ pub struct UpdateOrderItemRequest {
     pub quantidade_adesivo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outros_valores_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ziper: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cordinha_extra: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alcinha: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toalha_pronta: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -488,10 +553,10 @@ pub struct ReportResponse {
 pub struct Cliente {
     pub id: i32,
     pub nome: String,
-    pub cep: String,
-    pub cidade: String,
-    pub estado: String,
-    pub telefone: String,
+    pub cep: Option<String>,
+    pub cidade: Option<String>,
+    pub estado: Option<String>,
+    pub telefone: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::NaiveDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -501,20 +566,52 @@ pub struct Cliente {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateClienteRequest {
     pub nome: String,
-    pub cep: String,
-    pub cidade: String,
-    pub estado: String,
-    pub telefone: String,
+    pub cep: Option<String>,
+    pub cidade: Option<String>,
+    pub estado: Option<String>,
+    pub telefone: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateClienteRequest {
     pub id: i32,
     pub nome: String,
-    pub cep: String,
-    pub cidade: String,
-    pub estado: String,
-    pub telefone: String,
+    pub cep: Option<String>,
+    pub cidade: Option<String>,
+    pub estado: Option<String>,
+    pub telefone: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkClienteImportItem {
+    pub nome: String,
+    #[serde(default)]
+    pub cep: Option<String>,
+    #[serde(default)]
+    pub cidade: Option<String>,
+    #[serde(default)]
+    pub estado: Option<String>,
+    #[serde(default)]
+    pub telefone: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkClienteImportRequest {
+    pub clientes: Vec<BulkClienteImportItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkClienteImportError {
+    pub index: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nome: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkClienteImportResult {
+    pub imported: Vec<Cliente>,
+    pub errors: Vec<BulkClienteImportError>,
 }
 
 // ========================================

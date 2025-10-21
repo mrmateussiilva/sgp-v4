@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect, ChangeEvent } from 'react';
+import { Plus, Search, Pencil, Trash2, Eye, Upload } from 'lucide-react';
+import Papa from 'papaparse';
 import { api } from '../services/api';
-import { Cliente } from '../types';
+import {
+  BulkClienteImportItem,
+  BulkClienteImportResult,
+  Cliente,
+  CreateClienteRequest,
+} from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputWithMask } from '@/components/ui/input-mask';
@@ -36,7 +42,7 @@ export default function Clientes() {
   // Modal de criar/editar
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState<number | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CreateClienteRequest>({
     nome: '',
     cep: '',
     cidade: '',
@@ -63,10 +69,39 @@ export default function Clientes() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+
+  // Importação em massa
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [csvRows, setCsvRows] = useState<BulkClienteImportItem[]>([]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [csvParseErrors, setCsvParseErrors] = useState<string[]>([]);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [importSummary, setImportSummary] = useState<BulkClienteImportResult | null>(null);
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const formatOptionalField = (value?: string | null) => {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : '-';
+  };
+
+  const formatLocation = (cidade?: string | null, estado?: string | null) => {
+    const cidadeFormatada = formatOptionalField(cidade);
+    const estadoFormatado = formatOptionalField(estado);
+
+    if (cidadeFormatada === '-' && estadoFormatado === '-') {
+      return '-';
+    }
+    if (estadoFormatado === '-') {
+      return cidadeFormatada;
+    }
+    if (cidadeFormatada === '-') {
+      return estadoFormatado;
+    }
+    return `${cidadeFormatada} - ${estadoFormatado}`;
+  };
 
   useEffect(() => {
     carregarClientes();
@@ -89,9 +124,155 @@ export default function Clientes() {
     }
   };
 
+  const resetImportState = () => {
+    setCsvRows([]);
+    setCsvFileName('');
+    setCsvParseErrors([]);
+    setImportSummary(null);
+  };
+
+  const handleImportDialogToggle = (open: boolean) => {
+    if (!open) {
+      resetImportState();
+    }
+    setImportDialogOpen(open);
+  };
+
+  const normalizeCsvValue = (value: unknown): string => {
+    if (typeof value === 'string') {
+      return value.trim();
+    }
+    if (typeof value === 'number') {
+      return value.toString().trim();
+    }
+    return '';
+  };
+
+  const normalizeOptionalCsvValue = (value: unknown, transform?: (input: string) => string): string | null => {
+    const normalized = normalizeCsvValue(value);
+    if (!normalized) {
+      return null;
+    }
+    return transform ? transform(normalized) : normalized;
+  };
+
+  const handleCsvFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      resetImportState();
+      return;
+    }
+
+    setCsvFileName(file.name);
+    setCsvParseErrors([]);
+    setCsvRows([]);
+    setImportSummary(null);
+
+    Papa.parse<Record<string, unknown>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header) => header.trim().toLowerCase(),
+      complete: (result) => {
+        const parseErrors = result.errors.map(
+          (err) => `Linha ${err.row ?? '?'}: ${err.message}`
+        );
+
+        const parsedRows: BulkClienteImportItem[] = [];
+        const rowErrors: string[] = [...parseErrors];
+
+        result.data.forEach((row, index) => {
+          const linha = index + 2; // considerando linha de cabeçalho
+          const nome = normalizeCsvValue(row['nome']);
+
+          if (!nome) {
+            rowErrors.push(`Linha ${linha}: campo "nome" é obrigatório.`);
+            return;
+          }
+
+          const estadoValor = normalizeOptionalCsvValue(row['estado'], (value) => value.toUpperCase());
+          if (estadoValor && estadoValor.length !== 2) {
+            rowErrors.push(`Linha ${linha}: estado deve ter exatamente 2 letras (ex: SP).`);
+            return;
+          }
+
+          parsedRows.push({
+            nome,
+            cep: normalizeOptionalCsvValue(row['cep']),
+            cidade: normalizeOptionalCsvValue(row['cidade']),
+            estado: estadoValor,
+            telefone: normalizeOptionalCsvValue(row['telefone']),
+          });
+        });
+
+        setCsvRows(parsedRows);
+        setCsvParseErrors(rowErrors);
+      },
+      error: (error) => {
+        setCsvParseErrors([`Falha ao ler o arquivo: ${error.message}`]);
+        setCsvRows([]);
+      },
+    });
+
+    // Permitir reprocessar o mesmo arquivo
+    event.target.value = '';
+  };
+
+  const handleImportClientes = async () => {
+    if (csvRows.length === 0) {
+      const mensagem = 'Nenhum registro válido encontrado. Verifique o arquivo e tente novamente.';
+      setCsvParseErrors((prev) => (
+        prev.includes(mensagem) ? prev : [...prev, mensagem]
+      ));
+      return;
+    }
+
+    setImportSummary(null);
+    setImportingCsv(true);
+
+    try {
+      const resultado = await api.importClientesBulk(csvRows);
+      setImportSummary(resultado);
+
+      const sucesso = resultado.imported.length;
+      const falhas = resultado.errors.length;
+
+      if (sucesso > 0) {
+        toast({
+          title: "Importação concluída",
+          description: `${sucesso} cliente(s) importado(s) com sucesso.`,
+        });
+      }
+
+      if (falhas > 0) {
+        toast({
+          title: "Importação parcial",
+          description: `${falhas} linha(s) apresentaram erros e não foram importadas.`,
+          variant: "destructive",
+        });
+      }
+
+      await carregarClientes();
+    } catch (error) {
+      toast({
+        title: "Erro ao importar",
+        description: "Não foi possível importar os clientes. Tente novamente.",
+        variant: "destructive",
+      });
+      console.error('Erro ao importar clientes:', error);
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
   const buscarCep = async (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
     
+    if (cepLimpo.length === 0) {
+      setErros(prev => ({ ...prev, cep: '' }));
+      return;
+    }
+
     if (cepLimpo.length !== 8) {
       setErros(prev => ({ ...prev, cep: 'CEP deve ter 8 dígitos' }));
       return;
@@ -145,31 +326,29 @@ export default function Clientes() {
       
       case 'cep':
         const cepLimpo = valor.replace(/\D/g, '');
-        if (!cepLimpo) {
-          erro = 'CEP é obrigatório';
+        if (!valor.trim()) {
+          erro = '';
         } else if (cepLimpo.length !== 8) {
           erro = 'CEP deve ter 8 dígitos';
         }
         break;
       
       case 'cidade':
-        if (!valor.trim()) {
-          erro = 'Cidade é obrigatória';
-        }
+        erro = '';
         break;
       
       case 'estado':
         if (!valor.trim()) {
-          erro = 'Estado é obrigatório';
-        } else if (!/^[A-Z]{2}$/.test(valor)) {
+          erro = '';
+        } else if (!/^[A-Z]{2}$/.test(valor.trim())) {
           erro = 'Estado deve ter 2 letras maiúsculas (ex: SP)';
         }
         break;
       
       case 'telefone':
         const telLimpo = valor.replace(/\D/g, '');
-        if (!telLimpo) {
-          erro = 'Telefone é obrigatório';
+        if (!valor.trim()) {
+          erro = '';
         } else if (telLimpo.length !== 11) {
           erro = 'Telefone deve ter 11 dígitos';
         }
@@ -181,20 +360,23 @@ export default function Clientes() {
   };
 
   const handleFormChange = (campo: string, valor: string) => {
-    setForm(prev => ({ ...prev, [campo]: valor }));
+    const valorNormalizado =
+      campo === 'estado' ? valor.toUpperCase() : valor;
+
+    setForm(prev => ({ ...prev, [campo]: valorNormalizado }));
     
     // Validar em tempo real
-    if (valor) {
-      validarCampo(campo, valor);
+    if (valorNormalizado) {
+      validarCampo(campo, valorNormalizado);
     } else {
       setErros(prev => ({ ...prev, [campo]: '' }));
     }
 
     // Buscar CEP automaticamente quando completo
-    if (campo === 'cep') {
-      const cepLimpo = valor.replace(/\D/g, '');
+    if (campo === 'cep' && valorNormalizado) {
+      const cepLimpo = valorNormalizado.replace(/\D/g, '');
       if (cepLimpo.length === 8) {
-        buscarCep(valor);
+        buscarCep(valorNormalizado);
       }
     }
   };
@@ -202,11 +384,11 @@ export default function Clientes() {
   const abrirModal = (cliente?: Cliente) => {
     if (cliente) {
       setForm({
-        nome: cliente.nome,
-        cep: cliente.cep,
-        cidade: cliente.cidade,
-        estado: cliente.estado,
-        telefone: cliente.telefone,
+        nome: cliente.nome ?? '',
+        cep: cliente.cep ?? '',
+        cidade: cliente.cidade ?? '',
+        estado: cliente.estado ?? '',
+        telefone: cliente.telefone ?? '',
       });
       setEditando(cliente.id);
     } else {
@@ -311,11 +493,13 @@ export default function Clientes() {
   };
 
   // Filtrar clientes
-  const clientesFiltrados = clientes.filter(cliente =>
-    cliente.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.cidade?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.telefone?.includes(searchTerm)
-  );
+  const searchTermLower = searchTerm.toLowerCase();
+  const clientesFiltrados = clientes.filter((cliente) => {
+    const nomeMatch = cliente.nome?.toLowerCase().includes(searchTermLower);
+    const cidadeMatch = (cliente.cidade ?? '').toLowerCase().includes(searchTermLower);
+    const telefoneMatch = (cliente.telefone ?? '').includes(searchTerm);
+    return Boolean(nomeMatch || cidadeMatch || telefoneMatch);
+  });
 
   // Paginação
   const totalPages = Math.ceil(clientesFiltrados.length / itemsPerPage);
@@ -332,10 +516,20 @@ export default function Clientes() {
           <h1 className="text-3xl font-bold tracking-tight">Cadastro de Clientes</h1>
           <p className="text-muted-foreground">Gerencie os clientes do sistema</p>
         </div>
-        <Button onClick={() => abrirModal()} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Cliente
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleImportDialogToggle(true)}
+            className="gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Importar CSV
+          </Button>
+          <Button onClick={() => abrirModal()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Busca */}
@@ -391,10 +585,12 @@ export default function Clientes() {
                     <TableRow key={cliente.id} className="hover:bg-muted/50">
                       <TableCell className="font-medium">#{cliente.id}</TableCell>
                       <TableCell className="font-medium">{cliente.nome}</TableCell>
-                      <TableCell>{cliente.cep}</TableCell>
-                      <TableCell>{cliente.cidade}</TableCell>
-                      <TableCell className="font-semibold">{cliente.estado}</TableCell>
-                      <TableCell>{cliente.telefone}</TableCell>
+                      <TableCell>{formatOptionalField(cliente.cep)}</TableCell>
+                      <TableCell>{formatOptionalField(cliente.cidade)}</TableCell>
+                      <TableCell className="font-semibold">
+                        {formatOptionalField(cliente.estado)}
+                      </TableCell>
+                      <TableCell>{formatOptionalField(cliente.telefone)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
@@ -468,6 +664,95 @@ export default function Clientes() {
         </div>
       )}
 
+      {/* Modal de Importação */}
+      <Dialog open={importDialogOpen} onOpenChange={handleImportDialogToggle}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Importar clientes via CSV</DialogTitle>
+            <DialogDescription>
+              O arquivo deve conter cabeçalhos <code>nome</code>, <code>cep</code>, <code>cidade</code>, <code>estado</code> e <code>telefone</code>.
+              Apenas o campo nome é obrigatório.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="csvFile">Arquivo CSV</Label>
+              <Input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFileChange}
+              />
+              {csvFileName && (
+                <p className="text-sm text-muted-foreground">
+                  Arquivo selecionado: <span className="font-medium">{csvFileName}</span>
+                </p>
+              )}
+            </div>
+
+            {csvParseErrors.length > 0 && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3 text-sm text-destructive max-h-40 overflow-y-auto space-y-1">
+                {csvParseErrors.map((erro, index) => (
+                  <p key={`${erro}-${index}`}>{erro}</p>
+                ))}
+              </div>
+            )}
+
+            {csvRows.length > 0 && (
+              <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
+                <p>
+                  <span className="font-semibold">{csvRows.length}</span> linha(s) preparada(s) para importação.
+                </p>
+                {!importSummary && (
+                  <p className="text-muted-foreground">
+                    Revise as mensagens acima antes de confirmar a importação.
+                  </p>
+                )}
+                {importSummary && (
+                  <div className="space-y-1">
+                    <p>
+                      Importados com sucesso:{' '}
+                      <span className="font-semibold">{importSummary.imported.length}</span>
+                    </p>
+                    <p>
+                      Linhas com erro:{' '}
+                      <span className="font-semibold">{importSummary.errors.length}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {importSummary && importSummary.errors.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-900 max-h-48 overflow-y-auto space-y-1">
+                {importSummary.errors.map((erro) => (
+                  <p key={`${erro.index}-${erro.message}`}>
+                    Linha {erro.index + 2}{erro.nome ? ` (${erro.nome})` : ''}: {erro.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => handleImportDialogToggle(false)}
+              disabled={importingCsv}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImportClientes}
+              disabled={importingCsv || csvRows.length === 0}
+            >
+              {importingCsv ? 'Importando...' : 'Importar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de Criar/Editar Cliente */}
       <Dialog open={showModal} onOpenChange={(open) => {
         setShowModal(open);
@@ -509,7 +794,7 @@ export default function Clientes() {
 
             {/* CEP */}
             <div className="space-y-2">
-              <Label htmlFor="cep" className="font-medium">CEP *</Label>
+              <Label htmlFor="cep" className="font-medium">CEP</Label>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <InputWithMask
@@ -543,7 +828,7 @@ export default function Clientes() {
             {/* Cidade e Estado */}
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2 space-y-2">
-                <Label htmlFor="cidade" className="font-medium">Cidade *</Label>
+                <Label htmlFor="cidade" className="font-medium">Cidade</Label>
                 <Input
                   id="cidade"
                   value={form.cidade}
@@ -561,7 +846,7 @@ export default function Clientes() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="estado" className="font-medium">UF *</Label>
+                <Label htmlFor="estado" className="font-medium">UF</Label>
                 <Input
                   id="estado"
                   value={form.estado}
@@ -582,7 +867,7 @@ export default function Clientes() {
 
             {/* Telefone */}
             <div className="space-y-2">
-              <Label htmlFor="telefone" className="font-medium">Telefone *</Label>
+              <Label htmlFor="telefone" className="font-medium">Telefone</Label>
               <InputWithMask
                 id="telefone"
                 mask="(99) 99999-9999"
@@ -636,17 +921,23 @@ export default function Clientes() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">CEP</p>
-                  <p className="font-semibold">{clienteParaVisualizar.cep}</p>
+                  <p className="font-semibold">
+                    {formatOptionalField(clienteParaVisualizar.cep)}
+                  </p>
                 </div>
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-semibold">{clienteParaVisualizar.telefone}</p>
+                  <p className="font-semibold">
+                    {formatOptionalField(clienteParaVisualizar.telefone)}
+                  </p>
                 </div>
               </div>
               
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">Localização</p>
-                <p className="font-semibold">{clienteParaVisualizar.cidade} - {clienteParaVisualizar.estado}</p>
+                <p className="font-semibold">
+                  {formatLocation(clienteParaVisualizar.cidade, clienteParaVisualizar.estado)}
+                </p>
               </div>
             </div>
           )}

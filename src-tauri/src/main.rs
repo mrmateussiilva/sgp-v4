@@ -5,7 +5,8 @@ use dotenv::dotenv;
 use sqlx::{migrate::MigrateError, postgres::PgPoolOptions, query};
 use std::collections::HashSet;
 use std::env;
-use tracing::info;
+use tauri::Manager;
+use tracing::{error, info};
 use tracing_subscriber;
 
 mod commands;
@@ -95,6 +96,24 @@ async fn main() {
     tauri::Builder::default()
         .manage(pool)
         .manage(SessionManager::new(12))
+        .setup(|app| {
+            let handle = app.handle();
+
+            handle.listen_global("tauri://update-status", |event| {
+                if let Some(payload) = event.payload() {
+                    info!("Status do atualizador: {}", payload);
+                }
+            });
+
+            let updater_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = updater_handle.updater().check().await {
+                    error!("Erro ao verificar atualizações: {}", e);
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // Auth
             commands::auth::login,
@@ -103,11 +122,13 @@ async fn main() {
             commands::orders::get_orders,
             commands::orders::get_order_by_id,
             commands::orders::create_order,
+            commands::orders::update_order_metadata,
             commands::orders::update_order,
             commands::orders::update_order_status_flags,
             commands::orders::delete_order,
             commands::orders::get_orders_with_filters,
             commands::orders::get_orders_by_delivery_date,
+            commands::orders::get_order_audit_log,
             // Reports
             commands::reports::generate_report,
             // Clientes
@@ -116,6 +137,7 @@ async fn main() {
             commands::clientes::create_cliente,
             commands::clientes::update_cliente,
             commands::clientes::delete_cliente,
+            commands::clientes::import_clientes_bulk,
             // Materiais
             commands::materiais::get_materiais,
             commands::materiais::get_materiais_ativos,

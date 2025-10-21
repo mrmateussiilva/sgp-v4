@@ -20,6 +20,7 @@ interface FormPainelCompletoProps {
   onSaveItem?: () => void;
   onCancelItem?: () => void;
   hasUnsavedChanges?: boolean;
+  mode?: 'painel' | 'generica';
 }
 
 export function FormPainelCompleto({
@@ -31,8 +32,10 @@ export function FormPainelCompleto({
   onDataChange,
   onSaveItem,
   onCancelItem,
-  hasUnsavedChanges = false
+  hasUnsavedChanges = false,
+  mode = 'painel'
 }: FormPainelCompletoProps) {
+  const isGenerica = mode === 'generica';
   
   // Funções de parsing e formatação
   const parseBR = (v: string | number): number => {
@@ -312,6 +315,57 @@ export function FormPainelCompleto({
                 </div>
               )}
             </div>
+
+            {isGenerica && (
+              <div className="space-y-3 pt-2 border-t border-dashed border-gray-200">
+                <Label className="text-base font-semibold">Extras da produção</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`ziper-${tabId}`}
+                      checked={tabData?.ziper || false}
+                      onCheckedChange={(checked) => onDataChange('ziper', Boolean(checked))}
+                    />
+                    <label htmlFor={`ziper-${tabId}`} className="text-base cursor-pointer">
+                      Zíper
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`cordinha-extra-${tabId}`}
+                      checked={tabData?.cordinha_extra || false}
+                      onCheckedChange={(checked) => onDataChange('cordinha_extra', Boolean(checked))}
+                    />
+                    <label htmlFor={`cordinha-extra-${tabId}`} className="text-base cursor-pointer">
+                      Cordinha
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`alcinha-${tabId}`}
+                      checked={tabData?.alcinha || false}
+                      onCheckedChange={(checked) => onDataChange('alcinha', Boolean(checked))}
+                    />
+                    <label htmlFor={`alcinha-${tabId}`} className="text-base cursor-pointer">
+                      Alcinha
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`toalha-pronta-${tabId}`}
+                      checked={tabData?.toalha_pronta || false}
+                      onCheckedChange={(checked) => onDataChange('toalha_pronta', Boolean(checked))}
+                    />
+                    <label htmlFor={`toalha-pronta-${tabId}`} className="text-base cursor-pointer">
+                      Toalha pronta
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

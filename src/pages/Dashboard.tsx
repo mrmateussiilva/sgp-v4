@@ -24,6 +24,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import Clientes from './Clientes';
 import RelatoriosEnvios from './RelatoriosEnvios';
 import Fechamentos from './Fechamentos';
+import PainelDesempenho from './PainelDesempenho';
 import Admin from './Admin';
 import GestaoMateriais from './admin/GestaoMateriais';
 import GestaoDesigners from './admin/GestaoDesigners';
@@ -79,6 +80,12 @@ export default function Dashboard() {
       label: 'Relatório de Envios', 
       path: '/dashboard/relatorios-envios',
       adminOnly: false
+    },
+    {
+      icon: BarChart,
+      label: 'Painel de Desempenho',
+      path: '/dashboard/painel-desempenho',
+      adminOnly: true,
     },
     { 
       icon: FileText, 
@@ -343,6 +350,14 @@ export default function Dashboard() {
           <Route path="/orders/edit/:id" element={<OrderForm />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/relatorios-envios" element={<RelatoriosEnvios />} />
+            <Route
+              path="painel-desempenho"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <PainelDesempenho />
+                </ProtectedRoute>
+              }
+            />
             <Route 
               path="/fechamentos" 
               element={

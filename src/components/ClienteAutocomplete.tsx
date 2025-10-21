@@ -28,7 +28,6 @@ export function ClienteAutocomplete({
   const [clientesFiltrados, setClientesFiltrados] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
 
   // Carregar todos os clientes na inicialização
@@ -78,7 +77,6 @@ export function ClienteAutocomplete({
 
   const handleSelect = (cliente: Cliente) => {
     setSearchTerm(cliente.nome);
-    setSelectedCliente(cliente);
     onSelect(cliente);
     setOpen(false);
   };
@@ -91,7 +89,6 @@ export function ClienteAutocomplete({
       setOpen(true);
     } else {
       setOpen(false);
-      setSelectedCliente(null);
       onSelect(null);
     }
   };
@@ -142,7 +139,16 @@ export function ClienteAutocomplete({
                     <div className="flex flex-col flex-1 min-w-0">
                       <span className="font-medium text-gray-900 group-hover:text-blue-900 truncate">{cliente.nome}</span>
                       <span className="text-sm text-gray-500 group-hover:text-blue-600">
-                        {cliente.telefone} • {cliente.cidade}
+                        {(() => {
+                          const infoParts: string[] = [];
+                          if (cliente.telefone && cliente.telefone.trim()) {
+                            infoParts.push(cliente.telefone.trim());
+                          }
+                          if (cliente.cidade && cliente.cidade.trim()) {
+                            infoParts.push(cliente.cidade.trim());
+                          }
+                          return infoParts.length > 0 ? infoParts.join(' • ') : 'Sem dados adicionais';
+                        })()}
                       </span>
                     </div>
                     <Check className="h-5 w-5 text-green-600 flex-shrink-0 ml-2" />
@@ -158,4 +164,3 @@ export function ClienteAutocomplete({
     </div>
   );
 }
-

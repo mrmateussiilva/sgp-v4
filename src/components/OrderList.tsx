@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Eye, FileText, Printer, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
-import { OrderWithItems, UpdateOrderStatusRequest } from '../types';
+import { useAuthStore } from '../store/authStore';
+import { OrderWithItems, OrderItem, UpdateOrderStatusRequest } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
-import { printOrder } from '../utils/printOrder';
+import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 export default function OrderList() {
   const navigate = useNavigate();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
+  const logout = useAuthStore((state) => state.logout);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
@@ -49,9 +51,11 @@ export default function OrderList() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
-  const [selectedOrderIdForPrint, setSelectedOrderIdForPrint] = useState<number | null>(null);
+  const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -67,6 +71,30 @@ export default function OrderList() {
   });
   const { toast } = useToast();
 
+  const extractErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === 'string') {
+        return message;
+      }
+    }
+    return '';
+  };
+
+  const isSessionError = (message: string) => {
+    if (!message) {
+      return false;
+    }
+    const normalized = message.toLowerCase();
+    return normalized.includes('sessão inválida') || normalized.includes('sessão expirada');
+  };
+
   useEffect(() => {
     loadOrders();
   }, []);
@@ -81,19 +109,33 @@ export default function OrderList() {
       const data = await api.getOrders();
       setOrders(data);
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os pedidos.",
-        variant: "destructive",
-      });
-      console.error('Error loading orders:', error);
+      const message = extractErrorMessage(error);
+      if (isSessionError(message)) {
+        toast({
+          title: "Sessão expirada",
+          description: "Faça login novamente para continuar.",
+          variant: "destructive",
+        });
+        console.error('Session error while loading orders:', error);
+        logout();
+        navigate('/login', { replace: true });
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os pedidos.",
+          variant: "destructive",
+        });
+        console.error('Error loading orders:', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleEdit = (order: OrderWithItems) => {
-    navigate(`/dashboard/orders/edit/${order.id}`);
+    setEditOrderId(order.id);
+    setSelectedOrder(order);
+    setEditDialogOpen(true);
   };
 
   const handleView = (order: OrderWithItems) => {
@@ -146,13 +188,15 @@ export default function OrderList() {
   }), [orders, searchTerm, productionStatusFilter]);
 
   useEffect(() => {
-    if (selectedOrderIdForPrint !== null) {
-      const exists = filteredOrders.some((order) => order.id === selectedOrderIdForPrint);
-      if (!exists) {
-        setSelectedOrderIdForPrint(null);
+    if (selectedOrderIdsForPrint.length > 0) {
+      const validIds = selectedOrderIdsForPrint.filter(id => 
+        filteredOrders.some((order) => order.id === id)
+      );
+      if (validIds.length !== selectedOrderIdsForPrint.length) {
+        setSelectedOrderIdsForPrint(validIds);
       }
     }
-  }, [filteredOrders, selectedOrderIdForPrint]);
+  }, [filteredOrders, selectedOrderIdsForPrint]);
 
   const totalPages = Math.ceil(filteredOrders.length / rowsPerPage) || 1;
 
@@ -168,25 +212,501 @@ export default function OrderList() {
   );
 
   const handlePrintSelected = () => {
-    if (!selectedOrderIdForPrint) {
+    if (selectedOrderIdsForPrint.length === 0) {
       return;
     }
-    const orderToPrint = orders.find((order) => order.id === selectedOrderIdForPrint);
-    if (!orderToPrint) {
+    
+    const ordersToPrint = orders.filter((order) => 
+      selectedOrderIdsForPrint.includes(order.id)
+    );
+    
+    if (ordersToPrint.length === 0) {
       toast({
         title: "Aviso",
-        description: "Não foi possível localizar o pedido selecionado.",
+        description: "Não foi possível localizar os pedidos selecionados.",
         variant: "destructive",
       });
-      setSelectedOrderIdForPrint(null);
+      setSelectedOrderIdsForPrint([]);
       return;
     }
 
-    printOrder(orderToPrint);
+    printSelectedOrders(ordersToPrint);
     toast({
       title: "Impressão",
-      description: `Abrindo visualização de impressão do pedido #${orderToPrint.numero || orderToPrint.id}.`,
+      description: `Abrindo visualização de impressão de ${ordersToPrint.length} pedido(s).`,
     });
+  };
+
+  const printSelectedOrders = (orders: OrderWithItems[]) => {
+    const printContent = generatePrintList(orders);
+    
+    // Criar iframe para impressão
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(printContent);
+    iframeDoc.close();
+
+    // Aguardar carregamento das imagens antes de imprimir
+    iframe.contentWindow?.focus();
+    
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      
+      // Remover iframe após impressão
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
+  };
+
+  const collectOrderData = (item: OrderItem): { basic: string[], details: string[] } => {
+    const basic: string[] = [];
+    const details: string[] = [];
+    const itemRecord = item as unknown as Record<string, unknown>;
+
+    // Funções auxiliares (iguais ao modal)
+    const hasTextValue = (value?: string | null, options?: { disallow?: string[] }) => {
+      if (!value) return false;
+      const trimmed = value.trim();
+      if (!trimmed) return false;
+      const lower = trimmed.toLowerCase();
+      if (options?.disallow?.some((entry) => lower === entry)) {
+        return false;
+      }
+      return true;
+    };
+
+    const hasPositiveNumber = (value?: string | number | null) => {
+      if (typeof value === 'number') return value > 0;
+      if (!value) return false;
+      const normalized = value
+        .toString()
+        .trim()
+        .replace(/\s/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const parsed = parseFloat(normalized);
+      return !Number.isNaN(parsed) && parsed > 0;
+    };
+
+    const hasQuantityValue = (value?: string | null) => {
+      if (!value) return false;
+      const parsed = parseFloat(value.toString().replace(/\D/g, ''));
+      if (!Number.isNaN(parsed)) {
+        return parsed > 0;
+      }
+      return hasTextValue(value);
+    };
+
+    const isTrue = (value: unknown) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value === 1;
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        return ['true', '1', 'sim', 'yes'].includes(normalized);
+      }
+      return false;
+    };
+
+
+    // Dados básicos (cards destacados no modal)
+    const tipo = item.tipo_producao || '';
+    const descricao = item.descricao || '';
+    const painelQuantidade = item.quantidade_paineis || '';
+    const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
+    const quantidadeDisplay = painelQuantidade || itemQuantidade;
+
+    if (tipo) basic.push(`Tipo: ${tipo.toUpperCase()}`);
+    if (descricao) basic.push(`Desc: ${descricao}`);
+    if (quantidadeDisplay) basic.push(`Qtd: ${quantidadeDisplay}`);
+
+    const vendedor = item.vendedor || '';
+    const designer = item.designer || '';
+    if (vendedor || designer) {
+      const equipe = [vendedor && `Vendedor: ${vendedor}`, designer && `Designer: ${designer}`].filter(Boolean).join(' | ');
+      basic.push(`Equipe: ${equipe}`);
+    }
+
+    const largura = item.largura || '';
+    const altura = item.altura || '';
+    const area = item.metro_quadrado || '';
+    if (largura || altura || area) {
+      const dimensoes = [largura && `${largura}m`, altura && `${altura}m`, area && `${area}m²`].filter(Boolean).join(' × ');
+      basic.push(`Dimensões: ${dimensoes}`);
+    }
+
+    const materialLabel = tipo.toLowerCase().includes('totem') ? 'Material' : tipo.toLowerCase().includes('adesivo') ? 'Tipo de Adesivo' : 'Tecido';
+    const tecido = item.tecido || '';
+    if (tecido) {
+      basic.push(`${materialLabel}: ${tecido}`);
+    }
+
+    // Dados técnicos detalhados (seção de detalhes no modal)
+    // Acabamentos básicos
+    if (item.overloque) details.push('Overloque');
+    if (item.elastico) details.push('Elástico');
+
+    if (hasTextValue(item.tipo_acabamento, { disallow: ['nenhum'] })) {
+      details.push(`Acabamento: ${item.tipo_acabamento}`);
+    }
+
+    // Ilhós
+    if (hasQuantityValue(item.quantidade_ilhos)) {
+      details.push(`Ilhós: ${item.quantidade_ilhos} un`);
+    }
+
+    if (hasTextValue(item.espaco_ilhos || null)) {
+      const espaco = (item.espaco_ilhos || '').includes('cm') ? (item.espaco_ilhos || '') : `${item.espaco_ilhos || ''} cm`;
+      details.push(`Espaço Ilhós: ${espaco}`);
+    }
+
+    if (hasPositiveNumber(item.valor_ilhos)) {
+      details.push(`Valor Ilhós: R$ ${item.valor_ilhos}`);
+    }
+
+    // Cordinha
+    if (hasQuantityValue(item.quantidade_cordinha)) {
+      details.push(`Cordinha: ${item.quantidade_cordinha} un`);
+    }
+
+    if (hasTextValue(item.espaco_cordinha || null)) {
+      const espaco = (item.espaco_cordinha || '').includes('cm') ? (item.espaco_cordinha || '') : `${item.espaco_cordinha || ''} cm`;
+      details.push(`Espaço Cordinha: ${espaco}`);
+    }
+
+    if (hasPositiveNumber(item.valor_cordinha)) {
+      details.push(`Valor Cordinha: R$ ${item.valor_cordinha}`);
+    }
+
+    // Dados específicos por tipo
+    if (tipo.toLowerCase().includes('lona')) {
+      const terceirizado = itemRecord.terceirizado;
+      if (typeof terceirizado === 'boolean' && terceirizado) {
+        details.push('Terceirizado');
+      }
+
+      const acabamentoLonaRaw = itemRecord.acabamento_lona;
+      if (acabamentoLonaRaw && hasTextValue(String(acabamentoLonaRaw))) {
+        const acabamentoLabel = String(acabamentoLonaRaw)
+          .split(/[_-]/)
+          .map((segment: string) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(' ');
+        details.push(`Acabamento Lona: ${acabamentoLabel}`);
+      }
+
+      if (hasPositiveNumber(itemRecord.valor_lona as string | number | null)) {
+        details.push(`Valor Base Lona: R$ ${itemRecord.valor_lona}`);
+      }
+
+      if (hasPositiveNumber(itemRecord.outros_valores_lona as string | number | null)) {
+        details.push(`Outros Valores Lona: R$ ${itemRecord.outros_valores_lona}`);
+      }
+    }
+
+    if (isTrue(itemRecord.ziper)) {
+      details.push('Com zíper');
+    }
+
+    if (isTrue(itemRecord.cordinha_extra)) {
+      details.push('Cordinha adicional');
+    }
+
+    if (isTrue(itemRecord.alcinha)) {
+      details.push('Inclui alcinha');
+    }
+
+    if (isTrue(itemRecord.toalha_pronta)) {
+      details.push('Toalha pronta');
+    }
+
+    if (tipo.toLowerCase().includes('adesivo')) {
+      const tipoAdesivo = itemRecord.tipo_adesivo;
+      if (tipoAdesivo && hasTextValue(String(tipoAdesivo))) {
+        details.push(`Tipo Adesivo: ${tipoAdesivo}`);
+      }
+
+      if (hasPositiveNumber(itemRecord.valor_adesivo as string | number | null)) {
+        details.push(`Valor Adesivo: R$ ${itemRecord.valor_adesivo}`);
+      }
+
+      if (hasPositiveNumber(itemRecord.outros_valores_adesivo as string | number | null)) {
+        details.push(`Outros Valores Adesivo: R$ ${itemRecord.outros_valores_adesivo}`);
+      }
+
+      const quantidadeAdesivo = itemRecord.quantidade_adesivo;
+      if (quantidadeAdesivo && hasTextValue(String(quantidadeAdesivo))) {
+        details.push(`Qtd Adesivos: ${quantidadeAdesivo}`);
+      }
+    }
+
+    // Emenda
+    const emendaTipoRaw = itemRecord.emenda;
+    if (emendaTipoRaw && hasTextValue(String(emendaTipoRaw), { disallow: ['sem-emenda'] })) {
+      const emendaTipo = String(emendaTipoRaw)
+        .split(/[-_]/)
+        .map((segment: string) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(' ');
+
+      details.push(`Emenda: ${emendaTipo}`);
+
+      const emendaQtd = itemRecord.emenda_qtd || itemRecord.emendaQtd;
+      if (emendaQtd && hasQuantityValue(String(emendaQtd))) {
+        const emendaQtdNumber = parseFloat(String(emendaQtd).replace(/\D/g, ''));
+        const emendaQtdLabel = emendaQtdNumber === 1 ? '1 emenda' : `${emendaQtdNumber} emendas`;
+        details.push(`Qtd Emendas: ${emendaQtdLabel}`);
+      }
+    }
+
+    return { basic, details };
+  };
+
+  const generatePrintList = (orders: OrderWithItems[]): string => {
+    const styles = `
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        @page {
+          size: A4 portrait;
+          margin: 8mm;
+        }
+
+        body {
+          font-family: Arial, sans-serif;
+          font-size: 9pt;
+          line-height: 1.2;
+          color: #000;
+          background: #fff;
+        }
+
+        .order-item {
+          border: 2px solid #2563eb;
+          padding: 5mm;
+          margin-bottom: 5mm;
+          page-break-inside: avoid;
+          display: grid;
+          grid-template-columns: 1.25fr 0.75fr;
+          gap: 4mm;
+          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          border-radius: 6px;
+        }
+
+        .order-item:last-child {
+          margin-bottom: 0;
+        }
+
+        .left-column {
+          display: flex;
+          flex-direction: column;
+          gap: 2mm;
+        }
+
+        .right-column {
+          display: flex;
+          flex-direction: column;
+          gap: 2mm;
+        }
+
+        .header-info {
+          font-size: 8pt;
+          color: #475569;
+          margin-bottom: 3mm;
+          line-height: 1.3;
+          background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
+          color: white;
+          padding: 2mm 3mm;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+
+        .header-info strong {
+          color: #fbbf24;
+          font-weight: 700;
+        }
+
+        .section-title {
+          font-size: 11pt;
+          font-weight: 800;
+          margin-bottom: 2mm;
+          color: #1e40af;
+          border-bottom: 2px solid #3b82f6;
+          padding-bottom: 1mm;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .item-details {
+          font-size: 9pt;
+          line-height: 1.4;
+          color: #334155;
+          background: #f1f5f9;
+          padding: 2mm;
+          border-radius: 4px;
+          border-left: 3px solid #3b82f6;
+        }
+
+        .item-image-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid #e2e8f0;
+          padding: 3mm;
+          min-height: 110px;
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+          border-radius: 6px;
+          box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .item-image-container img {
+          max-width: 100%;
+          max-height: 180px;
+          object-fit: contain;
+          border-radius: 4px;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .no-image {
+          color: #64748b;
+          font-style: italic;
+          font-size: 8pt;
+          font-weight: 500;
+        }
+
+        .priority-high {
+          color: #dc2626;
+          font-weight: 800;
+          text-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+        }
+
+        .priority-normal {
+          color: #059669;
+          font-weight: 600;
+        }
+
+        /* Otimização para 3 pedidos por página */
+        .order-item {
+          break-inside: avoid;
+          max-height: 90mm; /* Aproximadamente 1/3 de uma página A4 */
+        }
+
+        @media print {
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          .order-item {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 2px solid #000;
+          }
+
+          .header-info {
+            background: #f0f0f0 !important;
+            color: #000 !important;
+          }
+
+          .section-title {
+            color: #000 !important;
+            border-bottom-color: #000 !important;
+          }
+
+          .item-details {
+            background: #f9f9f9 !important;
+            border-left-color: #666 !important;
+          }
+
+          .item-image-container {
+            background: #f5f5f5 !important;
+            border-color: #ccc !important;
+          }
+        }
+      </style>
+    `;
+
+    const ordersHtml = orders.map(order => {
+      const items = Array.isArray(order.items) ? order.items : [];
+      
+      return items.map(item => {
+        // Coletar dados usando a mesma lógica do modal
+        const orderData = collectOrderData(item);
+
+        const basicText = orderData.basic.length > 0
+          ? orderData.basic.join(' • ')
+          : '';
+
+        const detailsText = orderData.details.length > 0
+          ? orderData.details.join(' • ')
+          : 'Nenhum detalhe técnico informado';
+
+        const imageUrl = item.imagem?.trim();
+
+        return `
+          <div class="order-item">
+            <div class="left-column">
+              <div class="header-info">
+                <strong>#${order.numero || order.id}</strong> • ${order.cliente || order.customer_name || '-'} • ${order.telefone_cliente || '-'} • ${order.cidade_cliente || '-'} / ${order.estado_cliente || '-'} • ${order.forma_envio || '-'} • <span class="${order.prioridade === 'ALTA' ? 'priority-high' : 'priority-normal'}">${order.prioridade || 'NORMAL'}</span>
+              </div>
+
+              ${basicText ? `
+                <div class="section-title">📋 Informações do Item</div>
+                <div class="item-details">
+                  <strong>${basicText}</strong>
+                </div>
+              ` : ''}
+
+              <div class="section-title">🔧 Especificações Técnicas</div>
+              <div class="item-details">
+                <strong>${detailsText}</strong>
+              </div>
+            </div>
+
+            <div class="right-column">
+              <div class="section-title" style="text-align: center; margin-bottom: 2mm;">🖼️ Visual do Item</div>
+              <div class="item-image-container">
+                ${imageUrl
+                  ? `<img src="${imageUrl}" alt="Imagem do item" />`
+                  : '<span class="no-image">Imagem não disponível</span>'
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Lista de Produção</title>
+        ${styles}
+      </head>
+      <body>
+        ${ordersHtml}
+      </body>
+      </html>
+    `;
   };
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
@@ -289,11 +809,11 @@ export default function OrderList() {
               type="button"
               variant="outline"
               className="gap-2"
-              disabled={!selectedOrderIdForPrint}
+              disabled={selectedOrderIdsForPrint.length === 0}
               onClick={handlePrintSelected}
             >
               <Printer className="h-4 w-4" />
-              Imprimir
+              Imprimir {selectedOrderIdsForPrint.length > 0 && `(${selectedOrderIdsForPrint.length})`}
             </Button>
           </div>
         </CardContent>
@@ -339,12 +859,12 @@ export default function OrderList() {
                       <TableRow key={order.id} className="hover:bg-muted/50">
                         <TableCell className="text-center">
                           <Checkbox
-                            checked={selectedOrderIdForPrint === order.id}
+                            checked={selectedOrderIdsForPrint.includes(order.id)}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedOrderIdForPrint(order.id);
-                              } else if (selectedOrderIdForPrint === order.id) {
-                                setSelectedOrderIdForPrint(null);
+                                setSelectedOrderIdsForPrint([...selectedOrderIdsForPrint, order.id]);
+                              } else {
+                                setSelectedOrderIdsForPrint(selectedOrderIdsForPrint.filter(id => id !== order.id));
                               }
                             }}
                           />
@@ -597,6 +1117,24 @@ export default function OrderList() {
         isOpen={viewModalOpen} 
         onClose={() => setViewModalOpen(false)} 
         order={selectedOrderForView}
+      />
+      
+      <OrderQuickEditDialog
+        orderId={editOrderId}
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditOrderId(null);
+          }
+        }}
+        onUpdated={(order) => {
+          updateOrder(order);
+          setSelectedOrder(order);
+          if (selectedOrderForView && selectedOrderForView.id === order.id) {
+            setSelectedOrderForView(order);
+          }
+        }}
       />
     </div>
   );

@@ -91,9 +91,19 @@ CREATE TABLE IF NOT EXISTS producoes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Sequência para geração de números de pedido
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class WHERE relkind = 'S' AND relname = 'order_number_seq'
+    ) THEN
+        EXECUTE 'CREATE SEQUENCE order_number_seq START WITH 1';
+    END IF;
+END $$;
+
 -- 10. EXPANDIR TABELA ORDERS (adicionar novos campos)
 ALTER TABLE orders 
-ADD COLUMN IF NOT EXISTS numero VARCHAR(50),
+ADD COLUMN IF NOT EXISTS numero VARCHAR(20),
 ADD COLUMN IF NOT EXISTS data_entrada DATE,
 ADD COLUMN IF NOT EXISTS data_entrega DATE,
 ADD COLUMN IF NOT EXISTS observacao TEXT,
@@ -124,6 +134,39 @@ END $$;
 -- Remover address se existir (cidade já está em cidade_cliente)
 ALTER TABLE orders DROP COLUMN IF EXISTS address;
 
+-- Normalizar valores existentes para garantir unicidade
+UPDATE orders
+SET numero = LPAD(id::text, 10, '0')
+WHERE numero IS NULL
+   OR numero = ''
+   OR numero !~ '^\d{10}$';
+
+-- Garantir que a sequência continue do maior ID existente
+SELECT setval(
+    'order_number_seq',
+    COALESCE((SELECT MAX(id) FROM orders), 0)
+);
+
+-- Enforce default, not-null e unicidade no número do pedido
+ALTER TABLE orders
+    ALTER COLUMN numero SET NOT NULL,
+    ALTER COLUMN numero SET DEFAULT LPAD(nextval('order_number_seq')::text, 10, '0');
+
+DROP INDEX IF EXISTS idx_orders_numero;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_name = 'orders'
+          AND constraint_name = 'orders_numero_unique'
+    ) THEN
+        ALTER TABLE orders
+            ADD CONSTRAINT orders_numero_unique UNIQUE (numero);
+    END IF;
+END $$;
+
 -- 11. CRIAR TABELA DE ITENS DO PEDIDO
 CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
@@ -152,8 +195,25 @@ CREATE TABLE IF NOT EXISTS order_items (
     ilhos_valor_unitario DECIMAL(10, 2),
     ilhos_distancia VARCHAR(20),
     
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ziper BOOLEAN DEFAULT FALSE,
+    cordinha_extra BOOLEAN DEFAULT FALSE,
+    alcinha BOOLEAN DEFAULT FALSE,
+    toalha_pronta BOOLEAN DEFAULT FALSE
+);
+
+-- 11.1 Histórico de alterações de pedidos
+CREATE TABLE IF NOT EXISTS order_audit_log (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    changed_by INTEGER,
+    changed_by_name VARCHAR(255),
+    changes JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_order_audit_log_order_id ON order_audit_log(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_audit_log_created_at ON order_audit_log(created_at DESC);
 
 -- 12. MIGRAR DADOS EXISTENTES order_items (antiga) para order_items (nova)
 -- Apenas se a tabela antiga existir
@@ -165,7 +225,6 @@ BEGIN
 END $$;
 
 -- 13. ÍNDICES PARA PERFORMANCE
-CREATE INDEX IF NOT EXISTS idx_orders_numero ON orders(numero);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_data_entrada ON orders(data_entrada);
 CREATE INDEX IF NOT EXISTS idx_orders_data_entrega ON orders(data_entrega);
@@ -256,4 +315,3 @@ AND table_type = 'BASE TABLE'
 ORDER BY table_name;
 
 COMMIT;
-

@@ -35,6 +35,74 @@ const formatIntervalLabel = (start: string, end?: string | null) => {
   return `${startLabel} - ${formatDateForDisplay(end, '-')}`;
 };
 
+const openPdfInPrintWindow = (doc: jsPDF, filename: string) => {
+  if (typeof window === 'undefined') {
+    doc.save(filename);
+    return;
+  }
+
+  try {
+    const autoPrint = (doc as unknown as { autoPrint?: (options?: unknown) => void }).autoPrint;
+    if (typeof autoPrint === 'function') {
+      autoPrint({ variant: 'non-conform' });
+    }
+  } catch (error) {
+    console.warn('autoPrint indisponível. Seguiremos com fluxo padrão.', error);
+  }
+
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.src = blobUrl;
+
+  const cleanup = () => {
+    URL.revokeObjectURL(blobUrl);
+    if (iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+    }
+  };
+
+  iframe.onload = () => {
+    try {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        throw new Error('Janela de impressão indisponível');
+      }
+      frameWindow.focus();
+      const printResult = frameWindow.print();
+      const maybePromise = printResult as unknown as { then?: (onfulfilled?: unknown, onrejected?: (reason?: unknown) => void) => unknown };
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise.then(
+          () => setTimeout(cleanup, 3000),
+          (error) => {
+            console.warn('Impressão bloqueada. Salvando PDF.', error);
+            cleanup();
+            doc.save(filename);
+          },
+        );
+      } else {
+        setTimeout(cleanup, 3000);
+      }
+    } catch (error) {
+      console.warn('Erro ao iniciar impressão. Baixando PDF.', error);
+      cleanup();
+      doc.save(filename);
+    }
+  };
+
+  iframe.onerror = () => {
+    cleanup();
+    doc.save(filename);
+  };
+
+  document.body.appendChild(iframe);
+};
+
 export const exportToCSV = (orders: OrderWithItems[]) => {
   const csvData = orders.map((order) => ({
     ID: order.id,
@@ -150,7 +218,8 @@ export const exportEnvioReportToPDF = (
       theme: 'grid',
     });
 
-    const lastY = (doc.lastAutoTable?.finalY ?? currentY) + 10;
+    const lastTable = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+    const lastY = (lastTable?.finalY ?? currentY) + 10;
     currentY = lastY;
 
     if (index < groups.length - 1) {
@@ -162,52 +231,12 @@ export const exportEnvioReportToPDF = (
     }
   });
 
-  doc.autoPrint({ variant: 'non-conform' });
-
-  const blob = doc.output('blob');
-  const blobUrl = URL.createObjectURL(blob);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.src = blobUrl;
-
-  const cleanup = () => {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe);
-    }
-    URL.revokeObjectURL(blobUrl);
-  };
-
-  iframe.onload = () => {
-    try {
-      iframe.contentWindow?.focus();
-      const printResult = iframe.contentWindow?.print();
-
-      // Alguns navegadores retornam false quando o popup é bloqueado
-      if (printResult === false) {
-        throw new Error('Impressão bloqueada pelo navegador');
-      }
-
-      // Remover iframe após a tentativa de impressão
-      setTimeout(cleanup, 1000);
-    } catch (error) {
-      console.error('Falha ao iniciar impressão automática:', error);
-      cleanup();
-      const suffix =
-        endDate && endDate !== startDate ? `${startDate}_${endDate}` : startDate;
-      doc.save(`relatorio_envios_${suffix}.pdf`);
-    }
-  };
-
-  iframe.onerror = () => {
-    cleanup();
-    const suffix =
-      endDate && endDate !== startDate ? `${startDate}_${endDate}` : startDate;
-    doc.save(`relatorio_envios_${suffix}.pdf`);
-  };
-
-  document.body.appendChild(iframe);
+  const suffix = endDate && endDate !== startDate ? `${startDate}_${endDate}` : startDate;
+  const filename = `relatorio_envios_${suffix}.pdf`;
+  try {
+    openPdfInPrintWindow(doc, filename);
+  } catch (error) {
+    console.error('Erro ao tentar abrir janela de impressão. Baixando PDF.', error);
+    doc.save(filename);
+  }
 };

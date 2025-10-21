@@ -2,7 +2,8 @@ use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
-use sqlx::Row;
+use serde_json::{json, Map, Value};
+use sqlx::{QueryBuilder, Row};
 use tauri::State;
 use tracing::{error, info};
 
@@ -122,11 +123,19 @@ pub(crate) async fn create_order_internal(
         .as_ref()
         .and_then(|date_str| chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok());
 
-    // Gerar número do pedido se não fornecido
-    let numero_pedido = request.numero.unwrap_or_else(|| {
-        // Gerar número baseado no timestamp ou ID sequencial
-        format!("{:010}", chrono::Utc::now().timestamp())
-    });
+    // Gerar número sequencial do pedido diretamente do banco
+    let numero_pedido: String =
+        match sqlx::query_scalar("SELECT LPAD(nextval('order_number_seq')::text, 10, '0')")
+            .fetch_one(&mut *tx)
+            .await
+        {
+            Ok(numero) => numero,
+            Err(e) => {
+                error!("Erro ao gerar número sequencial do pedido: {}", e);
+                tx.rollback().await.ok();
+                return Err("Erro ao criar pedido".to_string());
+            }
+        };
 
     // Converter data_entrada de string para NaiveDate (obrigatório)
     let data_entrada_parsed = chrono::NaiveDate::parse_from_str(&request.data_entrada, "%Y-%m-%d")
@@ -194,21 +203,23 @@ pub(crate) async fn create_order_internal(
         let subtotal = item_req.quantity as f64 * item_req.unit_price;
 
         let item_result = sqlx::query_as::<_, OrderItem>(
-            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal, 
-                                      tipo_producao, descricao, largura, altura, metro_quadrado, 
+            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal,
+                                      tipo_producao, descricao, largura, altura, metro_quadrado,
                                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
-                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha,
                                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
                                       terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
-                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37) 
-             RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
-                       tipo_producao, descricao, largura, altura, metro_quadrado, 
+                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
+                                      ziper, cordinha_extra, alcinha, toalha_pronta)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
+             RETURNING id, order_id, item_name, quantity, unit_price, subtotal,
+                       tipo_producao, descricao, largura, altura, metro_quadrado,
                        vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
-                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha,
                        espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
                        terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
-                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo",
+                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
+                       ziper, cordinha_extra, alcinha, toalha_pronta",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
@@ -247,6 +258,10 @@ pub(crate) async fn create_order_internal(
         .bind(&item_req.valor_adesivo)
         .bind(&item_req.quantidade_adesivo)
         .bind(&item_req.outros_valores_adesivo)
+        .bind(&item_req.ziper)
+        .bind(&item_req.cordinha_extra)
+        .bind(&item_req.alcinha)
+        .bind(&item_req.toalha_pronta)
         .fetch_one(&mut *tx)
         .await;
 
@@ -268,6 +283,321 @@ pub(crate) async fn create_order_internal(
     info!("Pedido criado com sucesso. ID: {}", order.id);
 
     Ok(build_order_with_items(order, items))
+}
+
+#[tauri::command]
+pub async fn update_order_metadata(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    request: UpdateOrderMetadataRequest,
+) -> Result<OrderWithItems, String> {
+    let session_info = sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    info!(
+        "Atualizando metadados do pedido ID: {} por usuário {}",
+        request.id, session_info.username
+    );
+
+    let mut tx = pool.inner().begin().await.map_err(|e| {
+        error!("Erro ao iniciar transação: {}", e);
+        "Erro ao atualizar pedido".to_string()
+    })?;
+
+    let existing = sqlx::query_as::<_, Order>(
+        "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao,
+                financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id,
+                pronto, created_at, updated_at
+         FROM orders WHERE id = $1",
+    )
+    .bind(request.id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar pedido {} para atualização: {}", request.id, e);
+        "Erro ao atualizar pedido".to_string()
+    })?;
+
+    let Some(existing_order) = existing else {
+        tx.rollback().await.ok();
+        return Err("Pedido não encontrado.".to_string());
+    };
+
+    let mut changes: Map<String, Value> = Map::new();
+    let mut builder = QueryBuilder::new("UPDATE orders SET ");
+    let mut separated = builder.separated(", ");
+    let mut has_updates = false;
+
+    if let Some(cliente) = &request.cliente {
+        if cliente.trim() != existing_order.cliente {
+            has_updates = true;
+            separated.push("cliente = ");
+            separated.push_bind(cliente);
+            changes.insert(
+                "cliente".into(),
+                json!({
+                    "before": existing_order.cliente,
+                    "after": cliente
+                }),
+            );
+        }
+    }
+
+    if let Some(cidade) = &request.cidade_cliente {
+        if existing_order.cidade_cliente.as_ref().map(|s| s.as_str()) != Some(cidade.as_str()) {
+            has_updates = true;
+            separated.push("cidade_cliente = ");
+            separated.push_bind(cidade);
+            changes.insert(
+                "cidade_cliente".into(),
+                json!({
+                    "before": existing_order.cidade_cliente,
+                    "after": cidade
+                }),
+            );
+        }
+    }
+
+    if let Some(estado) = &request.estado_cliente {
+        if existing_order.estado_cliente.as_ref().map(|s| s.as_str()) != Some(estado.as_str()) {
+            has_updates = true;
+            separated.push("estado_cliente = ");
+            separated.push_bind(estado);
+            changes.insert(
+                "estado_cliente".into(),
+                json!({
+                    "before": existing_order.estado_cliente,
+                    "after": estado
+                }),
+            );
+        }
+    }
+
+    if let Some(telefone) = &request.telefone_cliente {
+        if existing_order.telefone_cliente.as_ref().map(|s| s.as_str()) != Some(telefone.as_str()) {
+            has_updates = true;
+            separated.push("telefone_cliente = ");
+            separated.push_bind(telefone);
+            changes.insert(
+                "telefone_cliente".into(),
+                json!({
+                    "before": existing_order.telefone_cliente,
+                    "after": telefone
+                }),
+            );
+        }
+    }
+
+    if let Some(data_entrega_str) = &request.data_entrega {
+        let trimmed = data_entrega_str.trim();
+        let parsed_date = if trimmed.is_empty() {
+            None
+        } else {
+            match chrono::NaiveDate::parse_from_str(trimmed, "%Y-%m-%d")
+                .or_else(|_| chrono::NaiveDate::parse_from_str(trimmed, "%d/%m/%Y"))
+            {
+                Ok(date) => Some(date),
+                Err(_) => {
+                    tx.rollback().await.ok();
+                    return Err("Data de entrega inválida. Use o formato YYYY-MM-DD.".to_string());
+                }
+            }
+        };
+
+        if existing_order.data_entrega != parsed_date {
+            has_updates = true;
+            separated.push("data_entrega = ");
+            separated.push_bind(parsed_date);
+            changes.insert(
+                "data_entrega".into(),
+                json!({
+                    "before": existing_order.data_entrega.map(|d| d.to_string()),
+                    "after": parsed_date.map(|d| d.to_string())
+                }),
+            );
+        }
+    }
+
+    if let Some(prioridade) = &request.prioridade {
+        if existing_order.prioridade.as_ref().map(|s| s.as_str()) != Some(prioridade.as_str()) {
+            has_updates = true;
+            separated.push("prioridade = ");
+            separated.push_bind(prioridade);
+            changes.insert(
+                "prioridade".into(),
+                json!({
+                    "before": existing_order.prioridade,
+                    "after": prioridade
+                }),
+            );
+        }
+    }
+
+    if let Some(forma_envio) = &request.forma_envio {
+        if existing_order.forma_envio.as_ref().map(|s| s.as_str()) != Some(forma_envio.as_str()) {
+            has_updates = true;
+            separated.push("forma_envio = ");
+            separated.push_bind(forma_envio);
+            changes.insert(
+                "forma_envio".into(),
+                json!({
+                    "before": existing_order.forma_envio,
+                    "after": forma_envio
+                }),
+            );
+        }
+    }
+
+    if let Some(forma_pagamento_id) = request.forma_pagamento_id {
+        if existing_order.forma_pagamento_id != Some(forma_pagamento_id) {
+            has_updates = true;
+            separated.push("forma_pagamento_id = ");
+            separated.push_bind(forma_pagamento_id);
+            changes.insert(
+                "forma_pagamento_id".into(),
+                json!({
+                    "before": existing_order.forma_pagamento_id,
+                    "after": forma_pagamento_id
+                }),
+            );
+        }
+    }
+
+    if let Some(observacao) = &request.observacao {
+        if existing_order.observacao.as_ref().map(|s| s.as_str()) != Some(observacao.as_str()) {
+            has_updates = true;
+            separated.push("observacao = ");
+            separated.push_bind(observacao);
+            changes.insert(
+                "observacao".into(),
+                json!({
+                    "before": existing_order.observacao,
+                    "after": observacao
+                }),
+            );
+        }
+    }
+
+    if let Some(valor_frete) = request.valor_frete {
+        let existing_frete = existing_order.valor_frete.as_ref().and_then(|v| v.to_f64());
+        if existing_frete.map(|v| (v - valor_frete).abs() < f64::EPSILON) != Some(true) {
+            has_updates = true;
+            separated.push("valor_frete = ");
+            separated.push_bind(Decimal::from_f64_retain(valor_frete).unwrap_or_default());
+            changes.insert(
+                "valor_frete".into(),
+                json!({
+                    "before": existing_frete,
+                    "after": valor_frete
+                }),
+            );
+        }
+    }
+
+    if let Some(status) = &request.status {
+        if &existing_order.status != status {
+            has_updates = true;
+            separated.push("status = ");
+            separated.push_bind(status);
+            changes.insert(
+                "status".into(),
+                json!({
+                    "before": existing_order.status,
+                    "after": status
+                }),
+            );
+        }
+    }
+
+    if !has_updates {
+        tx.rollback().await.ok();
+        return Err("Nenhuma alteração foi detectada para este pedido.".to_string());
+    }
+
+    separated.push("updated_at = CURRENT_TIMESTAMP");
+
+    builder.push(" WHERE id = ");
+    builder.push_bind(request.id);
+    builder.push(
+        " RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+                   data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao,
+                   financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id,
+                   pronto, created_at, updated_at",
+    );
+
+    let updated_order = builder
+        .build_query_as::<Order>()
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| {
+            error!("Erro ao atualizar pedido {}: {}", request.id, e);
+            "Erro ao atualizar pedido".to_string()
+        })?;
+
+    let changes_json = Value::Object(changes);
+
+    sqlx::query(
+        "INSERT INTO order_audit_log (order_id, changed_by, changed_by_name, changes) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(request.id)
+    .bind(session_info.user_id)
+    .bind(&session_info.username)
+    .bind(&changes_json)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| {
+        error!(
+            "Erro ao registrar histórico de pedido {}: {}",
+            request.id, e
+        );
+        "Erro ao salvar histórico de alterações".to_string()
+    })?;
+
+    tx.commit().await.map_err(|e| {
+        error!(
+            "Erro ao confirmar atualização do pedido {}: {}",
+            request.id, e
+        );
+        "Erro ao atualizar pedido".to_string()
+    })?;
+
+    let items = get_order_items(pool.inner(), request.id).await?;
+    Ok(build_order_with_items(updated_order, items))
+}
+
+#[tauri::command]
+pub async fn get_order_audit_log(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    order_id: i32,
+) -> Result<Vec<OrderAuditLogEntry>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let history = sqlx::query_as::<_, OrderAuditLogEntry>(
+        "SELECT id, order_id, changed_by, changed_by_name, changes, created_at
+         FROM order_audit_log
+         WHERE order_id = $1
+         ORDER BY created_at DESC, id DESC",
+    )
+    .bind(order_id)
+    .fetch_all(pool.inner())
+    .await
+    .map_err(|e| {
+        error!(
+            "Erro ao buscar histórico de alterações para pedido {}: {}",
+            order_id, e
+        );
+        "Erro ao buscar histórico do pedido".to_string()
+    })?;
+
+    Ok(history)
 }
 
 #[tauri::command]
@@ -354,21 +684,23 @@ pub async fn update_order(
         let subtotal = item_req.quantity as f64 * item_req.unit_price;
 
         let item_result = sqlx::query_as::<_, OrderItem>(
-            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal, 
-                                      tipo_producao, descricao, largura, altura, metro_quadrado, 
+            "INSERT INTO order_items (order_id, item_name, quantity, unit_price, subtotal,
+                                      tipo_producao, descricao, largura, altura, metro_quadrado,
                                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
-                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                                      quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha,
                                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
                                       terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
-                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37) 
-             RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
-                       tipo_producao, descricao, largura, altura, metro_quadrado, 
+                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
+                                      ziper, cordinha_extra, alcinha, toalha_pronta)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
+             RETURNING id, order_id, item_name, quantity, unit_price, subtotal,
+                       tipo_producao, descricao, largura, altura, metro_quadrado,
                        vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
-                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha,
                        espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
                        terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
-                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo",
+                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
+                       ziper, cordinha_extra, alcinha, toalha_pronta",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
@@ -407,6 +739,10 @@ pub async fn update_order(
         .bind(&item_req.valor_adesivo)
         .bind(&item_req.quantidade_adesivo)
         .bind(&item_req.outros_valores_adesivo)
+        .bind(&item_req.ziper)
+        .bind(&item_req.cordinha_extra)
+        .bind(&item_req.alcinha)
+        .bind(&item_req.toalha_pronta)
         .fetch_one(&mut *tx)
         .await;
 
@@ -732,7 +1068,7 @@ async fn get_order_items(pool: &DbPool, order_id: i32) -> Result<Vec<OrderItem>,
                 espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
                 emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona,
                 quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
-                quantidade_adesivo, outros_valores_adesivo
+                quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
          FROM order_items WHERE order_id = $1 ORDER BY id",
     )
     .bind(order_id)
@@ -766,10 +1102,8 @@ pub async fn get_orders_by_delivery_date(
         return Err("Data inicial é obrigatória".to_string());
     }
 
-    let parsed_start =
-        chrono::NaiveDate::parse_from_str(start_trimmed, "%Y-%m-%d").map_err(|_| {
-            "Data inicial inválida. Use o formato YYYY-MM-DD".to_string()
-        })?;
+    let parsed_start = chrono::NaiveDate::parse_from_str(start_trimmed, "%Y-%m-%d")
+        .map_err(|_| "Data inicial inválida. Use o formato YYYY-MM-DD".to_string())?;
 
     let effective_end = end_date
         .as_deref()
@@ -777,10 +1111,8 @@ pub async fn get_orders_by_delivery_date(
         .filter(|value| !value.is_empty())
         .unwrap_or(start_trimmed);
 
-    let parsed_end =
-        chrono::NaiveDate::parse_from_str(effective_end, "%Y-%m-%d").map_err(|_| {
-            "Data final inválida. Use o formato YYYY-MM-DD".to_string()
-        })?;
+    let parsed_end = chrono::NaiveDate::parse_from_str(effective_end, "%Y-%m-%d")
+        .map_err(|_| "Data final inválida. Use o formato YYYY-MM-DD".to_string())?;
 
     if parsed_end < parsed_start {
         return Err("Data final não pode ser anterior à data inicial".to_string());
@@ -884,6 +1216,124 @@ mod tests {
         }
     }
 
+    fn make_basic_order_item(order_id: i32) -> OrderItem {
+        OrderItem {
+            id: 10,
+            order_id,
+            item_name: "Item 1".to_string(),
+            quantity: 2,
+            unit_price: Decimal::new(2500, 2),
+            subtotal: Decimal::new(5000, 2),
+            tipo_producao: None,
+            descricao: None,
+            largura: None,
+            altura: None,
+            metro_quadrado: None,
+            vendedor: None,
+            designer: None,
+            tecido: None,
+            overloque: None,
+            elastico: None,
+            tipo_acabamento: None,
+            quantidade_ilhos: None,
+            espaco_ilhos: None,
+            valor_ilhos: None,
+            quantidade_cordinha: None,
+            espaco_cordinha: None,
+            valor_cordinha: None,
+            observacao: None,
+            imagem: None,
+            quantidade_paineis: None,
+            valor_unitario: None,
+            emenda: None,
+            emenda_qtd: None,
+            terceirizado: None,
+            acabamento_lona: None,
+            valor_lona: None,
+            quantidade_lona: None,
+            outros_valores_lona: None,
+            tipo_adesivo: None,
+            valor_adesivo: None,
+            quantidade_adesivo: None,
+            outros_valores_adesivo: None,
+            ziper: None,
+            cordinha_extra: None,
+            alcinha: None,
+            toalha_pronta: None,
+        }
+    }
+
+    fn make_create_order_item(
+        name: &str,
+        quantity: i32,
+        unit_price: f64,
+    ) -> CreateOrderItemRequest {
+        CreateOrderItemRequest {
+            item_name: name.to_string(),
+            quantity,
+            unit_price,
+            tipo_producao: None,
+            descricao: None,
+            largura: None,
+            altura: None,
+            metro_quadrado: None,
+            vendedor: None,
+            designer: None,
+            tecido: None,
+            overloque: None,
+            elastico: None,
+            tipo_acabamento: None,
+            quantidade_ilhos: None,
+            espaco_ilhos: None,
+            valor_ilhos: None,
+            quantidade_cordinha: None,
+            espaco_cordinha: None,
+            valor_cordinha: None,
+            observacao: None,
+            imagem: None,
+            quantidade_paineis: None,
+            valor_unitario: None,
+            emenda: None,
+            emenda_qtd: None,
+            terceirizado: None,
+            acabamento_lona: None,
+            valor_lona: None,
+            quantidade_lona: None,
+            outros_valores_lona: None,
+            tipo_adesivo: None,
+            valor_adesivo: None,
+            quantidade_adesivo: None,
+            outros_valores_adesivo: None,
+            ziper: None,
+            cordinha_extra: None,
+            alcinha: None,
+            toalha_pronta: None,
+        }
+    }
+
+    fn make_create_order_request(
+        cliente: &str,
+        cidade: &str,
+        items: Vec<CreateOrderItemRequest>,
+    ) -> CreateOrderRequest {
+        CreateOrderRequest {
+            cliente: cliente.to_string(),
+            cidade_cliente: cidade.to_string(),
+            estado_cliente: Some("SP".to_string()),
+            status: OrderStatus::Pendente,
+            items,
+            numero: None,
+            data_entrada: "2024-01-10".to_string(),
+            data_entrega: None,
+            forma_envio: Some("Correios".to_string()),
+            forma_pagamento_id: None,
+            prioridade: Some("NORMAL".to_string()),
+            observacao: None,
+            telefone_cliente: Some("11999999999".to_string()),
+            valor_frete: Some(0.0),
+        }
+    }
+
     #[test]
     fn normalize_status_flags_resets_downstream_when_financeiro_false() {
         let existing = make_order_with_flags(true, true, true, true, true);
@@ -933,14 +1383,7 @@ mod tests {
     #[test]
     fn build_order_with_items_keeps_all_metadata() {
         let order = make_order_with_flags(true, false, false, true, false);
-        let items = vec![OrderItem {
-            id: 10,
-            order_id: order.id,
-            item_name: "Item 1".to_string(),
-            quantity: 2,
-            unit_price: Decimal::new(2500, 2),
-            subtotal: Decimal::new(5000, 2),
-        }];
+        let items = vec![make_basic_order_item(order.id)];
 
         let result = build_order_with_items(order.clone(), items.clone());
 
@@ -1005,27 +1448,21 @@ mod tests {
     #[tokio::test]
     async fn create_order_persists_order_and_items() {
         run_with_pool(|pool| async move {
-            let request = CreateOrderRequest {
-                cliente: "Cliente Teste".into(),
-                cidade_cliente: "Rua A, 123".into(),
-                status: OrderStatus::Pendente,
-                items: vec![
-                    CreateOrderItemRequest {
-                        item_name: "Produto 1".into(),
-                        quantity: 2,
-                        unit_price: 150.0,
-                    },
-                    CreateOrderItemRequest {
-                        item_name: "Produto 2".into(),
-                        quantity: 1,
-                        unit_price: 200.0,
-                    },
+            let request = make_create_order_request(
+                "Cliente Teste",
+                "Rua A, 123",
+                vec![
+                    make_create_order_item("Produto 1", 2, 150.0),
+                    make_create_order_item("Produto 2", 1, 200.0),
                 ],
-            };
+            );
 
             let created = super::create_order_internal(&pool, request)
                 .await
                 .expect("pedido criado");
+
+            assert!(created.numero.is_some());
+            assert_eq!(created.numero.as_ref().unwrap().len(), 10);
 
             let (order_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM orders")
                 .fetch_one(&pool)
@@ -1047,16 +1484,11 @@ mod tests {
     #[tokio::test]
     async fn update_order_status_flags_resets_dependents() {
         run_with_pool(|pool| async move {
-            let request = CreateOrderRequest {
-                cliente: "Cliente Teste".into(),
-                cidade_cliente: "Rua B, 456".into(),
-                status: OrderStatus::Pendente,
-                items: vec![CreateOrderItemRequest {
-                    item_name: "Produto".into(),
-                    quantity: 1,
-                    unit_price: 300.0,
-                }],
-            };
+            let request = make_create_order_request(
+                "Cliente Teste",
+                "Rua B, 456",
+                vec![make_create_order_item("Produto", 1, 300.0)],
+            );
 
             let created = super::create_order_internal(&pool, request)
                 .await

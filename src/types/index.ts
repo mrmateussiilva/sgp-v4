@@ -47,6 +47,10 @@ export interface OrderItem {
   valor_adesivo?: string;
   quantidade_adesivo?: string;
   outros_valores_adesivo?: string;
+  ziper?: boolean;
+  cordinha_extra?: boolean;
+  alcinha?: boolean;
+  toalha_pronta?: boolean;
 }
 
 export interface OrderWithItems {
@@ -138,6 +142,10 @@ export interface CreateOrderItemRequest {
   valor_adesivo?: string;
   quantidade_adesivo?: string;
   outros_valores_adesivo?: string;
+  ziper?: boolean;
+  cordinha_extra?: boolean;
+  alcinha?: boolean;
+  toalha_pronta?: boolean;
 }
 
 export interface UpdateOrderRequest {
@@ -147,6 +155,21 @@ export interface UpdateOrderRequest {
   status: OrderStatus;
   items: UpdateOrderItemRequest[];
   valor_frete?: number;
+}
+
+export interface UpdateOrderMetadataRequest {
+  id: number;
+  cliente?: string;
+  cidade_cliente?: string;
+  estado_cliente?: string;
+  telefone_cliente?: string;
+  data_entrega?: string;
+  prioridade?: string;
+  forma_envio?: string;
+  forma_pagamento_id?: number | null;
+  observacao?: string;
+  valor_frete?: number;
+  status?: OrderStatus;
 }
 
 export interface UpdateOrderItemRequest {
@@ -165,6 +188,10 @@ export interface UpdateOrderItemRequest {
   valor_adesivo?: string;
   quantidade_adesivo?: string;
   outros_valores_adesivo?: string;
+  ziper?: boolean;
+  cordinha_extra?: boolean;
+  alcinha?: boolean;
+  toalha_pronta?: boolean;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -199,6 +226,58 @@ export interface OrderFilters {
   page_size?: number;
 }
 
+export interface OrderAuditLogEntry {
+  id: number;
+  order_id: number;
+  changed_by?: number;
+  changed_by_name?: string;
+  changes: Record<string, { before: unknown; after: unknown }>;
+  created_at?: string | null;
+}
+
+export interface AnalyticsFilters {
+  date_from?: string | null;
+  date_to?: string | null;
+  vendedor_id?: number | null;
+  designer_id?: number | null;
+  product_type?: string | null;
+}
+
+export interface AnalyticsSummary {
+  total_orders: number;
+  total_items_produced: number;
+  total_revenue: number;
+  average_ticket: number;
+}
+
+export interface AnalyticsLeaderboardEntry {
+  id: number | string;
+  name: string;
+  value: number;
+}
+
+export interface AnalyticsTopProduct {
+  product_id: number | string;
+  product_name: string;
+  quantity: number;
+}
+
+export interface AnalyticsTrendPoint {
+  period: string;
+  production_volume: number;
+  revenue: number;
+}
+
+export interface AnalyticsResponse {
+  summary: AnalyticsSummary;
+  top_products: AnalyticsTopProduct[];
+  top_sellers: AnalyticsLeaderboardEntry[];
+  top_designers: AnalyticsLeaderboardEntry[];
+  monthly_trends: AnalyticsTrendPoint[];
+  last_updated?: string;
+  available_product_types?: string[];
+}
+
 export interface PaginatedOrders {
   orders: OrderWithItems[];
   total: number;
@@ -214,29 +293,48 @@ export interface PaginatedOrders {
 export interface Cliente {
   id: number;
   nome: string;
-  cep: string;
-  cidade: string;
-  estado: string;
-  telefone: string;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  telefone?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface CreateClienteRequest {
   nome: string;
-  cep: string;
-  cidade: string;
-  estado: string;
-  telefone: string;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  telefone?: string | null;
 }
 
 export interface UpdateClienteRequest {
   id: number;
   nome: string;
-  cep: string;
-  cidade: string;
-  estado: string;
-  telefone: string;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  telefone?: string | null;
+}
+
+export interface BulkClienteImportItem {
+  nome: string;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  telefone?: string | null;
+}
+
+export interface BulkClienteImportError {
+  index: number;
+  nome?: string | null;
+  message: string;
+}
+
+export interface BulkClienteImportResult {
+  imported: Cliente[];
+  errors: BulkClienteImportError[];
 }
 
 // ========================================

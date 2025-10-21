@@ -6,14 +6,18 @@ import {
   OrderWithItems,
   CreateOrderRequest,
   UpdateOrderRequest,
+  UpdateOrderMetadataRequest,
   OrderFilters,
   PaginatedOrders,
   Cliente,
   CreateClienteRequest,
   UpdateClienteRequest,
   UpdateOrderStatusRequest,
+  OrderAuditLogEntry,
   ReportRequestPayload,
   ReportResponse,
+  BulkClienteImportItem,
+  BulkClienteImportResult,
 } from '../types';
 
 const requireSessionToken = () => {
@@ -64,6 +68,11 @@ export const api = {
     return await invoke<OrderWithItems>('update_order', { sessionToken, request });
   },
 
+  updateOrderMetadata: async (request: UpdateOrderMetadataRequest): Promise<OrderWithItems> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<OrderWithItems>('update_order_metadata', { sessionToken, request });
+  },
+
   updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
     const sessionToken = requireSessionToken();
     return await invoke<OrderWithItems>('update_order_status_flags', { sessionToken, request });
@@ -77,6 +86,11 @@ export const api = {
   getOrdersWithFilters: async (filters: OrderFilters): Promise<PaginatedOrders> => {
     const sessionToken = requireSessionToken();
     return await invoke<PaginatedOrders>('get_orders_with_filters', { sessionToken, filters });
+  },
+
+  getOrderHistory: async (orderId: number): Promise<OrderAuditLogEntry[]> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<OrderAuditLogEntry[]>('get_order_audit_log', { sessionToken, orderId });
   },
 
   // Clientes
@@ -103,6 +117,16 @@ export const api = {
   deleteCliente: async (clienteId: number): Promise<boolean> => {
     const sessionToken = requireSessionToken();
     return await invoke<boolean>('delete_cliente', { sessionToken, clienteId });
+  },
+
+  importClientesBulk: async (
+    clientes: BulkClienteImportItem[]
+  ): Promise<BulkClienteImportResult> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<BulkClienteImportResult>('import_clientes_bulk', {
+      sessionToken,
+      request: { clientes },
+    });
   },
 
   // Catálogos (Vendedores, Designers, Materiais/Tecidos)

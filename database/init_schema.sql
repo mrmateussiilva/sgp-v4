@@ -8,7 +8,6 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- Tabela de Usuários
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
@@ -17,10 +16,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Sequência para geração de números de pedido
+CREATE SEQUENCE IF NOT EXISTS order_number_seq START WITH 1;
+
 -- Tabela de Pedidos
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
-    numero VARCHAR(50),
+    numero VARCHAR(20) NOT NULL UNIQUE DEFAULT LPAD(nextval('order_number_seq')::text, 10, '0'),
     customer_name VARCHAR(255),
     cliente VARCHAR(255),
     address TEXT,
@@ -53,8 +55,25 @@ CREATE TABLE IF NOT EXISTS order_items (
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10, 2) NOT NULL,
     subtotal DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ziper BOOLEAN DEFAULT FALSE,
+    cordinha_extra BOOLEAN DEFAULT FALSE,
+    alcinha BOOLEAN DEFAULT FALSE,
+    toalha_pronta BOOLEAN DEFAULT FALSE
+);
+
+-- Tabela de histórico de alterações de pedidos
+CREATE TABLE IF NOT EXISTS order_audit_log (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    changed_by INTEGER,
+    changed_by_name VARCHAR(255),
+    changes JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_order_audit_log_order_id ON order_audit_log(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_audit_log_created_at ON order_audit_log(created_at DESC);
 
 -- Tabela de Clientes
 CREATE TABLE IF NOT EXISTS clientes (
@@ -94,4 +113,3 @@ CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
 DROP TRIGGER IF EXISTS update_clientes_updated_at ON clientes;
 CREATE TRIGGER update_clientes_updated_at BEFORE UPDATE ON clientes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-

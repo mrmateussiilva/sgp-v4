@@ -23,6 +23,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 
 const TIPOS_PRODUCAO = [
   { value: 'painel', label: 'Painel' },
+  { value: 'generica', label: 'Produção Genérica' },
   { value: 'totem', label: 'Totem' },
   { value: 'lona', label: 'Lona' },
   { value: 'adesivo', label: 'Adesivo' },
@@ -75,6 +76,10 @@ interface TabItem {
   valor_adesivo: string;
   quantidade_adesivo: string;
   outros_valores_adesivo: string;
+  ziper: boolean;
+  cordinha_extra: boolean;
+  alcinha: boolean;
+  toalha_pronta: boolean;
 }
 
 export default function CreateOrderComplete() {
@@ -96,25 +101,6 @@ export default function CreateOrderComplete() {
     desconto_tipo: '',
     valor_frete: '0,00',
   });
-
-  // Gerar próximo ID automaticamente
-  useEffect(() => {
-    const generateNextId = async () => {
-      try {
-        const orders = await api.getOrders();
-        const maxId = orders.length > 0 ? Math.max(...orders.map(order => order.id)) : 0;
-        const nextId = (maxId + 1).toString().padStart(10, '0');
-        setFormData(prev => ({ ...prev, numero: nextId }));
-      } catch (error) {
-        console.error('Erro ao gerar próximo ID:', error);
-        // Fallback: usar timestamp como ID com 10 caracteres
-        const fallbackId = Date.now().toString().slice(-10).padStart(10, '0');
-        setFormData(prev => ({ ...prev, numero: fallbackId }));
-      }
-    };
-
-    generateNextId();
-  }, []);
 
   const [tabs, setTabs] = useState<string[]>(['tab-1']);
   const [activeTab, setActiveTab] = useState('tab-1');
@@ -160,6 +146,10 @@ export default function CreateOrderComplete() {
       valor_adesivo: '0,00',
       quantidade_adesivo: '1',
       outros_valores_adesivo: '0,00',
+      ziper: false,
+      cordinha_extra: false,
+      alcinha: false,
+      toalha_pronta: false,
     }
   });
 
@@ -188,12 +178,6 @@ export default function CreateOrderComplete() {
     { id: 4, name: 'R$ 50,00', type: 'valor_fixo', value: 50 },
   ]);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-
-  useEffect(() => {
-    // Gerar novo ID para o pedido
-    const numero = `PED-${Date.now()}`;
-    setFormData(prev => ({ ...prev, numero }));
-  }, []);
 
   // Carregar catálogos do banco (ativos)
   useEffect(() => {
@@ -265,7 +249,7 @@ export default function CreateOrderComplete() {
   useEffect(() => {
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'painel') {
+      if (item && (item.tipo_producao === 'painel' || item.tipo_producao === 'generica')) {
         // Calcular valor total do painel baseado nos campos específicos
         const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
         const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
@@ -461,7 +445,7 @@ export default function CreateOrderComplete() {
         const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
         
         // Para painéis, verificar se pelo menos um campo de valor foi preenchido
-        if (item.tipo_producao === 'painel') {
+        if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
           const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
           const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
           
@@ -697,6 +681,10 @@ export default function CreateOrderComplete() {
         valor_adesivo: '0,00',
         quantidade_adesivo: '1',
         outros_valores_adesivo: '0,00',
+        ziper: false,
+        cordinha_extra: false,
+        alcinha: false,
+        toalha_pronta: false,
       }
     }));
 
@@ -773,7 +761,7 @@ export default function CreateOrderComplete() {
     }
 
     // Validar valor
-    if (item.tipo_producao === 'painel') {
+    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
       const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
       const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
       
@@ -829,7 +817,7 @@ export default function CreateOrderComplete() {
     }
 
     // Validar quantidade
-    if (item.tipo_producao === 'painel') {
+    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
       const quantidade = parseInt(item.quantidade_paineis || '0');
       if (quantidade <= 0) {
         errors.push("Quantidade de painéis é obrigatória e deve ser maior que zero");
@@ -866,7 +854,7 @@ export default function CreateOrderComplete() {
     }
 
     // Campos opcionais - gerar avisos
-    if (item.tipo_producao === 'painel') {
+    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
       if (!item.overloque) {
         warnings.push("Overloque não será aplicado");
       }
@@ -984,6 +972,10 @@ export default function CreateOrderComplete() {
       valor_adesivo: '0,00',
       quantidade_adesivo: '1',
       outros_valores_adesivo: '0,00',
+      ziper: false,
+      cordinha_extra: false,
+      alcinha: false,
+      toalha_pronta: false,
     };
 
     setTabsData(prev => ({
@@ -1014,7 +1006,7 @@ export default function CreateOrderComplete() {
       const valor = parseFloat(valorUnitario.replace(/\./g, '').replace(',', '.')) || 0;
       
       // Para painéis, considerar a quantidade
-      if (item.tipo_producao === 'painel') {
+      if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
         const quantidade = parseInt(item.quantidade_paineis || '1');
         return sum + (valor * quantidade);
       }
@@ -1143,11 +1135,6 @@ export default function CreateOrderComplete() {
     setActiveTab('tab-1');
     setErrors({});
 
-    // Gerar novo ID após limpar tudo
-    setTimeout(() => {
-      const numero = `PED-${Date.now()}`;
-      setFormData(prev => ({ ...prev, numero }));
-    }, 100);
   };
 
   const handleConfirmSave = async () => {
@@ -1165,7 +1152,7 @@ export default function CreateOrderComplete() {
           const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
           
           // Usar quantidade específica por tipo
-          const quantidadeRaw = item.tipo_producao === 'painel'
+          const quantidadeRaw = (item.tipo_producao === 'painel' || item.tipo_producao === 'generica')
             ? parseInt(item.quantidade_paineis || '1', 10)
             : item.tipo_producao === 'totem'
               ? parseInt(item.quantidade_totem || '1', 10)
@@ -1224,6 +1211,10 @@ export default function CreateOrderComplete() {
             valor_adesivo: item.valor_adesivo,
             quantidade_adesivo: item.quantidade_adesivo,
             outros_valores_adesivo: item.outros_valores_adesivo,
+            ziper: item.ziper,
+            cordinha_extra: item.cordinha_extra,
+            alcinha: item.alcinha,
+            toalha_pronta: item.toalha_pronta,
           };
         });
 
@@ -1278,8 +1269,6 @@ export default function CreateOrderComplete() {
         cidade_cliente: address,
         status: OrderStatus.Pendente,
         items: items,
-        // Campos adicionais
-        ...(formData.numero && { numero: formData.numero }),
         data_entrada: formData.data_entrada, // Sempre enviar data de entrada
         ...(dataEntregaFormatted && { data_entrega: dataEntregaFormatted }),
         ...(formData.forma_envio && { forma_envio: formData.forma_envio }),
@@ -1295,13 +1284,13 @@ export default function CreateOrderComplete() {
       console.log('Enviando pedido:', createOrderRequest);
       console.log('Data entrada:', formData.data_entrada);
       console.log('Data entrega:', formData.data_entrega);
-      await api.createOrder(createOrderRequest);
+      const createdOrder = await api.createOrder(createOrderRequest);
 
-      // Limpar rascunho após salvamento bem-sucedido
+      const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
       toast({
         title: "Pedido criado!",
-        description: `Pedido ${formData.numero} criado com sucesso!`,
+        description: `Pedido ${orderIdentifier} criado com sucesso!`,
       });
 
       setShowResumoModal(false);
@@ -1379,6 +1368,7 @@ export default function CreateOrderComplete() {
               <Label className="text-base font-medium">ID</Label>
               <Input
                 value={formData.numero}
+                placeholder="Gerado automaticamente"
                 readOnly
                 className="bg-gray-100 font-mono h-12 text-base cursor-not-allowed w-32"
               />
@@ -1393,8 +1383,8 @@ export default function CreateOrderComplete() {
                     setFormData(prev => ({
                       ...prev,
                       cliente: cliente.nome,
-                      telefone_cliente: cliente.telefone,
-                      cidade_cliente: cliente.cidade,
+                      telefone_cliente: cliente.telefone ?? '',
+                      cidade_cliente: cliente.cidade ?? '',
                     }));
                   }
                 }}
@@ -1575,6 +1565,24 @@ export default function CreateOrderComplete() {
                       onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
                       hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                      mode="painel"
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao === 'generica' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormPainelCompleto
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tecidos={materiaisLona}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                      mode="generica"
                     />
                   </div>
                 )}
@@ -1627,7 +1635,7 @@ export default function CreateOrderComplete() {
                   </div>
                 )}
 
-                {tabsData[tabId]?.tipo_producao && !['painel', 'totem', 'lona', 'adesivo'].includes(tabsData[tabId]?.tipo_producao) && (
+                {tabsData[tabId]?.tipo_producao && !['painel', 'generica', 'totem', 'lona', 'adesivo'].includes(tabsData[tabId]?.tipo_producao) && (
                   <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
                     {/* Descrição */}
                     <div className="space-y-2">
@@ -2075,7 +2083,7 @@ export default function CreateOrderComplete() {
             <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
               <h3 className="font-semibold mb-2 text-purple-900">Dados do Pedido</h3>
               <div className="space-y-1 text-sm">
-                <p><strong>Número:</strong> {formData.numero}</p>
+                <p><strong>Número:</strong> {formData.numero || 'Gerado ao salvar'}</p>
                 <p><strong>Cliente:</strong> {formData.cliente}</p>
                 <p><strong>Data Entrega:</strong> {formData.data_entrega}</p>
                 <p><strong>Prioridade:</strong> {formData.prioridade}</p>
@@ -2092,7 +2100,7 @@ export default function CreateOrderComplete() {
                 const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
                 let valorTotalItem = valorUnitario;
                 
-                if (item.tipo_producao === 'painel') {
+                if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
                   const quantidade = parseInt(item.quantidade_paineis || '1');
                   valorTotalItem = valorUnitario * quantidade;
                 } else if (item.tipo_producao === 'totem') {
@@ -2111,7 +2119,7 @@ export default function CreateOrderComplete() {
                 return (
                   <div key={tabId} className="text-sm mb-2">
                     <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label}
-                    {item.tipo_producao === 'painel' && parseInt(item.quantidade_paineis || '1') > 1 && (
+                    {(item.tipo_producao === 'painel' || item.tipo_producao === 'generica') && parseInt(item.quantidade_paineis || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_paineis})</span>
                     )}
                     {item.tipo_producao === 'totem' && parseInt(item.quantidade_totem || '1') > 1 && (

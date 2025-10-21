@@ -1,9 +1,8 @@
 import { OrderItem, OrderWithItems } from '../types';
 
-type DetailEntry = {
-  label: string;
-  value: string;
-};
+// ============================================================================
+// TYPES
+// ============================================================================
 
 type OrderFinancials = {
   itemsSubtotal: number;
@@ -12,47 +11,38 @@ type OrderFinancials = {
   finalTotal: number;
 };
 
-const PLACEHOLDER_LINE = '____________________________';
+type ItemDetail = {
+  label: string;
+  value: string;
+};
+
+// ============================================================================
+// UTILITY FUNCTIONS - Parsing e Formatação
+// ============================================================================
 
 const parseCurrencyValue = (value: unknown): number => {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-
-  if (typeof value === 'number') {
-    return value;
-  }
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return value;
 
   if (typeof value === 'object') {
-    const decimalObject = value as Record<string, unknown> & { toString?: () => string };
-
-    if (typeof decimalObject.$numberDecimal === 'string') {
-      return parseCurrencyValue(decimalObject.$numberDecimal);
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.$numberDecimal === 'string') {
+      return parseCurrencyValue(obj.$numberDecimal);
     }
-
-    if (typeof decimalObject.value === 'string' || typeof decimalObject.value === 'number') {
-      return parseCurrencyValue(decimalObject.value);
+    if (obj.value !== undefined) {
+      return parseCurrencyValue(obj.value);
     }
-
-    const maybeString = decimalObject.toString?.();
-    if (maybeString && maybeString !== '[object Object]') {
-      return parseCurrencyValue(maybeString);
-    }
-
     return 0;
   }
 
   const raw = String(value).trim();
-  if (!raw) {
-    return 0;
-  }
+  if (!raw) return 0;
 
   const cleaned = raw.replace(/[^\d.,-]/g, '');
   const lastComma = cleaned.lastIndexOf(',');
   const lastDot = cleaned.lastIndexOf('.');
 
   let normalized = cleaned;
-
   if (lastComma > -1 && lastComma > lastDot) {
     normalized = cleaned.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > -1 && lastDot > lastComma) {
@@ -65,24 +55,13 @@ const parseCurrencyValue = (value: unknown): number => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-const parseNumberValue = (value?: string | number | null) => {
-  if (typeof value === 'number') return value;
-  if (!value) return NaN;
-  const normalized = value
-    .toString()
-    .trim()
-    .replace(/\s/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-  return parseFloat(normalized);
-};
+const formatCurrency = (value: unknown): string =>
+  new Intl.NumberFormat('pt-BR', { 
+    style: 'currency', 
+    currency: 'BRL' 
+  }).format(parseCurrencyValue(value));
 
-const formatCurrency = (value: unknown) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-    parseCurrencyValue(value)
-  );
-
-const escapeHtml = (value: string) =>
+const escapeHtml = (value: string): string =>
   value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -90,485 +69,324 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const formatDate = (value?: string | null) => {
-  if (!value) return 'Não informado';
+const getFieldValue = (record: Record<string, unknown>, key: string): string | undefined => {
+  const value = record[key];
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (typeof value === 'number') return value.toString();
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  return undefined;
+};
 
-  try {
-    if (value.length === 10 && value.includes('-')) {
-      const date = new Date(`${value}T00:00:00`);
-      return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleDateString('pt-BR');
+// ============================================================================
+// DATA COLLECTION - Coleta de dados dos itens
+// ============================================================================
+
+const collectItemDetails = (item: OrderItem): ItemDetail[] => {
+  const details: ItemDetail[] = [];
+  const itemRecord = item as unknown as Record<string, unknown>;
+  const tipoProducao = (item.tipo_producao || '').toLowerCase();
+  
+  // Determina o tipo de produção
+  const isTotem = tipoProducao.includes('totem');
+  const isAdesivo = tipoProducao.includes('adesivo');
+  const isLona = tipoProducao.includes('lona');
+
+  const addDetail = (label: string, value: unknown) => {
+    if (value === null || value === undefined) return;
+    
+    let stringValue = '';
+    if (typeof value === 'string') {
+      stringValue = value.trim();
+    } else if (typeof value === 'number') {
+      stringValue = value.toString();
+    } else if (typeof value === 'boolean') {
+      if (!value) return; // Se for false, não adiciona
+      stringValue = 'Sim';
     }
 
-    const date = new Date(value);
+    // Não exibe se for vazio, "Não informado" ou "Não"
+    if (stringValue && stringValue !== 'Não informado' && stringValue !== 'Não' && stringValue.toLowerCase() !== 'sem-emenda' && stringValue.toLowerCase() !== 'nenhum') {
+      details.push({ label, value: stringValue });
+    }
+  };
+
+  const addCurrency = (label: string, value: unknown) => {
+    const amount = parseCurrencyValue(value);
+    if (amount > 0) {
+      details.push({ label, value: formatCurrency(amount) });
+    }
+  };
+
+  // ===== CAMPOS COMUNS A TODOS =====
+  addDetail('Tipo de Produção', item.tipo_producao);
+  addDetail('Descrição', item.descricao);
+  addDetail('Quantidade', item.quantity);
+  
+  // Dimensões (se houver)
+  if (item.largura) addDetail('Largura', item.largura);
+  if (item.altura) addDetail('Altura', item.altura);
+  if (item.metro_quadrado) addDetail('m²', item.metro_quadrado);
+  
+  // Equipe
+  if (item.designer) addDetail('Designer', item.designer);
+  if (item.vendedor) addDetail('Vendedor', item.vendedor);
+
+  // ===== CAMPOS ESPECÍFICOS POR TIPO =====
+  
+  if (isTotem) {
+    // TOTEM: Material é o principal
+    addDetail('Material', item.tecido);
+    addDetail('Tipo de Acabamento', item.tipo_acabamento);
+    
+  } else if (isAdesivo) {
+    // ADESIVO: Tipo de adesivo e valores
+    addDetail('Tipo de Adesivo', item.tecido || getFieldValue(itemRecord, 'tipo_adesivo'));
+    addCurrency('Valor do Adesivo', getFieldValue(itemRecord, 'valor_adesivo'));
+    addDetail('Qtd. Adesivos', getFieldValue(itemRecord, 'quantidade_adesivo'));
+    addCurrency('Outros Valores', getFieldValue(itemRecord, 'outros_valores_adesivo'));
+    
+  } else if (isLona) {
+    // LONA: Campos específicos de lona
+    addDetail('Tecido', item.tecido);
+    addDetail('Terceirizado', getFieldValue(itemRecord, 'terceirizado'));
+    addDetail('Acabamento Lona', getFieldValue(itemRecord, 'acabamento_lona'));
+    addCurrency('Valor Lona', getFieldValue(itemRecord, 'valor_lona'));
+    addDetail('Qtd. Lona', getFieldValue(itemRecord, 'quantidade_lona'));
+    addCurrency('Outros Valores', getFieldValue(itemRecord, 'outros_valores_lona'));
+    
+  } else {
+    // PAINEL ou OUTROS: Campos padrão
+    addDetail('Tecido', item.tecido);
+    addDetail('Overloque', getFieldValue(itemRecord, 'overloque'));
+    addDetail('Elástico', getFieldValue(itemRecord, 'elastico'));
+    addDetail('Tipo de Acabamento', item.tipo_acabamento);
+    
+    // Ilhós (só se tiver)
+    if (item.quantidade_ilhos) {
+      addDetail('Qtd. Ilhós', item.quantidade_ilhos);
+      if (item.espaco_ilhos) addDetail('Espaço Ilhós', item.espaco_ilhos);
+      addCurrency('Valor Ilhós', item.valor_ilhos);
+    }
+    
+    // Cordinha (só se tiver)
+    if (item.quantidade_cordinha) {
+      addDetail('Qtd. Cordinha', item.quantidade_cordinha);
+      if (item.espaco_cordinha) addDetail('Espaço Cordinha', item.espaco_cordinha);
+      addCurrency('Valor Cordinha', item.valor_cordinha);
+    }
+    
+    // Emenda (só se tiver)
+    if (item.emenda && item.emenda.toLowerCase() !== 'sem-emenda') {
+      addDetail('Emenda', item.emenda);
+      if (item.emenda_qtd) addDetail('Qtd. Emendas', item.emenda_qtd);
+    }
+
+    addDetail('Zíper', getFieldValue(itemRecord, 'ziper'));
+    addDetail('Cordinha', getFieldValue(itemRecord, 'cordinha_extra'));
+    addDetail('Alcinha', getFieldValue(itemRecord, 'alcinha'));
+    addDetail('Toalha pronta', getFieldValue(itemRecord, 'toalha_pronta'));
+  }
+
+  return details;
+};
+
+// ============================================================================
+// HTML BUILDERS - Construção de HTML
+// ============================================================================
+
+const formatOrderDate = (dateValue?: string | null): string => {
+  if (!dateValue) return 'Não informado';
+  try {
+    const date = dateValue.includes('T') ? new Date(dateValue) : new Date(`${dateValue}T00:00:00`);
     return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleDateString('pt-BR');
   } catch {
     return 'Não informado';
   }
 };
 
-const formatStatus = (value?: string | null) => {
-  if (!value) return 'Não informado';
-  return value
-    .toString()
-    .trim()
-    .split(/\s+/)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
-    .join(' ');
-};
-
-const getStatusBadgeModifier = (status?: string | null) => {
-  if (!status) return 'status-neutro';
-
-  const normalized = status
-    .toString()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, '-');
-
-  if (normalized.includes('cancel')) {
-    return 'status-cancelado';
-  }
-
-  if (normalized.includes('conclu')) {
-    return 'status-concluido';
-  }
-
-  if (normalized.includes('process') || normalized.includes('andamento')) {
-    return 'status-andamento';
-  }
-
-  if (normalized.includes('pend')) {
-    return 'status-pendente';
-  }
-
-  return 'status-neutro';
-};
-
-const normalizeSpacingValue = (value?: string | null) => {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  return trimmed.toLowerCase().endsWith('cm') ? trimmed : `${trimmed} cm`;
-};
-
-const formatEmendaType = (value?: string | null) => {
-  if (!value) return '';
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'sem-emenda') return '';
-  return trimmed
-    .split(/[-_]/)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ');
-};
-
-const pickString = (record: Record<string, unknown>, key: string) => {
-  const value = record[key];
-  return typeof value === 'string' ? value : undefined;
-};
-
-const pickBoolean = (record: Record<string, unknown>, key: string) => {
-  const value = record[key];
-  return typeof value === 'boolean' ? (value as boolean) : undefined;
-};
-
-const pickNumericLike = (record: Record<string, unknown>, key: string) => {
-  const value = record[key];
-  return typeof value === 'number' || typeof value === 'string' ? value : undefined;
-};
-
-const collectItemDetailEntries = (item: OrderItem) => {
-  const entries: DetailEntry[] = [];
-  const tipoProducao = (item.tipo_producao || '').toLowerCase();
-  const isTotem = tipoProducao === 'totem';
-  const isAdesivo = tipoProducao === 'adesivo';
-  const itemRecord = item as Record<string, unknown>;
-
-  const push = (label: string, value?: string | number | null | undefined) => {
-    if (value === undefined || value === null) return;
-    const stringValue = typeof value === 'number' ? value.toString() : value.toString().trim();
-    if (!stringValue || stringValue.toLowerCase() === 'não informado') return;
-    entries.push({ label, value: stringValue });
-  };
-
-  const pushCurrency = (label: string, value?: string | number | null) => {
-    const amount = parseCurrencyValue(value);
-    if (amount === 0) return;
-    push(label, formatCurrency(amount));
-  };
-
-  const pushBoolean = (label: string, value?: boolean | null) => {
-    if (value === undefined || value === null) return;
-    push(label, value ? 'Sim' : 'Não');
-  };
-
-  push('Tipo de Produção', item.tipo_producao);
-  push('Largura', item.largura);
-  push('Altura', item.altura);
-  push('m²', item.metro_quadrado);
-  push('Designer', item.designer);
-  push('Vendedor', item.vendedor);
-  push(isTotem ? 'Material' : isAdesivo ? 'Tipo de Adesivo' : 'Tecido', item.tecido);
-  pushBoolean('Overloque', item.overloque);
-  pushBoolean('Elástico', item.elastico);
-  push('Tipo de Acabamento', item.tipo_acabamento);
-  push('Qtd. Ilhós', item.quantidade_ilhos);
-  const espacoIlhos = normalizeSpacingValue(item.espaco_ilhos);
-  if (espacoIlhos) push('Espaço Ilhós', espacoIlhos);
-  pushCurrency('Valor Ilhós', item.valor_ilhos);
-  push('Qtd. Cordinha', item.quantidade_cordinha);
-  const espacoCordinha = normalizeSpacingValue(item.espaco_cordinha);
-  if (espacoCordinha) push('Espaço Cordinha', espacoCordinha);
-  pushCurrency('Valor Cordinha', item.valor_cordinha);
-
-  const emendaFormatted = formatEmendaType(item.emenda);
-  if (emendaFormatted) {
-    push('Emenda', emendaFormatted);
-    const emendaQuantidadeValue = item.emenda_qtd ?? pickString(itemRecord, 'emendaQtd');
-    if (emendaQuantidadeValue && emendaQuantidadeValue.trim().length > 0) {
-      const emendaQtdNumber = parseNumberValue(emendaQuantidadeValue);
-      const emendaQtdLabel = `${emendaQuantidadeValue} ${
-        emendaQtdNumber === 1 ? 'emenda' : 'emendas'
-      }`;
-      push('Qtd. Emendas', emendaQtdLabel);
-    }
-  }
-
-  pushBoolean('Terceirizado', pickBoolean(itemRecord, 'terceirizado'));
-  push('Acabamento Lona', pickString(itemRecord, 'acabamento_lona'));
-  pushCurrency('Valor Lona', pickNumericLike(itemRecord, 'valor_lona'));
-  push('Qtd. Lona', pickNumericLike(itemRecord, 'quantidade_lona'));
-  pushCurrency('Outros Valores Lona', pickNumericLike(itemRecord, 'outros_valores_lona'));
-  push('Tipo de Adesivo', pickString(itemRecord, 'tipo_adesivo'));
-  pushCurrency('Valor do Adesivo', pickNumericLike(itemRecord, 'valor_adesivo'));
-  push('Qtd. Adesivos', pickNumericLike(itemRecord, 'quantidade_adesivo'));
-  pushCurrency('Outros Valores Adesivo', pickNumericLike(itemRecord, 'outros_valores_adesivo'));
-
-  const observation =
-    item.observacao && item.observacao.trim().length > 0
-      ? item.observacao.trim()
-      : undefined;
-
-  const imageUrl = item.imagem && item.imagem.trim().length > 0 ? item.imagem.trim() : undefined;
-
-  return { entries, observation, imageUrl };
-};
-
-const renderValue = (
-  value: string | number | null | undefined,
-  placeholder = PLACEHOLDER_LINE
-) => {
-  if (value === null || value === undefined) {
-    return `<div class="valor placeholder">${placeholder}</div>`;
-  }
-
-  const stringValue = typeof value === 'number' ? value.toString() : value.toString().trim();
-  if (!stringValue || stringValue.toLowerCase() === 'não informado') {
-    return `<div class="valor placeholder">${placeholder}</div>`;
-  }
-
-  return `<div class="valor">${escapeHtml(stringValue)}</div>`;
-};
-
-const buildCampo = (
-  label: string,
-  value: string | number | null | undefined,
-  placeholder?: string,
-  extraClass?: string
-) => `
-  <div class="campo${extraClass ? ` ${extraClass}` : ''}">
-    <label>${escapeHtml(label)}:</label>
-    ${renderValue(value, placeholder ?? PLACEHOLDER_LINE)}
-  </div>
-`;
-
-const buildHeaderInfo = (label: string, rawValue?: string | null) => {
-  const value =
-    rawValue === undefined || rawValue === null
-      ? 'Não informado'
-      : rawValue.toString().trim() || 'Não informado';
+const buildOrderHeader = (order: OrderWithItems): string => {
+  const orderId = (order.numero || order.id).toString();
+  const customerName = order.customer_name || order.cliente || 'Não informado';
+  const phone = order.telefone_cliente || 'Não informado';
+  const city = order.cidade_cliente || '';
+  const state = order.estado_cliente || '';
+  const location = [city, state].filter(Boolean).join(' / ') || 'Não informado';
+  const formaEnvio = order.forma_envio || 'Não informado';
+  const prioridade = order.prioridade || '';
+  
+  const entradaDate = formatOrderDate(order.data_entrada || order.created_at);
+  const entregaDate = formatOrderDate(order.data_entrega);
 
   return `
-    <div class="cabecalho-dado">
-      <span class="cabecalho-label">${escapeHtml(label)}</span>
-      <span class="cabecalho-valor">${escapeHtml(value)}</span>
+    <div class="header">
+      <div class="header-line1">
+        <span><strong>Pedido #${escapeHtml(orderId)}</strong></span>
+        <span><strong>Cliente:</strong> ${escapeHtml(customerName)}</span>
+        <span><strong>Telefone:</strong> ${escapeHtml(phone)}</span>
+        <span><strong>Local:</strong> ${escapeHtml(location)}</span>
     </div>
-  `;
-};
-
-const buildHeader = (order: OrderWithItems, financials: OrderFinancials) => {
-  const entryDate = formatDate(order.data_entrada ?? order.created_at ?? null);
-  const deliveryDate = formatDate(order.data_entrega ?? null);
-  const updatedDate = formatDate(order.updated_at ?? order.created_at ?? null);
-  const issuanceDate = entryDate;
-  const displayDate = issuanceDate === 'Não informado' ? '___/___/______' : issuanceDate;
-  const statusLabel = formatStatus(order.status);
-  const statusModifier = getStatusBadgeModifier(order.status);
-  const priority = (order.prioridade ?? '').toString().trim();
-  const orderCode = (order.numero || order.id).toString();
-  const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
-  const itemsLabel = `${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`;
-
-  return `
-    <div class="cabecalho">
-      <div class="cabecalho-topo">
-        <div class="cabecalho-identificacao">
-          <span class="badge-pedido">Pedido #${escapeHtml(orderCode)}</span>
-          <span class="status-badge ${statusModifier}">${escapeHtml(statusLabel)}</span>
+      <div class="header-line2">
+        <span><strong>Entrada:</strong> ${escapeHtml(entradaDate)} → <strong>Entrega:</strong> ${escapeHtml(entregaDate)}</span>
+        <span><strong>Envio:</strong> ${escapeHtml(formaEnvio)}</span>
+        ${prioridade ? `<span class="priority"><strong>Prioridade:</strong> ${escapeHtml(prioridade)}</span>` : ''}
         </div>
-        ${
-          priority
-            ? `<span class="prioridade-badge">${escapeHtml(priority)}</span>`
-            : ''
-        }
-      </div>
-      <div class="titulo-area">
-        <div>
-          <div class="titulo">FICHA DE PRODUÇÃO</div>
-          <div class="titulo-subtitulo">Informações consolidadas para produção e expedição</div>
-        </div>
-        <div class="cabecalho-data">
-          <span class="cabecalho-data-label">Emitido em</span>
-          <span class="cabecalho-data-valor">${escapeHtml(displayDate)}</span>
-        </div>
-      </div>
-      <div class="cabecalho-info">
-        ${buildHeaderInfo('Data de Entrada', entryDate)}
-        ${buildHeaderInfo('Previsão de Entrega', deliveryDate)}
-        ${buildHeaderInfo('Última Atualização', updatedDate)}
-        ${buildHeaderInfo('Itens no Pedido', itemsLabel)}
-        ${buildHeaderInfo('Total Estimado', formatCurrency(financials.finalTotal))}
-      </div>
+      <div class="header-divider"></div>
     </div>
   `;
 };
 
-const buildOrderDetailsSection = (order: OrderWithItems, financials: OrderFinancials) => {
-  const orderRecord = order as Record<string, unknown>;
-  const formaPagamento =
-    pickString(orderRecord, 'forma_pagamento_nome') ??
-    pickString(orderRecord, 'forma_pagamento') ??
-    undefined;
-  const trackingCode = pickString(orderRecord, 'codigo_rastreamento');
-
-  return `
-    <div class="bloco detalhes-pedido">
-      <h3>DETALHES DO PEDIDO</h3>
-      <div class="dados-pedido">
-        ${buildCampo('Prioridade', order.prioridade)}
-        ${buildCampo('Forma de Envio', order.forma_envio)}
-        ${buildCampo('Forma de Pagamento', formaPagamento)}
-        ${buildCampo('Valor do Frete', formatCurrency(financials.freightValue))}
-        ${buildCampo('Código de Rastreamento', trackingCode)}
-      </div>
-    </div>
-  `;
-};
-
-const buildCustomerSection = (order: OrderWithItems) => {
-  const customerName = order.customer_name || order.cliente || null;
-  const phonePlaceholder = '(  ) ________-________';
-  const orderRecord = order as Record<string, unknown>;
-  const customerEmail =
-    pickString(orderRecord, 'email_cliente') ?? pickString(orderRecord, 'email') ?? undefined;
-  const customerAddress =
-    order.address ||
-    pickString(orderRecord, 'endereco_cliente') ||
-    pickString(orderRecord, 'endereco') ||
-    undefined;
-
-  return `
-    <div class="bloco cliente">
-      <h3>DADOS DO CLIENTE E ENTREGA</h3>
-      <div class="dados-cliente">
-        ${buildCampo('Nome Completo', customerName)}
-        ${buildCampo('Telefone', order.telefone_cliente, phonePlaceholder)}
-        ${buildCampo('Email', customerEmail)}
-        ${buildCampo('Endereço', customerAddress)}
-        ${buildCampo('Cidade', order.cidade_cliente)}
-        ${buildCampo('Estado', order.estado_cliente)}
-      </div>
-    </div>
-  `;
-};
-
-const buildItemFinancialSection = (subtotal: number, discount: number, total: number) => `
-  <div class="bloco resumo resumo-item">
-    <h4>RESUMO FINANCEIRO DO ITEM</h4>
-    <div class="linha-resumo">
-      <span>Subtotal:</span>
-      <span>${formatCurrency(subtotal)}</span>
-    </div>
-    <div class="linha-resumo">
-      <span>Desconto:</span>
-      <span>${formatCurrency(discount)}</span>
-    </div>
-    <div class="linha-resumo total">
-      <span>Total do Item:</span>
-      <span>${formatCurrency(total)}</span>
-    </div>
-  </div>
-`;
-
-const buildOrderFinancialSection = (financials: OrderFinancials) => `
-  <div class="bloco resumo resumo-pedido">
-    <h4>RESUMO FINANCEIRO DA FICHA</h4>
-    <div class="linha-resumo">
-      <span>Subtotal:</span>
-      <span>${formatCurrency(financials.itemsSubtotal)}</span>
-    </div>
-    <div class="linha-resumo">
-      <span>Desconto:</span>
-      <span>${formatCurrency(financials.discountValue)}</span>
-    </div>
-    <div class="linha-resumo">
-      <span>Frete:</span>
-      <span>${formatCurrency(financials.freightValue)}</span>
-    </div>
-    <div class="linha-resumo total">
-      <span>TOTAL FINAL:</span>
-      <span>${formatCurrency(financials.finalTotal)}</span>
-    </div>
-  </div>
-`;
-
-const buildOrderObservation = (order: OrderWithItems) => {
-  if (!order.observacao || order.observacao.trim().length === 0) {
-    return '';
-  }
-
-  return `
-    <div class="bloco observacao-pedido">
-      <strong>Observações do Pedido</strong>
-      <p>${escapeHtml(order.observacao.trim()).replace(/\n/g, '<br />')}</p>
-    </div>
-  `;
-};
-
-const buildItemSection = (
-  order: OrderWithItems,
-  item: OrderItem,
-  index: number,
+const buildItemCard = (
+  item: OrderItem, 
+  itemIndex: number,
+  totalQuantity: number,
+  isLastItem: boolean, 
   financials: OrderFinancials
-) => {
-  const { entries, observation, imageUrl } = collectItemDetailEntries(item);
-  const itemRecord = item as Record<string, unknown>;
-  const itemName =
-    (item.item_name && item.item_name.trim().length > 0 ? item.item_name.trim() : null) ||
-    `Item ${index + 1}`;
-  const description =
-    (item.descricao && item.descricao.trim().length > 0 ? item.descricao.trim() : null) ||
-    itemName;
+): string => {
+  const itemRecord = item as unknown as Record<string, unknown>;
+  const details = collectItemDetails(item);
+  const imageUrl = item.imagem?.trim();
 
-  const itemSubtotal = parseCurrencyValue(item.subtotal);
-  const itemDiscount = parseCurrencyValue(
-    pickNumericLike(itemRecord, 'desconto') ?? pickNumericLike(itemRecord, 'valor_desconto') ?? 0
+  // Calcular valores financeiros do item
+  const subtotal = parseCurrencyValue(item.subtotal);
+  const discount = parseCurrencyValue(
+    getFieldValue(itemRecord, 'desconto') || 
+    getFieldValue(itemRecord, 'valor_desconto') || 
+    0
   );
-  const itemTotal = Math.max(itemSubtotal - itemDiscount, 0);
-  const unitPriceSource = item.unit_price ?? pickNumericLike(itemRecord, 'valor_unitario') ?? 0;
+  const total = Math.max(subtotal - discount, 0);
 
-  const detailsHtml = entries.length
-    ? `
-      <div class="detalhes-item">
-        <h4>Detalhes do Item</h4>
-        <div class="detalhes-grid">
-          ${entries
-            .map(
-              (entry) => `
-                <div class="detalhe">
-                  <span class="detalhe-label">${escapeHtml(entry.label)}</span>
-                  <span class="detalhe-valor">${escapeHtml(entry.value)}</span>
-                </div>
-              `
-            )
-            .join('')}
-        </div>
-      </div>
-    `
-    : '';
-
-  const observationHtml = observation
-    ? `
-      <div class="observacao-item">
-        <strong>Observações do Item</strong>
-        <p>${escapeHtml(observation).replace(/\n/g, '<br />')}</p>
-      </div>
-    `
-    : '';
-
-  const imageHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="Imagem do item" />`
-    : `<span>ÁREA PARA IMAGEM DO PRODUTO</span>`;
+  const detailsHtml = details.length > 0 
+    ? details.map(detail => `
+        <tr>
+          <td class="label">${escapeHtml(detail.label)}:</td>
+          <td class="value">${escapeHtml(detail.value)}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="2" class="no-data">Nenhum detalhe disponível</td></tr>';
 
   return `
-    <div class="ficha">
-      ${buildHeader(order, financials)}
-      ${buildOrderDetailsSection(order, financials)}
-      ${buildCustomerSection(order)}
-
-      <div class="bloco item">
-        <div class="item-topo">
-          <h3>ITEM ${index + 1}</h3>
-          <span class="item-identificacao">${escapeHtml(itemName)}</span>
-        </div>
-        <div class="dados-item">
-          ${buildCampo('Descrição do Item', description, undefined, 'campo-duas-colunas')}
-          ${buildCampo('Quantidade', item.quantity)}
-          ${buildCampo(
-            'Preço Unitário',
-            formatCurrency(unitPriceSource)
-          )}
-        </div>
-        <div class="imagem">
-          ${imageHtml}
-        </div>
-        ${detailsHtml}
-        ${observationHtml}
+    <div class="item-page">
+      <div class="item-section">
+        <!-- Card de Numeração -->
+        <div class="item-numbering-card">
+          <div class="numbering-label">Painel</div>
+          <div class="numbering-value">${itemIndex}/${totalQuantity}</div>
       </div>
 
-      ${buildItemFinancialSection(itemSubtotal, itemDiscount, itemTotal)}
-      ${buildOrderFinancialSection(financials)}
-      ${buildOrderObservation(order)}
+        <!-- Linha 4: Área de Detalhes (60% + 40%) -->
+        <div class="item-content-row">
+          <div class="item-details-column">
+            <table class="details-table">
+              <tbody>
+                ${detailsHtml}
+              </tbody>
+            </table>
+            ${item.observacao?.trim() ? `
+              <div class="observation">
+                <strong>Observações:</strong> ${escapeHtml(item.observacao.trim()).replace(/\n/g, '<br />')}
+    </div>
+            ` : ''}
+    </div>
+          <div class="item-image-column">
+            ${imageUrl ? `
+              <div class="image-wrapper">
+                <img src="${escapeHtml(imageUrl)}" alt="Imagem do item" />
+    </div>
+            ` : '<div class="no-image">Sem imagem</div>'}
+  </div>
+        </div>
+
+        <!-- Linha 5: Resumo Financeiro do Item -->
+        <div class="item-financial-section">
+          <h3>Resumo Financeiro do Item</h3>
+          <table class="financial-table">
+            <tbody>
+              <tr>
+                <td class="label">Subtotal:</td>
+                <td class="value">${formatCurrency(subtotal)}</td>
+              </tr>
+              <tr>
+                <td class="label">Desconto:</td>
+                <td class="value">${formatCurrency(discount)}</td>
+              </tr>
+              <tr class="total-row">
+                <td class="label"><strong>Total do Item:</strong></td>
+                <td class="value"><strong>${formatCurrency(total)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+    </div>
+    </div>
+
+      ${isLastItem ? `
+        <!-- Linha 6: Divisória -->
+        <div class="item-divider"></div>
+        
+        <!-- Linha 7: Financeiro do Pedido (Total) - Apenas no último item -->
+        ${buildFinancialSummary(financials)}
+      ` : ''}
     </div>
   `;
 };
 
-const buildEmptyOrderSection = (order: OrderWithItems, financials: OrderFinancials) => `
-  <div class="ficha">
-    ${buildHeader(order, financials)}
-    ${buildOrderDetailsSection(order, financials)}
-    ${buildCustomerSection(order)}
-    <div class="bloco item">
-      <h3>ITENS</h3>
-      <div class="no-items">
-        Nenhum item registrado para este pedido.
-      </div>
+const buildFinancialSummary = (financials: OrderFinancials): string => {
+  return `
+    <!-- Linha 7: Financeiro do Pedido (Total) -->
+    <div class="order-financial-section">
+      <h2>Informações Financeiras do Pedido (Total)</h2>
+      <table class="financial-table">
+        <tbody>
+          <tr>
+            <td class="label">Subtotal dos Itens:</td>
+            <td class="value">${formatCurrency(financials.itemsSubtotal)}</td>
+          </tr>
+          <tr>
+            <td class="label">Desconto Total:</td>
+            <td class="value">${formatCurrency(financials.discountValue)}</td>
+          </tr>
+          <tr>
+            <td class="label">Frete:</td>
+            <td class="value">${formatCurrency(financials.freightValue)}</td>
+          </tr>
+          <tr class="final-total-row">
+            <td class="label"><strong>💰 TOTAL FINAL:</strong></td>
+            <td class="value"><strong>${formatCurrency(financials.finalTotal)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    ${buildOrderFinancialSection(financials)}
-    ${buildOrderObservation(order)}
-  </div>
-`;
+  `;
+};
+
+// ============================================================================
+// FINANCIAL CALCULATIONS - Cálculos Financeiros
+// ============================================================================
 
 const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
   const itemsSubtotal = Array.isArray(order.items)
     ? order.items.reduce((sum, current) => sum + parseCurrencyValue(current.subtotal), 0)
     : 0;
 
-  const orderRecord = order as Record<string, unknown>;
-
+  const orderRecord = order as unknown as Record<string, unknown>;
   const freightValue = parseCurrencyValue(
-    orderRecord.valor_frete ?? orderRecord.frete ?? order.valor_frete ?? 0
+    getFieldValue(orderRecord, 'valor_frete') || 
+    getFieldValue(orderRecord, 'frete') || 
+    0
   );
 
   const explicitDiscount = parseCurrencyValue(
-    orderRecord.desconto ??
-      orderRecord.valor_desconto ??
-      orderRecord.desconto_total ??
-      orderRecord.discount ??
-      0
+    getFieldValue(orderRecord, 'desconto') ||
+    getFieldValue(orderRecord, 'valor_desconto') ||
+    getFieldValue(orderRecord, 'desconto_total') ||
+    0
   );
 
-  const totalValue = parseCurrencyValue(order.total_value ?? order.valor_total ?? 0);
+  const totalValue = parseCurrencyValue(
+    order.total_value || 
+    getFieldValue(orderRecord, 'valor_total') || 
+    0
+  );
 
   let discountValue = explicitDiscount > 0 ? explicitDiscount : 0;
 
@@ -580,8 +398,7 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
   }
 
   const totalBeforeDiscount = itemsSubtotal + freightValue;
-  const finalTotal =
-    totalValue > 0 ? totalValue : Math.max(totalBeforeDiscount - discountValue, 0);
+  const finalTotal = totalValue > 0 ? totalValue : Math.max(totalBeforeDiscount - discountValue, 0);
 
   return {
     itemsSubtotal,
@@ -591,512 +408,454 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
   };
 };
 
-const generatePrintContent = (order: OrderWithItems) => {
+// ============================================================================
+// CONTENT GENERATION - Geração de Conteúdo
+// ============================================================================
+
+const generatePrintContent = (order: OrderWithItems): string => {
   const financials = computeOrderFinancials(order);
+  const headerHtml = buildOrderHeader(order);
 
   if (!Array.isArray(order.items) || order.items.length === 0) {
     return `
-      <div class="fichas-container">
-        ${buildEmptyOrderSection(order, financials)}
+      <div class="document">
+        ${headerHtml}
+        <div class="no-items">
+          <p>Nenhum item encontrado para este pedido.</p>
+        </div>
+        ${buildFinancialSummary(financials)}
       </div>
     `;
   }
 
-  const fichas = order.items
-    .map((item, index) => buildItemSection(order, item, index, financials))
+  // Expandir itens baseado na quantidade (cada unidade = 1 página)
+  const expandedItems: Array<{ item: OrderItem; itemIndex: number; totalQuantity: number }> = [];
+  
+  order.items.forEach((item) => {
+    const quantity = item.quantity || 1;
+    for (let i = 1; i <= quantity; i++) {
+      expandedItems.push({
+        item,
+        itemIndex: i,
+        totalQuantity: quantity
+      });
+    }
+  });
+
+  // Cada unidade em uma página, com cabeçalho repetido
+  const totalPages = expandedItems.length;
+  const pagesHtml = expandedItems
+    .map((expanded, index) => {
+      const isLastPage = index === totalPages - 1;
+      return `
+        <div class="page">
+          ${headerHtml}
+          ${buildItemCard(expanded.item, expanded.itemIndex, expanded.totalQuantity, isLastPage, financials)}
+        </div>
+      `;
+    })
     .join('');
 
-  return `
-    <div class="fichas-container">
-      ${fichas}
-    </div>
-  `;
+  return `<div class="document">${pagesHtml}</div>`;
 };
 
-const buildStyles = () => `
-  :root {
-    color-scheme: light;
+// ============================================================================
+// STYLES - Estilos CSS
+// ============================================================================
+
+const buildStyles = (): string => `
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 6mm;
   }
 
   body {
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.25;
+    color: #000;
+    background: #fff;
+    padding: 0;
     margin: 0;
-    padding: 20px;
-    background-color: #f3f4f6;
-    color: #111827;
-    font-size: 12pt;
   }
 
-  .fichas-container {
+  .document {
+    width: 100%;
+  }
+
+  /* ========== PÁGINA ========== */
+  .page {
+    width: 100%;
+    max-height: 285mm;
     display: flex;
     flex-direction: column;
-    gap: 24px;
-  }
-
-  .ficha {
-    background: #ffffff;
-    margin-bottom: 18px;
-    padding: 24px;
-    border: 1px solid #d1d5db;
-    border-radius: 10px;
-    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
     page-break-after: always;
+    padding: 6mm;
+    overflow: hidden;
   }
 
-  .ficha:last-child {
-    page-break-after: avoid;
+  .page:last-child {
+    page-break-after: auto;
   }
 
-  .cabecalho {
+  .item-page {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    border-bottom: 2px solid #111827;
-    padding-bottom: 16px;
-    margin-bottom: 16px;
+    flex: 1;
+    min-height: 0;
   }
 
-  .cabecalho-topo {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
+  /* ========== CABEÇALHO ========== */
+  .header {
+    flex-shrink: 0;
+    padding-bottom: 3mm;
+    border-bottom: 2px solid #000;
+    margin-bottom: 3mm;
   }
 
-  .cabecalho-identificacao {
+  .header-line1,
+  .header-line2 {
     display: flex;
-    align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-  }
-
-  .badge-pedido {
-    background: #111827;
-    color: #ffffff;
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 11pt;
-  }
-
-  .status-badge {
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-size: 10pt;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    background: #e5e7eb;
-    color: #1f2937;
-    border: 1px solid transparent;
-  }
-
-  .status-badge.status-concluido {
-    background: #d1fae5;
-    border-color: #34d399;
-    color: #065f46;
-  }
-
-  .status-badge.status-andamento {
-    background: #dbeafe;
-    border-color: #60a5fa;
-    color: #1d4ed8;
-  }
-
-  .status-badge.status-pendente {
-    background: #fef3c7;
-    border-color: #f59e0b;
-    color: #92400e;
-  }
-
-  .status-badge.status-cancelado {
-    background: #fee2e2;
-    border-color: #f87171;
-    color: #991b1b;
-  }
-
-  .status-badge.status-neutro {
-    background: #e5e7eb;
-    border-color: #d1d5db;
-    color: #1f2937;
-  }
-
-  .prioridade-badge {
-    background: #ef4444;
-    color: #ffffff;
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 10pt;
-  }
-
-  .titulo-area {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .titulo {
-    font-size: 16pt;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    margin: 0;
-    color: #111827;
-  }
-
-  .titulo-subtitulo {
-    font-size: 10pt;
-    color: #6b7280;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-
-  .cabecalho-data {
-    text-align: right;
-  }
-
-  .cabecalho-data-label {
-    font-size: 9pt;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .cabecalho-data-valor {
-    font-weight: 600;
-    font-size: 12pt;
-    color: #111827;
-  }
-
-  .cabecalho-info {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-
-  .cabecalho-dado {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 12px;
-  }
-
-  .cabecalho-label {
-    font-size: 9pt;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  .cabecalho-valor {
-    font-size: 12pt;
-    font-weight: 600;
-    color: #111827;
-    word-break: break-word;
-  }
-
-  .bloco {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 18px 20px;
-    margin-bottom: 20px;
-  }
-
-  .bloco h3 {
-    margin: 0 0 12px 0;
-    font-size: 13pt;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: #1f2937;
-  }
-
-  .dados-cliente,
-  .dados-pedido {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-  }
-
-  .campo {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .campo label {
-    font-weight: 600;
-    font-size: 9pt;
-    text-transform: uppercase;
-    color: #6b7280;
-    letter-spacing: 0.08em;
-  }
-
-  .campo .valor {
-    padding: 8px 10px;
-    border: 1px solid #d1d5db;
-    font-size: 12pt;
-    border-radius: 8px;
-    background-color: #ffffff;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
+    padding: 1px 0;
     line-height: 1.3;
   }
 
-  .campo .valor.placeholder {
-    color: #9ca3af;
-    font-style: italic;
-  }
-
-  .item {
-    background: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-  }
-
-  .item-topo {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .item-topo h3 {
-    margin: 0;
-    font-size: 13pt;
-    letter-spacing: 0.08em;
-    color: #111827;
-  }
-
-  .item-identificacao {
-    font-weight: 600;
-    color: #374151;
+  .header-line1 {
     font-size: 11pt;
-    background: #e5e7eb;
-    padding: 4px 10px;
-    border-radius: 999px;
   }
 
-  .dados-item {
+  .header-line2 {
+    font-size: 10pt;
+  }
+
+  .header-line1 span,
+  .header-line2 span {
+    white-space: nowrap;
+  }
+
+  .header-line2 .priority {
+    color: #d00;
+    font-weight: bold;
+  }
+
+  .header-divider {
+    height: 2px;
+    background: #000;
+    margin-top: 3mm;
+  }
+
+  /* ========== ITEM SECTION ========== */
+  .item-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ========== CARD DE NUMERAÇÃO ========== */
+  .item-numbering-card {
+    flex-shrink: 0;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    align-self: flex-start;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-width: 100px;
+  }
+
+  .numbering-label {
+    font-size: 9pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+    margin-bottom: 2px;
+  }
+
+  .numbering-value {
+    font-size: 18pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  .item-content-row {
+    flex: 1;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
+    grid-template-columns: 58% 42%;
+    gap: 6px;
+    margin-bottom: 6px;
+    min-height: 0;
   }
 
-  .dados-item .campo-duas-colunas {
-    grid-column: span 2;
+  .item-details-column {
+    padding-right: 6px;
+    overflow-y: auto;
+    max-height: 160mm;
   }
 
-  .imagem {
-    border: 1px dashed #cbd5f5;
-    min-height: 160px;
-    max-height: 220px;
+  .details-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .details-table td {
+    padding: 2px 6px;
+    font-size: 10pt;
+    border-bottom: 1px solid #e5e5e5;
+    vertical-align: top;
+  }
+
+  .details-table td.label {
+    font-weight: 600;
+    width: 150px;
+    color: #333;
+  }
+
+  .details-table td.value {
+    color: #000;
+  }
+
+  .details-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .no-data {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 10px;
+    font-size: 10pt;
+  }
+
+  .observation {
+    margin-top: 6px;
+    padding: 5px 6px;
+    background: #f5f5f5;
+    border-left: 2px solid #666;
+    font-size: 9pt;
+    line-height: 1.3;
+  }
+
+  .observation strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* Coluna de Imagem */
+  .item-image-column {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    max-height: 160mm;
+  }
+
+  .image-wrapper {
+    width: 100%;
+    max-height: 160mm;
+    border: 1px solid #ddd;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f1f5f9;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 16px;
+    background: #f9f9f9;
+    padding: 6px;
   }
 
-  .imagem span {
-    color: #64748b;
-    font-size: 13px;
-    text-align: center;
-    padding: 0 16px;
-  }
-
-  .imagem img {
-    width: 100%;
-    height: 100%;
+  .image-wrapper img {
+    max-width: 100%;
+    max-height: 155mm;
     object-fit: contain;
   }
 
-  .detalhes-item {
-    margin-bottom: 16px;
-  }
-
-  .detalhes-item h4 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    text-transform: uppercase;
-    color: #1f2937;
-    letter-spacing: 0.08em;
-  }
-
-  .detalhes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-  }
-
-  .detalhe {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 8px;
-    background-color: #ffffff;
-  }
-
-  .detalhe-label {
-    display: block;
-    font-size: 9pt;
-    color: #6b7280;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  .detalhe-valor {
-    font-size: 11pt;
-    font-weight: 600;
-    color: #111827;
-    word-break: break-word;
-  }
-
-  .observacao-item,
-  .observacao-pedido {
-    border-left: 4px solid #2563eb;
-    background-color: #e0f2fe;
-    padding: 10px 14px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 11pt;
-    color: #1e3a8a;
-    line-height: 1.5;
-  }
-
-  .observacao-item strong,
-  .observacao-pedido strong {
-    display: block;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    font-size: 10pt;
-    letter-spacing: 0.08em;
-  }
-
-  .observacao-item p,
-  .observacao-pedido p {
-    margin: 0;
-  }
-
-  .resumo {
-    background-color: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-  }
-
-  .resumo h4 {
-    margin: 0 0 12px 0;
-    font-size: 12pt;
-    text-transform: uppercase;
-    color: #111827;
-    letter-spacing: 0.08em;
-  }
-
-  .linha-resumo {
+  .no-image {
+    width: 100%;
+    height: 80px;
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    font-size: 12pt;
-    color: #111827;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #999;
+    border: 1px dashed #ccc;
+    background: #f9f9f9;
+    font-size: 9pt;
   }
 
-  .linha-resumo span:last-child {
+  /* ========== RESUMO FINANCEIRO DO ITEM ========== */
+  .item-financial-section {
+    flex-shrink: 0;
+    padding: 5px 0 6px 0;
+    border-top: 1px solid #ccc;
+  }
+
+  .item-financial-section h3 {
+    font-size: 11pt;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .financial-table {
+    width: 100%;
+    max-width: 450px;
+    border-collapse: collapse;
+  }
+
+  .financial-table td {
+    padding: 3px 6px;
+    font-size: 10pt;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  .financial-table td.label {
+    font-weight: 600;
+    width: 170px;
+  }
+
+  .financial-table td.value {
+    text-align: right;
     font-weight: 600;
   }
 
-  .linha-resumo.total {
-    font-weight: 700;
-    border-top: 1px solid #d1d5db;
-    padding-top: 6px;
-    margin-top: 8px;
+  .financial-table tr:last-child td {
+    border-bottom: none;
   }
 
-  .no-items {
+  .financial-table tr.total-row td {
+    border-top: 2px solid #000;
+    padding-top: 5px;
+    font-size: 10pt;
+  }
+
+  /* ========== DIVISÓRIA ========== */
+  .item-divider {
+    flex-shrink: 0;
+    height: 2px;
+    background: #000;
+    margin: 8px 0;
+  }
+
+  /* ========== FINANCEIRO DO PEDIDO (TOTAL) ========== */
+  .order-financial-section {
+    flex-shrink: 0;
+    max-height: 55mm;
+    padding: 8px 10px;
+    background: #f9f9f9;
+    border: 2px solid #000;
+  }
+
+  .order-financial-section h2 {
     font-size: 11pt;
-    color: #6b7280;
-    padding: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
     text-align: center;
-    border: 1px dashed #cbd5f5;
-    border-radius: 8px;
-    background: #f1f5f9;
   }
 
-  @media screen and (max-width: 768px) {
-    body {
-      padding: 12px;
-    }
-
-    .titulo-area {
-      align-items: flex-start;
-    }
-
-    .cabecalho-info {
-      grid-template-columns: 1fr;
-    }
-
-    .dados-item,
-    .dados-cliente,
-    .dados-pedido {
-      grid-template-columns: 1fr;
-    }
-
-    .dados-item .campo-duas-colunas {
-      grid-column: span 1;
-    }
+  .order-financial-section .financial-table {
+    max-width: 480px;
+    margin: 0 auto;
   }
 
+  .order-financial-section tr.final-total-row td {
+    border-top: 2px solid #000;
+    padding-top: 6px;
+    font-size: 10pt;
+    font-weight: bold;
+  }
+
+  .order-financial-section tr.final-total-row td.value {
+    font-size: 11pt;
+  }
+
+  /* ========== MENSAGENS ========== */
+  .no-items {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    font-size: 11pt;
+  }
+
+  /* ========== IMPRESSÃO ========== */
   @media print {
     body {
       padding: 0;
-      background: #ffffff;
+      margin: 0;
     }
 
-    .ficha {
-      margin-bottom: 12px;
-      border-radius: 0;
+    .page {
+      max-height: 285mm;
+      page-break-after: always;
+      overflow: hidden;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .header,
+    .order-financial-section,
+    .item-financial-section,
+    .item-numbering-card {
+      page-break-inside: avoid;
+    }
+
+    .item-numbering-card {
       box-shadow: none;
-      border-color: #9ca3af;
+      border: 2px solid #2563eb;
+    }
+  }
+
+  /* ========== RESPONSIVO ========== */
+  @media screen and (max-width: 768px) {
+    body {
+      font-size: 10pt;
     }
 
-    .bloco,
-    .resumo,
-    .item {
-      background: #ffffff;
+    .page {
+      max-height: none;
+      padding: 5mm;
     }
 
-    .observacao-item,
-    .observacao-pedido {
-      background: #f3f4f6;
-      color: #111827;
+    .header-line1,
+    .header-line2 {
+      flex-direction: column;
+      gap: 4px;
+      font-size: 10pt;
     }
 
-    .prioridade-badge,
-    .badge-pedido,
-    .status-badge {
-      filter: grayscale(0);
+    .item-content-row {
+      grid-template-columns: 1fr;
+      max-height: none;
+    }
+
+    .item-details-column,
+    .item-image-column {
+      max-height: none;
+    }
+
+    .details-table td {
+      font-size: 9pt;
+      padding: 2px 4px;
+    }
+
+    .details-table td.label {
+      width: 120px;
+    }
+
+    .financial-table td {
+      font-size: 9pt;
     }
   }
 `;

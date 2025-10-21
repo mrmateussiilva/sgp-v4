@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use chrono::{Local, NaiveDate};
 use rust_decimal::prelude::ToPrimitive;
 use sqlx::FromRow;
-use sqlx::{QueryBuilder};
+use sqlx::QueryBuilder;
 use tauri::State;
 use tracing::error;
 
@@ -72,7 +72,6 @@ impl ReportKind {
             other => Err(format!("Tipo de relatório desconhecido: {}", other)),
         }
     }
-
 }
 
 #[tauri::command]
@@ -97,8 +96,7 @@ pub async fn generate_report(
         .clone()
         .filter(|value| !value.trim().is_empty() && value.to_lowercase() != "todos");
 
-    let rows = fetch_records(pool.inner(), start_date, end_date, status_filter.as_deref())
-    .await?;
+    let rows = fetch_records(pool.inner(), start_date, end_date, status_filter.as_deref()).await?;
 
     let prepared_records = normalize_records(rows);
 
@@ -113,57 +111,49 @@ pub async fn generate_report(
     };
 
     let groups = match report_kind {
-        ReportKind::AnalyticalDesignerCliente => {
-            build_two_level_groups(
-                &filtered_records,
-                |record| record.designer.clone(),
-                |record| record.cliente.clone(),
-                |label| format!("> {} – DESIGNER", label.to_uppercase()),
-                |label| format!("> {} – CLIENTE", label.to_uppercase()),
-            )
-        }
-        ReportKind::AnalyticalClienteDesigner => {
-            build_two_level_groups(
-                &filtered_records,
-                |record| record.cliente.clone(),
-                |record| record.designer.clone(),
-                |label| format!("> {} – CLIENTE", label.to_uppercase()),
-                |label| format!("> {} – DESIGNER", label.to_uppercase()),
-            )
-        }
-        ReportKind::AnalyticalClientePainel => {
-            build_two_level_groups(
-                &filtered_records,
-                |record| record.cliente.clone(),
-                |record| record.descricao.clone(),
-                |label| format!("> {} – CLIENTE", label.to_uppercase()),
-                |label| format!("> {}", label),
-            )
-        }
-        ReportKind::AnalyticalDesignerPainel => {
-            build_two_level_groups(
-                &filtered_records,
-                |record| record.designer.clone(),
-                |record| record.descricao.clone(),
-                |label| format!("> {} – DESIGNER", label.to_uppercase()),
-                |label| format!("> {}", label),
-            )
-        }
-        ReportKind::AnalyticalEntregaPainel => {
-            build_two_level_groups(
-                &filtered_records,
-                |record| record.forma_envio.clone(),
-                |record| record.descricao.clone(),
-                |label| format!("> {} – ENTREGA", label.to_uppercase()),
-                |label| format!("> {}", label),
-            )
-        }
+        ReportKind::AnalyticalDesignerCliente => build_two_level_groups(
+            &filtered_records,
+            |record| record.designer.clone(),
+            |record| record.cliente.clone(),
+            |label| format!("> {} – DESIGNER", label.to_uppercase()),
+            |label| format!("> {} – CLIENTE", label.to_uppercase()),
+        ),
+        ReportKind::AnalyticalClienteDesigner => build_two_level_groups(
+            &filtered_records,
+            |record| record.cliente.clone(),
+            |record| record.designer.clone(),
+            |label| format!("> {} – CLIENTE", label.to_uppercase()),
+            |label| format!("> {} – DESIGNER", label.to_uppercase()),
+        ),
+        ReportKind::AnalyticalClientePainel => build_two_level_groups(
+            &filtered_records,
+            |record| record.cliente.clone(),
+            |record| record.descricao.clone(),
+            |label| format!("> {} – CLIENTE", label.to_uppercase()),
+            |label| format!("> {}", label),
+        ),
+        ReportKind::AnalyticalDesignerPainel => build_two_level_groups(
+            &filtered_records,
+            |record| record.designer.clone(),
+            |record| record.descricao.clone(),
+            |label| format!("> {} – DESIGNER", label.to_uppercase()),
+            |label| format!("> {}", label),
+        ),
+        ReportKind::AnalyticalEntregaPainel => build_two_level_groups(
+            &filtered_records,
+            |record| record.forma_envio.clone(),
+            |record| record.descricao.clone(),
+            |label| format!("> {} – ENTREGA", label.to_uppercase()),
+            |label| format!("> {}", label),
+        ),
         ReportKind::SyntheticData => build_single_level_groups(
             &filtered_records,
-            |record| record
-                .data_referencia
-                .map(|date| date.format("%d/%m/%Y").to_string())
-                .unwrap_or_else(|| "SEM DATA".to_string()),
+            |record| {
+                record
+                    .data_referencia
+                    .map(|date| date.format("%d/%m/%Y").to_string())
+                    .unwrap_or_else(|| "SEM DATA".to_string())
+            },
             |label| format!("> {}", label),
         ),
         ReportKind::SyntheticDesigner => build_single_level_groups(

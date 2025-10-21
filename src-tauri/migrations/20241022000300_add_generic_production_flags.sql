@@ -1,0 +1,6 @@
+-- Acrescenta campos extras para produção genérica
+ALTER TABLE order_items
+    ADD COLUMN IF NOT EXISTS ziper BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS cordinha_extra BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS alcinha BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS toalha_pronta BOOLEAN DEFAULT FALSE;
