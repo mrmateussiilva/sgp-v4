@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, Download, FileText, Search } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
-import { OrderStatus, OrderWithItems, UpdateOrderStatusRequest } from '../types';
+import { OrderWithItems, UpdateOrderStatusRequest } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
-import { exportToCSV, exportToPDF } from '../utils/exportUtils';
+import { printOrder } from '../utils/printOrder';
+import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -41,15 +42,16 @@ export default function OrderList() {
   const navigate = useNavigate();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const [loading, setLoading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
+  const [selectedOrderIdForPrint, setSelectedOrderIdForPrint] = useState<number | null>(null);
   const [page, setPage] = useState(0);
-  const [rowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -68,6 +70,10 @@ export default function OrderList() {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, productionStatusFilter, rowsPerPage]);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -127,51 +133,59 @@ export default function OrderList() {
     setOrderToDelete(null);
   };
 
-  const getStatusVariant = (status: OrderStatus) => {
-    switch (status) {
-      case OrderStatus.Pendente:
-        return 'warning';
-      case OrderStatus.EmProcessamento:
-        return 'info';
-      case OrderStatus.Concluido:
-        return 'success';
-      case OrderStatus.Cancelado:
-        return 'destructive';
-      default:
-        return 'default';
-    }
-  };
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+  const filteredOrders = useMemo(() => orders.filter((order) => {
     const clienteName = order.cliente || order.customer_name || '';
     const matchesSearch =
       searchTerm === '' ||
       clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toString().includes(searchTerm);
-    return matchesStatus && matchesSearch;
-  });
+    const matchesProductionStatus =
+      productionStatusFilter === 'all' ||
+      (productionStatusFilter === 'pending' ? order.pronto !== true : order.pronto === true);
+    return matchesSearch && matchesProductionStatus;
+  }), [orders, searchTerm, productionStatusFilter]);
+
+  useEffect(() => {
+    if (selectedOrderIdForPrint !== null) {
+      const exists = filteredOrders.some((order) => order.id === selectedOrderIdForPrint);
+      if (!exists) {
+        setSelectedOrderIdForPrint(null);
+      }
+    }
+  }, [filteredOrders, selectedOrderIdForPrint]);
+
+  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage) || 1;
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(totalPages - 1);
+    }
+  }, [totalPages, page]);
 
   const paginatedOrders = filteredOrders.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
 
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
+  const handlePrintSelected = () => {
+    if (!selectedOrderIdForPrint) {
+      return;
+    }
+    const orderToPrint = orders.find((order) => order.id === selectedOrderIdForPrint);
+    if (!orderToPrint) {
+      toast({
+        title: "Aviso",
+        description: "Não foi possível localizar o pedido selecionado.",
+        variant: "destructive",
+      });
+      setSelectedOrderIdForPrint(null);
+      return;
+    }
 
-  const handleExportCSV = () => {
-    exportToCSV(filteredOrders);
+    printOrder(orderToPrint);
     toast({
-      title: "Sucesso",
-      description: "Relatório CSV exportado com sucesso!",
-    });
-  };
-
-  const handleExportPDF = () => {
-    exportToPDF(filteredOrders);
-    toast({
-      title: "Sucesso",
-      description: "Relatório PDF exportado com sucesso!",
+      title: "Impressão",
+      description: `Abrindo visualização de impressão do pedido #${orderToPrint.numero || orderToPrint.id}.`,
     });
   };
 
@@ -240,31 +254,6 @@ export default function OrderList() {
 
   return (
     <div className="flex flex-col h-full space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Pedidos</h1>
-          <p className="text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            CSV
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleExportPDF}
-            className="gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            PDF
-          </Button>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -281,18 +270,31 @@ export default function OrderList() {
                 className="pl-10"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | 'all')}>
+            <Select
+              value={productionStatusFilter}
+              onValueChange={(value) =>
+                setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+              }
+            >
               <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtrar por Status" />
+                <SelectValue placeholder="Status de Produção" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="pending">Pendentes</SelectItem>
+                <SelectItem value="ready">Prontos</SelectItem>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value={OrderStatus.Pendente}>Pendente</SelectItem>
-                <SelectItem value={OrderStatus.EmProcessamento}>Em Processamento</SelectItem>
-                <SelectItem value={OrderStatus.Concluido}>Concluído</SelectItem>
-                <SelectItem value={OrderStatus.Cancelado}>Cancelado</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={!selectedOrderIdForPrint}
+              onClick={handlePrintSelected}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -303,6 +305,7 @@ export default function OrderList() {
         <Table className="min-w-[1460px]">
               <TableHeader>
             <TableRow>
+                  <TableHead className="w-[50px]" />
                   <TableHead className="w-[80px]">ID</TableHead>
                   <TableHead>Nome Cliente</TableHead>
                   <TableHead className="w-[120px]">Data Entrega</TableHead>
@@ -313,8 +316,7 @@ export default function OrderList() {
                   <TableHead className="text-center w-[60px]">Subl.</TableHead>
                   <TableHead className="text-center w-[60px]">Cost.</TableHead>
                   <TableHead className="text-center w-[60px]">Exp.</TableHead>
-                  <TableHead className="text-center w-[60px]">Pronto</TableHead>
-                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="text-center w-[60px]">Status</TableHead>
                   <TableHead className="text-right w-[120px]">Ações</TableHead>
             </TableRow>
               </TableHeader>
@@ -335,6 +337,18 @@ export default function OrderList() {
                   paginatedOrders.map((order: OrderWithItems) => {
                     return (
                       <TableRow key={order.id} className="hover:bg-muted/50">
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={selectedOrderIdForPrint === order.id}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedOrderIdForPrint(order.id);
+                              } else if (selectedOrderIdForPrint === order.id) {
+                                setSelectedOrderIdForPrint(null);
+                              }
+                            }}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono font-medium">
                           #{order.numero || order.id}
                         </TableCell>
@@ -342,9 +356,7 @@ export default function OrderList() {
                           {order.cliente || order.customer_name}
                         </TableCell>
                         <TableCell>
-                          {order.data_entrega 
-                            ? new Date(order.data_entrega).toLocaleDateString('pt-BR')
-                            : '-'}
+                          {formatDateForDisplay(order.data_entrega, '-')}
                         </TableCell>
                         <TableCell>
                           <Badge 
@@ -405,7 +417,7 @@ export default function OrderList() {
                           />
                         </TableCell>
                         
-                        {/* Pronto - Campo calculado automaticamente */}
+                        {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
                         <TableCell className="text-center">
                           <Badge 
                             variant={order.pronto ? 'success' : 'secondary'}
@@ -414,12 +426,6 @@ export default function OrderList() {
                             {order.pronto ? 'Pronto' : 'Em Andamento'}
                           </Badge>
                         </TableCell>
-                      
-                        <TableCell>
-                        <Badge variant={getStatusVariant(order.status)}>
-                          {order.status}
-                        </Badge>
-                  </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
@@ -468,28 +474,55 @@ export default function OrderList() {
         </CardContent>
       </Card>
 
-      {filteredOrders.length > rowsPerPage && (
-        <div className="flex items-center justify-between">
+      {filteredOrders.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             Mostrando {page * rowsPerPage + 1} a {Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de {filteredOrders.length} resultados
           </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(Math.max(0, page - 1))}
-              disabled={page === 0}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={rowsPerPage.toString()}
+              onValueChange={(value) => setRowsPerPage(Number(value))}
             >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-              disabled={page >= totalPages - 1}
-            >
-              Próxima
-            </Button>
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="Itens por página" />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map((size) => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size} por página
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.max(0, page - 1))}
+                disabled={page === 0}
+              >
+                Anterior
+              </Button>
+              {Array.from({ length: totalPages }).map((_, index) => (
+                <Button
+                  key={index}
+                  variant={index === page ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPage(index)}
+                >
+                  {index + 1}
+                </Button>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                disabled={page >= totalPages - 1}
+              >
+                Próxima
+              </Button>
+            </div>
           </div>
         </div>
       )}

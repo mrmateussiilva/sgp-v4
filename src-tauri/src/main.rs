@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use dotenv::dotenv;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{migrate::MigrateError, postgres::PgPoolOptions, query};
+use std::collections::HashSet;
 use std::env;
 use tracing::info;
 use tracing_subscriber;
@@ -41,10 +42,53 @@ async fn main() {
     info!("Conexão com banco de dados estabelecida!");
 
     info!("Verificando migrações pendentes...");
-    MIGRATOR
-        .run(&pool)
-        .await
-        .expect("Falha ao aplicar migrações do banco de dados");
+    let mut cleaned_versions = HashSet::new();
+    loop {
+        match MIGRATOR.run(&pool).await {
+            Ok(()) => break,
+            Err(MigrateError::VersionMissing(version)) => {
+                if !cleaned_versions.insert(version) {
+                    panic!("Versão de migração ausente ({version}) persiste após limpeza");
+                }
+                tracing::warn!(
+                    "Versão de migração ausente ({version}); removendo marcador e tentando novamente."
+                );
+                if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
+                    .bind(version)
+                    .execute(&pool)
+                    .await
+                {
+                    tracing::error!(
+                        "Falha ao remover marcador da migração ausente ({version}): {clean_err}"
+                    );
+                    panic!("Falha ao preparar migrações do banco de dados");
+                }
+                continue;
+            }
+            Err(MigrateError::VersionMismatch(version)) => {
+                if !cleaned_versions.insert(version) {
+                    panic!("Versão de migração inconsistente ({version}) persiste após limpeza");
+                }
+                tracing::warn!(
+                    "Versão de migração inconsistente ({version}); removendo marcador e tentando novamente."
+                );
+                if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
+                    .bind(version)
+                    .execute(&pool)
+                    .await
+                {
+                    tracing::error!(
+                        "Falha ao remover marcador da migração inconsistente ({version}): {clean_err}"
+                    );
+                    panic!("Falha ao preparar migrações do banco de dados");
+                }
+                continue;
+            }
+            Err(other) => {
+                panic!("Falha ao aplicar migrações do banco de dados: {other}");
+            }
+        }
+    }
     info!("Migrações aplicadas com sucesso!");
 
     // Executar aplicação Tauri
@@ -64,6 +108,8 @@ async fn main() {
             commands::orders::delete_order,
             commands::orders::get_orders_with_filters,
             commands::orders::get_orders_by_delivery_date,
+            // Reports
+            commands::reports::generate_report,
             // Clientes
             commands::clientes::get_clientes,
             commands::clientes::get_cliente_by_id,

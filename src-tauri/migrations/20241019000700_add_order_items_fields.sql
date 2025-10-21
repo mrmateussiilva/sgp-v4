@@ -21,3 +21,4 @@ ALTER TABLE order_items
     ADD COLUMN IF NOT EXISTS imagem VARCHAR(500),
     ADD COLUMN IF NOT EXISTS quantidade_paineis VARCHAR(50),
     ADD COLUMN IF NOT EXISTS valor_unitario VARCHAR(50);
+

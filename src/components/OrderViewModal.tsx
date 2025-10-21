@@ -7,6 +7,7 @@ import { Separator } from './ui/separator';
 import { Printer, X, ChevronDown } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
+import { printOrder } from '../utils/printOrder';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -56,438 +57,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const printContent = generatePrintContent(order);
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Pedido #${order.numero || order.id}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              line-height: 1.6;
-            }
-            .header {
-              text-align: center;
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .section {
-              margin-bottom: 25px;
-            }
-            .section-title {
-              font-size: 18px;
-              font-weight: bold;
-              color: #333;
-              margin-bottom: 10px;
-              border-bottom: 1px solid #ccc;
-              padding-bottom: 5px;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 15px;
-            }
-            .info-item {
-              margin-bottom: 8px;
-            }
-            .info-label {
-              font-weight: bold;
-              color: #555;
-            }
-            .status-badge {
-              display: inline-block;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 12px;
-              font-weight: bold;
-            }
-            .status-pendente { background-color: #fef3c7; color: #92400e; }
-            .status-em-processamento { background-color: #dbeafe; color: #1e40af; }
-            .status-concluido { background-color: #d1fae5; color: #065f46; }
-            .status-cancelado { background-color: #fee2e2; color: #991b1b; }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 10px;
-            }
-            .items-table th,
-            .items-table td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            .items-table th {
-              background-color: #f5f5f5;
-              font-weight: bold;
-            }
-            .total-section {
-              text-align: right;
-              margin-top: 20px;
-              font-size: 18px;
-              font-weight: bold;
-            }
-            .production-status {
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 10px;
-              margin-top: 10px;
-            }
-            .production-item {
-              padding: 8px;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              text-align: center;
-            }
-            .production-completed {
-              background-color: #d1fae5;
-              color: #065f46;
-            }
-            .production-pending {
-              background-color: #fef3c7;
-              color: #92400e;
-            }
-            .item-details {
-              margin-top: 6px;
-              font-size: 12px;
-              color: #444;
-            }
-            .item-details-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-              gap: 6px;
-              margin-top: 8px;
-            }
-            .item-detail {
-              padding: 6px;
-              border: 1px solid #e5e7eb;
-              border-radius: 4px;
-              background-color: #f9fafb;
-            }
-            .item-detail strong {
-              display: block;
-              font-size: 10px;
-              color: #6b7280;
-              text-transform: uppercase;
-              letter-spacing: 0.04em;
-              margin-bottom: 2px;
-            }
-            .item-observacao {
-              margin-top: 10px;
-              padding: 8px;
-              border: 1px dashed #fb923c;
-              border-radius: 4px;
-              background-color: #fff7ed;
-              color: #9a3412;
-            }
-            .item-imagem {
-              margin-top: 10px;
-            }
-            .item-imagem strong {
-              font-size: 12px;
-              color: #374151;
-            }
-            .item-image-preview {
-              margin-top: 6px;
-              max-width: 180px;
-              max-height: 180px;
-              border-radius: 6px;
-              border: 1px solid #d1d5db;
-            }
-            .item-details-empty {
-              font-size: 11px;
-              color: #6b7280;
-            }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent}
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
-
-  const generatePrintContent = (order: OrderWithItems) => {
-    const escapeHtml = (value: string) =>
-      value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-
-    const formatCurrencyPrint = (value: unknown) => formatCurrency(value);
-
-    const formatDate = (dateString?: string) => {
-      if (!dateString) return 'Não informado';
-      return new Date(dateString).toLocaleDateString('pt-BR');
+    const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
+    const enrichedOrder = {
+      ...order,
+      forma_pagamento_nome:
+        formaPagamentoNome && formaPagamentoNome !== 'Não informado'
+          ? formaPagamentoNome
+          : undefined,
     };
-
-    const getStatusClass = (status: string) => {
-      switch (status) {
-        case 'Pendente': return 'status-pendente';
-        case 'Em Processamento': return 'status-em-processamento';
-        case 'Concluído': return 'status-concluido';
-        case 'Cancelado': return 'status-cancelado';
-        default: return 'status-pendente';
-      }
-    };
-
-    const buildItemDetailsHtml = (item: OrderItem) => {
-      const detailBlocks: string[] = [];
-
-      const addDetail = (label: string, value?: string | number | null | undefined) => {
-        if (value === undefined || value === null) return;
-        const stringValue =
-          typeof value === 'number'
-            ? value.toString()
-            : value.toString().trim();
-        if (!stringValue) return;
-
-        detailBlocks.push(`
-          <div class="item-detail">
-            <strong>${escapeHtml(label)}</strong>
-            <span>${escapeHtml(stringValue)}</span>
-          </div>
-        `);
-      };
-
-      const addCurrencyDetail = (label: string, value?: string | number | null) => {
-        if (value === undefined || value === null) return;
-        const formatted = formatCurrencyPrint(value);
-        addDetail(label, formatted);
-      };
-
-      addDetail('Tipo de Produção', item.tipo_producao);
-      addDetail('Descrição', item.descricao);
-      addDetail('Quantidade de Painéis', item.quantidade_paineis);
-      addCurrencyDetail('Valor Unitário Informado', item.valor_unitario);
-      addDetail('Largura', item.largura);
-      addDetail('Altura', item.altura);
-      addDetail('m²', item.metro_quadrado);
-      addDetail('Vendedor', item.vendedor);
-      addDetail('Designer', item.designer);
-      addDetail('Tecido', item.tecido);
-
-      if (item.overloque !== undefined && item.overloque !== null) {
-        addDetail('Overloque', item.overloque ? 'Sim' : 'Não');
-      }
-
-      if (item.elastico !== undefined && item.elastico !== null) {
-        addDetail('Elástico', item.elastico ? 'Sim' : 'Não');
-      }
-
-      addDetail('Tipo de Acabamento', item.tipo_acabamento);
-      addDetail('Qtd. Ilhós', item.quantidade_ilhos);
-      const formatSpacingValue = (value?: string | null) => {
-        if (!value) return undefined;
-        const trimmed = value.trim();
-        if (!trimmed) return undefined;
-        return trimmed.toLowerCase().endsWith('cm') ? trimmed : `${trimmed} cm`;
-      };
-      const spacingIlhos = formatSpacingValue(item.espaco_ilhos);
-      if (spacingIlhos) {
-        addDetail('Espaço Ilhós', spacingIlhos);
-      }
-      addCurrencyDetail('Valor Ilhós', item.valor_ilhos);
-      addDetail('Qtd. Cordinha', item.quantidade_cordinha);
-      const spacingCordinha = formatSpacingValue(item.espaco_cordinha);
-      if (spacingCordinha) {
-        addDetail('Espaço Cordinha', spacingCordinha);
-      }
-      addCurrencyDetail('Valor Cordinha', item.valor_cordinha);
-
-      const formatEmendaType = (value?: string | null) => {
-        if (!value) return '';
-        const trimmed = value.trim();
-        if (!trimmed || trimmed.toLowerCase() === 'sem-emenda') return '';
-        return trimmed
-          .split(/[-_]/)
-          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-          .join(' ');
-      };
-
-      const emendaFormatted = formatEmendaType(item.emenda);
-      if (emendaFormatted) {
-        addDetail('Emenda', emendaFormatted);
-        const emendaQuantidadeValue = (item.emenda_qtd ?? (item as any).emendaQtd) as string | undefined;
-        if (emendaQuantidadeValue && emendaQuantidadeValue.trim().length > 0) {
-          const emendaQtdNumber = parseNumberValue(emendaQuantidadeValue);
-          const emendaQtdLabel = `${emendaQuantidadeValue} ${emendaQtdNumber === 1 ? 'emenda' : 'emendas'}`;
-          addDetail('Qtd. Emendas', emendaQtdLabel);
-        }
-      }
-
-      const observationHtml =
-        item.observacao && item.observacao.trim().length > 0
-          ? `
-            <div class="item-observacao">
-              <strong>Observação:</strong><br>
-              ${escapeHtml(item.observacao).replace(/\n/g, '<br>')}
-            </div>
-          `
-          : '';
-
-      const imageHtml =
-        item.imagem && item.imagem.trim().length > 0
-          ? `
-            <div class="item-imagem">
-              <strong>Imagem:</strong><br>
-              <img src="${escapeHtml(item.imagem)}" alt="Imagem do item" class="item-image-preview"/>
-            </div>
-          `
-          : '';
-
-      if (detailBlocks.length === 0 && !observationHtml && !imageHtml) {
-        return `
-          <div class="item-details">
-            <span class="item-details-empty">Nenhum detalhe adicional informado.</span>
-          </div>
-        `;
-      }
-
-      return `
-        <div class="item-details">
-          ${
-            detailBlocks.length > 0
-              ? `<div class="item-details-grid">
-                  ${detailBlocks.join('')}
-                </div>`
-              : ''
-          }
-          ${observationHtml}
-          ${imageHtml}
-        </div>
-      `;
-    };
-
-    const orderTotal = Array.isArray(order.items)
-      ? order.items.reduce((sum, item) => sum + parseCurrencyValue(item.subtotal), 0)
-      : 0;
-
-    const totalValueForPrint =
-      orderTotal > 0
-        ? orderTotal
-        : parseCurrencyValue(order.total_value || order.valor_total || 0);
-
-    return `
-      <div class="header">
-        <h1>PEDIDO #${order.numero || order.id}</h1>
-      </div>
-
-      <div class="section">
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">Nome do Cliente:</span><br>
-            ${order.customer_name || order.cliente || 'Não informado'}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Telefone do Cliente:</span><br>
-            ${order.telefone_cliente || 'Não informado'}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Cidade do Cliente:</span><br>
-            ${order.cidade_cliente || 'Não informado'}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Status do Pedido:</span><br>
-            <span class="status-badge ${getStatusClass(order.status)}">${order.status}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">Data de Entrada:</span><br>
-            ${formatDate(order.data_entrada)}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Data de Entrega:</span><br>
-            ${formatDate(order.data_entrega)}
-          </div>
-          <div class="info-item">
-            <span class="info-label">Forma de Envio:</span><br>
-            ${order.forma_envio || 'Não informado'}
-          </div>
-        </div>
-      </div>
-
-      <hr style="margin: 20px 0; border: 1px solid #ddd;">
-
-      <div class="section">
-        <div class="section-title">Itens do Pedido</div>
-        
-        <table class="items-table" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-          <thead>
-            <tr style="background-color: #f5f5f5;">
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 50px;">#</th>
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Item</th>
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: center; width: 100px;">Qtd</th>
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: right; width: 120px;">Valor Unit.</th>
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: right; width: 120px;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${order.items && order.items.length > 0 ? `
-              ${order.items.map((item, index) => `
-                <tr>
-                  <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${index + 1}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px;">
-                    <div style="font-weight: bold;">${escapeHtml(item.item_name)}</div>
-                    ${buildItemDetailsHtml(item)}
-                  </td>
-                  <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${formatCurrencyPrint(item.unit_price)}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">${formatCurrencyPrint(item.subtotal)}</td>
-                </tr>
-              `).join('')}
-            ` : ''}
-
-            ${order.items && order.items.length > 0 ? `
-              <tr style="background-color: #f5f5f5; font-weight: bold;">
-                <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: right;">Total:</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 16px;">
-                  ${formatCurrencyPrint(totalValueForPrint)}
-                </td>
-              </tr>
-            ` : ''}
-          </tbody>
-        </table>
-      </div>
-
-      <hr style="margin: 20px 0; border: 1px solid #ddd;">
-
-      <div class="section">
-        <div class="section-title">Forma de Pagamento - Valores</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <div>
-            <strong>Forma de Pagamento:</strong><br>
-            <span style="color: #333;">${getFormaPagamentoNome(order.forma_pagamento_id)}</span>
-          </div>
-          <div style="text-align: right;">
-            <strong>Valor Total:</strong><br>
-              <span style="font-size: 20px; font-weight: bold; color: #059669;">
-              ${formatCurrencyPrint(totalValueForPrint)}
-            </span>
-          </div>
-        </div>
-      </div>
-    `;
+    printOrder(enrichedOrder);
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -518,10 +96,28 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       return 0;
     }
 
-    const normalized = String(value)
-      .replace(/[^\d.,-]/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.');
+    const raw = String(value).trim();
+    if (!raw) {
+      return 0;
+    }
+
+    const cleaned = raw.replace(/[^\d.,-]/g, '');
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+
+    let normalized = cleaned;
+
+    if (lastComma > -1 && lastComma > lastDot) {
+      // formato pt-BR: usar vírgula como decimal
+      normalized = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > -1 && lastDot > lastComma) {
+      // formato en-US: usar ponto como decimal, remover vírgulas de milhar
+      normalized = cleaned.replace(/,/g, '');
+    } else {
+      // Apenas um separador ou nenhum: tratar vírgula como decimal
+      normalized = cleaned.replace(',', '.');
+    }
+
     const parsed = parseFloat(normalized);
     return Number.isNaN(parsed) ? 0 : parsed;
   };
@@ -560,8 +156,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     ? order.items.reduce((sum, item) => sum + parseCurrencyValue(item.subtotal), 0)
     : 0;
 
+  const freightValue = parseCurrencyValue((order as any).valor_frete ?? (order as any).frete ?? 0);
+
   const fallbackTotal = parseCurrencyValue(order.total_value ?? order.valor_total ?? 0);
-  const orderTotalValue = orderTotalFromItems > 0 ? orderTotalFromItems : fallbackTotal;
+  const computedOrderTotal = orderTotalFromItems + freightValue;
+  const orderTotalValue = computedOrderTotal > 0 ? computedOrderTotal : fallbackTotal;
+  const showFreight = freightValue > 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -631,6 +231,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const buildDetailSections = (item: OrderItem): DetailEntry[] => {
     const sections: DetailEntry[] = [];
+    const tipoProducao = normalizeText(item.tipo_producao).toLowerCase();
+    const isLona = tipoProducao === 'lona';
+    const isTotem = tipoProducao === 'totem';
+    const isAdesivo = tipoProducao === 'adesivo';
 
     const formatSpacing = (value?: string | null) => {
       const normalized = normalizeText(value);
@@ -640,7 +244,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       return /cm$/i.test(normalized) ? normalized : `${normalized} cm`;
     };
 
-    if (hasPositiveNumber(item.valor_unitario)) {
+    if (hasPositiveNumber(item.valor_unitario) && !isLona && !isTotem && !isAdesivo) {
       sections.push({
         label: 'Valor Unitário Informado',
         value: formatCurrency(item.valor_unitario!),
@@ -724,6 +328,86 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: formatCurrency(item.valor_cordinha!),
         variant: 'neutral',
       });
+    }
+
+    if (isLona) {
+      const terceirizado = (item as any).terceirizado;
+      if (typeof terceirizado === 'boolean') {
+        sections.push({
+          label: 'Terceirizado',
+          value: terceirizado ? 'Sim' : 'Não',
+          variant: terceirizado ? 'warning' : 'neutral',
+        });
+      }
+
+      const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
+      if (acabamentoLonaRaw) {
+        const acabamentoLabel = acabamentoLonaRaw
+          .split(/[_-]/)
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(' ');
+        sections.push({
+          label: 'Acabamento',
+          value: acabamentoLabel,
+          variant: 'accent',
+        });
+      }
+
+      const valorBaseLona = (item as any).valor_lona;
+      if (hasPositiveNumber(valorBaseLona)) {
+        sections.push({
+          label: 'Valor Base',
+          value: formatCurrency(valorBaseLona),
+          variant: 'neutral',
+        });
+      }
+
+      const outrosValoresLona = (item as any).outros_valores_lona;
+      if (hasPositiveNumber(outrosValoresLona)) {
+        sections.push({
+          label: 'Outros Valores',
+          value: formatCurrency(outrosValoresLona),
+          variant: 'neutral',
+        });
+      }
+    }
+
+    if (isAdesivo) {
+      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
+      if (tipoAdesivo) {
+        sections.push({
+          label: 'Tipo de Adesivo',
+          value: tipoAdesivo,
+          variant: 'accent',
+        });
+      }
+
+      const valorAdesivo = (item as any).valor_adesivo;
+      if (hasPositiveNumber(valorAdesivo)) {
+        sections.push({
+          label: 'Valor do Adesivo',
+          value: formatCurrency(valorAdesivo),
+          variant: 'neutral',
+        });
+      }
+
+      const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
+      if (hasPositiveNumber(outrosValoresAdesivo)) {
+        sections.push({
+          label: 'Outros Valores',
+          value: formatCurrency(outrosValoresAdesivo),
+          variant: 'neutral',
+        });
+      }
+
+      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
+      if (quantidadeAdesivo) {
+        sections.push({
+          label: 'Quantidade Solicitada',
+          value: quantidadeAdesivo,
+          variant: 'accent',
+        });
+      }
     }
 
     const emendaTipoRaw = normalizeText((item as any).emenda);
@@ -844,10 +528,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     if (largura || altura || area) {
       const larguraLabel = largura || '-';
       const alturaLabel = altura || '-';
-      const areaLabel = area ? ` = ${area}` : '';
-      dimensoesLine = `${larguraLabel} x ${alturaLabel}${areaLabel}`;
+      const areaLabel = area ? ` = ${area} m²` : '';
+      const larguraSuffix = largura ? ' m' : '';
+      const alturaSuffix = altura ? ' m' : '';
+      dimensoesLine = `${larguraLabel}${larguraSuffix} x ${alturaLabel}${alturaSuffix}${areaLabel}`;
     }
 
+    const materialLabel = tipo === 'totem' ? 'Material' : tipo === 'adesivo' ? 'Tipo de Adesivo' : 'Tecido';
     const tecido = normalizeText(item.tecido);
 
     const highlightCards: Array<{ label: string; value: React.ReactNode; className: string }> = [];
@@ -869,28 +556,31 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     if (dimensoesLine) {
+      const medidasSuffix = ' (m)';
       highlightCards.push({
         label: 'Dimensões',
-        value: dimensoesLine,
+        value: `${dimensoesLine}${medidasSuffix}`,
         className: 'bg-sky-600 text-white',
       });
     }
 
     if (tecido) {
       highlightCards.push({
-        label: 'Tecido',
+        label: materialLabel,
         value: tecido,
         className: 'bg-emerald-600 text-white',
       });
     }
     if (painelQuantidade) {
+      const unitLabel = tipo === 'totem' ? 'totem' : tipo === 'adesivo' ? 'adesivo' : 'painel';
+      const unitPlural = tipo === 'totem' ? 'totens' : tipo === 'adesivo' ? 'adesivos' : 'painéis';
       const painelLabel =
         parseNumberValue(painelQuantidade) === 1
-          ? 'Quantidade: 1 painel'
-          : `Quantidade: ${painelQuantidade} painéis`;
+          ? `Quantidade: 1 ${unitLabel}`
+          : `Quantidade: ${painelQuantidade} ${unitPlural}`;
 
       highlightCards.push({
-        label: 'Painéis',
+        label: tipo === 'totem' ? 'Totens' : tipo === 'adesivo' ? 'Adesivos' : 'Painéis',
         value: (
           <span className="text-lg font-semibold leading-tight">
             {painelLabel}
@@ -1111,30 +801,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     </div>
                   );
                 })}
-
-                <div className="flex flex-col items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                  <span className="text-sm font-medium text-slate-600">Total do Pedido</span>
-                  <span className="text-xl font-bold text-emerald-600">
-                    {formatCurrency(orderTotalValue)}
-                  </span>
-                </div>
-
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <svg className="h-5 w-5 flex-shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.5a.75.75 0 10-1.5 0v3a.75.75 0 00.334.624l1.5 1a.75.75 0 10.832-1.248l-1.166-.777V6.5zM10 13a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
-                    </svg>
-                    <div>
-                      <h3 className="text-sm font-medium text-emerald-900">
-                        Expandir itens para ver detalhes
-                      </h3>
-                      <p className="mt-2 text-sm text-emerald-800">
-                        Os campos extras preenchidos no formulário aparecem dentro de cada item.
-                        Se algum campo não estiver visível, significa que ele não foi informado.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -1153,11 +819,27 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 <span className="font-semibold">Forma de Pagamento:</span><br />
                 {getFormaPagamentoNome(order.forma_pagamento_id)}
               </div>
-              <div className="text-right">
-                <span className="font-semibold">Valor Total:</span><br />
-                <span className="text-xl font-bold text-green-600">
-                  {formatCurrency(orderTotalValue)}
-                </span>
+              <div className="text-right space-y-1">
+                <div>
+                  <span className="font-semibold">Itens:</span>
+                  <span className="ml-2 text-base font-medium text-slate-700">
+                    {formatCurrency(orderTotalFromItems)}
+                  </span>
+                </div>
+                {showFreight && (
+                  <div>
+                    <span className="font-semibold">Frete:</span>
+                    <span className="ml-2 text-base font-medium text-slate-700">
+                      {formatCurrency(freightValue)}
+                    </span>
+                  </div>
+                )}
+                <div className="pt-1">
+                  <span className="font-semibold">Valor Total:</span><br />
+                  <span className="text-xl font-bold text-green-600">
+                    {formatCurrency(orderTotalValue)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

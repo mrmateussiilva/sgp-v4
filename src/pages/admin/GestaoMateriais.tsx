@@ -25,15 +25,7 @@ interface Material {
   observacao?: string;
 }
 
-const TIPOS_MATERIAL = [
-  'LONA',
-  'TECIDO',
-  'VINIL',
-  'PAPEL',
-  'ACM',
-  'PVC',
-  'OUTRO'
-];
+const TIPOS_MATERIAL = ['TECIDO', 'LONA', 'TOTEM', 'PAPEL', 'ADESIVO'];
 
 export default function GestaoMateriais() {
   const { toast } = useToast();
@@ -50,7 +42,7 @@ export default function GestaoMateriais() {
   const [form, setForm] = useState({
     id: 0,
     nome: '',
-    tipo: 'LONA',
+    tipo: 'TECIDO',
     valor_metro: '0.00',
     estoque_metros: '0.00',
     ativo: true,
@@ -100,7 +92,7 @@ export default function GestaoMateriais() {
       setForm({
         id: 0,
         nome: '',
-        tipo: 'LONA',
+        tipo: 'TECIDO',
         valor_metro: '0,00',
         estoque_metros: '0,00',
         ativo: true,
@@ -115,7 +107,7 @@ export default function GestaoMateriais() {
     setForm({
       id: 0,
       nome: '',
-      tipo: 'LONA',
+      tipo: 'TECIDO',
       valor_metro: '0,00',
       estoque_metros: '0,00',
       ativo: true,

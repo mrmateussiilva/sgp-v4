@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthStore } from '../../store/authStore';
 import { invoke } from '@tauri-apps/api/tauri';
+import { formatDateForDisplay } from '@/utils/date';
 
 interface Usuario {
   id: number;
@@ -307,9 +308,7 @@ export default function GestaoUsuarios() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {usuario.created_at 
-                          ? new Date(usuario.created_at).toLocaleDateString('pt-BR')
-                          : '-'}
+                        {formatDateForDisplay(usuario.created_at ?? null, '-')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

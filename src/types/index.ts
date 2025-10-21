@@ -38,6 +38,15 @@ export interface OrderItem {
   emenda?: string;
   emenda_qtd?: string;
   emendaQtd?: string;
+  terceirizado?: boolean;
+  acabamento_lona?: string;
+  valor_lona?: string;
+  quantidade_lona?: string;
+  outros_valores_lona?: string;
+  tipo_adesivo?: string;
+  valor_adesivo?: string;
+  quantidade_adesivo?: string;
+  outros_valores_adesivo?: string;
 }
 
 export interface OrderWithItems {
@@ -53,6 +62,7 @@ export interface OrderWithItems {
   data_entrega?: string;
   total_value: number | string;
   valor_total?: number | string;
+  valor_frete?: number | string;
   created_at?: string | null;
   updated_at?: string | null;
   status: OrderStatus;
@@ -87,6 +97,7 @@ export interface CreateOrderRequest {
   observacao?: string;
   telefone_cliente?: string;
   estado_cliente?: string;
+  valor_frete?: number;
 }
 
 export interface CreateOrderItemRequest {
@@ -118,6 +129,15 @@ export interface CreateOrderItemRequest {
   valor_unitario?: string;
   emenda?: string;
   emenda_qtd?: string;
+  terceirizado?: boolean;
+  acabamento_lona?: string;
+  valor_lona?: string;
+  quantidade_lona?: string;
+  outros_valores_lona?: string;
+  tipo_adesivo?: string;
+  valor_adesivo?: string;
+  quantidade_adesivo?: string;
+  outros_valores_adesivo?: string;
 }
 
 export interface UpdateOrderRequest {
@@ -126,6 +146,7 @@ export interface UpdateOrderRequest {
   address: string;
   status: OrderStatus;
   items: UpdateOrderItemRequest[];
+  valor_frete?: number;
 }
 
 export interface UpdateOrderItemRequest {
@@ -135,6 +156,15 @@ export interface UpdateOrderItemRequest {
   unit_price: number;
   emenda?: string;
   emenda_qtd?: string;
+  terceirizado?: boolean;
+  acabamento_lona?: string;
+  valor_lona?: string;
+  quantidade_lona?: string;
+  outros_valores_lona?: string;
+  tipo_adesivo?: string;
+  valor_adesivo?: string;
+  quantidade_adesivo?: string;
+  outros_valores_adesivo?: string;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -243,4 +273,62 @@ export interface TabItem {
   emendaQtd: string;
   observacao: string;
   valor_unitario: string;
+  acabamento_totem: 'com_pe' | 'sem_pe' | 'outro';
+  acabamento_totem_outro: string;
+  valor_totem: string;
+  quantidade_totem: string;
+  outros_valores_totem: string;
+}
+
+// ========================================
+// Relatórios
+// ========================================
+
+export type ReportTypeKey =
+  | 'analitico_designer_cliente'
+  | 'analitico_cliente_designer'
+  | 'analitico_cliente_painel'
+  | 'analitico_designer_painel'
+  | 'analitico_entrega_painel'
+  | 'sintetico_data'
+  | 'sintetico_designer'
+  | 'sintetico_cliente'
+  | 'sintetico_entrega';
+
+export interface ReportRequestPayload {
+  report_type: ReportTypeKey;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+}
+
+export interface ReportTotals {
+  valor_frete: number;
+  valor_servico: number;
+}
+
+export interface ReportRowData {
+  ficha: string;
+  descricao: string;
+  valor_frete: number;
+  valor_servico: number;
+}
+
+export interface ReportGroup {
+  key: string;
+  label: string;
+  rows?: ReportRowData[];
+  subgroups?: ReportGroup[];
+  subtotal: ReportTotals;
+}
+
+export interface ReportResponse {
+  title: string;
+  period_label: string;
+  status_label: string;
+  page: number;
+  generated_at: string;
+  report_type: string;
+  groups: ReportGroup[];
+  total: ReportTotals;
 }

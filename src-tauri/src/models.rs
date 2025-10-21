@@ -49,6 +49,8 @@ pub struct Order {
     pub data_entrega: Option<chrono::NaiveDate>,
     pub total_value: rust_decimal::Decimal,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<rust_decimal::Decimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::NaiveDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<chrono::NaiveDateTime>,
@@ -83,7 +85,7 @@ pub struct OrderItem {
     pub quantity: i32,
     pub unit_price: rust_decimal::Decimal,
     pub subtotal: rust_decimal::Decimal,
-    
+
     // Campos detalhados do painel
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tipo_producao: Option<String>,
@@ -131,6 +133,24 @@ pub struct OrderItem {
     pub emenda: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emenda_qtd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terceirizado: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_adesivo: Option<String>,
 }
 
 // ========================================
@@ -171,6 +191,8 @@ pub struct OrderWithItems {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data_entrega: Option<chrono::NaiveDate>,
     pub total_value: rust_decimal::Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<rust_decimal::Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::NaiveDateTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -215,6 +237,8 @@ pub struct CreateOrderRequest {
     pub prioridade: Option<String>,
     pub observacao: Option<String>,
     pub telefone_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -222,7 +246,7 @@ pub struct CreateOrderItemRequest {
     pub item_name: String,
     pub quantity: i32,
     pub unit_price: f64,
-    
+
     // Campos detalhados do painel
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tipo_producao: Option<String>,
@@ -270,6 +294,24 @@ pub struct CreateOrderItemRequest {
     pub emenda: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emenda_qtd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terceirizado: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_adesivo: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -279,6 +321,8 @@ pub struct UpdateOrderRequest {
     pub cidade_cliente: String,
     pub status: OrderStatus,
     pub items: Vec<UpdateOrderItemRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -287,7 +331,7 @@ pub struct UpdateOrderItemRequest {
     pub item_name: String,
     pub quantity: i32,
     pub unit_price: f64,
-    
+
     // Campos detalhados do painel
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tipo_producao: Option<String>,
@@ -335,6 +379,24 @@ pub struct UpdateOrderItemRequest {
     pub emenda: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emenda_qtd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terceirizado: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_adesivo: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -364,6 +426,58 @@ pub struct PaginatedOrders {
     pub page: i64,
     pub page_size: i64,
     pub total_pages: i64,
+}
+
+// ========================================
+// Relatórios
+// ========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportRequest {
+    pub report_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportTotals {
+    pub valor_frete: f64,
+    pub valor_servico: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportRowData {
+    pub ficha: String,
+    pub descricao: String,
+    pub valor_frete: f64,
+    pub valor_servico: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportGroup {
+    pub key: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows: Option<Vec<ReportRowData>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subgroups: Option<Vec<ReportGroup>>,
+    pub subtotal: ReportTotals,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportResponse {
+    pub title: String,
+    pub period_label: String,
+    pub status_label: String,
+    pub page: i32,
+    pub generated_at: String,
+    pub report_type: String,
+    pub groups: Vec<ReportGroup>,
+    pub total: ReportTotals,
 }
 
 // ========================================

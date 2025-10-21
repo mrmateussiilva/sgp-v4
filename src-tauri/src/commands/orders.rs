@@ -1,7 +1,7 @@
 use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use sqlx::Row;
 use tauri::State;
 use tracing::{error, info};
@@ -20,7 +20,7 @@ pub async fn get_orders(
 
     let orders_result = sqlx::query_as::<_, Order>(
         "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao, 
                 financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders ORDER BY created_at DESC"
     )
@@ -61,7 +61,7 @@ pub async fn get_order_by_id(
 
     let order_result = sqlx::query_as::<_, Order>(
         "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao, 
                 financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE id = $1"
     )
@@ -102,12 +102,14 @@ pub(crate) async fn create_order_internal(
 ) -> Result<OrderWithItems, String> {
     info!("Criando novo pedido para cliente: {}", request.cliente);
 
-    // Calcular total
-    let total_value: f64 = request
+    // Calcular totais (itens + frete)
+    let items_total: f64 = request
         .items
         .iter()
         .map(|item| item.quantity as f64 * item.unit_price)
         .sum();
+    let freight_total: f64 = request.valor_frete.unwrap_or(0.0);
+    let total_value: f64 = items_total + freight_total;
 
     let mut tx = pool.begin().await.map_err(|e| {
         error!("Erro ao iniciar transação: {}", e);
@@ -129,19 +131,26 @@ pub(crate) async fn create_order_internal(
     // Converter data_entrada de string para NaiveDate (obrigatório)
     let data_entrada_parsed = chrono::NaiveDate::parse_from_str(&request.data_entrada, "%Y-%m-%d")
         .map_err(|e| {
-            error!("Erro ao parsear data_entrada '{}': {}", request.data_entrada, e);
+            error!(
+                "Erro ao parsear data_entrada '{}': {}",
+                request.data_entrada, e
+            );
             "Data de entrada inválida".to_string()
         })?;
-    
+
     info!("Data entrada recebida: {}", request.data_entrada);
     info!("Data entrada parseada: {:?}", data_entrada_parsed);
 
     // Inserir pedido
     let order_result = sqlx::query_as::<_, Order>(
-        "INSERT INTO orders (numero, customer_name, cliente, address, cidade_cliente, estado_cliente, total_value, status, data_entrada, data_entrega, forma_envio, forma_pagamento_id, prioridade, observacao, telefone_cliente, pronto) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+        "INSERT INTO orders (
+             numero, customer_name, cliente, address, cidade_cliente, estado_cliente,
+             total_value, valor_frete, status, data_entrada, data_entrega,
+             forma_envio, forma_pagamento_id, prioridade, observacao, telefone_cliente, pronto
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
          RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao,
                    financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
     .bind(&numero_pedido)
@@ -151,6 +160,7 @@ pub(crate) async fn create_order_internal(
     .bind(&request.cidade_cliente)
     .bind(&request.estado_cliente)
     .bind(Decimal::from_f64_retain(total_value).unwrap_or_default())
+    .bind(Decimal::from_f64_retain(freight_total).unwrap_or_default())
     .bind(&request.status)
     .bind(data_entrada_parsed)
     .bind(data_entrega_parsed)
@@ -165,10 +175,12 @@ pub(crate) async fn create_order_internal(
 
     let order = match order_result {
         Ok(order) => {
-            info!("Pedido criado com sucesso - ID: {}, Data entrada: {:?}, Data entrega: {:?}", 
-                  order.id, order.data_entrada, order.data_entrega);
+            info!(
+                "Pedido criado com sucesso - ID: {}, Data entrada: {:?}, Data entrega: {:?}",
+                order.id, order.data_entrada, order.data_entrega
+            );
             order
-        },
+        }
         Err(e) => {
             error!("Erro ao inserir pedido: {}", e);
             tx.rollback().await.ok();
@@ -186,13 +198,17 @@ pub(crate) async fn create_order_internal(
                                       tipo_producao, descricao, largura, altura, metro_quadrado, 
                                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
                                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
-                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) 
+                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
+                                      terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
+                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37) 
              RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
                        tipo_producao, descricao, largura, altura, metro_quadrado, 
                        vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
                        quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
-                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd",
+                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
+                       terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
+                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
@@ -222,6 +238,15 @@ pub(crate) async fn create_order_internal(
         .bind(&item_req.valor_unitario)
         .bind(&item_req.emenda)
         .bind(&item_req.emenda_qtd)
+        .bind(&item_req.terceirizado)
+        .bind(&item_req.acabamento_lona)
+        .bind(&item_req.valor_lona)
+        .bind(&item_req.quantidade_lona)
+        .bind(&item_req.outros_valores_lona)
+        .bind(&item_req.tipo_adesivo)
+        .bind(&item_req.valor_adesivo)
+        .bind(&item_req.quantidade_adesivo)
+        .bind(&item_req.outros_valores_adesivo)
         .fetch_one(&mut *tx)
         .await;
 
@@ -258,8 +283,8 @@ pub async fn update_order(
         .map_err(|e| e.to_string())?;
     info!("Atualizando pedido ID: {}", request.id);
 
-    // Calcular novo total
-    let total_value: f64 = request
+    // Calcular novo total (itens + frete)
+    let items_total: f64 = request
         .items
         .iter()
         .map(|item| item.quantity as f64 * item.unit_price)
@@ -270,17 +295,35 @@ pub async fn update_order(
         "Erro ao atualizar pedido".to_string()
     })?;
 
+    let freight_total: f64 = if let Some(value) = request.valor_frete {
+        value
+    } else {
+        sqlx::query_scalar::<_, Option<Decimal>>("SELECT valor_frete FROM orders WHERE id = $1")
+            .bind(request.id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| {
+                error!("Erro ao buscar valor_frete atual: {}", e);
+                "Erro ao atualizar pedido".to_string()
+            })?
+            .and_then(|dec| dec.to_f64())
+            .unwrap_or(0.0)
+    };
+
+    let total_value: f64 = items_total + freight_total;
+
     // Atualizar pedido
     let order_result = sqlx::query_as::<_, Order>(
-        "UPDATE orders SET cliente = $1, cidade_cliente = $2, total_value = $3, status = $4 
-         WHERE id = $5 
+        "UPDATE orders SET cliente = $1, cidade_cliente = $2, total_value = $3, valor_frete = $4, status = $5 
+         WHERE id = $6 
          RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao,
                    financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
     .bind(&request.cliente)
     .bind(&request.cidade_cliente)
     .bind(Decimal::from_f64_retain(total_value).unwrap_or_default())
+    .bind(Decimal::from_f64_retain(freight_total).unwrap_or_default())
     .bind(&request.status)
     .bind(request.id)
     .fetch_one(&mut *tx)
@@ -315,13 +358,17 @@ pub async fn update_order(
                                       tipo_producao, descricao, largura, altura, metro_quadrado, 
                                       vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
                                       quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
-                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) 
+                                      espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
+                                      terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
+                                      tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37) 
              RETURNING id, order_id, item_name, quantity, unit_price, subtotal, 
                        tipo_producao, descricao, largura, altura, metro_quadrado, 
                        vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
                        quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
-                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd",
+                       espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd,
+                       terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona,
+                       tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo",
         )
         .bind(order.id)
         .bind(&item_req.item_name)
@@ -351,6 +398,15 @@ pub async fn update_order(
         .bind(&item_req.valor_unitario)
         .bind(&item_req.emenda)
         .bind(&item_req.emenda_qtd)
+        .bind(&item_req.terceirizado)
+        .bind(&item_req.acabamento_lona)
+        .bind(&item_req.valor_lona)
+        .bind(&item_req.quantidade_lona)
+        .bind(&item_req.outros_valores_lona)
+        .bind(&item_req.tipo_adesivo)
+        .bind(&item_req.valor_adesivo)
+        .bind(&item_req.quantidade_adesivo)
+        .bind(&item_req.outros_valores_adesivo)
         .fetch_one(&mut *tx)
         .await;
 
@@ -404,7 +460,7 @@ pub(crate) async fn update_order_status_flags_internal(
 
     let existing_order = sqlx::query_as::<_, Order>(
         "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao, 
                 financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE id = $1"
     )
@@ -432,7 +488,7 @@ pub(crate) async fn update_order_status_flags_internal(
          SET financeiro = $1, conferencia = $2, sublimacao = $3, costura = $4, expedicao = $5, pronto = $6 
          WHERE id = $7 
          RETURNING id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
-                   data_entrada, data_entrega, total_value, status, prioridade, observacao,
+                   data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao,
                    financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at"
     )
     .bind(financeiro)
@@ -517,7 +573,7 @@ pub async fn get_orders_with_filters(
 
     let mut query = String::from(
         "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao, 
                 financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders WHERE 1=1"
     );
@@ -609,6 +665,7 @@ fn build_order_with_items(order: Order, items: Vec<OrderItem>) -> OrderWithItems
         data_entrada: order.data_entrada,
         data_entrega: order.data_entrega,
         total_value: order.total_value,
+        valor_frete: order.valor_frete,
         created_at: order.created_at,
         updated_at: order.updated_at,
         status: order.status,
@@ -655,7 +712,14 @@ fn normalize_status_flags(
 
     let pronto = financeiro && conferencia && sublimacao && costura && expedicao;
 
-    (financeiro, conferencia, sublimacao, costura, expedicao, pronto)
+    (
+        financeiro,
+        conferencia,
+        sublimacao,
+        costura,
+        expedicao,
+        pronto,
+    )
 }
 
 // Função auxiliar para buscar itens de um pedido
@@ -666,7 +730,9 @@ async fn get_order_items(pool: &DbPool, order_id: i32) -> Result<Vec<OrderItem>,
                 vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
                 quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
                 espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
-                emenda, emenda_qtd
+                emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona,
+                quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
+                quantidade_adesivo, outros_valores_adesivo
          FROM order_items WHERE order_id = $1 ORDER BY id",
     )
     .bind(order_id)
@@ -683,29 +749,56 @@ pub async fn get_orders_by_delivery_date(
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
     session_token: String,
-    delivery_date: String,
+    start_date: String,
+    end_date: Option<String>,
 ) -> Result<Vec<OrderWithItems>, String> {
     sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
-    info!("Buscando pedidos para data de entrega: {}", delivery_date);
+    info!(
+        "Buscando pedidos para intervalo de entrega: início {}, fim {:?}",
+        start_date, end_date
+    );
 
-    // Converter string para NaiveDate
-    let parsed_date = chrono::NaiveDate::parse_from_str(&delivery_date, "%Y-%m-%d")
-        .map_err(|_| "Data inválida. Use o formato YYYY-MM-DD".to_string())?;
+    let start_trimmed = start_date.trim();
+    if start_trimmed.is_empty() {
+        return Err("Data inicial é obrigatória".to_string());
+    }
 
-    info!("Data parseada: {}", parsed_date);
+    let parsed_start =
+        chrono::NaiveDate::parse_from_str(start_trimmed, "%Y-%m-%d").map_err(|_| {
+            "Data inicial inválida. Use o formato YYYY-MM-DD".to_string()
+        })?;
+
+    let effective_end = end_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(start_trimmed);
+
+    let parsed_end =
+        chrono::NaiveDate::parse_from_str(effective_end, "%Y-%m-%d").map_err(|_| {
+            "Data final inválida. Use o formato YYYY-MM-DD".to_string()
+        })?;
+
+    if parsed_end < parsed_start {
+        return Err("Data final não pode ser anterior à data inicial".to_string());
+    }
+
+    info!("Intervalo parseado: {} até {}", parsed_start, parsed_end);
 
     let orders_result = sqlx::query_as::<_, Order>(
         "SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente, 
-                data_entrada, data_entrega, total_value, status, prioridade, observacao, 
+                data_entrada, data_entrega, total_value, valor_frete, status, prioridade, observacao, 
                 financeiro, conferencia, sublimacao, costura, expedicao, forma_envio, forma_pagamento_id, pronto, created_at, updated_at 
          FROM orders 
-         WHERE data_entrega = $1 
-         ORDER BY forma_envio, cliente"
+         WHERE data_entrega IS NOT NULL 
+           AND data_entrega BETWEEN $1 AND $2
+         ORDER BY data_entrega, forma_envio, cliente"
     )
-    .bind(parsed_date)
+    .bind(parsed_start)
+    .bind(parsed_end)
     .fetch_all(pool.inner())
     .await;
 
@@ -714,12 +807,21 @@ pub async fn get_orders_by_delivery_date(
             let mut orders_with_items = Vec::new();
 
             for order in orders {
-                info!("Pedido encontrado - ID: {}, Data entrega: {}", order.id, order.data_entrega.unwrap_or_default());
+                info!(
+                    "Pedido encontrado - ID: {}, Data entrega: {}",
+                    order.id,
+                    order.data_entrega.unwrap_or_default()
+                );
                 let items = get_order_items(&pool, order.id).await?;
                 orders_with_items.push(build_order_with_items(order, items));
             }
 
-            info!("Retornando {} pedidos para data {}", orders_with_items.len(), delivery_date);
+            info!(
+                "Retornando {} pedidos para o intervalo {} - {}",
+                orders_with_items.len(),
+                parsed_start,
+                parsed_end
+            );
             Ok(orders_with_items)
         }
         Err(e) => {
@@ -765,6 +867,7 @@ mod tests {
             data_entrada: Some(make_date()),
             data_entrega: Some(make_date()),
             total_value: Decimal::new(1000, 2),
+            valor_frete: Some(Decimal::new(500, 2)),
             created_at: Some(make_datetime()),
             updated_at: Some(make_datetime()),
             status: OrderStatus::Pendente,
@@ -777,9 +880,7 @@ mod tests {
             expedicao: Some(expedicao),
             forma_envio: Some("Correios".to_string()),
             forma_pagamento_id: Some(1),
-            pronto: Some(
-                financeiro && conferencia && sublimacao && costura && expedicao
-            ),
+            pronto: Some(financeiro && conferencia && sublimacao && costura && expedicao),
         }
     }
 
@@ -847,6 +948,7 @@ mod tests {
         assert_eq!(result.numero, order.numero);
         assert_eq!(result.cliente, order.cliente);
         assert_eq!(result.cidade_cliente, order.cidade_cliente);
+        assert_eq!(result.valor_frete, order.valor_frete);
         assert_eq!(result.financeiro, order.financeiro);
         assert_eq!(result.costura, order.costura);
         assert_eq!(result.items.len(), items.len());

@@ -2,13 +2,13 @@ import { useMemo } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
 interface FormPainelCompletoProps {
   tabId: string;
@@ -246,9 +246,9 @@ export function FormPainelCompleto({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Valor Unit.</Label>
-                      <Input
-                        value={tabData?.valor_ilhos || ''}
-                        onChange={(e) => onDataChange('valor_ilhos', e.target.value)}
+                      <CurrencyInput
+                        value={tabData?.valor_ilhos ?? '0,00'}
+                        onValueChange={(formatted) => onDataChange('valor_ilhos', formatted)}
                         placeholder="0,50"
                         className="h-10"
                       />
@@ -301,9 +301,9 @@ export function FormPainelCompleto({
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Valor Unit.</Label>
-                      <Input
-                        value={tabData?.valor_cordinha || ''}
-                        onChange={(e) => onDataChange('valor_cordinha', e.target.value)}
+                      <CurrencyInput
+                        value={tabData?.valor_cordinha ?? '0,00'}
+                        onValueChange={(formatted) => onDataChange('valor_cordinha', formatted)}
                         placeholder="1,50"
                         className="h-10"
                       />
@@ -375,9 +375,9 @@ export function FormPainelCompleto({
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label className="text-base font-medium">Valor painel</Label>
-            <Input
-              value={tabData?.valor_painel || ''}
-              onChange={(e) => onDataChange('valor_painel', e.target.value)}
+            <CurrencyInput
+              value={tabData?.valor_painel ?? '0,00'}
+              onValueChange={(formatted) => onDataChange('valor_painel', formatted)}
               placeholder="150,00"
               className="h-12 text-base"
             />
@@ -397,9 +397,9 @@ export function FormPainelCompleto({
 
           <div className="space-y-2">
             <Label className="text-base font-medium">Outros Valores</Label>
-            <Input
-              value={tabData?.valores_adicionais || ''}
-              onChange={(e) => onDataChange('valores_adicionais', e.target.value)}
+            <CurrencyInput
+              value={tabData?.valores_adicionais ?? '0,00'}
+              onValueChange={(formatted) => onDataChange('valores_adicionais', formatted)}
               placeholder="10,00"
               className="h-12 text-base"
             />
@@ -481,4 +481,3 @@ export function FormPainelCompleto({
     </div>
   );
 }
-

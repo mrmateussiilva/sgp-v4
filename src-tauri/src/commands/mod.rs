@@ -5,5 +5,6 @@ pub mod formas_envio;
 pub mod formas_pagamento;
 pub mod materiais;
 pub mod orders;
+pub mod reports;
 pub mod users;
 pub mod vendedores;

@@ -12,6 +12,8 @@ import {
   CreateClienteRequest,
   UpdateClienteRequest,
   UpdateOrderStatusRequest,
+  ReportRequestPayload,
+  ReportResponse,
 } from '../types';
 
 const requireSessionToken = () => {
@@ -119,12 +121,16 @@ export const api = {
   },
 
   getTecidosAtivos: async (): Promise<string[]> => {
+    return api.getMateriaisAtivosPorTipo('tecido');
+  },
+
+  getMateriaisAtivosPorTipo: async (tipo: string): Promise<string[]> => {
     const sessionToken = requireSessionToken();
     const materiais = await invoke<
       Array<{ id: number; nome: string; tipo: string; ativo: boolean }>
     >('get_materiais_ativos', { sessionToken });
     return (materiais || [])
-      .filter((m) => (m as any).tipo?.toLowerCase() === 'tecido')
+      .filter((m) => (m as any).tipo?.toLowerCase() === tipo.toLowerCase())
       .map((m) => m.nome);
   },
 
@@ -138,5 +144,11 @@ export const api = {
   getFormasPagamentoAtivas: async (): Promise<any[]> => {
     const sessionToken = requireSessionToken();
     return await invoke<any[]>('get_formas_pagamento_ativas', { sessionToken });
+  },
+
+  // Relatórios
+  generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<ReportResponse>('generate_report', { sessionToken, request });
   },
 };

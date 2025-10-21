@@ -16,11 +16,16 @@ import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { Cliente, OrderStatus, CreateOrderRequest } from '@/types';
 import { api } from '@/services/api';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
+import { FormLonaProducao } from '@/components/FormLonaProducao';
+import { FormTotemProducao } from '@/components/FormTotemProducao';
+import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
+import { CurrencyInput } from '@/components/ui/currency-input';
 
 const TIPOS_PRODUCAO = [
   { value: 'painel', label: 'Painel' },
   { value: 'totem', label: 'Totem' },
   { value: 'lona', label: 'Lona' },
+  { value: 'adesivo', label: 'Adesivo' },
   { value: 'almofada', label: 'Almofada' },
   { value: 'bolsinha', label: 'Bolsinha' },
 ];
@@ -54,6 +59,22 @@ interface TabItem {
   emenda: string;
   observacao: string;
   valor_unitario: string;
+  terceirizado: boolean;
+  acabamento_lona: 'refilar' | 'nao_refilar';
+  valor_lona: string;
+  quantidade_lona: string;
+  outros_valores_lona: string;
+  // Campos específicos do totem
+  acabamento_totem: 'com_pe' | 'sem_pe' | 'outro';
+  acabamento_totem_outro: string;
+  valor_totem: string;
+  quantidade_totem: string;
+  outros_valores_totem: string;
+  emendaQtd?: string;
+  tipo_adesivo: string;
+  valor_adesivo: string;
+  quantidade_adesivo: string;
+  outros_valores_adesivo: string;
 }
 
 export default function CreateOrderComplete() {
@@ -124,6 +145,21 @@ export default function CreateOrderComplete() {
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
+      terceirizado: false,
+      acabamento_lona: 'refilar',
+      valor_lona: '0,00',
+      quantidade_lona: '1',
+      outros_valores_lona: '0,00',
+      acabamento_totem: 'com_pe',
+      acabamento_totem_outro: '',
+      valor_totem: '0,00',
+      quantidade_totem: '1',
+      outros_valores_totem: '0,00',
+      emendaQtd: '',
+      tipo_adesivo: '',
+      valor_adesivo: '0,00',
+      quantidade_adesivo: '1',
+      outros_valores_adesivo: '0,00',
     }
   });
 
@@ -140,7 +176,9 @@ export default function CreateOrderComplete() {
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
-  const [tecidos, setTecidos] = useState<string[]>([]);
+  const [materiaisLona, setMateriaisLona] = useState<string[]>([]);
+  const [tiposAdesivo, setTiposAdesivo] = useState<string[]>([]);
+  const [materiaisTotem, setMateriaisTotem] = useState<string[]>([]);
   const [formasEnvio, setFormasEnvio] = useState<any[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [descontos] = useState([
@@ -162,15 +200,19 @@ export default function CreateOrderComplete() {
     let isMounted = true;
     (async () => {
       try {
-        const [vend, des, tec] = await Promise.all([
+        const [vend, des, tec, totens, adesivos] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
           api.getTecidosAtivos(),
+          api.getMateriaisAtivosPorTipo('totem'),
+          api.getMateriaisAtivosPorTipo('adesivo'),
         ]);
         if (!isMounted) return;
         setVendedores(vend.map(v => v.nome));
         setDesigners(des.map(d => d.nome));
-        setTecidos(tec);
+        setMateriaisLona(tec);
+        setMateriaisTotem(totens);
+        setTiposAdesivo(adesivos);
       } catch (e) {
         console.error('Erro ao carregar catálogos:', e);
       }
@@ -269,6 +311,78 @@ export default function CreateOrderComplete() {
     ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_paineis),
   ]);
 
+  // Calcular valor unitário automaticamente para totems
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'totem') {
+        const valorTotem = parseFloat(String(item.valor_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const outrosValores = parseFloat(String(item.outros_valores_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorTotalUnitario = valorTotem + outrosValores;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_totem),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_totem),
+  ]);
+
+  // Calcular valor unitário automaticamente para lonas
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'lona') {
+        const valorLona = parseFloat(String(item.valor_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const outrosValores = parseFloat(String(item.outros_valores_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        let valorIlhos = 0;
+        if (item.tipo_acabamento === 'ilhos') {
+          const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
+          const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          valorIlhos = qtdIlhos * valorUnitIlhos;
+        }
+        const valorTotalUnitario = valorLona + outrosValores + valorIlhos;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_lona),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_lona),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.tipo_acabamento),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_ilhos),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_ilhos),
+  ]);
+
+  // Calcular valor unitário automaticamente para adesivos
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'adesivo') {
+        const valorAdesivo = parseFloat(String(item.valor_adesivo || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const outrosValores = parseFloat(String(item.outros_valores_adesivo || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorTotalUnitario = valorAdesivo + outrosValores;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_adesivo),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_adesivo),
+  ]);
+
 
   // Funções de validação completas
   const validateClientData = () => {
@@ -353,6 +467,42 @@ export default function CreateOrderComplete() {
           
           if (valorPainel <= 0 && valoresAdicionais <= 0) {
             errors[`item_${tabId}_valor`] = 'Preencha pelo menos o valor do painel ou valores adicionais';
+          }
+        } else if (item.tipo_producao === 'totem') {
+          if (valorUnitario <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor do totem deve ser maior que zero';
+          }
+          const quantidadeTotem = parseInt(item.quantidade_totem || '0');
+          if (quantidadeTotem <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de totens deve ser maior que zero';
+          }
+          if (item.acabamento_totem === 'outro' && (!item.acabamento_totem_outro || item.acabamento_totem_outro.trim().length === 0)) {
+            errors[`item_${tabId}_acabamento_outro`] = 'Descreva o acabamento do totem';
+          }
+        } else if (item.tipo_producao === 'lona') {
+          if (valorUnitario <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor da lona deve ser maior que zero';
+          }
+          const quantidadeLona = parseInt(item.quantidade_lona || '0');
+          if (quantidadeLona <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de lonas deve ser maior que zero';
+          }
+          if (item.emenda === 'com-emenda') {
+            const qtdEmenda = parseInt(item.emendaQtd || '0');
+            if (qtdEmenda <= 0) {
+              errors[`item_${tabId}_emenda`] = 'Informe a quantidade de emendas';
+            }
+          }
+        } else if (item.tipo_producao === 'adesivo') {
+          if (!item.tipo_adesivo || item.tipo_adesivo.trim().length === 0) {
+            errors[`item_${tabId}_tipo_adesivo`] = 'Tipo de adesivo é obrigatório';
+          }
+          if (valorUnitario <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor do adesivo deve ser maior que zero';
+          }
+          const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0');
+          if (quantidadeAdesivo <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de adesivos deve ser maior que zero';
           }
         } else {
           // Para outros tipos, validar valor unitário diretamente
@@ -532,6 +682,21 @@ export default function CreateOrderComplete() {
         emenda: 'sem-emenda',
         observacao: '',
         valor_unitario: '0,00',
+        terceirizado: false,
+        acabamento_lona: 'refilar',
+        valor_lona: '0,00',
+        quantidade_lona: '1',
+        outros_valores_lona: '0,00',
+        acabamento_totem: 'com_pe',
+        acabamento_totem_outro: '',
+        valor_totem: '0,00',
+        quantidade_totem: '1',
+        outros_valores_totem: '0,00',
+        emendaQtd: '',
+        tipo_adesivo: '',
+        valor_adesivo: '0,00',
+        quantidade_adesivo: '1',
+        outros_valores_adesivo: '0,00',
       }
     }));
 
@@ -615,6 +780,47 @@ export default function CreateOrderComplete() {
       if (valorPainel <= 0 && valoresAdicionais <= 0) {
         errors.push("Valor é obrigatório (preencha pelo menos o valor do painel ou valores adicionais)");
       }
+    } else if (item.tipo_producao === 'totem') {
+      const valorTotem = parseFloat(String(item.valor_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const outrosTotem = parseFloat(String(item.outros_valores_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorUnitarioTotem = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+
+      if (valorTotem <= 0 && outrosTotem <= 0) {
+        errors.push("Informe o valor do totem ou outros valores adicionais");
+      }
+
+      if (valorUnitarioTotem <= 0) {
+        errors.push("Valor total por totem deve ser maior que zero");
+      }
+
+      if (item.acabamento_totem === 'outro' && (!item.acabamento_totem_outro || item.acabamento_totem_outro.trim().length === 0)) {
+        errors.push("Descreva o outro acabamento do totem");
+      }
+    } else if (item.tipo_producao === 'lona') {
+      const valorLona = parseFloat(String(item.valor_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const outrosValoresLona = parseFloat(String(item.outros_valores_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      let valorIlhos = 0;
+      if (item.tipo_acabamento === 'ilhos') {
+        const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
+        const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        valorIlhos = qtdIlhos * valorUnitIlhos;
+      }
+      const valorUnitarioLona = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+
+      if (valorLona <= 0 && outrosValoresLona <= 0 && valorIlhos <= 0) {
+        errors.push("Informe o valor da lona ou valores adicionais");
+      }
+
+      if (valorUnitarioLona <= 0) {
+        errors.push("Valor total por lona deve ser maior que zero");
+      }
+
+      if (item.emenda === 'com-emenda') {
+        const qtdEmenda = parseInt(item.emendaQtd || '0');
+        if (Number.isNaN(qtdEmenda) || qtdEmenda <= 0) {
+          errors.push("Informe a quantidade de emendas");
+        }
+      }
     } else {
       const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
       if (valorUnitario <= 0) {
@@ -630,21 +836,66 @@ export default function CreateOrderComplete() {
       }
     }
 
+    if (item.tipo_producao === 'totem') {
+      const quantidadeTotem = parseInt(item.quantidade_totem || '0');
+      if (quantidadeTotem <= 0) {
+        errors.push("Quantidade de totens é obrigatória e deve ser maior que zero");
+      }
+
+      if (!item.acabamento_totem || item.acabamento_totem.trim().length === 0) {
+        errors.push("Selecione o acabamento do totem");
+      }
+    }
+
+    if (item.tipo_producao === 'lona') {
+      const quantidadeLona = parseInt(item.quantidade_lona || '0', 10);
+      if (Number.isNaN(quantidadeLona) || quantidadeLona <= 0) {
+        errors.push("Quantidade de lonas é obrigatória e deve ser maior que zero");
+      }
+
+      if (!item.acabamento_lona || item.acabamento_lona.trim().length === 0) {
+        errors.push("Selecione o acabamento da lona");
+      }
+    }
+
+    if (item.tipo_producao === 'adesivo') {
+      const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
+      if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
+        errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
+      }
+    }
+
     // Campos opcionais - gerar avisos
-    if (!item.overloque) {
-      warnings.push("Overloque não será aplicado");
+    if (item.tipo_producao === 'painel') {
+      if (!item.overloque) {
+        warnings.push("Overloque não será aplicado");
+      }
+
+      if (!item.elastico) {
+        warnings.push("Elástico não será aplicado");
+      }
+
+      if (item.emenda === 'sem-emenda') {
+        warnings.push("Emenda não será aplicada");
+      }
+
+      if (item.tipo_acabamento === 'nenhum') {
+        warnings.push("Nenhum acabamento especial será aplicado");
+      }
     }
 
-    if (!item.elastico) {
-      warnings.push("Elástico não será aplicado");
+    if (item.tipo_producao === 'lona') {
+      if (item.acabamento_lona === 'nao_refilar') {
+        warnings.push("Lona será entregue sem refilar");
+      }
+
+      if (item.terceirizado) {
+        warnings.push("Item será produzido por terceiros");
+      }
     }
 
-    if (item.emenda === 'sem-emenda') {
-      warnings.push("Emenda não será aplicada");
-    }
-
-    if (item.tipo_acabamento === 'nenhum') {
-      warnings.push("Nenhum acabamento especial será aplicado");
+    if (item.tipo_producao === 'adesivo') {
+      // Espaço reservado para avisos específicos de adesivo, se necessário
     }
 
     return { errors, warnings };
@@ -718,6 +969,21 @@ export default function CreateOrderComplete() {
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
+      terceirizado: false,
+      acabamento_lona: 'refilar',
+      valor_lona: '0,00',
+      quantidade_lona: '1',
+      outros_valores_lona: '0,00',
+      acabamento_totem: 'com_pe',
+      acabamento_totem_outro: '',
+      valor_totem: '0,00',
+      quantidade_totem: '1',
+      outros_valores_totem: '0,00',
+      emendaQtd: '',
+      tipo_adesivo: '',
+      valor_adesivo: '0,00',
+      quantidade_adesivo: '1',
+      outros_valores_adesivo: '0,00',
     };
 
     setTabsData(prev => ({
@@ -751,6 +1017,23 @@ export default function CreateOrderComplete() {
       if (item.tipo_producao === 'painel') {
         const quantidade = parseInt(item.quantidade_paineis || '1');
         return sum + (valor * quantidade);
+      }
+
+      if (item.tipo_producao === 'totem') {
+        const quantidadeTotem = parseInt(item.quantidade_totem || '1');
+        return sum + (valor * quantidadeTotem);
+      }
+
+      if (item.tipo_producao === 'lona') {
+        const quantidadeLonaParse = parseInt(item.quantidade_lona || '1');
+        const quantidadeValida = Number.isNaN(quantidadeLonaParse) || quantidadeLonaParse <= 0 ? 1 : quantidadeLonaParse;
+        return sum + (valor * quantidadeValida);
+      }
+
+      if (item.tipo_producao === 'adesivo') {
+        const quantidadeAdesivoParse = parseInt(item.quantidade_adesivo || '1');
+        const quantidadeValida = Number.isNaN(quantidadeAdesivoParse) || quantidadeAdesivoParse <= 0 ? 1 : quantidadeAdesivoParse;
+        return sum + (valor * quantidadeValida);
       }
       
       return sum + valor;
@@ -837,6 +1120,21 @@ export default function CreateOrderComplete() {
       emenda: 'sem-emenda',
       observacao: '',
       valor_unitario: '0,00',
+      terceirizado: false,
+      acabamento_lona: 'refilar',
+      valor_lona: '0,00',
+      quantidade_lona: '1',
+      outros_valores_lona: '0,00',
+      acabamento_totem: 'com_pe',
+      acabamento_totem_outro: '',
+      valor_totem: '0,00',
+      quantidade_totem: '1',
+      outros_valores_totem: '0,00',
+      emendaQtd: '',
+      tipo_adesivo: '',
+      valor_adesivo: '0,00',
+      quantidade_adesivo: '1',
+      outros_valores_adesivo: '0,00',
     };
 
     setTabs(['tab-1']);
@@ -866,10 +1164,17 @@ export default function CreateOrderComplete() {
           const item = tabsData[tabId];
           const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
           
-          // Para painéis, usar a quantidade específica
-          const quantidade = item.tipo_producao === 'painel' 
-            ? parseInt(item.quantidade_paineis || '1') 
-            : 1;
+          // Usar quantidade específica por tipo
+          const quantidadeRaw = item.tipo_producao === 'painel'
+            ? parseInt(item.quantidade_paineis || '1', 10)
+            : item.tipo_producao === 'totem'
+              ? parseInt(item.quantidade_totem || '1', 10)
+              : item.tipo_producao === 'lona'
+                ? parseInt(item.quantidade_lona || '1', 10)
+                : item.tipo_producao === 'adesivo'
+                  ? parseInt(item.quantidade_adesivo || '1', 10)
+                  : 1;
+          const quantidade = Number.isNaN(quantidadeRaw) || quantidadeRaw <= 0 ? 1 : quantidadeRaw;
           
           return {
             item_name: `${item.tipo_producao.toUpperCase()}: ${item.descricao}`,
@@ -905,6 +1210,20 @@ export default function CreateOrderComplete() {
                   ? item.emendaQtd
                   : undefined
                 : undefined,
+            terceirizado: item.terceirizado,
+            acabamento_lona: item.acabamento_lona,
+            valor_lona: item.valor_lona,
+            quantidade_lona: item.quantidade_lona,
+            outros_valores_lona: item.outros_valores_lona,
+            acabamento_totem: item.acabamento_totem,
+            acabamento_totem_outro: item.acabamento_totem_outro,
+            valor_totem: item.valor_totem,
+            quantidade_totem: item.quantidade_totem,
+            outros_valores_totem: item.outros_valores_totem,
+            tipo_adesivo: item.tipo_adesivo,
+            valor_adesivo: item.valor_adesivo,
+            quantidade_adesivo: item.quantidade_adesivo,
+            outros_valores_adesivo: item.outros_valores_adesivo,
           };
         });
 
@@ -951,6 +1270,8 @@ export default function CreateOrderComplete() {
         }
       }
 
+      const valorFrete = parseFloat(String(formData.valor_frete || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+
       // Construir request completo com todos os campos
       const createOrderRequest: CreateOrderRequest = {
         cliente: formData.cliente,
@@ -967,6 +1288,7 @@ export default function CreateOrderComplete() {
         ...(formData.observacao && { observacao: formData.observacao }),
         ...(formData.telefone_cliente && { telefone_cliente: formData.telefone_cliente }),
         ...(formData.cidade_cliente && { cidade_cliente: formData.cidade_cliente }),
+        valor_frete: valorFrete,
       };
 
       // Criar o pedido via API
@@ -1248,7 +1570,7 @@ export default function CreateOrderComplete() {
                       tabData={tabsData[tabId]}
                       vendedores={vendedores}
                       designers={designers}
-                      tecidos={tecidos}
+                      tecidos={materiaisLona}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
                       onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
@@ -1257,7 +1579,55 @@ export default function CreateOrderComplete() {
                   </div>
                 )}
 
-                {tabsData[tabId]?.tipo_producao && tabsData[tabId]?.tipo_producao !== 'painel' && (
+                {tabsData[tabId]?.tipo_producao === 'lona' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormLonaProducao
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tiposLona={materiaisLona.filter((item) => item.toLowerCase().includes("lona"))}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao === 'adesivo' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormAdesivoProducao
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tiposAdesivo={tiposAdesivo}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao === 'totem' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormTotemProducao
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      materiais={materiaisTotem}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao && !['painel', 'totem', 'lona', 'adesivo'].includes(tabsData[tabId]?.tipo_producao) && (
                   <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
                     {/* Descrição */}
                     <div className="space-y-2">
@@ -1357,7 +1727,7 @@ export default function CreateOrderComplete() {
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
-                            {tecidos.map(t => (
+                            {materiaisLona.map(t => (
                               <SelectItem key={t} value={t}>{t}</SelectItem>
                             ))}
                           </SelectContent>
@@ -1411,18 +1781,18 @@ export default function CreateOrderComplete() {
                         </Select>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Valor Unitário (R$)</Label>
-                        <Input
-                          value={tabsData[tabId]?.valor_unitario || '0,00'}
-                          onChange={(e) => handleTabDataChange(tabId, 'valor_unitario', e.target.value)}
-                          placeholder="0,00"
-                          className={`bg-white h-12 text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                        />
-                        {errors[`item_${tabId}_valor`] && (
-                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
-                        )}
-                      </div>
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Valor Unitário (R$)</Label>
+                      <CurrencyInput
+                        value={tabsData[tabId]?.valor_unitario || '0,00'}
+                        onValueChange={(formatted) => handleTabDataChange(tabId, 'valor_unitario', formatted)}
+                        placeholder="0,00"
+                        className={`h-12 bg-white text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                      />
+                      {errors[`item_${tabId}_valor`] && (
+                        <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
+                      )}
+                    </div>
                     </div>
 
                     {/* Observações */}
@@ -1544,10 +1914,10 @@ export default function CreateOrderComplete() {
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-base font-medium">Valor Frete (R$)</Label>
-              <Input
-                value={formData.valor_frete}
-                onChange={(e) => handleChange('valor_frete', e.target.value)}
-                className={`bg-white h-12 text-base ${errors.valor_frete ? 'border-red-500 focus:border-red-500' : ''}`}
+              <CurrencyInput
+                value={formData.valor_frete || '0,00'}
+                onValueChange={(formatted) => handleChange('valor_frete', formatted)}
+                className={`h-12 bg-white text-base ${errors.valor_frete ? 'border-red-500 focus:border-red-500' : ''}`}
               />
               {errors.valor_frete && (
                 <p className="text-red-500 text-sm">{errors.valor_frete}</p>
@@ -1725,6 +2095,15 @@ export default function CreateOrderComplete() {
                 if (item.tipo_producao === 'painel') {
                   const quantidade = parseInt(item.quantidade_paineis || '1');
                   valorTotalItem = valorUnitario * quantidade;
+                } else if (item.tipo_producao === 'totem') {
+                  const quantidadeTotem = parseInt(item.quantidade_totem || '1');
+                  valorTotalItem = valorUnitario * quantidadeTotem;
+                } else if (item.tipo_producao === 'lona') {
+                  const quantidadeLona = parseInt(item.quantidade_lona || '1');
+                  valorTotalItem = valorUnitario * (Number.isNaN(quantidadeLona) || quantidadeLona <= 0 ? 1 : quantidadeLona);
+                } else if (item.tipo_producao === 'adesivo') {
+                  const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '1');
+                  valorTotalItem = valorUnitario * (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0 ? 1 : quantidadeAdesivo);
                 }
                 
                 const valorFormatado = valorTotalItem.toFixed(2).replace('.', ',');
@@ -1734,6 +2113,15 @@ export default function CreateOrderComplete() {
                     <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label}
                     {item.tipo_producao === 'painel' && parseInt(item.quantidade_paineis || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_paineis})</span>
+                    )}
+                    {item.tipo_producao === 'totem' && parseInt(item.quantidade_totem || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_totem})</span>
+                    )}
+                    {item.tipo_producao === 'lona' && parseInt(item.quantidade_lona || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_lona})</span>
+                    )}
+                    {item.tipo_producao === 'adesivo' && parseInt(item.quantidade_adesivo || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_adesivo})</span>
                     )}
                     <span> - R$ {valorFormatado}</span>
                   </div>
