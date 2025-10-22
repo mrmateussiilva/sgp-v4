@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { formatDateForDisplay } from '@/utils/date';
-import { exportEnvioReportToPDF } from '@/utils/exportUtils';
+import { printEnvioReport } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface RelatorioEnvio {
@@ -128,16 +128,16 @@ export default function RelatoriosEnvios() {
 
     try {
       setExporting(true);
-      console.info('Exportando relatório de envios', {
+      console.info('Imprimindo relatório de envios', {
         grupos: relatorio.length,
         totalPedidos,
         dataInicio,
         dataFim,
       });
-      exportEnvioReportToPDF(relatorio, dataInicio, dataFim || null);
+      printEnvioReport(relatorio, dataInicio, dataFim || null);
       toast({
-        title: 'PDF gerado',
-        description: 'O download do relatório foi iniciado. Verifique sua pasta de downloads.',
+        title: 'Impressão iniciada',
+        description: 'O diálogo de impressão foi aberto (caso permitido pelo navegador).',
       });
     } catch (err) {
       console.error('Erro ao exportar PDF de envios:', err);

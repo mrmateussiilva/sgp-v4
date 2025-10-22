@@ -1,17 +1,16 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use dotenv::dotenv;
 use sqlx::{migrate::MigrateError, postgres::PgPoolOptions, query};
 use std::collections::HashSet;
 use std::env;
-use tauri::Manager;
 use tracing::{error, info};
 use tracing_subscriber;
 
 mod commands;
 mod config;
 mod db;
+mod env_loader;
 mod migrator;
 mod models;
 mod session;
@@ -28,7 +27,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     // Carregar variáveis de ambiente
-    match dotenv() {
+    match crate::env_loader::load_env_file() {
         Ok(_) => info!("Arquivo .env carregado com sucesso"),
         Err(e) => {
             error!("Erro ao carregar arquivo .env: {}. Usando variáveis de ambiente do sistema.", e);
@@ -60,64 +59,76 @@ async fn main() {
 
     info!("Conexão com banco de dados estabelecida!");
 
-    info!("Verificando migrações pendentes...");
-    let mut cleaned_versions = HashSet::new();
-    loop {
-        match MIGRATOR.run(&pool).await {
-            Ok(()) => break,
-            Err(MigrateError::VersionMissing(version)) => {
-                if !cleaned_versions.insert(version) {
-                    panic!("Versão de migração ausente ({version}) persiste após limpeza");
-                }
-                tracing::warn!(
-                    "Versão de migração ausente ({version}); removendo marcador e tentando novamente."
-                );
-                if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
-                    .bind(version)
-                    .execute(&pool)
-                    .await
-                {
-                    tracing::error!(
-                        "Falha ao remover marcador da migração ausente ({version}): {clean_err}"
+    // Controlar execução de migrações via variáveis de ambiente
+    // Padrão: em produção, não roda migrações; em desenvolvimento, roda.
+    let app_env = env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
+    let run_migrations_env = env::var("RUN_MIGRATIONS").ok();
+    let run_migrations = match run_migrations_env.as_deref() {
+        Some("true") | Some("1") => true,
+        Some("false") | Some("0") => false,
+        _ => app_env != "production",
+    };
+
+    if run_migrations {
+        info!("Verificando migrações pendentes (APP_ENV={}, RUN_MIGRATIONS={:?})...", app_env, run_migrations_env);
+        let mut cleaned_versions = HashSet::new();
+        loop {
+            match MIGRATOR.run(&pool).await {
+                Ok(()) => break,
+                Err(MigrateError::VersionMissing(version)) => {
+                    if !cleaned_versions.insert(version) {
+                        panic!("Versão de migração ausente ({version}) persiste após limpeza");
+                    }
+                    tracing::warn!(
+                        "Versão de migração ausente ({version}); removendo marcador e tentando novamente."
                     );
-                    panic!("Falha ao preparar migrações do banco de dados");
+                    if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
+                        .bind(version)
+                        .execute(&pool)
+                        .await
+                    {
+                        tracing::error!(
+                            "Falha ao remover marcador da migração ausente ({version}): {clean_err}"
+                        );
+                        panic!("Falha ao preparar migrações do banco de dados");
+                    }
+                    continue;
                 }
-                continue;
-            }
-            Err(MigrateError::VersionMismatch(version)) => {
-                if !cleaned_versions.insert(version) {
-                    panic!("Versão de migração inconsistente ({version}) persiste após limpeza");
-                }
-                tracing::warn!(
-                    "Versão de migração inconsistente ({version}); removendo marcador e tentando novamente."
-                );
-                if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
-                    .bind(version)
-                    .execute(&pool)
-                    .await
-                {
-                    tracing::error!(
-                        "Falha ao remover marcador da migração inconsistente ({version}): {clean_err}"
+                Err(MigrateError::VersionMismatch(version)) => {
+                    if !cleaned_versions.insert(version) {
+                        panic!("Versão de migração inconsistente ({version}) persiste após limpeza");
+                    }
+                    tracing::warn!(
+                        "Versão de migração inconsistente ({version}); removendo marcador e tentando novamente."
                     );
-                    panic!("Falha ao preparar migrações do banco de dados");
+                    if let Err(clean_err) = query("DELETE FROM _sqlx_migrations WHERE version = $1")
+                        .bind(version)
+                        .execute(&pool)
+                        .await
+                    {
+                        tracing::error!(
+                            "Falha ao remover marcador da migração inconsistente ({version}): {clean_err}"
+                        );
+                        panic!("Falha ao preparar migrações do banco de dados");
+                    }
+                    continue;
                 }
-                continue;
-            }
-            Err(other) => {
-                panic!("Falha ao aplicar migrações do banco de dados: {other}");
+                Err(other) => {
+                    panic!("Falha ao aplicar migrações do banco de dados: {other}");
+                }
             }
         }
+        info!("Migrações aplicadas com sucesso!");
+    } else {
+        info!("Pulado: execução de migrações (APP_ENV={}, RUN_MIGRATIONS={:?})", app_env, run_migrations_env);
     }
-    info!("Migrações aplicadas com sucesso!");
 
     // Executar aplicação Tauri
     tauri::Builder::default()
         .manage(pool)
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
-        .setup(|app| {
-            let handle = app.handle();
-
+        .setup(|_app| {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -104,15 +104,7 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
 
-            <div className="mt-4 p-3 bg-muted/50 rounded-md">
-              <p className="text-xs text-muted-foreground text-center">
-                Usuários de teste:
-                <br />
-                <span className="font-medium">admin / admin123</span>
-                <br />
-                <span className="font-medium">usuario / user123</span>
-              </p>
-            </div>
+            
           </form>
         </CardContent>
       </Card>
