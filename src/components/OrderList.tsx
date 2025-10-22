@@ -773,7 +773,7 @@ export default function OrderList() {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full space-y-6 min-h-screen">
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -819,9 +819,9 @@ export default function OrderList() {
         </CardContent>
       </Card>
 
-      <Card className="flex-1 flex flex-col min-h-0">
-        <CardContent className="p-0 flex-1 flex flex-col">
-          <div className="overflow-x-auto overflow-y-auto flex-1">
+      <Card className="flex-1 flex flex-col min-h-0 flex-grow">
+        <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
         <Table className="min-w-[1460px]">
               <TableHeader>
             <TableRow>
@@ -995,53 +995,58 @@ export default function OrderList() {
       </Card>
 
       {filteredOrders.length > 0 && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {page * rowsPerPage + 1} a {Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de {filteredOrders.length} resultados
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={rowsPerPage.toString()}
-              onValueChange={(value) => setRowsPerPage(Number(value))}
-            >
-              <SelectTrigger className="h-9 w-[140px]">
-                <SelectValue placeholder="Itens por página" />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 50, 100].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size} por página
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
+        <div className="w-full bg-background border-t border-border p-4 mt-auto">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm text-muted-foreground text-center lg:text-left">
+              Mostrando {page * rowsPerPage + 1} a {Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de {filteredOrders.length} resultados
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <Select
+                value={rowsPerPage.toString()}
+                onValueChange={(value) => setRowsPerPage(Number(value))}
               >
-                Anterior
-              </Button>
-              {Array.from({ length: totalPages }).map((_, index) => (
+                <SelectTrigger className="h-9 w-[140px]">
+                  <SelectValue placeholder="Itens por página" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size} por página
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-1 flex-wrap justify-center">
                 <Button
-                  key={index}
-                  variant={index === page ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setPage(index)}
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
                 >
-                  {index + 1}
+                  Anterior
                 </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                disabled={page >= totalPages - 1}
-              >
-                Próxima
-              </Button>
+                <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
+                  {Array.from({ length: totalPages }).map((_, index) => (
+                    <Button
+                      key={index}
+                      variant={index === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPage(index)}
+                      className="min-w-[40px]"
+                    >
+                      {index + 1}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                  disabled={page >= totalPages - 1}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
           </div>
         </div>

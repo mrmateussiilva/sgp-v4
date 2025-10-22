@@ -21,6 +21,7 @@ import OrderList from '../components/OrderList';
 import OrderForm from '../components/OrderForm';
 import CreateOrderComplete from '../components/CreateOrderComplete';
 import ProtectedRoute from '../components/ProtectedRoute';
+import DashboardOverview from './DashboardOverview';
 import Clientes from './Clientes';
 import RelatoriosEnvios from './RelatoriosEnvios';
 import Fechamentos from './Fechamentos';
@@ -344,7 +345,7 @@ export default function Dashboard() {
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
         <Routes>
-          <Route path="/" element={<OrderList />} />
+          <Route path="/" element={<DashboardOverview />} />
           <Route path="/orders" element={<OrderList />} />
             <Route path="/orders/new" element={<CreateOrderComplete />} />
           <Route path="/orders/edit/:id" element={<OrderForm />} />
