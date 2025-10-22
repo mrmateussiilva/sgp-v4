@@ -56,6 +56,8 @@ export default function OrderList() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -100,14 +102,29 @@ export default function OrderList() {
   }, []);
 
   useEffect(() => {
+    loadOrders();
+  }, [page, rowsPerPage]);
+
+  useEffect(() => {
     setPage(0);
   }, [searchTerm, productionStatusFilter, rowsPerPage]);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const data = await api.getOrders();
-      setOrders(data);
+      // Usar API paginada para pedidos pendentes
+      if (productionStatusFilter === 'pending') {
+        const paginatedData = await api.getPendingOrdersPaginated(page + 1, rowsPerPage);
+        setOrders(paginatedData.orders);
+        setTotalPages(paginatedData.total_pages);
+        setTotalOrders(paginatedData.total);
+      } else {
+        // Para outros filtros, usar API completa
+        const data = await api.getOrders();
+        setOrders(data);
+        setTotalPages(Math.ceil(data.length / rowsPerPage) || 1);
+        setTotalOrders(data.length);
+      }
     } catch (error) {
       const message = extractErrorMessage(error);
       if (isSessionError(message)) {
@@ -175,17 +192,32 @@ export default function OrderList() {
     setOrderToDelete(null);
   };
 
-  const filteredOrders = useMemo(() => orders.filter((order) => {
-    const clienteName = order.cliente || order.customer_name || '';
-    const matchesSearch =
-      searchTerm === '' ||
-      clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toString().includes(searchTerm);
-    const matchesProductionStatus =
-      productionStatusFilter === 'all' ||
-      (productionStatusFilter === 'pending' ? order.pronto !== true : order.pronto === true);
-    return matchesSearch && matchesProductionStatus;
-  }), [orders, searchTerm, productionStatusFilter]);
+  const filteredOrders = useMemo(() => {
+    // Para pedidos pendentes com paginação, não aplicar filtros adicionais
+    if (productionStatusFilter === 'pending') {
+      return orders.filter((order) => {
+        const clienteName = order.cliente || order.customer_name || '';
+        const matchesSearch =
+          searchTerm === '' ||
+          clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.id.toString().includes(searchTerm);
+        return matchesSearch;
+      });
+    }
+    
+    // Para outros filtros, usar lógica original
+    return orders.filter((order) => {
+      const clienteName = order.cliente || order.customer_name || '';
+      const matchesSearch =
+        searchTerm === '' ||
+        clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.id.toString().includes(searchTerm);
+      const matchesProductionStatus =
+        productionStatusFilter === 'all' ||
+        (productionStatusFilter === 'ready' ? order.pronto === true : order.pronto !== true);
+      return matchesSearch && matchesProductionStatus;
+    });
+  }, [orders, searchTerm, productionStatusFilter]);
 
   useEffect(() => {
     if (selectedOrderIdsForPrint.length > 0) {
@@ -198,18 +230,17 @@ export default function OrderList() {
     }
   }, [filteredOrders, selectedOrderIdsForPrint]);
 
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage) || 1;
-
   useEffect(() => {
     if (page > totalPages - 1) {
       setPage(totalPages - 1);
     }
   }, [totalPages, page]);
 
-  const paginatedOrders = filteredOrders.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Para pedidos pendentes com paginação, usar dados do backend
+  // Para outros filtros, usar paginação local
+  const paginatedOrders = productionStatusFilter === 'pending' 
+    ? filteredOrders 
+    : filteredOrders.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const handlePrintSelected = () => {
     if (selectedOrderIdsForPrint.length === 0) {
@@ -998,7 +1029,10 @@ export default function OrderList() {
         <div className="w-full bg-background border-t border-border p-4 mt-auto">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <p className="text-sm text-muted-foreground text-center lg:text-left">
-              Mostrando {page * rowsPerPage + 1} a {Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de {filteredOrders.length} resultados
+              {productionStatusFilter === 'pending' 
+                ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
+                : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`
+              }
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <Select

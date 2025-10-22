@@ -1,11 +1,324 @@
 use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
+use crate::cache::CacheManager;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use serde_json::{json, Map, Value};
 use sqlx::{QueryBuilder, Row};
 use tauri::State;
 use tracing::{error, info};
+use std::time::Duration;
+
+#[tauri::command]
+pub async fn get_pending_orders_paginated(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
+    session_token: String,
+    page: Option<i32>,
+    page_size: Option<i32>,
+) -> Result<PaginatedOrders, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let page = page.unwrap_or(1).max(1);
+    let page_size = page_size.unwrap_or(20).min(100).max(1); // Limitar entre 1-100
+    let offset = (page - 1) * page_size;
+    
+    // Chave do cache baseada nos parâmetros
+    let cache_key = format!("pending_orders_paginated_{}_{}", page, page_size);
+    
+    // Tentar buscar do cache primeiro
+    if let Some(cached_result) = cache.get::<PaginatedOrders>(&cache_key).await {
+        info!("Retornando pedidos pendentes do cache - página: {}, tamanho: {}", page, page_size);
+        return Ok(cached_result);
+    }
+    
+    info!("Buscando pedidos pendentes paginados no banco - página: {}, tamanho: {}", page, page_size);
+
+    // Primeiro, contar total de pedidos pendentes
+    let total_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(DISTINCT id) FROM orders WHERE pronto IS NULL OR pronto = false"
+    )
+    .fetch_one(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao contar pedidos pendentes: {}", e);
+        "Erro ao contar pedidos".to_string()
+    })?;
+
+    // Query otimizada com JOIN e paginação
+    let query = r#"
+        SELECT DISTINCT
+            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
+            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
+            o.valor_frete, o.status, o.prioridade, o.observacao, 
+            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
+            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
+            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
+            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.pronto IS NULL OR o.pronto = false
+        ORDER BY o.created_at DESC, oi.id ASC
+        LIMIT $1 OFFSET $2
+    "#;
+
+    let rows = sqlx::query(query)
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(pool.inner())
+        .await
+        .map_err(|e| {
+            error!("Erro ao buscar pedidos pendentes paginados: {}", e);
+            "Erro ao buscar pedidos pendentes".to_string()
+        })?;
+
+    // Agrupar resultados por pedido
+    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
+
+    for row in rows {
+        let order_id: i32 = row.get("id");
+        
+        // Se o pedido ainda não existe no mapa, criar
+        if !orders_map.contains_key(&order_id) {
+            let order = Order {
+                id: order_id,
+                numero: row.get("numero"),
+                cliente: row.get("cliente"),
+                cidade_cliente: row.get("cidade_cliente"),
+                estado_cliente: row.get("estado_cliente"),
+                telefone_cliente: row.get("telefone_cliente"),
+                data_entrada: row.get("data_entrada"),
+                data_entrega: row.get("data_entrega"),
+                total_value: row.get("total_value"),
+                valor_frete: row.get("valor_frete"),
+                status: row.get("status"),
+                prioridade: row.get("prioridade"),
+                observacao: row.get("observacao"),
+                financeiro: row.get("financeiro"),
+                conferencia: row.get("conferencia"),
+                sublimacao: row.get("sublimacao"),
+                costura: row.get("costura"),
+                expedicao: row.get("expedicao"),
+                forma_envio: row.get("forma_envio"),
+                forma_pagamento_id: row.get("forma_pagamento_id"),
+                pronto: row.get("pronto"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            };
+
+            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
+        }
+
+        // Adicionar item se existir
+        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
+            let item = OrderItem {
+                id: item_id,
+                order_id,
+                item_name: row.get("item_name"),
+                quantity: row.get("quantity"),
+                unit_price: row.get("unit_price"),
+                subtotal: row.get("subtotal"),
+                tipo_producao: row.get("tipo_producao"),
+                descricao: row.get("descricao"),
+                vendedor: row.get("vendedor"),
+                designer: row.get("designer"),
+                // Campos não essenciais para listagem - deixar como None
+                largura: None,
+                altura: None,
+                metro_quadrado: None,
+                tecido: None,
+                overloque: None,
+                elastico: None,
+                tipo_acabamento: None,
+                quantidade_ilhos: None,
+                espaco_ilhos: None,
+                valor_ilhos: None,
+                quantidade_cordinha: None,
+                espaco_cordinha: None,
+                valor_cordinha: None,
+                observacao: None,
+                imagem: None,
+                quantidade_paineis: None,
+                valor_unitario: None,
+                emenda: None,
+                emenda_qtd: None,
+                terceirizado: None,
+                acabamento_lona: None,
+                valor_lona: None,
+                quantidade_lona: None,
+                outros_valores_lona: None,
+                tipo_adesivo: None,
+                valor_adesivo: None,
+                quantidade_adesivo: None,
+                outros_valores_adesivo: None,
+                ziper: None,
+                cordinha_extra: None,
+                alcinha: None,
+                toalha_pronta: None,
+            };
+
+            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
+                order_with_items.items.push(item);
+            }
+        }
+    }
+
+    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
+    let total_pages = (total_count as f64 / page_size as f64).ceil() as i64;
+    
+    let result = PaginatedOrders {
+        orders: orders_with_items,
+        total: total_count,
+        page: page as i64,
+        page_size: page_size as i64,
+        total_pages,
+    };
+    
+    // Armazenar no cache por 30 segundos
+    cache.set(cache_key, result.clone(), Duration::from_secs(30)).await;
+    
+    info!("Retornando {} pedidos pendentes (página {}/{})", result.orders.len(), page, total_pages);
+    
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn get_pending_orders_light(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+) -> Result<Vec<OrderWithItems>, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    info!("Buscando pedidos pendentes (otimizado)");
+
+    // Query otimizada com JOIN para eliminar problema N+1
+    // Busca apenas campos essenciais para listagem
+    let query = r#"
+        SELECT DISTINCT
+            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
+            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
+            o.valor_frete, o.status, o.prioridade, o.observacao, 
+            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
+            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
+            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
+            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.pronto IS NULL OR o.pronto = false
+        ORDER BY o.created_at DESC, oi.id ASC
+    "#;
+
+    let rows = sqlx::query(query)
+        .fetch_all(pool.inner())
+        .await
+        .map_err(|e| {
+            error!("Erro ao buscar pedidos pendentes: {}", e);
+            "Erro ao buscar pedidos pendentes".to_string()
+        })?;
+
+    // Agrupar resultados por pedido
+    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
+
+    for row in rows {
+        let order_id: i32 = row.get("id");
+        
+        // Se o pedido ainda não existe no mapa, criar
+        if !orders_map.contains_key(&order_id) {
+            let order = Order {
+                id: order_id,
+                numero: row.get("numero"),
+                cliente: row.get("cliente"),
+                cidade_cliente: row.get("cidade_cliente"),
+                estado_cliente: row.get("estado_cliente"),
+                telefone_cliente: row.get("telefone_cliente"),
+                data_entrada: row.get("data_entrada"),
+                data_entrega: row.get("data_entrega"),
+                total_value: row.get("total_value"),
+                valor_frete: row.get("valor_frete"),
+                status: row.get("status"),
+                prioridade: row.get("prioridade"),
+                observacao: row.get("observacao"),
+                financeiro: row.get("financeiro"),
+                conferencia: row.get("conferencia"),
+                sublimacao: row.get("sublimacao"),
+                costura: row.get("costura"),
+                expedicao: row.get("expedicao"),
+                forma_envio: row.get("forma_envio"),
+                forma_pagamento_id: row.get("forma_pagamento_id"),
+                pronto: row.get("pronto"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            };
+
+            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
+        }
+
+        // Adicionar item se existir
+        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
+            let item = OrderItem {
+                id: item_id,
+                order_id,
+                item_name: row.get("item_name"),
+                quantity: row.get("quantity"),
+                unit_price: row.get("unit_price"),
+                subtotal: row.get("subtotal"),
+                tipo_producao: row.get("tipo_producao"),
+                descricao: row.get("descricao"),
+                vendedor: row.get("vendedor"),
+                designer: row.get("designer"),
+                // Campos não essenciais para listagem - deixar como None
+                largura: None,
+                altura: None,
+                metro_quadrado: None,
+                tecido: None,
+                overloque: None,
+                elastico: None,
+                tipo_acabamento: None,
+                quantidade_ilhos: None,
+                espaco_ilhos: None,
+                valor_ilhos: None,
+                quantidade_cordinha: None,
+                espaco_cordinha: None,
+                valor_cordinha: None,
+                observacao: None,
+                imagem: None,
+                quantidade_paineis: None,
+                valor_unitario: None,
+                emenda: None,
+                emenda_qtd: None,
+                terceirizado: None,
+                acabamento_lona: None,
+                valor_lona: None,
+                quantidade_lona: None,
+                outros_valores_lona: None,
+                tipo_adesivo: None,
+                valor_adesivo: None,
+                quantidade_adesivo: None,
+                outros_valores_adesivo: None,
+                ziper: None,
+                cordinha_extra: None,
+                alcinha: None,
+                toalha_pronta: None,
+            };
+
+            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
+                order_with_items.items.push(item);
+            }
+        }
+    }
+
+    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
+    
+    info!("Retornando {} pedidos pendentes (otimizado)", orders_with_items.len());
+    Ok(orders_with_items)
+}
 
 #[tauri::command]
 pub async fn get_orders(
@@ -770,6 +1083,7 @@ pub async fn update_order(
 pub async fn update_order_status_flags(
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
     session_token: String,
     request: UpdateOrderStatusRequest,
 ) -> Result<OrderWithItems, String> {
@@ -777,7 +1091,16 @@ pub async fn update_order_status_flags(
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
-    update_order_status_flags_internal(pool.inner(), request).await
+    
+    let result = update_order_status_flags_internal(pool.inner(), request.clone()).await;
+    
+    // Invalidar cache de pedidos pendentes quando status for atualizado
+    if result.is_ok() {
+        cache.invalidate_pattern("pending_orders").await;
+        info!("Cache de pedidos pendentes invalidado após atualização de status");
+    }
+    
+    result
 }
 
 pub(crate) async fn update_order_status_flags_internal(

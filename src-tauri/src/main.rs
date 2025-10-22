@@ -14,9 +14,11 @@ mod db;
 mod migrator;
 mod models;
 mod session;
+mod cache;
 
 use crate::migrator::MIGRATOR;
 use crate::session::SessionManager;
+use crate::cache::CacheManager;
 
 #[tokio::main]
 async fn main() {
@@ -96,6 +98,7 @@ async fn main() {
     tauri::Builder::default()
         .manage(pool)
         .manage(SessionManager::new(12))
+        .manage(CacheManager::new())
         .setup(|app| {
             let handle = app.handle();
 
@@ -120,6 +123,8 @@ async fn main() {
             commands::auth::logout,
             // Orders
             commands::orders::get_orders,
+            commands::orders::get_pending_orders_light,
+            commands::orders::get_pending_orders_paginated,
             commands::orders::get_order_by_id,
             commands::orders::create_order,
             commands::orders::update_order_metadata,

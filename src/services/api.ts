@@ -53,6 +53,20 @@ export const api = {
     return await invoke<OrderWithItems[]>('get_orders', { sessionToken });
   },
 
+  getPendingOrdersLight: async (): Promise<OrderWithItems[]> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<OrderWithItems[]>('get_pending_orders_light', { sessionToken });
+  },
+
+  getPendingOrdersPaginated: async (page?: number, pageSize?: number): Promise<PaginatedOrders> => {
+    const sessionToken = requireSessionToken();
+    return await invoke<PaginatedOrders>('get_pending_orders_paginated', { 
+      sessionToken, 
+      page: page || 1, 
+      pageSize: pageSize || 20 
+    });
+  },
+
   getOrderById: async (orderId: number): Promise<OrderWithItems> => {
     const sessionToken = requireSessionToken();
     return await invoke<OrderWithItems>('get_order_by_id', { sessionToken, orderId });
