@@ -49,7 +49,7 @@ pub async fn get_pending_orders_paginated(
         "Erro ao contar pedidos".to_string()
     })?;
 
-    // Query otimizada com JOIN e paginação
+    // Query otimizada com JOIN e paginação - incluindo todos os campos dos itens
     let query = r#"
         SELECT DISTINCT
             o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
@@ -58,7 +58,15 @@ pub async fn get_pending_orders_paginated(
             o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
             o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
             oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
-            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
+            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer,
+            oi.largura, oi.altura, oi.metro_quadrado, oi.tecido, oi.overloque, 
+            oi.elastico, oi.tipo_acabamento, oi.quantidade_ilhos, oi.espaco_ilhos, 
+            oi.valor_ilhos, oi.quantidade_cordinha, oi.espaco_cordinha, oi.valor_cordinha, 
+            oi.observacao as item_observacao, oi.imagem, oi.quantidade_paineis, 
+            oi.valor_unitario, oi.emenda, oi.emenda_qtd, oi.terceirizado, 
+            oi.acabamento_lona, oi.valor_lona, oi.quantidade_lona, oi.outros_valores_lona,
+            oi.tipo_adesivo, oi.valor_adesivo, oi.quantidade_adesivo, oi.outros_valores_adesivo,
+            oi.ziper, oi.cordinha_extra, oi.alcinha, oi.toalha_pronta
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
         WHERE o.pronto IS NULL OR o.pronto = false
@@ -126,39 +134,39 @@ pub async fn get_pending_orders_paginated(
                 descricao: row.get("descricao"),
                 vendedor: row.get("vendedor"),
                 designer: row.get("designer"),
-                // Campos não essenciais para listagem - deixar como None
-                largura: None,
-                altura: None,
-                metro_quadrado: None,
-                tecido: None,
-                overloque: None,
-                elastico: None,
-                tipo_acabamento: None,
-                quantidade_ilhos: None,
-                espaco_ilhos: None,
-                valor_ilhos: None,
-                quantidade_cordinha: None,
-                espaco_cordinha: None,
-                valor_cordinha: None,
-                observacao: None,
-                imagem: None,
-                quantidade_paineis: None,
-                valor_unitario: None,
-                emenda: None,
-                emenda_qtd: None,
-                terceirizado: None,
-                acabamento_lona: None,
-                valor_lona: None,
-                quantidade_lona: None,
-                outros_valores_lona: None,
-                tipo_adesivo: None,
-                valor_adesivo: None,
-                quantidade_adesivo: None,
-                outros_valores_adesivo: None,
-                ziper: None,
-                cordinha_extra: None,
-                alcinha: None,
-                toalha_pronta: None,
+                // Campos detalhados - incluindo todos os dados para exibição completa
+                largura: row.get("largura"),
+                altura: row.get("altura"),
+                metro_quadrado: row.get("metro_quadrado"),
+                tecido: row.get("tecido"),
+                overloque: row.get("overloque"),
+                elastico: row.get("elastico"),
+                tipo_acabamento: row.get("tipo_acabamento"),
+                quantidade_ilhos: row.get("quantidade_ilhos"),
+                espaco_ilhos: row.get("espaco_ilhos"),
+                valor_ilhos: row.get("valor_ilhos"),
+                quantidade_cordinha: row.get("quantidade_cordinha"),
+                espaco_cordinha: row.get("espaco_cordinha"),
+                valor_cordinha: row.get("valor_cordinha"),
+                observacao: row.get("item_observacao"),
+                imagem: row.get("imagem"),
+                quantidade_paineis: row.get("quantidade_paineis"),
+                valor_unitario: row.get("valor_unitario"),
+                emenda: row.get("emenda"),
+                emenda_qtd: row.get("emenda_qtd"),
+                terceirizado: row.get("terceirizado"),
+                acabamento_lona: row.get("acabamento_lona"),
+                valor_lona: row.get("valor_lona"),
+                quantidade_lona: row.get("quantidade_lona"),
+                outros_valores_lona: row.get("outros_valores_lona"),
+                tipo_adesivo: row.get("tipo_adesivo"),
+                valor_adesivo: row.get("valor_adesivo"),
+                quantidade_adesivo: row.get("quantidade_adesivo"),
+                outros_valores_adesivo: row.get("outros_valores_adesivo"),
+                ziper: row.get("ziper"),
+                cordinha_extra: row.get("cordinha_extra"),
+                alcinha: row.get("alcinha"),
+                toalha_pronta: row.get("toalha_pronta"),
             };
 
             if let Some(order_with_items) = orders_map.get_mut(&order_id) {
@@ -182,6 +190,183 @@ pub async fn get_pending_orders_paginated(
     cache.set(cache_key, result.clone(), Duration::from_secs(30)).await;
     
     info!("Retornando {} pedidos pendentes (página {}/{})", result.orders.len(), page, total_pages);
+    
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn get_ready_orders_paginated(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
+    session_token: String,
+    page: Option<i32>,
+    page_size: Option<i32>,
+) -> Result<PaginatedOrders, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let page = page.unwrap_or(1).max(1);
+    let page_size = page_size.unwrap_or(20).min(100).max(1); // Limitar entre 1-100
+    let offset = (page - 1) * page_size;
+    
+    // Chave do cache baseada nos parâmetros
+    let cache_key = format!("ready_orders_paginated_{}_{}", page, page_size);
+    
+    // Tentar buscar do cache primeiro
+    if let Some(cached_result) = cache.get::<PaginatedOrders>(&cache_key).await {
+        info!("Retornando pedidos prontos do cache - página: {}, tamanho: {}", page, page_size);
+        return Ok(cached_result);
+    }
+    
+    info!("Buscando pedidos prontos paginados no banco - página: {}, tamanho: {}", page, page_size);
+
+    // Primeiro, contar total de pedidos prontos
+    let total_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(DISTINCT id) FROM orders WHERE pronto = true"
+    )
+    .fetch_one(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao contar pedidos prontos: {}", e);
+        "Erro ao contar pedidos".to_string()
+    })?;
+
+    // Query otimizada com JOIN e paginação
+    let query = r#"
+        SELECT DISTINCT
+            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
+            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
+            o.valor_frete, o.status, o.prioridade, o.observacao, 
+            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
+            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
+            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
+            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.pronto = true
+        ORDER BY o.created_at DESC, oi.id ASC
+        LIMIT $1 OFFSET $2
+    "#;
+
+    let rows = sqlx::query(query)
+        .bind(page_size)
+        .bind(offset)
+        .fetch_all(pool.inner())
+        .await
+        .map_err(|e| {
+            error!("Erro ao buscar pedidos prontos paginados: {}", e);
+            "Erro ao buscar pedidos prontos".to_string()
+        })?;
+
+    // Agrupar resultados por pedido
+    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
+
+    for row in rows {
+        let order_id: i32 = row.get("id");
+        
+        // Se o pedido ainda não existe no mapa, criar
+        if !orders_map.contains_key(&order_id) {
+            let order = Order {
+                id: order_id,
+                numero: row.get("numero"),
+                cliente: row.get("cliente"),
+                cidade_cliente: row.get("cidade_cliente"),
+                estado_cliente: row.get("estado_cliente"),
+                telefone_cliente: row.get("telefone_cliente"),
+                data_entrada: row.get("data_entrada"),
+                data_entrega: row.get("data_entrega"),
+                total_value: row.get("total_value"),
+                valor_frete: row.get("valor_frete"),
+                status: row.get("status"),
+                prioridade: row.get("prioridade"),
+                observacao: row.get("observacao"),
+                financeiro: row.get("financeiro"),
+                conferencia: row.get("conferencia"),
+                sublimacao: row.get("sublimacao"),
+                costura: row.get("costura"),
+                expedicao: row.get("expedicao"),
+                forma_envio: row.get("forma_envio"),
+                forma_pagamento_id: row.get("forma_pagamento_id"),
+                pronto: row.get("pronto"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            };
+
+            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
+        }
+
+        // Adicionar item se existir
+        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
+            let item = OrderItem {
+                id: item_id,
+                order_id,
+                item_name: row.get("item_name"),
+                quantity: row.get("quantity"),
+                unit_price: row.get("unit_price"),
+                subtotal: row.get("subtotal"),
+                tipo_producao: row.get("tipo_producao"),
+                descricao: row.get("descricao"),
+                vendedor: row.get("vendedor"),
+                designer: row.get("designer"),
+                // Campos detalhados - incluindo todos os dados para exibição completa
+                largura: row.get("largura"),
+                altura: row.get("altura"),
+                metro_quadrado: row.get("metro_quadrado"),
+                tecido: row.get("tecido"),
+                overloque: row.get("overloque"),
+                elastico: row.get("elastico"),
+                tipo_acabamento: row.get("tipo_acabamento"),
+                quantidade_ilhos: row.get("quantidade_ilhos"),
+                espaco_ilhos: row.get("espaco_ilhos"),
+                valor_ilhos: row.get("valor_ilhos"),
+                quantidade_cordinha: row.get("quantidade_cordinha"),
+                espaco_cordinha: row.get("espaco_cordinha"),
+                valor_cordinha: row.get("valor_cordinha"),
+                observacao: row.get("item_observacao"),
+                imagem: row.get("imagem"),
+                quantidade_paineis: row.get("quantidade_paineis"),
+                valor_unitario: row.get("valor_unitario"),
+                emenda: row.get("emenda"),
+                emenda_qtd: row.get("emenda_qtd"),
+                terceirizado: row.get("terceirizado"),
+                acabamento_lona: row.get("acabamento_lona"),
+                valor_lona: row.get("valor_lona"),
+                quantidade_lona: row.get("quantidade_lona"),
+                outros_valores_lona: row.get("outros_valores_lona"),
+                tipo_adesivo: row.get("tipo_adesivo"),
+                valor_adesivo: row.get("valor_adesivo"),
+                quantidade_adesivo: row.get("quantidade_adesivo"),
+                outros_valores_adesivo: row.get("outros_valores_adesivo"),
+                ziper: row.get("ziper"),
+                cordinha_extra: row.get("cordinha_extra"),
+                alcinha: row.get("alcinha"),
+                toalha_pronta: row.get("toalha_pronta"),
+            };
+
+            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
+                order_with_items.items.push(item);
+            }
+        }
+    }
+
+    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
+    let total_pages = (total_count as f64 / page_size as f64).ceil() as i64;
+    
+    let result = PaginatedOrders {
+        orders: orders_with_items,
+        total: total_count,
+        page: page as i64,
+        page_size: page_size as i64,
+        total_pages,
+    };
+    
+    // Armazenar no cache por 30 segundos
+    cache.set(cache_key, result.clone(), Duration::from_secs(30)).await;
+    
+    info!("Retornando {} pedidos prontos (página {}/{})", result.orders.len(), page, total_pages);
     
     Ok(result)
 }
@@ -273,39 +458,39 @@ pub async fn get_pending_orders_light(
                 descricao: row.get("descricao"),
                 vendedor: row.get("vendedor"),
                 designer: row.get("designer"),
-                // Campos não essenciais para listagem - deixar como None
-                largura: None,
-                altura: None,
-                metro_quadrado: None,
-                tecido: None,
-                overloque: None,
-                elastico: None,
-                tipo_acabamento: None,
-                quantidade_ilhos: None,
-                espaco_ilhos: None,
-                valor_ilhos: None,
-                quantidade_cordinha: None,
-                espaco_cordinha: None,
-                valor_cordinha: None,
-                observacao: None,
-                imagem: None,
-                quantidade_paineis: None,
-                valor_unitario: None,
-                emenda: None,
-                emenda_qtd: None,
-                terceirizado: None,
-                acabamento_lona: None,
-                valor_lona: None,
-                quantidade_lona: None,
-                outros_valores_lona: None,
-                tipo_adesivo: None,
-                valor_adesivo: None,
-                quantidade_adesivo: None,
-                outros_valores_adesivo: None,
-                ziper: None,
-                cordinha_extra: None,
-                alcinha: None,
-                toalha_pronta: None,
+                // Campos detalhados - incluindo todos os dados para exibição completa
+                largura: row.get("largura"),
+                altura: row.get("altura"),
+                metro_quadrado: row.get("metro_quadrado"),
+                tecido: row.get("tecido"),
+                overloque: row.get("overloque"),
+                elastico: row.get("elastico"),
+                tipo_acabamento: row.get("tipo_acabamento"),
+                quantidade_ilhos: row.get("quantidade_ilhos"),
+                espaco_ilhos: row.get("espaco_ilhos"),
+                valor_ilhos: row.get("valor_ilhos"),
+                quantidade_cordinha: row.get("quantidade_cordinha"),
+                espaco_cordinha: row.get("espaco_cordinha"),
+                valor_cordinha: row.get("valor_cordinha"),
+                observacao: row.get("item_observacao"),
+                imagem: row.get("imagem"),
+                quantidade_paineis: row.get("quantidade_paineis"),
+                valor_unitario: row.get("valor_unitario"),
+                emenda: row.get("emenda"),
+                emenda_qtd: row.get("emenda_qtd"),
+                terceirizado: row.get("terceirizado"),
+                acabamento_lona: row.get("acabamento_lona"),
+                valor_lona: row.get("valor_lona"),
+                quantidade_lona: row.get("quantidade_lona"),
+                outros_valores_lona: row.get("outros_valores_lona"),
+                tipo_adesivo: row.get("tipo_adesivo"),
+                valor_adesivo: row.get("valor_adesivo"),
+                quantidade_adesivo: row.get("quantidade_adesivo"),
+                outros_valores_adesivo: row.get("outros_valores_adesivo"),
+                ziper: row.get("ziper"),
+                cordinha_extra: row.get("cordinha_extra"),
+                alcinha: row.get("alcinha"),
+                toalha_pronta: row.get("toalha_pronta"),
             };
 
             if let Some(order_with_items) = orders_map.get_mut(&order_id) {
@@ -1094,10 +1279,11 @@ pub async fn update_order_status_flags(
     
     let result = update_order_status_flags_internal(pool.inner(), request.clone()).await;
     
-    // Invalidar cache de pedidos pendentes quando status for atualizado
+    // Invalidar cache de pedidos pendentes e prontos quando status for atualizado
     if result.is_ok() {
         cache.invalidate_pattern("pending_orders").await;
-        info!("Cache de pedidos pendentes invalidado após atualização de status");
+        cache.invalidate_pattern("ready_orders").await;
+        info!("Cache de pedidos pendentes e prontos invalidado após atualização de status");
     }
     
     result
@@ -1238,28 +1424,36 @@ pub async fn get_orders_with_filters(
     );
 
     let mut count_query = String::from("SELECT COUNT(*) FROM orders WHERE 1=1");
+    let mut param_count = 0;
 
     if filters.status.is_some() {
-        query.push_str(" AND status = $1");
-        count_query.push_str(" AND status = $1");
+        param_count += 1;
+        query.push_str(&format!(" AND status = ${}", param_count));
+        count_query.push_str(&format!(" AND status = ${}", param_count));
     }
 
     if filters.cliente.is_some() {
-        let param_num = if filters.status.is_some() { 2 } else { 1 };
-        query.push_str(&format!(" AND cliente ILIKE ${}", param_num));
-        count_query.push_str(&format!(" AND cliente ILIKE ${}", param_num));
+        param_count += 1;
+        query.push_str(&format!(" AND cliente ILIKE ${}", param_count));
+        count_query.push_str(&format!(" AND cliente ILIKE ${}", param_count));
+    }
+
+    if filters.date_from.is_some() {
+        param_count += 1;
+        query.push_str(&format!(" AND data_entrega >= ${}", param_count));
+        count_query.push_str(&format!(" AND data_entrega >= ${}", param_count));
+    }
+
+    if filters.date_to.is_some() {
+        param_count += 1;
+        query.push_str(&format!(" AND data_entrega <= ${}", param_count));
+        count_query.push_str(&format!(" AND data_entrega <= ${}", param_count));
     }
 
     query.push_str(" ORDER BY created_at DESC LIMIT $");
-    let limit_param = if filters.status.is_some() && filters.cliente.is_some() {
-        3
-    } else if filters.status.is_some() || filters.cliente.is_some() {
-        2
-    } else {
-        1
-    };
-    query.push_str(&limit_param.to_string());
-    query.push_str(&format!(" OFFSET ${}", limit_param + 1));
+    param_count += 1;
+    query.push_str(&param_count.to_string());
+    query.push_str(&format!(" OFFSET ${}", param_count + 1));
 
     let mut orders_query = sqlx::query_as::<_, Order>(&query);
     let mut count_query_builder = sqlx::query(&count_query);
@@ -1270,6 +1464,15 @@ pub async fn get_orders_with_filters(
         .as_ref()
         .map(|customer| format!("%{}%", customer));
 
+    // Parsear datas se fornecidas
+    let date_from_parsed = filters.date_from.as_ref().and_then(|date_str| {
+        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
+    });
+    
+    let date_to_parsed = filters.date_to.as_ref().and_then(|date_str| {
+        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
+    });
+
     if let Some(ref status) = filters.status {
         orders_query = orders_query.bind(status);
         count_query_builder = count_query_builder.bind(status);
@@ -1278,6 +1481,16 @@ pub async fn get_orders_with_filters(
     if let Some(ref pattern) = search_pattern {
         orders_query = orders_query.bind(pattern);
         count_query_builder = count_query_builder.bind(pattern);
+    }
+
+    if let Some(ref date_from) = date_from_parsed {
+        orders_query = orders_query.bind(date_from);
+        count_query_builder = count_query_builder.bind(date_from);
+    }
+
+    if let Some(ref date_to) = date_to_parsed {
+        orders_query = orders_query.bind(date_to);
+        count_query_builder = count_query_builder.bind(date_to);
     }
 
     orders_query = orders_query.bind(page_size).bind(offset);

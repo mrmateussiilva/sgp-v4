@@ -36,6 +36,12 @@ impl CacheManager {
         }
     }
 
+    pub fn with_default_ttl(_default_ttl_seconds: u64) -> Self {
+        Self {
+            cache: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
     pub async fn get<T>(&self, key: &str) -> Option<T>
     where
         T: for<'de> serde::Deserialize<'de>,

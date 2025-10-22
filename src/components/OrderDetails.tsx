@@ -481,7 +481,7 @@ function formatChangeValue(value: unknown): string {
     if (value && 'toString' in value) {
       const str = decimalObject.toString?.();
       if (str !== '[object Object]') {
-        return str;
+        return str || '';
       }
     }
     try {

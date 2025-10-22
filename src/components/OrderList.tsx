@@ -4,7 +4,7 @@ import { Edit, Trash2, Eye, FileText, Printer, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
-import { OrderWithItems, OrderItem, UpdateOrderStatusRequest } from '../types';
+import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
@@ -46,6 +46,8 @@ export default function OrderList() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -107,23 +109,55 @@ export default function OrderList() {
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, productionStatusFilter, rowsPerPage]);
+  }, [productionStatusFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    loadOrders(); // Recarregar pedidos quando o filtro muda (após setPage)
+  }, [productionStatusFilter, page, dateFrom, dateTo]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, rowsPerPage]);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
-      // Usar API paginada para pedidos pendentes
-      if (productionStatusFilter === 'pending') {
-        const paginatedData = await api.getPendingOrdersPaginated(page + 1, rowsPerPage);
+      // Se há filtros de data, usar API de filtros
+      if (dateFrom || dateTo) {
+        const filters = {
+          status: productionStatusFilter === 'all' ? undefined : 
+                   productionStatusFilter === 'pending' ? OrderStatus.Pendente : OrderStatus.Concluido,
+          cliente: searchTerm || undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          page: page + 1,
+          page_size: rowsPerPage
+        };
+        
+        const paginatedData = await api.getOrdersWithFilters(filters);
         setOrders(paginatedData.orders);
         setTotalPages(paginatedData.total_pages);
         setTotalOrders(paginatedData.total);
       } else {
-        // Para outros filtros, usar API completa
-        const data = await api.getOrders();
-        setOrders(data);
-        setTotalPages(Math.ceil(data.length / rowsPerPage) || 1);
-        setTotalOrders(data.length);
+        // Usar API paginada para pedidos pendentes
+        if (productionStatusFilter === 'pending') {
+          const paginatedData = await api.getPendingOrdersPaginated(page + 1, rowsPerPage);
+          setOrders(paginatedData.orders);
+          setTotalPages(paginatedData.total_pages);
+          setTotalOrders(paginatedData.total);
+        } else if (productionStatusFilter === 'ready') {
+          // Usar API paginada para pedidos prontos
+          const paginatedData = await api.getReadyOrdersPaginated(page + 1, rowsPerPage);
+          setOrders(paginatedData.orders);
+          setTotalPages(paginatedData.total_pages);
+          setTotalOrders(paginatedData.total);
+        } else {
+          // Para filtro 'all', usar API completa
+          const data = await api.getOrders();
+          setOrders(data);
+          setTotalPages(Math.ceil(data.length / rowsPerPage) || 1);
+          setTotalOrders(data.length);
+        }
       }
     } catch (error) {
       const message = extractErrorMessage(error);
@@ -193,8 +227,8 @@ export default function OrderList() {
   };
 
   const filteredOrders = useMemo(() => {
-    // Para pedidos pendentes com paginação, não aplicar filtros adicionais
-    if (productionStatusFilter === 'pending') {
+    // Se há filtros de data, não aplicar filtros adicionais (já filtrado no backend)
+    if (dateFrom || dateTo) {
       return orders.filter((order) => {
         const clienteName = order.cliente || order.customer_name || '';
         const matchesSearch =
@@ -205,19 +239,28 @@ export default function OrderList() {
       });
     }
     
-    // Para outros filtros, usar lógica original
+    // Para pedidos pendentes e prontos com paginação, não aplicar filtros de status adicionais
+    if (productionStatusFilter === 'pending' || productionStatusFilter === 'ready') {
+      return orders.filter((order) => {
+        const clienteName = order.cliente || order.customer_name || '';
+        const matchesSearch =
+          searchTerm === '' ||
+          clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.id.toString().includes(searchTerm);
+        return matchesSearch;
+      });
+    }
+    
+    // Para filtro 'all', usar lógica original com todos os filtros
     return orders.filter((order) => {
       const clienteName = order.cliente || order.customer_name || '';
       const matchesSearch =
         searchTerm === '' ||
         clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id.toString().includes(searchTerm);
-      const matchesProductionStatus =
-        productionStatusFilter === 'all' ||
-        (productionStatusFilter === 'ready' ? order.pronto === true : order.pronto !== true);
-      return matchesSearch && matchesProductionStatus;
+      return matchesSearch;
     });
-  }, [orders, searchTerm, productionStatusFilter]);
+  }, [orders, searchTerm, productionStatusFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     if (selectedOrderIdsForPrint.length > 0) {
@@ -236,9 +279,9 @@ export default function OrderList() {
     }
   }, [totalPages, page]);
 
-  // Para pedidos pendentes com paginação, usar dados do backend
-  // Para outros filtros, usar paginação local
-  const paginatedOrders = productionStatusFilter === 'pending' 
+  // Para pedidos com filtros de data, pendentes e prontos com paginação, usar dados do backend
+  // Para filtro 'all' sem filtros de data, usar paginação local
+  const paginatedOrders = (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready')
     ? filteredOrders 
     : filteredOrders.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -836,6 +879,22 @@ export default function OrderList() {
                 <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                placeholder="Data inicial"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full sm:w-[150px]"
+              />
+              <Input
+                type="date"
+                placeholder="Data final"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full sm:w-[150px]"
+              />
+            </div>
             <Button
               type="button"
               variant="outline"

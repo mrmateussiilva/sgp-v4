@@ -48,7 +48,7 @@ const REPORT_OPTIONS: Record<
   ],
 };
 
-const STATUS_OPTIONS = ['Todos', 'Pendente', 'Em Processamento', 'Concluído', 'Cancelado'] as const;
+const STATUS_OPTIONS = ['Todos', 'Pendente', 'Em Processamento', 'Concluido', 'Cancelado'] as const;
 type StatusOption = (typeof STATUS_OPTIONS)[number];
 type FiltersState = {
   reportType: ReportTypeKey;

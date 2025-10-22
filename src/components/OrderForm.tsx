@@ -67,7 +67,7 @@ export default function OrderForm() {
           quantity: item.quantity,
           unit_price: typeof item.unit_price === 'number' 
             ? item.unit_price 
-            : parseFloat(item.unit_price.toString()),
+            : parseFloat(String(item.unit_price)),
         }))
       );
     } catch (error) {
@@ -140,6 +140,7 @@ export default function OrderForm() {
         const updatedOrder = await api.updateOrder({
           id: parseInt(id),
           customer_name: customerName,
+          cliente: customerName,
           address,
           status,
           items: updateItems,
@@ -160,7 +161,10 @@ export default function OrderForm() {
 
         const newOrder = await api.createOrder({
           customer_name: customerName,
+          cliente: customerName,
           address,
+          cidade_cliente: address,
+          data_entrada: new Date().toISOString().split('T')[0],
           status,
           items: createItems,
         });
@@ -244,7 +248,7 @@ export default function OrderForm() {
                 <SelectContent>
                   <SelectItem value={OrderStatus.Pendente}>Pendente</SelectItem>
                   <SelectItem value={OrderStatus.EmProcessamento}>Em Processamento</SelectItem>
-                  <SelectItem value={OrderStatus.Concluido}>Concluído</SelectItem>
+                  <SelectItem value={OrderStatus.Concluido}>Concluido</SelectItem>
                   <SelectItem value={OrderStatus.Cancelado}>Cancelado</SelectItem>
                 </SelectContent>
               </Select>

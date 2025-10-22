@@ -10,6 +10,7 @@ use tracing::{error, info};
 use tracing_subscriber;
 
 mod commands;
+mod config;
 mod db;
 mod migrator;
 mod models;
@@ -19,6 +20,7 @@ mod cache;
 use crate::migrator::MIGRATOR;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
+use crate::config::AppConfig;
 
 #[tokio::main]
 async fn main() {
@@ -26,21 +28,35 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     // Carregar variáveis de ambiente
-    dotenv().ok();
+    match dotenv() {
+        Ok(_) => info!("Arquivo .env carregado com sucesso"),
+        Err(e) => {
+            error!("Erro ao carregar arquivo .env: {}. Usando variáveis de ambiente do sistema.", e);
+        }
+    }
 
     info!("Iniciando Sistema de Gerenciamento de Pedidos...");
 
-    // Configurar pool de conexões do banco de dados
-    let database_url =
-        env::var("DATABASE_URL").expect("DATABASE_URL deve estar definida no arquivo .env");
+    // Carregar configurações da aplicação
+    let config = match AppConfig::from_env() {
+        Ok(config) => {
+            info!("Configurações carregadas com sucesso");
+            info!("URL do banco: {}", config.get_masked_database_url());
+            config
+        }
+        Err(e) => {
+            error!("Erro ao carregar configurações: {}", e);
+            panic!("Falha ao carregar configurações da aplicação");
+        }
+    };
 
     info!("Conectando ao banco de dados...");
 
     let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
+        .max_connections(config.database.max_connections)
+        .connect(&config.database.url)
         .await
-        .expect("Falha ao conectar com o banco de dados");
+        .expect("Falha ao conectar com o banco de dados. Verifique as configurações no arquivo .env");
 
     info!("Conexão com banco de dados estabelecida!");
 
@@ -97,8 +113,8 @@ async fn main() {
     // Executar aplicação Tauri
     tauri::Builder::default()
         .manage(pool)
-        .manage(SessionManager::new(12))
-        .manage(CacheManager::new())
+        .manage(SessionManager::new(config.session_timeout_hours as i64))
+        .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
         .setup(|app| {
             let handle = app.handle();
 
@@ -125,6 +141,7 @@ async fn main() {
             commands::orders::get_orders,
             commands::orders::get_pending_orders_light,
             commands::orders::get_pending_orders_paginated,
+            commands::orders::get_ready_orders_paginated,
             commands::orders::get_order_by_id,
             commands::orders::create_order,
             commands::orders::update_order_metadata,

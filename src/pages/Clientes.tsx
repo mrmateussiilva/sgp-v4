@@ -408,10 +408,10 @@ export default function Clientes() {
   const salvarCliente = async () => {
     // Validar todos os campos
     const nomeValido = validarCampo('nome', form.nome);
-    const cepValido = validarCampo('cep', form.cep);
-    const cidadeValida = validarCampo('cidade', form.cidade);
-    const estadoValido = validarCampo('estado', form.estado);
-    const telefoneValido = validarCampo('telefone', form.telefone);
+    const cepValido = validarCampo('cep', form.cep ?? '');
+    const cidadeValida = validarCampo('cidade', form.cidade ?? '');
+    const estadoValido = validarCampo('estado', form.estado ?? '');
+    const telefoneValido = validarCampo('telefone', form.telefone ?? '');
 
     if (!nomeValido || !cepValido || !cidadeValida || !estadoValido || !telefoneValido) {
       toast({
@@ -800,9 +800,9 @@ export default function Clientes() {
                   <InputWithMask
                     id="cep"
                     mask="99999-999"
-                    value={form.cep}
+                    value={form.cep ?? ''}
                     onChange={(e) => handleFormChange('cep', e.target.value)}
-                    onBlur={() => validarCampo('cep', form.cep)}
+                    onBlur={() => validarCampo('cep', form.cep ?? '')}
                     placeholder="00000-000"
                     className={cn(
                       "bg-white",
@@ -816,7 +816,7 @@ export default function Clientes() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => buscarCep(form.cep)}
+                  onClick={() => buscarCep(form.cep ?? '')}
                   disabled={buscandoCep}
                   className="min-w-[100px]"
                 >
@@ -831,9 +831,9 @@ export default function Clientes() {
                 <Label htmlFor="cidade" className="font-medium">Cidade</Label>
                 <Input
                   id="cidade"
-                  value={form.cidade}
+                  value={form.cidade ?? ''}
                   onChange={(e) => handleFormChange('cidade', e.target.value)}
-                  onBlur={() => validarCampo('cidade', form.cidade)}
+                  onBlur={() => validarCampo('cidade', form.cidade ?? '')}
                   placeholder="São Paulo"
                   className={cn(
                     "bg-white",
@@ -849,9 +849,9 @@ export default function Clientes() {
                 <Label htmlFor="estado" className="font-medium">UF</Label>
                 <Input
                   id="estado"
-                  value={form.estado}
+                  value={form.estado ?? ''}
                   onChange={(e) => handleFormChange('estado', e.target.value.toUpperCase())}
-                  onBlur={() => validarCampo('estado', form.estado)}
+                  onBlur={() => validarCampo('estado', form.estado ?? '')}
                   placeholder="SP"
                   maxLength={2}
                   className={cn(
@@ -871,9 +871,9 @@ export default function Clientes() {
               <InputWithMask
                 id="telefone"
                 mask="(99) 99999-9999"
-                value={form.telefone}
+                value={form.telefone ?? ''}
                 onChange={(e) => handleFormChange('telefone', e.target.value)}
-                onBlur={() => validarCampo('telefone', form.telefone)}
+                onBlur={() => validarCampo('telefone', form.telefone ?? '')}
                 placeholder="(00) 00000-0000"
                 className={cn(
                   "bg-white",

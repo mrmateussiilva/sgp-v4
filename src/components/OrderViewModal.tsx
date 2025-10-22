@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Printer, X, ChevronDown } from 'lucide-react';
@@ -167,7 +166,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     switch (status) {
       case 'Pendente': return 'bg-yellow-100 text-yellow-800';
       case 'Em Processamento': return 'bg-blue-100 text-blue-800';
-      case 'Concluído': return 'bg-green-100 text-green-800';
+      case 'Concluido': return 'bg-green-100 text-green-800';
       case 'Cancelado': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -201,15 +200,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const hasPositiveNumber = (value?: string | number | null) => {
     const parsed = parseNumberValue(value);
     return !Number.isNaN(parsed) && parsed > 0;
-  };
-
-  const hasMeaningfulDimension = (value?: string | null) => {
-    if (!value) return false;
-    const parsed = parseNumberValue(value);
-    if (!Number.isNaN(parsed)) {
-      return parsed > 0;
-    }
-    return hasTextValue(value);
   };
 
   const hasQuantityValue = (value?: string | null) => {

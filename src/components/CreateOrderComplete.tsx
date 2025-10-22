@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, Save, Clock, Eye, Loader2 } from 'lucide-react';
+import { Plus, X, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,9 +113,6 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     Number.isNaN(initialSelectedId ?? NaN) ? null : initialSelectedId
   );
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
-  const [orderOptions, setOrderOptions] = useState<OrderWithItems[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [loadingOrder, setLoadingOrder] = useState(false);
 
   function createEmptyTab(tabId: string): TabItem {
     return {
@@ -377,16 +374,6 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   ]);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
-  const orderSelectOptions = useMemo(
-    () =>
-      orderOptions.map((order) => ({
-        value: order.id.toString(),
-        label: `${order.numero ? `#${order.numero}` : `#${order.id}`} - ${
-          order.cliente ?? order.customer_name ?? 'Sem cliente'
-        }`,
-      })),
-    [orderOptions]
-  );
 
   useEffect(() => {
     if (!isEditMode) {
@@ -407,19 +394,17 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
 
     if (orders.length > 0) {
-      setOrderOptions(orders);
       return;
     }
 
     let active = true;
-    setOrdersLoading(true);
+    // Carregar opções de pedidos para seleção
     (async () => {
       try {
         const fetched = await api.getOrders();
         if (!active) {
           return;
         }
-        setOrderOptions(fetched);
         setOrders(fetched);
       } catch (error) {
         if (!active) {
@@ -433,7 +418,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         });
       } finally {
         if (active) {
-          setOrdersLoading(false);
+          // Finalizar carregamento
         }
       }
     })();
@@ -454,7 +439,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
 
     let active = true;
-    setLoadingOrder(true);
+    // Carregar pedido selecionado
     (async () => {
       try {
         const order = await api.getOrderById(selectedOrderId);
@@ -475,7 +460,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         });
       } finally {
         if (active) {
-          setLoadingOrder(false);
+          // Finalizar carregamento
         }
       }
     })();
@@ -1349,7 +1334,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
           const payload: NormalizedItem = {
             orderItemId: item.orderItemId,
             item_name: `${item.tipo_producao.toUpperCase()}: ${item.descricao}`,
-            quantity,
+            quantity: quantidade,
             unit_price: valorUnitario,
             tipo_producao: item.tipo_producao,
             descricao: item.descricao,
@@ -1462,7 +1447,9 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
 
         const updateRequest: UpdateOrderRequest = {
           id: selectedOrderId,
+          customer_name: formData.cliente,
           cliente: formData.cliente,
+          address: address,
           cidade_cliente: address,
           status: formData.status ?? OrderStatus.Pendente,
           items: updateItemsPayload,

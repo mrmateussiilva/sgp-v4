@@ -1,7 +1,7 @@
 export enum OrderStatus {
   Pendente = 'Pendente',
   EmProcessamento = 'Em Processamento',
-  Concluido = 'Concluído',
+  Concluido = 'Concluido',
   Cancelado = 'Cancelado',
 }
 
@@ -51,6 +51,11 @@ export interface OrderItem {
   cordinha_extra?: boolean;
   alcinha?: boolean;
   toalha_pronta?: boolean;
+  acabamento_totem?: string;
+  acabamento_totem_outro?: string;
+  valor_totem?: string;
+  quantidade_totem?: string;
+  outros_valores_totem?: string;
 }
 
 export interface OrderWithItems {
@@ -88,6 +93,8 @@ export interface OrderWithItems {
 
 export interface CreateOrderRequest {
   cliente: string;
+  customer_name?: string;
+  address?: string;
   cidade_cliente: string;
   status: OrderStatus;
   items: CreateOrderItemRequest[];
@@ -146,6 +153,11 @@ export interface CreateOrderItemRequest {
   cordinha_extra?: boolean;
   alcinha?: boolean;
   toalha_pronta?: boolean;
+  acabamento_totem?: string;
+  acabamento_totem_outro?: string;
+  valor_totem?: string;
+  quantidade_totem?: string;
+  outros_valores_totem?: string;
 }
 
 export interface UpdateOrderRequest {
@@ -155,6 +167,15 @@ export interface UpdateOrderRequest {
   status: OrderStatus;
   items: UpdateOrderItemRequest[];
   valor_frete?: number;
+  cliente?: string;
+  cidade_cliente?: string;
+  estado_cliente?: string;
+  telefone_cliente?: string;
+  data_entrega?: string;
+  prioridade?: string;
+  forma_envio?: string;
+  forma_pagamento_id?: number | null;
+  observacao?: string;
 }
 
 export interface UpdateOrderMetadataRequest {

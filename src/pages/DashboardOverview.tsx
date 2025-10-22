@@ -13,12 +13,10 @@ import {
   Zap,
   FileText,
   Truck,
-  Target,
-  TrendingUp
+  Target
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
 import { OrderWithItems } from '../types';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +43,6 @@ interface RecentOrder extends OrderWithItems {
 export default function DashboardOverview() {
   const navigate = useNavigate();
   const { orders } = useOrderStore();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
@@ -159,10 +156,10 @@ export default function DashboardOverview() {
       .map(order => {
         const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
         const today = new Date();
-        const isOverdue = deliveryDate && deliveryDate < today && !order.pronto;
+        const isOverdue = deliveryDate && deliveryDate < today && !order.pronto ? true : false;
         const daysUntilDelivery = deliveryDate 
           ? Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-          : null;
+          : undefined;
 
         return {
           ...order,
@@ -180,7 +177,12 @@ export default function DashboardOverview() {
         const dateB = new Date(b.data_entrega || '');
         return dateA.getTime() - dateB.getTime();
       })
-      .slice(0, 5);
+      .slice(0, 5)
+      .map(order => ({
+        ...order,
+        isOverdue: false,
+        daysUntilDelivery: undefined,
+      }));
   };
 
   const formatDays = (days: number): string => {
