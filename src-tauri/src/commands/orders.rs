@@ -830,14 +830,14 @@ pub async fn update_order_metadata(
     let mut has_updates = false;
 
     if let Some(cliente) = &request.cliente {
-        if cliente.trim() != existing_order.cliente {
+        if cliente.trim() != existing_order.cliente.as_deref().unwrap_or("") {
             has_updates = true;
             separated.push("cliente = ");
             separated.push_bind(cliente);
             changes.insert(
                 "cliente".into(),
                 json!({
-                    "before": existing_order.cliente,
+                    "before": existing_order.cliente.as_deref().unwrap_or(""),
                     "after": cliente
                 }),
             );

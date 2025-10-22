@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::FromRow;
+use chrono::{DateTime, Utc};
 
 // ========================================
 // Tipos e Enums
@@ -29,7 +30,7 @@ pub struct User {
     pub password_hash: String,
     pub is_admin: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -37,7 +38,8 @@ pub struct Order {
     pub id: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub numero: Option<String>,
-    pub cliente: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cidade_cliente: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -52,9 +54,9 @@ pub struct Order {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valor_frete: Option<rust_decimal::Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
     pub status: OrderStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prioridade: Option<String>,
@@ -188,7 +190,8 @@ pub struct OrderWithItems {
     pub id: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub numero: Option<String>,
-    pub cliente: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cidade_cliente: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -203,9 +206,9 @@ pub struct OrderWithItems {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valor_frete: Option<rust_decimal::Decimal>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
     pub status: OrderStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prioridade: Option<String>,
@@ -240,7 +243,7 @@ pub struct OrderAuditLogEntry {
     pub changed_by_name: Option<String>,
     pub changes: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -558,9 +561,9 @@ pub struct Cliente {
     pub estado: Option<String>,
     pub telefone: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -628,9 +631,9 @@ pub struct Material {
     pub ativo: bool,
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -667,9 +670,9 @@ pub struct Designer {
     pub ativo: bool,
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -705,9 +708,9 @@ pub struct Vendedor {
     pub ativo: bool,
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -744,9 +747,9 @@ pub struct FormaEnvio {
     pub ativo: bool,
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -781,9 +784,9 @@ pub struct FormaPagamento {
     pub ativo: bool,
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
