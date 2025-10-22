@@ -118,19 +118,6 @@ async fn main() {
         .setup(|app| {
             let handle = app.handle();
 
-            handle.listen_global("tauri://update-status", |event| {
-                if let Some(payload) = event.payload() {
-                    info!("Status do atualizador: {}", payload);
-                }
-            });
-
-            let updater_handle = handle.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = updater_handle.updater().check().await {
-                    error!("Erro ao verificar atualizações: {}", e);
-                }
-            });
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

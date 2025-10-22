@@ -39,10 +39,10 @@
       "csp": null
     },
     "updater": {
-      "active": true,
+      "active": false,
       "dialog": true,
       "endpoints": [
-        "http://finderbit.com.br/update-tauri/{{target}}/{{current_version}}"
+        "https://finderbit.com.br/update-tauri/{{target}}/{{current_version}}"
       ],
       "pubkey": "INSIRA_AQUI_A_CHAVE_PUBLICA_GERADA_PELO TAURI CLI"
     },
