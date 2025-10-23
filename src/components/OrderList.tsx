@@ -6,10 +6,9 @@ import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
-import { ConnectionStatus } from './ConnectionStatus';
-import { useRealtimeNotifications, useOrderRefresh } from '../hooks/useRealtimeNotifications';
-import { NotificationDebugPanel } from './NotificationDebugPanel';
-import { TauriEventTest } from './TauriEventTest';
+import { AutoRefreshStatus } from './AutoRefreshStatus';
+import { useOrderAutoSync } from '../hooks/useOrderEvents';
+import { SmoothTableWrapper } from './SmoothTableWrapper';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -48,9 +47,32 @@ export default function OrderList() {
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   
-  // Hooks de notificações em tempo real
-  useRealtimeNotifications();
-  const refreshTrigger = useOrderRefresh();
+  // Sistema de sincronização em tempo real via eventos Tauri
+  const [isRealtimeActive, setIsRealtimeActive] = useState(true);
+  const [lastSync, setLastSync] = useState<Date | undefined>();
+  const [syncCount, setSyncCount] = useState(0);
+  
+  // Configurar sincronização automática via eventos
+  useOrderAutoSync({
+    orders,
+    setOrders,
+    removeOrder,
+  });
+  
+  // Função para forçar sincronização manual (recarregar lista completa)
+  const handleForceSync = async () => {
+    console.log('🔄 Forçando sincronização manual...');
+    await loadOrders();
+    setLastSync(new Date());
+    setSyncCount(prev => prev + 1);
+  };
+  
+  const toggleRealtime = () => {
+    setIsRealtimeActive(!isRealtimeActive);
+    if (!isRealtimeActive) {
+      setLastSync(new Date());
+    }
+  };
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -123,13 +145,6 @@ export default function OrderList() {
   useEffect(() => {
     loadOrders(); // Recarregar pedidos quando o filtro muda (após setPage)
   }, [productionStatusFilter, page, dateFrom, dateTo]);
-
-  // Recarregar pedidos quando houver notificação de mudança
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      loadOrders();
-    }
-  }, [refreshTrigger]);
 
   useEffect(() => {
     setPage(0);
@@ -871,7 +886,14 @@ export default function OrderList() {
               <CardTitle>Filtros</CardTitle>
               <CardDescription>Busque e filtre os pedidos</CardDescription>
             </div>
-            <ConnectionStatus />
+            <AutoRefreshStatus 
+              isActive={isRealtimeActive}
+              isRefreshing={false}
+              lastRefresh={lastSync}
+              refreshCount={syncCount}
+              onToggle={toggleRealtime}
+              onForceRefresh={handleForceSync}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -933,7 +955,8 @@ export default function OrderList() {
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-        <Table className="min-w-[1460px]">
+            <SmoothTableWrapper>
+              <Table className="min-w-[1460px]">
               <TableHeader>
             <TableRow>
                   <TableHead className="w-[50px]" />
@@ -1101,6 +1124,7 @@ export default function OrderList() {
             )}
           </TableBody>
         </Table>
+            </SmoothTableWrapper>
           </div>
         </CardContent>
       </Card>
@@ -1255,10 +1279,6 @@ export default function OrderList() {
           }
         }}
       />
-      
-      {/* Painel de Debug - Remover em produção */}
-      <NotificationDebugPanel />
-      <TauriEventTest />
     </div>
   );
 }

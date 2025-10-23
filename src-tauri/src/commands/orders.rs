@@ -2,11 +2,10 @@ use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
-use crate::notifications::{broadcast_order_created, broadcast_order_deleted, broadcast_order_status_changed};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use serde_json::{json, Map, Value};
 use sqlx::{QueryBuilder, Row};
-use tauri::{State, AppHandle};
+use tauri::{State, AppHandle, Manager};
 use tracing::{error, info};
 use std::time::Duration;
 
@@ -504,11 +503,12 @@ pub async fn create_order(
     
     let result = create_order_internal(pool.inner(), request).await;
     
-    // Se o pedido foi criado com sucesso, enviar notificação
+    // Se o pedido foi criado com sucesso, emitir evento global
     if let Ok(ref order) = result {
-        if let Err(e) = broadcast_order_created(&app_handle, order.id, order.numero.clone(), Some(session_info.user_id)).await {
-            error!("Erro ao enviar notificação de pedido criado: {}", e);
-        }
+        info!("🚀 Emitindo evento 'order_created' para pedido ID: {}", order.id);
+        app_handle
+            .emit_all("order_created", order.id)
+            .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
     }
     
     result
@@ -1205,19 +1205,12 @@ pub async fn update_order_status_flags(
         cache.invalidate_pattern("ready_orders").await;
         info!("Cache de pedidos pendentes e prontos invalidado após atualização de status");
         
-        // Enviar notificação de mudança de status
+        // Emitir evento global para atualização de status
         if let Ok(ref order) = result {
-            let status_details = format!("Status atualizado: Financeiro={}, Conferência={}, Sublimação={}, Costura={}, Expedição={}", 
-                order.financeiro.unwrap_or(false),
-                order.conferencia.unwrap_or(false),
-                order.sublimacao.unwrap_or(false),
-                order.costura.unwrap_or(false),
-                order.expedicao.unwrap_or(false)
-            );
-            
-            if let Err(e) = broadcast_order_status_changed(&app_handle, order.id, order.numero.clone(), Some(session_info.user_id), status_details).await {
-                error!("Erro ao enviar notificação de mudança de status: {}", e);
-            }
+            info!("🚀 Emitindo evento 'order_status_updated' para pedido ID: {}", order.id);
+            app_handle
+                .emit_all("order_status_updated", order.id)
+                .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
         }
     }
     
@@ -1315,16 +1308,6 @@ pub async fn delete_order(
     
     info!("Deletando pedido ID: {}", order_id);
 
-    // Buscar dados do pedido antes de deletar para enviar notificação
-    let order_data = sqlx::query("SELECT numero FROM orders WHERE id = $1")
-        .bind(order_id)
-        .fetch_optional(pool.inner())
-        .await
-        .map_err(|e| {
-            error!("Erro ao buscar dados do pedido para notificação: {}", e);
-            "Erro ao buscar pedido".to_string()
-        })?;
-
     let result = sqlx::query("DELETE FROM orders WHERE id = $1")
         .bind(order_id)
         .execute(pool.inner())
@@ -1335,13 +1318,11 @@ pub async fn delete_order(
             if result.rows_affected() > 0 {
                 info!("Pedido deletado com sucesso. ID: {}", order_id);
                 
-                // Enviar notificação de pedido deletado
-                if let Some(order_row) = order_data {
-                    let order_numero: Option<String> = order_row.get("numero");
-                    if let Err(e) = broadcast_order_deleted(&app_handle, order_id, order_numero, Some(session_info.user_id)).await {
-                        error!("Erro ao enviar notificação de pedido deletado: {}", e);
-                    }
-                }
+                // Emitir evento global para pedido deletado
+                info!("🚀 Emitindo evento 'order_deleted' para pedido ID: {}", order_id);
+                app_handle
+                    .emit_all("order_deleted", order_id)
+                    .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
                 
                 Ok(true)
             } else {
