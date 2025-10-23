@@ -496,7 +496,7 @@ pub async fn create_order(
     session_token: String,
     request: CreateOrderRequest,
 ) -> Result<OrderWithItems, String> {
-    let session_info = sessions
+    let _session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1192,7 +1192,7 @@ pub async fn update_order_status_flags(
     session_token: String,
     request: UpdateOrderStatusRequest,
 ) -> Result<OrderWithItems, String> {
-    let session_info = sessions
+    let _session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1301,7 +1301,7 @@ pub async fn delete_order(
     session_token: String,
     order_id: i32,
 ) -> Result<bool, String> {
-    let session_info = sessions
+    let _session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1640,42 +1640,42 @@ pub async fn get_orders_by_delivery_date(
 // COMANDO PARA FICHA DE SERVIÇO
 // ========================================
 
-#[tauri::command]
-pub async fn test_event_emission(
-    app_handle: AppHandle,
-    event_type: String,
-    order_id: i32,
-) -> Result<String, String> {
-    info!("🧪 Testando emissão de evento: {} para pedido {}", event_type, order_id);
-    
-    match event_type.as_str() {
-        "order_created" => {
-            app_handle
-                .emit_all("order_created", order_id)
-                .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
-        }
-        "order_updated" => {
-            app_handle
-                .emit_all("order_updated", order_id)
-                .unwrap_or_else(|e| error!("Erro ao emitir evento order_updated: {}", e));
-        }
-        "order_deleted" => {
-            app_handle
-                .emit_all("order_deleted", order_id)
-                .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
-        }
-        "order_status_updated" => {
-            app_handle
-                .emit_all("order_status_updated", order_id)
-                .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
-        }
-        _ => {
-            return Err(format!("Tipo de evento inválido: {}", event_type));
-        }
-    }
-    
-    Ok(format!("Evento {} emitido para pedido {}", event_type, order_id))
-}
+// #[tauri::command]
+// pub async fn test_event_emission(
+//     app_handle: AppHandle,
+//     event_type: String,
+//     order_id: i32,
+// ) -> Result<String, String> {
+//     info!("🧪 Testando emissão de evento: {} para pedido {}", event_type, order_id);
+//     
+//     match event_type.as_str() {
+//         "order_created" => {
+//             app_handle
+//                 .emit_all("order_created", order_id)
+//                 .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
+//         }
+//         "order_updated" => {
+//             app_handle
+//                 .emit_all("order_updated", order_id)
+//                 .unwrap_or_else(|e| error!("Erro ao emitir evento order_updated: {}", e));
+//         }
+//         "order_deleted" => {
+//             app_handle
+//                 .emit_all("order_deleted", order_id)
+//                 .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
+//         }
+//         "order_status_updated" => {
+//             app_handle
+//                 .emit_all("order_status_updated", order_id)
+//                 .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
+//         }
+//         _ => {
+//             return Err(format!("Tipo de evento inválido: {}", event_type));
+//         }
+//     }
+//     
+//     Ok(format!("Evento {} emitido para pedido {}", event_type, order_id))
+// }
 
 #[tauri::command]
 pub async fn get_order_ficha(

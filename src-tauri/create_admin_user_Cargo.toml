@@ -1,0 +1,13 @@
+[package]
+name = "create-admin-user"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "create_admin_user"
+path = "create_admin_user.rs"
+
+[dependencies]
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "chrono"] }
+tokio = { version = "1", features = ["full"] }
+bcrypt = "0.15"

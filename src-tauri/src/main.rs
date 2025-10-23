@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use sqlx::{migrate::MigrateError, postgres::PgPoolOptions, query};
+use sqlx::{migrate::MigrateError, query};
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info};
@@ -220,7 +220,6 @@ async fn main() {
             commands::orders::get_orders_by_delivery_date,
             commands::orders::get_order_audit_log,
             commands::orders::get_order_ficha,
-            commands::orders::test_event_emission,
             // Notifications
             notifications::subscribe_to_notifications,
             notifications::unsubscribe_from_notifications,
