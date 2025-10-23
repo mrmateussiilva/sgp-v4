@@ -153,6 +153,7 @@ async fn main() {
             commands::orders::get_orders_by_delivery_date,
             commands::orders::get_order_audit_log,
             commands::orders::get_order_ficha,
+            commands::orders::test_event_emission,
             // Notifications
             notifications::subscribe_to_notifications,
             notifications::unsubscribe_from_notifications,

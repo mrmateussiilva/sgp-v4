@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AutoRefreshStatus } from './AutoRefreshStatus';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
+import { EventTestPanel } from './EventTestPanel';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -1279,6 +1280,9 @@ export default function OrderList() {
           }
         }}
       />
+      
+      {/* Painel de teste de eventos - Remover em produção */}
+      <EventTestPanel />
     </div>
   );
 }

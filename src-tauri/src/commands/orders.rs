@@ -1641,6 +1641,43 @@ pub async fn get_orders_by_delivery_date(
 // ========================================
 
 #[tauri::command]
+pub async fn test_event_emission(
+    app_handle: AppHandle,
+    event_type: String,
+    order_id: i32,
+) -> Result<String, String> {
+    info!("🧪 Testando emissão de evento: {} para pedido {}", event_type, order_id);
+    
+    match event_type.as_str() {
+        "order_created" => {
+            app_handle
+                .emit_all("order_created", order_id)
+                .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
+        }
+        "order_updated" => {
+            app_handle
+                .emit_all("order_updated", order_id)
+                .unwrap_or_else(|e| error!("Erro ao emitir evento order_updated: {}", e));
+        }
+        "order_deleted" => {
+            app_handle
+                .emit_all("order_deleted", order_id)
+                .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
+        }
+        "order_status_updated" => {
+            app_handle
+                .emit_all("order_status_updated", order_id)
+                .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
+        }
+        _ => {
+            return Err(format!("Tipo de evento inválido: {}", event_type));
+        }
+    }
+    
+    Ok(format!("Evento {} emitido para pedido {}", event_type, order_id))
+}
+
+#[tauri::command]
 pub async fn get_order_ficha(
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,

@@ -39,9 +39,10 @@ export const useOrderEvents = ({
 
     // Listener para pedido criado
     if (onOrderCreated) {
+      console.log('🎧 Configurando listener para order_created');
       const unlistenCreated = listen<number>('order_created', (event) => {
         const orderId = event.payload;
-        console.log('🆕 Pedido criado:', orderId);
+        console.log('🆕 EVENTO RECEBIDO - Pedido criado:', orderId);
         onOrderCreated(orderId);
       });
       unlistenPromises.push(unlistenCreated);
@@ -49,9 +50,10 @@ export const useOrderEvents = ({
 
     // Listener para pedido atualizado
     if (onOrderUpdated) {
+      console.log('🎧 Configurando listener para order_updated');
       const unlistenUpdated = listen<number>('order_updated', (event) => {
         const orderId = event.payload;
-        console.log('📝 Pedido atualizado:', orderId);
+        console.log('📝 EVENTO RECEBIDO - Pedido atualizado:', orderId);
         onOrderUpdated(orderId);
       });
       unlistenPromises.push(unlistenUpdated);
@@ -59,9 +61,10 @@ export const useOrderEvents = ({
 
     // Listener para pedido deletado
     if (onOrderDeleted) {
+      console.log('🎧 Configurando listener para order_deleted');
       const unlistenDeleted = listen<number>('order_deleted', (event) => {
         const orderId = event.payload;
-        console.log('🗑️ Pedido deletado:', orderId);
+        console.log('🗑️ EVENTO RECEBIDO - Pedido deletado:', orderId);
         onOrderDeleted(orderId);
       });
       unlistenPromises.push(unlistenDeleted);
@@ -69,19 +72,23 @@ export const useOrderEvents = ({
 
     // Listener para status de pedido atualizado
     if (onOrderStatusUpdated) {
+      console.log('🎧 Configurando listener para order_status_updated');
       const unlistenStatusUpdated = listen<number>('order_status_updated', (event) => {
         const orderId = event.payload;
-        console.log('🔄 Status do pedido atualizado:', orderId);
+        console.log('🔄 EVENTO RECEBIDO - Status do pedido atualizado:', orderId);
         onOrderStatusUpdated(orderId);
       });
       unlistenPromises.push(unlistenStatusUpdated);
     }
+
+    console.log(`✅ ${unlistenPromises.length} listeners configurados`);
 
     // Cleanup: remover todos os listeners quando o componente for desmontado
     return () => {
       console.log('🔇 Removendo listeners de eventos de pedidos...');
       Promise.all(unlistenPromises).then((unlistenFunctions) => {
         unlistenFunctions.forEach(unlisten => unlisten());
+        console.log('✅ Listeners removidos');
       });
     };
   }, [onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated]);
@@ -153,6 +160,12 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
       console.error('❌ Erro ao sincronizar status do pedido:', error);
     }
   }, [setOrders]);
+
+  console.log('🔧 Configurando useOrderAutoSync com handlers:', {
+    hasOrders: orders.length > 0,
+    hasSetOrders: !!setOrders,
+    hasRemoveOrder: !!removeOrder,
+  });
 
   // Configurar os listeners
   useOrderEvents({
