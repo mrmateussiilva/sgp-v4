@@ -7,6 +7,7 @@ import { Printer, X, ChevronDown } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
+import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -65,6 +66,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           : undefined,
     };
     printOrder(enrichedOrder);
+  };
+
+  const handlePrintServiceForm = () => {
+    const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
+    const enrichedOrder = {
+      ...order,
+      forma_pagamento_nome:
+        formaPagamentoNome && formaPagamentoNome !== 'Não informado'
+          ? formaPagamentoNome
+          : undefined,
+    };
+    printOrderServiceForm(enrichedOrder);
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -661,6 +674,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               <Button onClick={handlePrint} variant="outline" size="sm">
                 <Printer className="h-4 w-4 mr-2" />
                 Imprimir
+              </Button>
+              <Button onClick={handlePrintServiceForm} variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                Ficha de Serviço
               </Button>
               <Button onClick={onClose} variant="outline" size="sm">
                 <X className="h-4 w-4" />
