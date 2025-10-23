@@ -121,6 +121,14 @@ pub async fn subscribe_to_notifications(
 ) -> Result<String, String> {
     let notification_manager = app_handle.state::<NotificationManager>();
     
+    // Verificar se o cliente já está inscrito
+    let subscribers = notification_manager.subscribers.read().await;
+    if subscribers.contains_key(&client_id) {
+        info!("Cliente {} já está inscrito, reutilizando conexão", client_id);
+        return Ok(format!("Cliente {} já estava inscrito", client_id));
+    }
+    drop(subscribers);
+    
     // Criar um receiver para este cliente
     let mut receiver = notification_manager.subscribe(client_id.clone()).await;
     
@@ -143,6 +151,9 @@ pub async fn subscribe_to_notifications(
             }
         }
         
+        // Cleanup: remover cliente da lista de subscribers quando desconectar
+        let notification_manager = app_handle_clone.state::<NotificationManager>();
+        notification_manager.unsubscribe(&client_id_clone).await;
         info!("Cliente {} desconectado das notificações", client_id_clone);
     });
     

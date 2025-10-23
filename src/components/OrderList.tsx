@@ -8,6 +8,7 @@ import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from
 import { useToast } from '@/hooks/use-toast';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useRealtimeNotifications, useOrderRefresh } from '../hooks/useRealtimeNotifications';
+import { NotificationDebugPanel } from './NotificationDebugPanel';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -1253,6 +1254,9 @@ export default function OrderList() {
           }
         }}
       />
+      
+      {/* Painel de Debug - Remover em produção */}
+      <NotificationDebugPanel />
     </div>
   );
 }

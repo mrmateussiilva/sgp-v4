@@ -45,13 +45,16 @@ export const useRealtimeNotifications = () => {
 
   // Conectar às notificações
   const connect = async () => {
-    if (!sessionToken || isConnected) {
+    if (!sessionToken || isConnected || clientIdRef.current) {
+      console.log('🚫 Conexão ignorada - já conectado ou sem token');
       return;
     }
 
     try {
       const clientId = generateClientId();
       clientIdRef.current = clientId;
+
+      console.log('🔌 Tentando conectar com ID:', clientId);
 
       // Inscrever-se nas notificações
       await invoke('subscribe_to_notifications', { clientId });
@@ -84,10 +87,13 @@ export const useRealtimeNotifications = () => {
   // Desconectar das notificações
   const disconnect = async () => {
     if (!clientIdRef.current || !isConnected) {
+      console.log('🚫 Desconexão ignorada - não conectado');
       return;
     }
 
     try {
+      console.log('🔌 Desconectando cliente:', clientIdRef.current);
+
       // Cancelar inscrição
       await invoke('unsubscribe_from_notifications', { 
         clientId: clientIdRef.current 
@@ -102,7 +108,7 @@ export const useRealtimeNotifications = () => {
       setIsConnected(false);
       clientIdRef.current = null;
 
-      console.log('🔌 Desconectado das notificações em tempo real');
+      console.log('✅ Desconectado das notificações em tempo real');
     } catch (error) {
       console.error('❌ Erro ao desconectar das notificações:', error);
     }
@@ -124,6 +130,7 @@ export const useRealtimeNotifications = () => {
 
     // Não mostrar notificação para ações do próprio usuário
     if (notification.user_id === userId) {
+      console.log('🚫 Notificação ignorada (próprio usuário)');
       return;
     }
 
@@ -134,8 +141,6 @@ export const useRealtimeNotifications = () => {
           title: "Novo Pedido",
           description: `Pedido #${notification.order_numero || notification.order_id} foi criado`,
         });
-        // Recarregar lista de pedidos
-        refreshOrders();
         break;
 
       case NotificationType.OrderUpdated:
@@ -143,8 +148,6 @@ export const useRealtimeNotifications = () => {
           title: "Pedido Atualizado",
           description: `Pedido #${notification.order_numero || notification.order_id} foi atualizado`,
         });
-        // Recarregar lista de pedidos
-        refreshOrders();
         break;
 
       case NotificationType.OrderDeleted:
@@ -161,21 +164,24 @@ export const useRealtimeNotifications = () => {
           title: "Status Atualizado",
           description: `Status do pedido #${notification.order_numero || notification.order_id} foi alterado`,
         });
-        // Recarregar lista de pedidos para obter status atualizado
-        refreshOrders();
         break;
+    }
+
+    // Sempre recarregar lista de pedidos para qualquer notificação (exceto delete)
+    if (notification.notification_type !== NotificationType.OrderDeleted) {
+      refreshOrders();
     }
   };
 
   // Recarregar lista de pedidos
   const refreshOrders = async () => {
     try {
-      // Aqui você pode implementar a lógica para recarregar os pedidos
-      // Por exemplo, chamando a função loadOrders do OrderList
-      console.log('🔄 Recarregando lista de pedidos...');
+      console.log('🔄 Disparando evento de refresh de pedidos...');
       
       // Disparar evento customizado para que os componentes escutem
-      window.dispatchEvent(new CustomEvent('orders-refresh-requested'));
+      window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
+        detail: { timestamp: Date.now() }
+      }));
     } catch (error) {
       console.error('Erro ao recarregar pedidos:', error);
     }
@@ -186,25 +192,14 @@ export const useRealtimeNotifications = () => {
     if (sessionToken && !isConnected) {
       connect();
     }
-  }, [sessionToken]);
-
-  // Desconectar quando o componente for desmontado
-  useEffect(() => {
+    
+    // Cleanup ao desmontar
     return () => {
       if (isConnected) {
         disconnect();
       }
     };
-  }, []);
-
-  // Reconectar quando o token mudar
-  useEffect(() => {
-    if (sessionToken && isConnected) {
-      disconnect().then(() => {
-        setTimeout(() => connect(), 1000);
-      });
-    }
-  }, [sessionToken]);
+  }, [sessionToken, isConnected]); // Dependências corretas
 
   return {
     isConnected,
@@ -223,14 +218,15 @@ export const useOrderRefresh = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    const handleRefreshRequest = () => {
+    const handleRefreshRequest = (event: CustomEvent) => {
+      console.log('🔄 Evento de refresh recebido:', event.detail);
       setRefreshTrigger(prev => prev + 1);
     };
 
-    window.addEventListener('orders-refresh-requested', handleRefreshRequest);
+    window.addEventListener('orders-refresh-requested', handleRefreshRequest as EventListener);
     
     return () => {
-      window.removeEventListener('orders-refresh-requested', handleRefreshRequest);
+      window.removeEventListener('orders-refresh-requested', handleRefreshRequest as EventListener);
     };
   }, []);
 
