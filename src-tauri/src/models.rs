@@ -617,9 +617,14 @@ pub struct BulkClienteImportResult {
     pub errors: Vec<BulkClienteImportError>,
 }
 
-// ========================================
-// Materiais
-// ========================================
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedClientes {
+    pub clientes: Vec<Cliente>,
+    pub total: i64,
+    pub page: i64,
+    pub page_size: i64,
+    pub total_pages: i64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Material {

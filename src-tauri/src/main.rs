@@ -153,6 +153,7 @@ async fn main() {
             commands::reports::generate_report,
             // Clientes
             commands::clientes::get_clientes,
+            commands::clientes::get_clientes_paginated,
             commands::clientes::get_cliente_by_id,
             commands::clientes::create_cliente,
             commands::clientes::update_cliente,

@@ -49,133 +49,97 @@ pub async fn get_pending_orders_paginated(
         "Erro ao contar pedidos".to_string()
     })?;
 
-    // Query otimizada com JOIN e paginação - incluindo todos os campos dos itens
-    let query = r#"
-        SELECT DISTINCT
-            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
-            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
-            o.valor_frete, o.status, o.prioridade, o.observacao, 
-            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
-            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
-            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
-            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer,
-            oi.largura, oi.altura, oi.metro_quadrado, oi.tecido, oi.overloque, 
-            oi.elastico, oi.tipo_acabamento, oi.quantidade_ilhos, oi.espaco_ilhos, 
-            oi.valor_ilhos, oi.quantidade_cordinha, oi.espaco_cordinha, oi.valor_cordinha, 
-            oi.observacao as item_observacao, oi.imagem, oi.quantidade_paineis, 
-            oi.valor_unitario, oi.emenda, oi.emenda_qtd, oi.terceirizado, 
-            oi.acabamento_lona, oi.valor_lona, oi.quantidade_lona, oi.outros_valores_lona,
-            oi.tipo_adesivo, oi.valor_adesivo, oi.quantidade_adesivo, oi.outros_valores_adesivo,
-            oi.ziper, oi.cordinha_extra, oi.alcinha, oi.toalha_pronta
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.pronto IS NULL OR o.pronto = false
-        ORDER BY o.created_at DESC, oi.id ASC
+    // 1ª consulta - apenas pedidos (otimizada com índices)
+    let rows = sqlx::query(
+        r#"
+        SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+               data_entrada, data_entrega, total_value, valor_frete, status, prioridade,
+               observacao, financeiro, conferencia, sublimacao, costura, expedicao,
+               forma_envio, forma_pagamento_id, pronto, created_at, updated_at
+        FROM orders
+        WHERE pronto IS NULL OR pronto = false
+        ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
-    "#;
+        "#,
+    )
+    .bind(page_size as i64)
+    .bind(offset as i64)
+    .fetch_all(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar pedidos pendentes paginados: {}", e);
+        "Erro ao buscar pedidos pendentes".to_string()
+    })?;
 
-    let rows = sqlx::query(query)
-        .bind(page_size)
-        .bind(offset)
+    let mut orders = Vec::new();
+    for row in rows {
+        let order = Order {
+            id: row.get("id"),
+            numero: row.get("numero"),
+            cliente: row.get("cliente"),
+            cidade_cliente: row.get("cidade_cliente"),
+            estado_cliente: row.get("estado_cliente"),
+            telefone_cliente: row.get("telefone_cliente"),
+            data_entrada: row.get("data_entrada"),
+            data_entrega: row.get("data_entrega"),
+            total_value: row.get("total_value"),
+            valor_frete: row.get("valor_frete"),
+            status: row.get("status"),
+            prioridade: row.get("prioridade"),
+            observacao: row.get("observacao"),
+            financeiro: row.get("financeiro"),
+            conferencia: row.get("conferencia"),
+            sublimacao: row.get("sublimacao"),
+            costura: row.get("costura"),
+            expedicao: row.get("expedicao"),
+            forma_envio: row.get("forma_envio"),
+            forma_pagamento_id: row.get("forma_pagamento_id"),
+            pronto: row.get("pronto"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        };
+        orders.push(order);
+    }
+
+    // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
+    let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
+    let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        sqlx::query_as!(
+            OrderItem,
+            "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
+                    tipo_producao, descricao, largura, altura, metro_quadrado, 
+                    vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                    quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                    espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
+                    emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona,
+                    quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
+                    quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
+             FROM order_items 
+             WHERE order_id = ANY($1)
+             ORDER BY order_id, id",
+            &order_ids
+        )
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
-            error!("Erro ao buscar pedidos pendentes paginados: {}", e);
-            "Erro ao buscar pedidos pendentes".to_string()
-        })?;
+            error!("Erro ao buscar itens dos pedidos pendentes: {}", e);
+            "Erro ao buscar itens dos pedidos".to_string()
+        })?
+    } else {
+        Vec::new()
+    };
 
-    // Agrupar resultados por pedido
-    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
-
-    for row in rows {
-        let order_id: i32 = row.get("id");
+    // Combinar pedidos com seus itens
+    let mut orders_with_items = Vec::new();
+    for order in orders {
+        let order_items: Vec<OrderItem> = items
+            .iter()
+            .filter(|item| item.order_id == order.id)
+            .cloned()
+            .collect();
         
-        // Se o pedido ainda não existe no mapa, criar
-        if !orders_map.contains_key(&order_id) {
-            let order = Order {
-                id: order_id,
-                numero: row.get("numero"),
-                cliente: row.get("cliente"),
-                cidade_cliente: row.get("cidade_cliente"),
-                estado_cliente: row.get("estado_cliente"),
-                telefone_cliente: row.get("telefone_cliente"),
-                data_entrada: row.get("data_entrada"),
-                data_entrega: row.get("data_entrega"),
-                total_value: row.get("total_value"),
-                valor_frete: row.get("valor_frete"),
-                status: row.get("status"),
-                prioridade: row.get("prioridade"),
-                observacao: row.get("observacao"),
-                financeiro: row.get("financeiro"),
-                conferencia: row.get("conferencia"),
-                sublimacao: row.get("sublimacao"),
-                costura: row.get("costura"),
-                expedicao: row.get("expedicao"),
-                forma_envio: row.get("forma_envio"),
-                forma_pagamento_id: row.get("forma_pagamento_id"),
-                pronto: row.get("pronto"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            };
-
-            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
-        }
-
-        // Adicionar item se existir
-        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
-            let item = OrderItem {
-                id: item_id,
-                order_id,
-                item_name: row.get("item_name"),
-                quantity: row.get("quantity"),
-                unit_price: row.get("unit_price"),
-                subtotal: row.get("subtotal"),
-                tipo_producao: row.get("tipo_producao"),
-                descricao: row.get("descricao"),
-                vendedor: row.get("vendedor"),
-                designer: row.get("designer"),
-                // Campos detalhados - incluindo todos os dados para exibição completa
-                largura: row.get("largura"),
-                altura: row.get("altura"),
-                metro_quadrado: row.get("metro_quadrado"),
-                tecido: row.get("tecido"),
-                overloque: row.get("overloque"),
-                elastico: row.get("elastico"),
-                tipo_acabamento: row.get("tipo_acabamento"),
-                quantidade_ilhos: row.get("quantidade_ilhos"),
-                espaco_ilhos: row.get("espaco_ilhos"),
-                valor_ilhos: row.get("valor_ilhos"),
-                quantidade_cordinha: row.get("quantidade_cordinha"),
-                espaco_cordinha: row.get("espaco_cordinha"),
-                valor_cordinha: row.get("valor_cordinha"),
-                observacao: row.get("item_observacao"),
-                imagem: row.get("imagem"),
-                quantidade_paineis: row.get("quantidade_paineis"),
-                valor_unitario: row.get("valor_unitario"),
-                emenda: row.get("emenda"),
-                emenda_qtd: row.get("emenda_qtd"),
-                terceirizado: row.get("terceirizado"),
-                acabamento_lona: row.get("acabamento_lona"),
-                valor_lona: row.get("valor_lona"),
-                quantidade_lona: row.get("quantidade_lona"),
-                outros_valores_lona: row.get("outros_valores_lona"),
-                tipo_adesivo: row.get("tipo_adesivo"),
-                valor_adesivo: row.get("valor_adesivo"),
-                quantidade_adesivo: row.get("quantidade_adesivo"),
-                outros_valores_adesivo: row.get("outros_valores_adesivo"),
-                ziper: row.get("ziper"),
-                cordinha_extra: row.get("cordinha_extra"),
-                alcinha: row.get("alcinha"),
-                toalha_pronta: row.get("toalha_pronta"),
-            };
-
-            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
-                order_with_items.items.push(item);
-            }
-        }
+        orders_with_items.push(build_order_with_items(order, order_items));
     }
-
-    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
     let total_pages = (total_count as f64 / page_size as f64).ceil() as i64;
     
     let result = PaginatedOrders {
@@ -234,125 +198,97 @@ pub async fn get_ready_orders_paginated(
         "Erro ao contar pedidos".to_string()
     })?;
 
-    // Query otimizada com JOIN e paginação
-    let query = r#"
-        SELECT DISTINCT
-            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
-            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
-            o.valor_frete, o.status, o.prioridade, o.observacao, 
-            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
-            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
-            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
-            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.pronto = true
-        ORDER BY o.created_at DESC, oi.id ASC
+    // 1ª consulta - apenas pedidos prontos (otimizada com índices)
+    let rows = sqlx::query(
+        r#"
+        SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+               data_entrada, data_entrega, total_value, valor_frete, status, prioridade,
+               observacao, financeiro, conferencia, sublimacao, costura, expedicao,
+               forma_envio, forma_pagamento_id, pronto, created_at, updated_at
+        FROM orders
+        WHERE pronto = true
+        ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
-    "#;
+        "#,
+    )
+    .bind(page_size as i64)
+    .bind(offset as i64)
+    .fetch_all(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar pedidos prontos paginados: {}", e);
+        "Erro ao buscar pedidos prontos".to_string()
+    })?;
 
-    let rows = sqlx::query(query)
-        .bind(page_size)
-        .bind(offset)
+    let mut orders = Vec::new();
+    for row in rows {
+        let order = Order {
+            id: row.get("id"),
+            numero: row.get("numero"),
+            cliente: row.get("cliente"),
+            cidade_cliente: row.get("cidade_cliente"),
+            estado_cliente: row.get("estado_cliente"),
+            telefone_cliente: row.get("telefone_cliente"),
+            data_entrada: row.get("data_entrada"),
+            data_entrega: row.get("data_entrega"),
+            total_value: row.get("total_value"),
+            valor_frete: row.get("valor_frete"),
+            status: row.get("status"),
+            prioridade: row.get("prioridade"),
+            observacao: row.get("observacao"),
+            financeiro: row.get("financeiro"),
+            conferencia: row.get("conferencia"),
+            sublimacao: row.get("sublimacao"),
+            costura: row.get("costura"),
+            expedicao: row.get("expedicao"),
+            forma_envio: row.get("forma_envio"),
+            forma_pagamento_id: row.get("forma_pagamento_id"),
+            pronto: row.get("pronto"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        };
+        orders.push(order);
+    }
+
+    // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
+    let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
+    let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        sqlx::query_as!(
+            OrderItem,
+            "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
+                    tipo_producao, descricao, largura, altura, metro_quadrado, 
+                    vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                    quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                    espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
+                    emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona,
+                    quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
+                    quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
+             FROM order_items 
+             WHERE order_id = ANY($1)
+             ORDER BY order_id, id",
+            &order_ids
+        )
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
-            error!("Erro ao buscar pedidos prontos paginados: {}", e);
-            "Erro ao buscar pedidos prontos".to_string()
-        })?;
+            error!("Erro ao buscar itens dos pedidos prontos: {}", e);
+            "Erro ao buscar itens dos pedidos".to_string()
+        })?
+    } else {
+        Vec::new()
+    };
 
-    // Agrupar resultados por pedido
-    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
-
-    for row in rows {
-        let order_id: i32 = row.get("id");
+    // Combinar pedidos com seus itens
+    let mut orders_with_items = Vec::new();
+    for order in orders {
+        let order_items: Vec<OrderItem> = items
+            .iter()
+            .filter(|item| item.order_id == order.id)
+            .cloned()
+            .collect();
         
-        // Se o pedido ainda não existe no mapa, criar
-        if !orders_map.contains_key(&order_id) {
-            let order = Order {
-                id: order_id,
-                numero: row.get("numero"),
-                cliente: row.get("cliente"),
-                cidade_cliente: row.get("cidade_cliente"),
-                estado_cliente: row.get("estado_cliente"),
-                telefone_cliente: row.get("telefone_cliente"),
-                data_entrada: row.get("data_entrada"),
-                data_entrega: row.get("data_entrega"),
-                total_value: row.get("total_value"),
-                valor_frete: row.get("valor_frete"),
-                status: row.get("status"),
-                prioridade: row.get("prioridade"),
-                observacao: row.get("observacao"),
-                financeiro: row.get("financeiro"),
-                conferencia: row.get("conferencia"),
-                sublimacao: row.get("sublimacao"),
-                costura: row.get("costura"),
-                expedicao: row.get("expedicao"),
-                forma_envio: row.get("forma_envio"),
-                forma_pagamento_id: row.get("forma_pagamento_id"),
-                pronto: row.get("pronto"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            };
-
-            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
-        }
-
-        // Adicionar item se existir
-        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
-            let item = OrderItem {
-                id: item_id,
-                order_id,
-                item_name: row.get("item_name"),
-                quantity: row.get("quantity"),
-                unit_price: row.get("unit_price"),
-                subtotal: row.get("subtotal"),
-                tipo_producao: row.get("tipo_producao"),
-                descricao: row.get("descricao"),
-                vendedor: row.get("vendedor"),
-                designer: row.get("designer"),
-                // Campos detalhados - incluindo todos os dados para exibição completa
-                largura: row.get("largura"),
-                altura: row.get("altura"),
-                metro_quadrado: row.get("metro_quadrado"),
-                tecido: row.get("tecido"),
-                overloque: row.get("overloque"),
-                elastico: row.get("elastico"),
-                tipo_acabamento: row.get("tipo_acabamento"),
-                quantidade_ilhos: row.get("quantidade_ilhos"),
-                espaco_ilhos: row.get("espaco_ilhos"),
-                valor_ilhos: row.get("valor_ilhos"),
-                quantidade_cordinha: row.get("quantidade_cordinha"),
-                espaco_cordinha: row.get("espaco_cordinha"),
-                valor_cordinha: row.get("valor_cordinha"),
-                observacao: row.get("item_observacao"),
-                imagem: row.get("imagem"),
-                quantidade_paineis: row.get("quantidade_paineis"),
-                valor_unitario: row.get("valor_unitario"),
-                emenda: row.get("emenda"),
-                emenda_qtd: row.get("emenda_qtd"),
-                terceirizado: row.get("terceirizado"),
-                acabamento_lona: row.get("acabamento_lona"),
-                valor_lona: row.get("valor_lona"),
-                quantidade_lona: row.get("quantidade_lona"),
-                outros_valores_lona: row.get("outros_valores_lona"),
-                tipo_adesivo: row.get("tipo_adesivo"),
-                valor_adesivo: row.get("valor_adesivo"),
-                quantidade_adesivo: row.get("quantidade_adesivo"),
-                outros_valores_adesivo: row.get("outros_valores_adesivo"),
-                ziper: row.get("ziper"),
-                cordinha_extra: row.get("cordinha_extra"),
-                alcinha: row.get("alcinha"),
-                toalha_pronta: row.get("toalha_pronta"),
-            };
-
-            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
-                order_with_items.items.push(item);
-            }
-        }
+        orders_with_items.push(build_order_with_items(order, order_items));
     }
-
-    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
     let total_pages = (total_count as f64 / page_size as f64).ceil() as i64;
     
     let result = PaginatedOrders {
@@ -383,123 +319,94 @@ pub async fn get_pending_orders_light(
         .map_err(|e| e.to_string())?;
     info!("Buscando pedidos pendentes (otimizado)");
 
-    // Query otimizada com JOIN para eliminar problema N+1
-    // Busca apenas campos essenciais para listagem
-    let query = r#"
-        SELECT DISTINCT
-            o.id, o.numero, o.cliente, o.cidade_cliente, o.estado_cliente, 
-            o.telefone_cliente, o.data_entrada, o.data_entrega, o.total_value, 
-            o.valor_frete, o.status, o.prioridade, o.observacao, 
-            o.financeiro, o.conferencia, o.sublimacao, o.costura, o.expedicao, 
-            o.forma_envio, o.forma_pagamento_id, o.pronto, o.created_at, o.updated_at,
-            oi.id as item_id, oi.order_id, oi.item_name, oi.quantity, oi.unit_price, 
-            oi.subtotal, oi.tipo_producao, oi.descricao, oi.vendedor, oi.designer
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.pronto IS NULL OR o.pronto = false
-        ORDER BY o.created_at DESC, oi.id ASC
-    "#;
+    // 1ª consulta - apenas pedidos pendentes (otimizada com índices)
+    let rows = sqlx::query(
+        r#"
+        SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
+               data_entrada, data_entrega, total_value, valor_frete, status, prioridade,
+               observacao, financeiro, conferencia, sublimacao, costura, expedicao,
+               forma_envio, forma_pagamento_id, pronto, created_at, updated_at
+        FROM orders
+        WHERE pronto IS NULL OR pronto = false
+        ORDER BY created_at DESC
+        "#,
+    )
+    .fetch_all(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar pedidos pendentes: {}", e);
+        "Erro ao buscar pedidos pendentes".to_string()
+    })?;
 
-    let rows = sqlx::query(query)
+    let mut orders = Vec::new();
+    for row in rows {
+        let order = Order {
+            id: row.get("id"),
+            numero: row.get("numero"),
+            cliente: row.get("cliente"),
+            cidade_cliente: row.get("cidade_cliente"),
+            estado_cliente: row.get("estado_cliente"),
+            telefone_cliente: row.get("telefone_cliente"),
+            data_entrada: row.get("data_entrada"),
+            data_entrega: row.get("data_entrega"),
+            total_value: row.get("total_value"),
+            valor_frete: row.get("valor_frete"),
+            status: row.get("status"),
+            prioridade: row.get("prioridade"),
+            observacao: row.get("observacao"),
+            financeiro: row.get("financeiro"),
+            conferencia: row.get("conferencia"),
+            sublimacao: row.get("sublimacao"),
+            costura: row.get("costura"),
+            expedicao: row.get("expedicao"),
+            forma_envio: row.get("forma_envio"),
+            forma_pagamento_id: row.get("forma_pagamento_id"),
+            pronto: row.get("pronto"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        };
+        orders.push(order);
+    }
+
+    // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
+    let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
+    let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        sqlx::query_as!(
+            OrderItem,
+            "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
+                    tipo_producao, descricao, largura, altura, metro_quadrado, 
+                    vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+                    quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, 
+                    espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario,
+                    emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona,
+                    quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
+                    quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
+             FROM order_items 
+             WHERE order_id = ANY($1)
+             ORDER BY order_id, id",
+            &order_ids
+        )
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
-            error!("Erro ao buscar pedidos pendentes: {}", e);
-            "Erro ao buscar pedidos pendentes".to_string()
-        })?;
+            error!("Erro ao buscar itens dos pedidos pendentes: {}", e);
+            "Erro ao buscar itens dos pedidos".to_string()
+        })?
+    } else {
+        Vec::new()
+    };
 
-    // Agrupar resultados por pedido
-    let mut orders_map: std::collections::HashMap<i32, OrderWithItems> = std::collections::HashMap::new();
-
-    for row in rows {
-        let order_id: i32 = row.get("id");
+    // Combinar pedidos com seus itens
+    let mut orders_with_items = Vec::new();
+    for order in orders {
+        let order_items: Vec<OrderItem> = items
+            .iter()
+            .filter(|item| item.order_id == order.id)
+            .cloned()
+            .collect();
         
-        // Se o pedido ainda não existe no mapa, criar
-        if !orders_map.contains_key(&order_id) {
-            let order = Order {
-                id: order_id,
-                numero: row.get("numero"),
-                cliente: row.get("cliente"),
-                cidade_cliente: row.get("cidade_cliente"),
-                estado_cliente: row.get("estado_cliente"),
-                telefone_cliente: row.get("telefone_cliente"),
-                data_entrada: row.get("data_entrada"),
-                data_entrega: row.get("data_entrega"),
-                total_value: row.get("total_value"),
-                valor_frete: row.get("valor_frete"),
-                status: row.get("status"),
-                prioridade: row.get("prioridade"),
-                observacao: row.get("observacao"),
-                financeiro: row.get("financeiro"),
-                conferencia: row.get("conferencia"),
-                sublimacao: row.get("sublimacao"),
-                costura: row.get("costura"),
-                expedicao: row.get("expedicao"),
-                forma_envio: row.get("forma_envio"),
-                forma_pagamento_id: row.get("forma_pagamento_id"),
-                pronto: row.get("pronto"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            };
-
-            orders_map.insert(order_id, build_order_with_items(order, Vec::new()));
-        }
-
-        // Adicionar item se existir
-        if let Some(item_id) = row.get::<Option<i32>, _>("item_id") {
-            let item = OrderItem {
-                id: item_id,
-                order_id,
-                item_name: row.get("item_name"),
-                quantity: row.get("quantity"),
-                unit_price: row.get("unit_price"),
-                subtotal: row.get("subtotal"),
-                tipo_producao: row.get("tipo_producao"),
-                descricao: row.get("descricao"),
-                vendedor: row.get("vendedor"),
-                designer: row.get("designer"),
-                // Campos detalhados - incluindo todos os dados para exibição completa
-                largura: row.get("largura"),
-                altura: row.get("altura"),
-                metro_quadrado: row.get("metro_quadrado"),
-                tecido: row.get("tecido"),
-                overloque: row.get("overloque"),
-                elastico: row.get("elastico"),
-                tipo_acabamento: row.get("tipo_acabamento"),
-                quantidade_ilhos: row.get("quantidade_ilhos"),
-                espaco_ilhos: row.get("espaco_ilhos"),
-                valor_ilhos: row.get("valor_ilhos"),
-                quantidade_cordinha: row.get("quantidade_cordinha"),
-                espaco_cordinha: row.get("espaco_cordinha"),
-                valor_cordinha: row.get("valor_cordinha"),
-                observacao: row.get("item_observacao"),
-                imagem: row.get("imagem"),
-                quantidade_paineis: row.get("quantidade_paineis"),
-                valor_unitario: row.get("valor_unitario"),
-                emenda: row.get("emenda"),
-                emenda_qtd: row.get("emenda_qtd"),
-                terceirizado: row.get("terceirizado"),
-                acabamento_lona: row.get("acabamento_lona"),
-                valor_lona: row.get("valor_lona"),
-                quantidade_lona: row.get("quantidade_lona"),
-                outros_valores_lona: row.get("outros_valores_lona"),
-                tipo_adesivo: row.get("tipo_adesivo"),
-                valor_adesivo: row.get("valor_adesivo"),
-                quantidade_adesivo: row.get("quantidade_adesivo"),
-                outros_valores_adesivo: row.get("outros_valores_adesivo"),
-                ziper: row.get("ziper"),
-                cordinha_extra: row.get("cordinha_extra"),
-                alcinha: row.get("alcinha"),
-                toalha_pronta: row.get("toalha_pronta"),
-            };
-
-            if let Some(order_with_items) = orders_map.get_mut(&order_id) {
-                order_with_items.items.push(item);
-            }
-        }
+        orders_with_items.push(build_order_with_items(order, order_items));
     }
-
-    let orders_with_items: Vec<OrderWithItems> = orders_map.into_values().collect();
     
     info!("Retornando {} pedidos pendentes (otimizado)", orders_with_items.len());
     Ok(orders_with_items)
