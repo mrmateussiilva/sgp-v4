@@ -157,6 +157,7 @@ async fn main() {
             notifications::subscribe_to_notifications,
             notifications::unsubscribe_from_notifications,
             notifications::get_notification_subscriber_count,
+            notifications::test_notification_broadcast,
             // Reports
             commands::reports::generate_report,
             // Clientes

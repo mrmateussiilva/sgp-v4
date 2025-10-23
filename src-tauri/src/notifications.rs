@@ -185,6 +185,33 @@ pub async fn get_notification_subscriber_count(
     Ok(notification_manager.get_subscriber_count().await)
 }
 
+#[tauri::command]
+pub async fn test_notification_broadcast(
+    app_handle: AppHandle,
+) -> Result<String, String> {
+    info!("🧪 Testando broadcast de notificação...");
+    
+    let notification_manager = app_handle.state::<NotificationManager>();
+    let subscriber_count = notification_manager.get_subscriber_count().await;
+    
+    if subscriber_count == 0 {
+        return Ok("❌ Nenhum subscriber conectado".to_string());
+    }
+    
+    // Criar uma notificação de teste
+    let test_notification = create_notification(
+        NotificationType::OrderStatusChanged,
+        999, // ID de teste
+        Some("TESTE".to_string()),
+        Some(999), // User ID de teste
+        Some("Notificação de teste do sistema".to_string()),
+    );
+    
+    let result = notification_manager.broadcast(test_notification).await?;
+    
+    Ok(format!("✅ Teste concluído: {} clientes notificados", result))
+}
+
 // ========================================
 // FUNÇÕES PARA BROADCAST AUTOMÁTICO
 // ========================================

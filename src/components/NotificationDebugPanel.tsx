@@ -39,6 +39,16 @@ export const NotificationDebugPanel = () => {
     }
   };
 
+  const testBackendBroadcast = async () => {
+    try {
+      addLog('Testando broadcast do backend...');
+      const result = await invoke<string>('test_notification_broadcast');
+      addLog(result);
+    } catch (error) {
+      addLog(`Erro no teste de broadcast: ${error}`);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(getDebugInfo, 3000);
     return () => clearInterval(interval);
@@ -94,6 +104,12 @@ export const NotificationDebugPanel = () => {
             className="px-2 py-1 bg-green-500 text-white rounded text-xs"
           >
             Teste
+          </button>
+          <button
+            onClick={testBackendBroadcast}
+            className="px-2 py-1 bg-purple-500 text-white rounded text-xs"
+          >
+            Broadcast
           </button>
         </div>
 
