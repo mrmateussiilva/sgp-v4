@@ -11,11 +11,6 @@ type OrderFinancials = {
   finalTotal: number;
 };
 
-type ItemDetail = {
-  label: string;
-  value: string;
-};
-
 // ============================================================================
 // UTILITY FUNCTIONS - Parsing e Formatação
 // ============================================================================
@@ -92,96 +87,7 @@ const formatOrderDate = (dateValue?: string | null): string => {
 // DATA COLLECTION - Coleta de dados dos itens
 // ============================================================================
 
-const collectItemDetails = (item: any): ItemDetail[] => {
-  const details: ItemDetail[] = [];
-  const itemRecord = item as unknown as Record<string, unknown>;
-  const tipoProducao = (item.tipo_producao || '').toLowerCase();
-  
-  // Determina o tipo de produção
-  const isTotem = tipoProducao.includes('totem');
-  const isAdesivo = tipoProducao.includes('adesivo');
-  const isLona = tipoProducao.includes('lona');
-
-  const addDetail = (label: string, value: unknown) => {
-    if (value === null || value === undefined) return;
-    
-    let stringValue = '';
-    if (typeof value === 'string') {
-      stringValue = value.trim();
-    } else if (typeof value === 'number') {
-      stringValue = value.toString();
-    } else if (typeof value === 'boolean') {
-      if (!value) return; // Se for false, não adiciona
-      stringValue = 'Sim';
-    }
-
-    // Não exibe se for vazio, "Não informado" ou "Não"
-    if (stringValue && stringValue !== 'Não informado' && stringValue !== 'Não' && stringValue.toLowerCase() !== 'sem-emenda' && stringValue.toLowerCase() !== 'nenhum') {
-      details.push({ label, value: stringValue });
-    }
-  };
-
-  // Campos comuns
-  addDetail('Tipo', item.tipo_producao);
-  addDetail('Descrição', item.descricao);
-  
-  // Dimensões
-  if (item.largura || item.altura) {
-    const dimensoes = [item.largura, item.altura].filter(Boolean).join(' x ');
-    if (item.metro_quadrado) {
-      addDetail('Tamanho', `${dimensoes} (${item.metro_quadrado}m²)`);
-    } else {
-      addDetail('Tamanho', dimensoes);
-    }
-  }
-
-  // Equipe
-  if (item.designer) addDetail('Designer', item.designer);
-  if (item.vendedor) addDetail('Vendedor', item.vendedor);
-
-  // Campos específicos por tipo
-  if (isTotem) {
-    addDetail('Material', item.tecido);
-    addDetail('Acabamento', item.tipo_acabamento);
-  } else if (isAdesivo) {
-    addDetail('Tipo de Adesivo', item.tecido || getFieldValue(itemRecord, 'tipo_adesivo'));
-  } else if (isLona) {
-    addDetail('Tecido', item.tecido);
-    addDetail('Acabamento', getFieldValue(itemRecord, 'acabamento_lona'));
-  } else {
-    // Painel ou outros
-    addDetail('Tecido', item.tecido);
-    addDetail('Acabamento', item.tipo_acabamento);
-    
-    if (item.overloque) addDetail('Overloque', 'Sim');
-    if (item.elastico) addDetail('Elástico', 'Sim');
-    
-    // Ilhós
-    if (item.quantidade_ilhos) {
-      addDetail('Ilhós', `${item.quantidade_ilhos} unidades`);
-      if (item.espaco_ilhos) addDetail('Espaço Ilhós', item.espaco_ilhos);
-    }
-    
-    // Cordinha
-    if (item.quantidade_cordinha) {
-      addDetail('Cordinha', `${item.quantidade_cordinha} metros`);
-      if (item.espaco_cordinha) addDetail('Espaço Cordinha', item.espaco_cordinha);
-    }
-    
-    // Emenda
-    if (item.emenda && item.emenda.toLowerCase() !== 'sem-emenda') {
-      addDetail('Emenda', item.emenda);
-    }
-
-    // Outros campos
-    if (getFieldValue(itemRecord, 'ziper')) addDetail('Zíper', 'Sim');
-    if (getFieldValue(itemRecord, 'cordinha_extra')) addDetail('Cordinha Extra', 'Sim');
-    if (getFieldValue(itemRecord, 'alcinha')) addDetail('Alcinha', 'Sim');
-    if (getFieldValue(itemRecord, 'toalha_pronta')) addDetail('Toalha Pronta', 'Sim');
-  }
-
-  return details;
-};
+// Função collectItemDetails removida pois não estava sendo utilizada
 
 // ============================================================================
 // FINANCIAL CALCULATIONS - Cálculos Financeiros
@@ -237,7 +143,6 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
 // ============================================================================
 
 const buildServiceFormHeader = (order: OrderWithItems): string => {
-  const orderId = (order.numero || order.id).toString();
   const customerName = order.customer_name || order.cliente || 'Não informado';
   const phone = order.telefone_cliente || '';
   const city = order.cidade_cliente || '';
