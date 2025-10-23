@@ -22,6 +22,123 @@ pub enum OrderStatus {
 // Modelos de Banco de Dados
 // ========================================
 
+// Modelos para Ficha de Serviço
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderFicha {
+    pub id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub numero: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telefone_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cidade_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estado_cliente: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrada: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_entrega: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forma_envio: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forma_pagamento_id: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_frete: Option<rust_decimal::Decimal>,
+    pub total_value: rust_decimal::Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observacao: Option<String>,
+    pub items: Vec<OrderItemFicha>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct OrderItemFicha {
+    pub id: i32,
+    pub order_id: i32,
+    pub item_name: String,
+    pub quantity: i32,
+    pub unit_price: rust_decimal::Decimal,
+    pub subtotal: rust_decimal::Decimal,
+    
+    // Campos detalhados
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_producao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descricao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub largura: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub altura: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metro_quadrado: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vendedor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub designer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tecido: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overloque: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub elastico: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_acabamento: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_ilhos: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub espaco_ilhos: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_ilhos: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_cordinha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub espaco_cordinha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_cordinha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observacao: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emenda: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emenda_qtd: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ziper: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cordinha_extra: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alcinha: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toalha_pronta: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_lona: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tipo_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_adesivo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_adesivo: Option<String>,
+    // Campos para totem (retornados como NULL por enquanto)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_totem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acabamento_totem_outro: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_totem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quantidade_totem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outros_valores_totem: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: i32,

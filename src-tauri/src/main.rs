@@ -15,11 +15,13 @@ mod migrator;
 mod models;
 mod session;
 mod cache;
+mod notifications;
 
 use crate::migrator::MIGRATOR;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
 use crate::config::AppConfig;
+use crate::notifications::NotificationManager;
 
 #[tokio::main]
 async fn main() {
@@ -128,6 +130,7 @@ async fn main() {
         .manage(pool)
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
+        .manage(NotificationManager::new())
         .setup(|_app| {
             Ok(())
         })
@@ -149,6 +152,11 @@ async fn main() {
             commands::orders::get_orders_with_filters,
             commands::orders::get_orders_by_delivery_date,
             commands::orders::get_order_audit_log,
+            commands::orders::get_order_ficha,
+            // Notifications
+            notifications::subscribe_to_notifications,
+            notifications::unsubscribe_from_notifications,
+            notifications::get_notification_subscriber_count,
             // Reports
             commands::reports::generate_report,
             // Clientes

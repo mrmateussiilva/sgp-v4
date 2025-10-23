@@ -2,10 +2,11 @@ use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
+use crate::notifications::{broadcast_order_created, broadcast_order_deleted, broadcast_order_status_changed};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use serde_json::{json, Map, Value};
 use sqlx::{QueryBuilder, Row};
-use tauri::State;
+use tauri::{State, AppHandle};
 use tracing::{error, info};
 use std::time::Duration;
 
@@ -490,16 +491,27 @@ pub async fn get_order_by_id(
 
 #[tauri::command]
 pub async fn create_order(
+    app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
     session_token: String,
     request: CreateOrderRequest,
 ) -> Result<OrderWithItems, String> {
-    sessions
+    let session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
-    create_order_internal(pool.inner(), request).await
+    
+    let result = create_order_internal(pool.inner(), request).await;
+    
+    // Se o pedido foi criado com sucesso, enviar notificação
+    if let Ok(ref order) = result {
+        if let Err(e) = broadcast_order_created(&app_handle, order.id, order.numero.clone(), Some(session_info.user_id)).await {
+            error!("Erro ao enviar notificação de pedido criado: {}", e);
+        }
+    }
+    
+    result
 }
 
 pub(crate) async fn create_order_internal(
@@ -1173,13 +1185,14 @@ pub async fn update_order(
 
 #[tauri::command]
 pub async fn update_order_status_flags(
+    app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
     cache: State<'_, CacheManager>,
     session_token: String,
     request: UpdateOrderStatusRequest,
 ) -> Result<OrderWithItems, String> {
-    sessions
+    let session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1191,6 +1204,21 @@ pub async fn update_order_status_flags(
         cache.invalidate_pattern("pending_orders").await;
         cache.invalidate_pattern("ready_orders").await;
         info!("Cache de pedidos pendentes e prontos invalidado após atualização de status");
+        
+        // Enviar notificação de mudança de status
+        if let Ok(ref order) = result {
+            let status_details = format!("Status atualizado: Financeiro={}, Conferência={}, Sublimação={}, Costura={}, Expedição={}", 
+                order.financeiro.unwrap_or(false),
+                order.conferencia.unwrap_or(false),
+                order.sublimacao.unwrap_or(false),
+                order.costura.unwrap_or(false),
+                order.expedicao.unwrap_or(false)
+            );
+            
+            if let Err(e) = broadcast_order_status_changed(&app_handle, order.id, order.numero.clone(), Some(session_info.user_id), status_details).await {
+                error!("Erro ao enviar notificação de mudança de status: {}", e);
+            }
+        }
     }
     
     result
@@ -1274,16 +1302,28 @@ pub(crate) async fn update_order_status_flags_internal(
 
 #[tauri::command]
 pub async fn delete_order(
+    app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
     session_token: String,
     order_id: i32,
 ) -> Result<bool, String> {
-    sessions
+    let session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
+    
     info!("Deletando pedido ID: {}", order_id);
+
+    // Buscar dados do pedido antes de deletar para enviar notificação
+    let order_data = sqlx::query("SELECT numero FROM orders WHERE id = $1")
+        .bind(order_id)
+        .fetch_optional(pool.inner())
+        .await
+        .map_err(|e| {
+            error!("Erro ao buscar dados do pedido para notificação: {}", e);
+            "Erro ao buscar pedido".to_string()
+        })?;
 
     let result = sqlx::query("DELETE FROM orders WHERE id = $1")
         .bind(order_id)
@@ -1294,6 +1334,15 @@ pub async fn delete_order(
         Ok(result) => {
             if result.rows_affected() > 0 {
                 info!("Pedido deletado com sucesso. ID: {}", order_id);
+                
+                // Enviar notificação de pedido deletado
+                if let Some(order_row) = order_data {
+                    let order_numero: Option<String> = order_row.get("numero");
+                    if let Err(e) = broadcast_order_deleted(&app_handle, order_id, order_numero, Some(session_info.user_id)).await {
+                        error!("Erro ao enviar notificação de pedido deletado: {}", e);
+                    }
+                }
+                
                 Ok(true)
             } else {
                 Err("Pedido não encontrado".to_string())
@@ -1604,6 +1653,94 @@ pub async fn get_orders_by_delivery_date(
             Err("Erro ao buscar pedidos".to_string())
         }
     }
+}
+
+// ========================================
+// COMANDO PARA FICHA DE SERVIÇO
+// ========================================
+
+#[tauri::command]
+pub async fn get_order_ficha(
+    pool: State<'_, DbPool>,
+    sessions: State<'_, SessionManager>,
+    session_token: String,
+    order_id: i32,
+) -> Result<OrderFicha, String> {
+    sessions
+        .require_authenticated(&session_token)
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    info!("Buscando dados da ficha de serviço para pedido ID: {}", order_id);
+
+    // Buscar dados do pedido
+    let order_row = sqlx::query(
+        r#"
+        SELECT id, numero, cliente, telefone_cliente, cidade_cliente, estado_cliente,
+               data_entrada, data_entrega, forma_envio, forma_pagamento_id, 
+               valor_frete, total_value, observacao
+        FROM orders 
+        WHERE id = $1
+        "#
+    )
+    .bind(order_id)
+    .fetch_one(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar pedido {}: {}", order_id, e);
+        "Pedido não encontrado".to_string()
+    })?;
+
+    // Buscar itens do pedido
+    let items = sqlx::query_as!(
+        OrderItemFicha,
+        r#"
+        SELECT id, order_id, item_name, quantity, unit_price, subtotal,
+               tipo_producao, descricao, largura, altura, metro_quadrado,
+               vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
+               quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha,
+               espaco_cordinha, valor_cordinha, observacao, emenda, emenda_qtd,
+               ziper, cordinha_extra, alcinha, toalha_pronta, acabamento_lona,
+               valor_lona, quantidade_lona, outros_valores_lona, tipo_adesivo,
+               valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
+               NULL as acabamento_totem, NULL as acabamento_totem_outro, 
+               NULL as valor_totem, NULL as quantidade_totem, 
+               NULL as outros_valores_totem
+        FROM order_items 
+        WHERE order_id = $1
+        ORDER BY id
+        "#,
+        order_id
+    )
+    .fetch_all(pool.inner())
+    .await
+    .map_err(|e| {
+        error!("Erro ao buscar itens do pedido {}: {}", order_id, e);
+        "Erro ao buscar itens do pedido".to_string()
+    })?;
+
+    // Construir OrderFicha
+    let order_ficha = OrderFicha {
+        id: order_row.get("id"),
+        numero: order_row.get("numero"),
+        cliente: order_row.get("cliente"),
+        telefone_cliente: order_row.get("telefone_cliente"),
+        cidade_cliente: order_row.get("cidade_cliente"),
+        estado_cliente: order_row.get("estado_cliente"),
+        data_entrada: order_row.get("data_entrada"),
+        data_entrega: order_row.get("data_entrega"),
+        forma_envio: order_row.get("forma_envio"),
+        forma_pagamento_id: order_row.get("forma_pagamento_id"),
+        valor_frete: order_row.get("valor_frete"),
+        total_value: order_row.get("total_value"),
+        observacao: order_row.get("observacao"),
+        items,
+    };
+
+    info!("Ficha de serviço carregada com sucesso para pedido {} - {} itens", 
+          order_id, order_ficha.items.len());
+
+    Ok(order_ficha)
 }
 
 #[cfg(test)]

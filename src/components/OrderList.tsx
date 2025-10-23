@@ -6,6 +6,8 @@ import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
+import { ConnectionStatus } from './ConnectionStatus';
+import { useRealtimeNotifications, useOrderRefresh } from '../hooks/useRealtimeNotifications';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -43,6 +45,11 @@ export default function OrderList() {
   const navigate = useNavigate();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
+  
+  // Hooks de notificações em tempo real
+  useRealtimeNotifications();
+  const refreshTrigger = useOrderRefresh();
+  
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
@@ -114,6 +121,13 @@ export default function OrderList() {
   useEffect(() => {
     loadOrders(); // Recarregar pedidos quando o filtro muda (após setPage)
   }, [productionStatusFilter, page, dateFrom, dateTo]);
+
+  // Recarregar pedidos quando houver notificação de mudança
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      loadOrders();
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     setPage(0);
@@ -850,8 +864,13 @@ export default function OrderList() {
     <div className="flex flex-col h-full space-y-6 min-h-screen">
       <Card>
         <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-          <CardDescription>Busque e filtre os pedidos</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Filtros</CardTitle>
+              <CardDescription>Busque e filtre os pedidos</CardDescription>
+            </div>
+            <ConnectionStatus />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">

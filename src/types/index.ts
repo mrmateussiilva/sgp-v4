@@ -451,3 +451,72 @@ export interface ReportResponse {
   groups: ReportGroup[];
   total: ReportTotals;
 }
+
+// ========================================
+// Ficha de Serviço
+// ========================================
+
+export interface OrderFicha {
+  id: number;
+  numero?: string;
+  cliente?: string;
+  telefone_cliente?: string;
+  cidade_cliente?: string;
+  estado_cliente?: string;
+  data_entrada?: string;
+  data_entrega?: string;
+  forma_envio?: string;
+  forma_pagamento_id?: number;
+  valor_frete?: number;
+  total_value: number;
+  observacao?: string;
+  items: OrderItemFicha[];
+}
+
+export interface OrderItemFicha {
+  id: number;
+  order_id: number;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  
+  // Campos detalhados
+  tipo_producao?: string;
+  descricao?: string;
+  largura?: string;
+  altura?: string;
+  metro_quadrado?: string;
+  vendedor?: string;
+  designer?: string;
+  tecido?: string;
+  overloque?: boolean;
+  elastico?: boolean;
+  tipo_acabamento?: string;
+  quantidade_ilhos?: string;
+  espaco_ilhos?: string;
+  valor_ilhos?: string;
+  quantidade_cordinha?: string;
+  espaco_cordinha?: string;
+  valor_cordinha?: string;
+  observacao?: string;
+  emenda?: string;
+  emenda_qtd?: string;
+  ziper?: boolean;
+  cordinha_extra?: boolean;
+  alcinha?: boolean;
+  toalha_pronta?: boolean;
+  acabamento_lona?: string;
+  valor_lona?: string;
+  quantidade_lona?: string;
+  outros_valores_lona?: string;
+  tipo_adesivo?: string;
+  valor_adesivo?: string;
+  quantidade_adesivo?: string;
+  outros_valores_adesivo?: string;
+  acabamento_totem?: string;
+  acabamento_totem_outro?: string;
+  valor_totem?: string;
+  quantidade_totem?: string;
+  outros_valores_totem?: string;
+}
