@@ -22,13 +22,30 @@ use crate::session::SessionManager;
 use crate::cache::CacheManager;
 use crate::config::AppConfig;
 use crate::notifications::NotificationManager;
+use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
 
-#[tokio::main]
-async fn main() {
-    // Inicializar logging
-    tracing_subscriber::fmt::init();
+async fn try_connect_to_database() -> Result<sqlx::PgPool, String> {
+    // Primeiro, tenta carregar configuração do arquivo db_config.json
+    if let Ok(Some(db_config)) = load_db_config() {
+        info!("Configuração de banco encontrada em db_config.json");
+        let db_url = db_config.to_database_url();
+        
+        match PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&db_url)
+            .await
+        {
+            Ok(pool) => {
+                info!("Conexão estabelecida usando configuração de db_config.json");
+                return Ok(pool);
+            }
+            Err(e) => {
+                error!("Falha ao conectar usando db_config.json: {}", e);
+            }
+        }
+    }
 
-    // Carregar variáveis de ambiente
+    // Se não conseguiu com db_config.json, tenta com .env
     match crate::env_loader::load_env_file() {
         Ok(_) => info!("Arquivo .env carregado com sucesso"),
         Err(e) => {
@@ -36,9 +53,6 @@ async fn main() {
         }
     }
 
-    info!("Iniciando Sistema de Gerenciamento de Pedidos...");
-
-    // Carregar configurações da aplicação
     let config = match AppConfig::from_env() {
         Ok(config) => {
             info!("Configurações carregadas com sucesso");
@@ -46,20 +60,60 @@ async fn main() {
             config
         }
         Err(e) => {
-            error!("Erro ao carregar configurações: {}", e);
-            panic!("Falha ao carregar configurações da aplicação");
+            return Err(format!("Erro ao carregar configurações: {}", e));
         }
     };
-
-    info!("Conectando ao banco de dados...");
 
     let pool = PgPoolOptions::new()
         .max_connections(config.database.max_connections)
         .connect(&config.database.url)
         .await
-        .expect("Falha ao conectar com o banco de dados. Verifique as configurações no arquivo .env");
+        .map_err(|e| format!("Falha ao conectar com o banco de dados: {}", e))?;
+
+    info!("Conexão com banco de dados estabelecida usando .env!");
+    Ok(pool)
+}
+
+#[tokio::main]
+async fn main() {
+    // Inicializar logging
+    tracing_subscriber::fmt::init();
+
+    info!("Iniciando Sistema de Gerenciamento de Pedidos...");
+
+    // Tentar conectar ao banco de dados
+    let pool = match try_connect_to_database().await {
+        Ok(pool) => pool,
+        Err(e) => {
+            error!("Falha ao conectar ao banco de dados: {}", e);
+            
+            // Executar aplicação Tauri em modo de configuração de banco
+            tauri::Builder::default()
+                .setup(|_app| {
+                    Ok(())
+                })
+                .invoke_handler(tauri::generate_handler![
+                    test_db_connection,
+                    save_db_config,
+                    load_db_config,
+                    delete_db_config,
+                ])
+                .run(tauri::generate_context!())
+                .expect("Erro ao executar aplicação Tauri");
+            return;
+        }
+    };
 
     info!("Conexão com banco de dados estabelecida!");
+
+    // Carregar configurações da aplicação para migrações
+    let config = match AppConfig::from_env() {
+        Ok(config) => config,
+        Err(e) => {
+            error!("Erro ao carregar configurações: {}", e);
+            panic!("Falha ao carregar configurações da aplicação");
+        }
+    };
 
     // Controlar execução de migrações via variáveis de ambiente
     // Padrão: em produção, não roda migrações; em desenvolvimento, roda.
@@ -135,6 +189,12 @@ async fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Database
+            test_db_connection,
+            test_db_connection_with_pool,
+            save_db_config,
+            load_db_config,
+            delete_db_config,
             // Auth
             commands::auth::login,
             commands::auth::logout,

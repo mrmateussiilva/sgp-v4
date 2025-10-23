@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod clientes;
+pub mod database;
 pub mod designers;
 pub mod formas_envio;
 pub mod formas_pagamento;
