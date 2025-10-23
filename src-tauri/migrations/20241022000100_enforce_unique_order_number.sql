@@ -17,11 +17,15 @@ WHERE numero IS NULL
    OR numero = ''
    OR numero !~ '^\d{10}$';
 
--- 3. Align the sequence with the current dataset
-SELECT setval(
-    'order_number_seq',
-    COALESCE((SELECT MAX(id) FROM orders), 0)
-);
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'order_number_seq') THEN
+        PERFORM setval('order_number_seq', GREATEST(COALESCE((SELECT MAX(numero::int) FROM orders), 1), 1));
+    ELSE
+        CREATE SEQUENCE order_number_seq START WITH 1 INCREMENT BY 1;
+        PERFORM setval('order_number_seq', 1);
+    END IF;
+END$$;
 
 -- 4. Enforce default, not-null and uniqueness on numero
 ALTER TABLE orders

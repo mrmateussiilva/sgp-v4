@@ -1,0 +1,5 @@
+{
+  "db": "PostgreSQL",
+  "query": "SELECT id, order_id, item_name, quantity, unit_price, subtotal, tipo_producao, descricao, largura, altura, metro_quadrado, vendedor, designer, tecido, overloque, elastico, tipo_acabamento, quantidade_ilhos, espaco_ilhos, valor_ilhos, quantidade_cordinha, espaco_cordinha, valor_cordinha, observacao, imagem, quantidade_paineis, valor_unitario, emenda, emenda_qtd, terceirizado, acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta FROM order_items WHERE order_id = ANY($1) ORDER BY order_id, id",
+  "hash": "placeholder_hash_for_offline_compilation"
+}
