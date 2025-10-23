@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useRealtimeNotifications, useOrderRefresh } from '../hooks/useRealtimeNotifications';
 import { NotificationDebugPanel } from './NotificationDebugPanel';
+import { TauriEventTest } from './TauriEventTest';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -1257,6 +1258,7 @@ export default function OrderList() {
       
       {/* Painel de Debug - Remover em produção */}
       <NotificationDebugPanel />
+      <TauriEventTest />
     </div>
   );
 }

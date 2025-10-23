@@ -63,6 +63,8 @@ export const useRealtimeNotifications = () => {
       const unsubscribe = await listen<OrderNotification>(
         `order-notification-${clientId}`,
         (event) => {
+          console.log('🔔 Evento recebido do Tauri:', event);
+          console.log('📦 Payload da notificação:', event.payload);
           handleNotification(event.payload);
         }
       );

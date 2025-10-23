@@ -66,19 +66,20 @@ impl NotificationManager {
 
     pub async fn broadcast(&self, notification: OrderNotification) -> Result<usize, String> {
         let receiver_count = self.sender.receiver_count();
+        info!("📊 Tentando broadcast: {} receivers ativos", receiver_count);
         
         if receiver_count == 0 {
-            info!("Nenhum cliente conectado para receber notificação");
+            info!("⚠️ Nenhum cliente conectado para receber notificação");
             return Ok(0);
         }
 
         match self.sender.send(notification.clone()) {
             Ok(count) => {
-                info!("Notificação enviada para {} clientes: {:?}", count, notification.notification_type);
+                info!("✅ Notificação enviada para {} clientes: {:?}", count, notification.notification_type);
                 Ok(count)
             }
             Err(e) => {
-                error!("Erro ao enviar notificação: {}", e);
+                error!("❌ Erro ao enviar notificação: {}", e);
                 Err(format!("Erro ao enviar notificação: {}", e))
             }
         }
@@ -137,15 +138,18 @@ pub async fn subscribe_to_notifications(
     let client_id_clone = client_id.clone();
     
     tokio::spawn(async move {
+        info!("🚀 Iniciando listener para cliente: {}", client_id_clone);
+        
         while let Ok(notification) = receiver.recv().await {
             let event_name = format!("order-notification-{}", client_id_clone);
+            info!("📡 Tentando enviar evento '{}' para cliente {}", event_name, client_id_clone);
             
             match app_handle_clone.emit_all(&event_name, &notification) {
                 Ok(_) => {
-                    info!("Notificação enviada para cliente {}: {:?}", client_id_clone, notification.notification_type);
+                    info!("✅ Notificação enviada com sucesso para cliente {}: {:?}", client_id_clone, notification.notification_type);
                 }
                 Err(e) => {
-                    error!("Erro ao enviar notificação para cliente {}: {}", client_id_clone, e);
+                    error!("❌ Erro ao enviar notificação para cliente {}: {}", client_id_clone, e);
                     break;
                 }
             }
@@ -154,7 +158,7 @@ pub async fn subscribe_to_notifications(
         // Cleanup: remover cliente da lista de subscribers quando desconectar
         let notification_manager = app_handle_clone.state::<NotificationManager>();
         notification_manager.unsubscribe(&client_id_clone).await;
-        info!("Cliente {} desconectado das notificações", client_id_clone);
+        info!("🔌 Cliente {} desconectado das notificações", client_id_clone);
     });
     
     Ok(format!("Inscrito para notificações como cliente {}", client_id))
@@ -191,6 +195,8 @@ pub async fn broadcast_order_created(
     order_numero: Option<String>,
     user_id: Option<i32>,
 ) -> Result<usize, String> {
+    info!("📢 Broadcasting order_created: order_id={}, numero={:?}, user_id={:?}", order_id, order_numero, user_id);
+    
     let notification_manager = app_handle.state::<NotificationManager>();
     
     let notification = create_notification(
@@ -201,7 +207,9 @@ pub async fn broadcast_order_created(
         Some("Novo pedido criado".to_string()),
     );
     
-    notification_manager.broadcast(notification).await
+    let result = notification_manager.broadcast(notification).await?;
+    info!("✅ Broadcast order_created concluído, {} clientes notificados", result);
+    Ok(result)
 }
 
 pub async fn broadcast_order_updated(
@@ -249,6 +257,8 @@ pub async fn broadcast_order_status_changed(
     user_id: Option<i32>,
     status_details: String,
 ) -> Result<usize, String> {
+    info!("📢 Broadcasting order_status_changed: order_id={}, numero={:?}, user_id={:?}, details={}", order_id, order_numero, user_id, status_details);
+    
     let notification_manager = app_handle.state::<NotificationManager>();
     
     let notification = create_notification(
@@ -259,5 +269,7 @@ pub async fn broadcast_order_status_changed(
         Some(status_details),
     );
     
-    notification_manager.broadcast(notification).await
+    let result = notification_manager.broadcast(notification).await?;
+    info!("✅ Broadcast order_status_changed concluído, {} clientes notificados", result);
+    Ok(result)
 }

@@ -5,6 +5,12 @@ import { invoke } from '@tauri-apps/api/tauri';
 export const NotificationDebugPanel = () => {
   const { isConnected, subscriberCount, connect, disconnect } = useRealtimeNotifications();
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev.slice(-9), `${timestamp}: ${message}`]);
+  };
 
   const getDebugInfo = async () => {
     try {
@@ -13,18 +19,33 @@ export const NotificationDebugPanel = () => {
         subscriberCount: count,
         timestamp: new Date().toISOString(),
       });
+      addLog(`Backend subscribers: ${count}`);
     } catch (error) {
       console.error('Erro ao obter debug info:', error);
+      addLog(`Erro: ${error}`);
+    }
+  };
+
+  const testNotification = async () => {
+    try {
+      addLog('Testando notificação...');
+      // Simular uma notificação de teste
+      window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
+        detail: { timestamp: Date.now(), test: true }
+      }));
+      addLog('Evento de teste disparado');
+    } catch (error) {
+      addLog(`Erro no teste: ${error}`);
     }
   };
 
   useEffect(() => {
-    const interval = setInterval(getDebugInfo, 2000);
+    const interval = setInterval(getDebugInfo, 3000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg max-w-sm">
+    <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg max-w-sm max-h-96 overflow-y-auto">
       <h3 className="font-bold text-sm mb-2">🔧 Debug Notificações</h3>
       
       <div className="space-y-2 text-xs">
@@ -36,7 +57,7 @@ export const NotificationDebugPanel = () => {
         </div>
         
         <div className="flex justify-between">
-          <span>Subscribers:</span>
+          <span>Frontend:</span>
           <span>{subscriberCount}</span>
         </div>
         
@@ -47,7 +68,7 @@ export const NotificationDebugPanel = () => {
           </div>
         )}
         
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-1 mt-3">
           <button
             onClick={connect}
             disabled={isConnected}
@@ -68,6 +89,21 @@ export const NotificationDebugPanel = () => {
           >
             Refresh
           </button>
+          <button
+            onClick={testNotification}
+            className="px-2 py-1 bg-green-500 text-white rounded text-xs"
+          >
+            Teste
+          </button>
+        </div>
+
+        <div className="mt-3">
+          <h4 className="font-semibold text-xs mb-1">Logs:</h4>
+          <div className="bg-gray-100 p-2 rounded text-xs max-h-32 overflow-y-auto">
+            {logs.map((log, index) => (
+              <div key={index} className="text-gray-600">{log}</div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
