@@ -32,8 +32,9 @@ function App() {
       );
       
       // Se temos uma configuração salva, tentar conectar com ela
-      if (savedConfig) {
-        const dbUrl = `postgresql://${savedConfig.user}:${savedConfig.password}@${savedConfig.host}:${savedConfig.port}/${savedConfig.database}`;
+      if (savedConfig && typeof savedConfig === 'object' && savedConfig !== null) {
+        const config = savedConfig as { user: string; password: string; host: string; port: string; database: string };
+        const dbUrl = `postgresql://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`;
         
         await import('@tauri-apps/api/tauri').then(({ invoke }) => 
           invoke('test_db_connection', { dbUrl })

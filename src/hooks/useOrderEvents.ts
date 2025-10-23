@@ -124,11 +124,10 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
     try {
       const updatedOrder = await invoke<OrderWithItems>('get_order_by_id', { orderId });
       
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? updatedOrder : order
-        )
+      const updatedOrders = orders.map((order: OrderWithItems) => 
+        order.id === orderId ? updatedOrder : order
       );
+      setOrders(updatedOrders);
       
       console.log('✅ Pedido sincronizado com sucesso');
     } catch (error) {
@@ -149,11 +148,10 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
     try {
       const updatedOrder = await invoke<OrderWithItems>('get_order_by_id', { orderId });
       
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? updatedOrder : order
-        )
+      const updatedOrders = orders.map((order: OrderWithItems) => 
+        order.id === orderId ? updatedOrder : order
       );
+      setOrders(updatedOrders);
       
       console.log('✅ Status do pedido sincronizado com sucesso');
     } catch (error) {
