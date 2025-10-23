@@ -23,22 +23,23 @@ use crate::cache::CacheManager;
 use crate::config::AppConfig;
 use crate::notifications::NotificationManager;
 use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
+use crate::db::try_connect_db;
 
-async fn try_connect_to_database() -> Result<(sqlx::PgPool, AppConfig), String> {
+/// Conecta ao banco usando o sistema profissional de migrações
+async fn try_connect_with_migrations() -> Result<(sqlx::PgPool, AppConfig), String> {
     // Primeiro, tenta carregar configuração do arquivo db_config.json
     if let Ok(Some(db_config)) = load_db_config() {
         info!("Configuração de banco encontrada em db_config.json");
         let db_url = db_config.to_database_url();
         
-        match PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&db_url)
-            .await
-        {
+        // Definir DATABASE_URL para o sistema de migrações
+        std::env::set_var("DATABASE_URL", &db_url);
+        
+        match try_connect_db().await {
             Ok(pool) => {
                 info!("Conexão estabelecida usando configuração de db_config.json");
                 
-                // Criar uma configuração mínima para as migrações
+                // Criar uma configuração mínima para a aplicação
                 let config = AppConfig {
                     database: crate::config::DatabaseConfig {
                         url: db_url,
@@ -75,14 +76,16 @@ async fn try_connect_to_database() -> Result<(sqlx::PgPool, AppConfig), String> 
         }
     };
 
-    let pool = PgPoolOptions::new()
-        .max_connections(config.database.max_connections)
-        .connect(&config.database.url)
-        .await
-        .map_err(|e| format!("Falha ao conectar com o banco de dados: {}", e))?;
-
-    info!("Conexão com banco de dados estabelecida usando .env!");
-    Ok((pool, config))
+    // Usar o sistema profissional de migrações
+    match try_connect_db().await {
+        Ok(pool) => {
+            info!("Conexão com banco de dados estabelecida usando .env!");
+            Ok((pool, config))
+        }
+        Err(e) => {
+            Err(format!("Falha ao conectar com o banco de dados: {}", e))
+        }
+    }
 }
 
 #[tokio::main]
@@ -92,8 +95,8 @@ async fn main() {
 
     info!("Iniciando Sistema de Gerenciamento de Pedidos...");
 
-    // Tentar conectar ao banco de dados
-    let (pool, config) = match try_connect_to_database().await {
+    // Tentar conectar ao banco de dados usando sistema profissional de migrações
+    let (pool, config) = match try_connect_with_migrations().await {
         Ok((pool, config)) => (pool, config),
         Err(e) => {
             error!("Falha ao conectar ao banco de dados: {}", e);
