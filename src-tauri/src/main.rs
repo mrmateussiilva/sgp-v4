@@ -24,7 +24,7 @@ use crate::config::AppConfig;
 use crate::notifications::NotificationManager;
 use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
 
-async fn try_connect_to_database() -> Result<sqlx::PgPool, String> {
+async fn try_connect_to_database() -> Result<(sqlx::PgPool, AppConfig), String> {
     // Primeiro, tenta carregar configuração do arquivo db_config.json
     if let Ok(Some(db_config)) = load_db_config() {
         info!("Configuração de banco encontrada em db_config.json");
@@ -37,7 +37,18 @@ async fn try_connect_to_database() -> Result<sqlx::PgPool, String> {
         {
             Ok(pool) => {
                 info!("Conexão estabelecida usando configuração de db_config.json");
-                return Ok(pool);
+                
+                // Criar uma configuração mínima para as migrações
+                let config = AppConfig {
+                    database: crate::config::DatabaseConfig {
+                        url: db_url,
+                        max_connections: 10,
+                    },
+                    session_timeout_hours: 24,
+                    cache_ttl_seconds: 3600,
+                };
+                
+                return Ok((pool, config));
             }
             Err(e) => {
                 error!("Falha ao conectar usando db_config.json: {}", e);
@@ -71,7 +82,7 @@ async fn try_connect_to_database() -> Result<sqlx::PgPool, String> {
         .map_err(|e| format!("Falha ao conectar com o banco de dados: {}", e))?;
 
     info!("Conexão com banco de dados estabelecida usando .env!");
-    Ok(pool)
+    Ok((pool, config))
 }
 
 #[tokio::main]
@@ -82,8 +93,8 @@ async fn main() {
     info!("Iniciando Sistema de Gerenciamento de Pedidos...");
 
     // Tentar conectar ao banco de dados
-    let pool = match try_connect_to_database().await {
-        Ok(pool) => pool,
+    let (pool, config) = match try_connect_to_database().await {
+        Ok((pool, config)) => (pool, config),
         Err(e) => {
             error!("Falha ao conectar ao banco de dados: {}", e);
             
@@ -106,14 +117,7 @@ async fn main() {
 
     info!("Conexão com banco de dados estabelecida!");
 
-    // Carregar configurações da aplicação para migrações
-    let config = match AppConfig::from_env() {
-        Ok(config) => config,
-        Err(e) => {
-            error!("Erro ao carregar configurações: {}", e);
-            panic!("Falha ao carregar configurações da aplicação");
-        }
-    };
+    // Carregar configurações da aplicação para migrações (já temos a config)
 
     // Controlar execução de migrações via variáveis de ambiente
     // Padrão: em produção, não roda migrações; em desenvolvimento, roda.

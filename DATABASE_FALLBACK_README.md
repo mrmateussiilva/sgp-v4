@@ -45,6 +45,17 @@ O sistema agora possui uma **tela de fallback** que é exibida automaticamente q
 - Atualizada lógica de verificação no frontend para usar `test_db_connection` com URL construída
 - Removido import não utilizado `DbConfig` do main.rs
 - Simplificada abordagem: usar apenas `test_db_connection` para testes de conectividade
+- **Corrigido erro de configuração**: Sistema agora usa `db_config.json` para criar configuração completa, evitando erro de `DB_USER` não definida
+
+## 🔧 Correção Adicional - Erro de Configuração
+
+**Problema**: Após conectar com sucesso usando `db_config.json`, o sistema tentava carregar configurações do `.env` para migrações e falhava com "DB_USER deve estar definida no arquivo .env".
+
+**Solução**: 
+- Modificada função `try_connect_to_database()` para retornar tanto o pool quanto a configuração
+- Quando conecta via `db_config.json`, cria uma configuração `AppConfig` completa
+- Elimina dependência do `.env` quando usando configuração salva
+- Sistema funciona completamente independente do arquivo `.env`
 
 ## 🚀 Comandos Tauri Disponíveis
 
