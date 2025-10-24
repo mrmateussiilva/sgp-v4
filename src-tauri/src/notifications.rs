@@ -11,7 +11,7 @@ use tracing::{error, info, warn, debug};
 // TIPOS DE NOTIFICAÇÃO
 // ========================================
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
 pub enum NotificationType {
     OrderCreated,
     OrderUpdated,
