@@ -6,7 +6,6 @@ use std::collections::HashSet;
 use std::env;
 use tracing::{error, info};
 use tracing_subscriber;
-use tauri::Manager;
 
 mod commands;
 mod config;
@@ -22,7 +21,7 @@ use crate::migrator::MIGRATOR;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
 use crate::config::AppConfig;
-use crate::notifications::NotificationManager;
+// Sistema de notificações simples - sem complexidade desnecessária
 use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
 use crate::db::try_connect_db;
 
@@ -192,17 +191,8 @@ async fn main() {
         .manage(pool)
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
-        .manage(NotificationManager::new())
-        .setup(|app| {
-            // Iniciar sistema de heartbeat para notificações
-            let notification_manager = app.state::<NotificationManager>();
-            let manager_clone = notification_manager.inner().clone();
-            
-            tokio::spawn(async move {
-                manager_clone.start_heartbeat_monitor().await;
-            });
-            
-            info!("🚀 Sistema de heartbeat iniciado para notificações globais");
+        .setup(|_app| {
+            info!("🚀 Sistema de notificações simples iniciado");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -230,16 +220,8 @@ async fn main() {
             commands::orders::get_orders_by_delivery_date,
             commands::orders::get_order_audit_log,
             commands::orders::get_order_ficha,
-            // Notifications
-            notifications::subscribe_to_notifications,
-            notifications::unsubscribe_from_notifications,
-            notifications::get_notification_subscriber_count,
-            notifications::test_notification_broadcast,
-            notifications::broadcast_to_specific_clients,
-            // Broadcast Global
-            notifications::send_heartbeat,
-            notifications::get_active_clients,
-            notifications::broadcast_status_update,
+            // Notifications simples
+            notifications::test_simple_notification,
             // Reports
             commands::reports::generate_report,
             // Clientes

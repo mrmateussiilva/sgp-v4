@@ -2,11 +2,11 @@ use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
-use crate::notifications::{broadcast_order_status_changed_global, broadcast_order_created_global, broadcast_order_updated_global, broadcast_order_deleted_global};
+use crate::notifications::{notify_order_created, notify_order_updated, notify_order_deleted, notify_order_status_changed};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use serde_json::{json, Map, Value};
 use sqlx::{QueryBuilder, Row};
-use tauri::{State, AppHandle, Manager};
+use tauri::{State, AppHandle};
 use tracing::{error, info};
 use std::time::Duration;
 
@@ -50,7 +50,7 @@ pub async fn get_pending_orders_paginated(
         "Erro ao contar pedidos".to_string()
     })?;
 
-    // 1ª consulta - apenas pedidos (otimizada com índices)
+    // 1ª consulta - apenas pedidos (otimizada com índices compostos)
     let rows = sqlx::query(
         r#"
         SELECT id, numero, cliente, cidade_cliente, estado_cliente, telefone_cliente,
@@ -105,6 +105,7 @@ pub async fn get_pending_orders_paginated(
     // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        // Usar array PostgreSQL para melhor performance
         sqlx::query_as!(
             OrderItem,
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
@@ -116,9 +117,9 @@ pub async fn get_pending_orders_paginated(
                     quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
                     quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
              FROM order_items 
-             WHERE order_id = ANY($1)
+             WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids
+            &order_ids as &[i32]
         )
         .fetch_all(pool.inner())
         .await
@@ -254,6 +255,7 @@ pub async fn get_ready_orders_paginated(
     // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        // Usar array PostgreSQL para melhor performance
         sqlx::query_as!(
             OrderItem,
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
@@ -265,9 +267,9 @@ pub async fn get_ready_orders_paginated(
                     quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
                     quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
              FROM order_items 
-             WHERE order_id = ANY($1)
+             WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids
+            &order_ids as &[i32]
         )
         .fetch_all(pool.inner())
         .await
@@ -372,6 +374,7 @@ pub async fn get_pending_orders_light(
     // 2ª consulta - itens dos pedidos retornados (otimizada com índice)
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
+        // Usar array PostgreSQL para melhor performance
         sqlx::query_as!(
             OrderItem,
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
@@ -383,9 +386,9 @@ pub async fn get_pending_orders_light(
                     quantidade_lona, outros_valores_lona, tipo_adesivo, valor_adesivo,
                     quantidade_adesivo, outros_valores_adesivo, ziper, cordinha_extra, alcinha, toalha_pronta
              FROM order_items 
-             WHERE order_id = ANY($1)
+             WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids
+            &order_ids as &[i32]
         )
         .fetch_all(pool.inner())
         .await
@@ -504,25 +507,9 @@ pub async fn create_order(
     
     let result = create_order_internal(pool.inner(), request).await;
     
-    // Se o pedido foi criado com sucesso, emitir evento global
+    // Se o pedido foi criado com sucesso, emitir evento simples
     if let Ok(ref order) = result {
-        info!("🚀 Emitindo evento 'order_created' para pedido ID: {}", order.id);
-        app_handle
-            .emit_all("order_created", order.id)
-            .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
-        
-        // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre novo pedido
-        if let Err(e) = broadcast_order_created_global(
-            &app_handle,
-            order.id,
-            order.numero.clone(),
-            Some(_session_info.user_id),
-            Some(format!("client_{}", _session_info.user_id)),
-        ).await {
-            error!("❌ Erro no broadcast global de criação: {}", e);
-        } else {
-            info!("✅ Broadcast global de criação enviado com sucesso");
-        }
+        notify_order_created(&app_handle, order.id).await;
     }
     
     result
@@ -723,13 +710,13 @@ pub async fn update_order_metadata(
     session_token: String,
     request: UpdateOrderMetadataRequest,
 ) -> Result<OrderWithItems, String> {
-    let session_info = sessions
+    let _session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
     info!(
         "Atualizando metadados do pedido ID: {} por usuário {}",
-        request.id, session_info.username
+        request.id, _session_info.username
     );
 
     let mut tx = pool.inner().begin().await.map_err(|e| {
@@ -974,8 +961,8 @@ pub async fn update_order_metadata(
         "INSERT INTO order_audit_log (order_id, changed_by, changed_by_name, changes) VALUES ($1, $2, $3, $4)",
     )
     .bind(request.id)
-    .bind(session_info.user_id)
-    .bind(&session_info.username)
+    .bind(_session_info.user_id)
+    .bind(&_session_info.username)
     .bind(&changes_json)
     .execute(&mut *tx)
     .await
@@ -1039,7 +1026,7 @@ pub async fn update_order(
     session_token: String,
     request: UpdateOrderRequest,
 ) -> Result<OrderWithItems, String> {
-    let session_info = sessions
+    let _session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1197,18 +1184,8 @@ pub async fn update_order(
 
     let result = build_order_with_items(order, items);
     
-    // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre atualização de pedido
-    if let Err(e) = broadcast_order_updated_global(
-        &app_handle,
-        result.id,
-        result.numero.clone(),
-        Some(session_info.user_id),
-        Some(format!("client_{}", session_info.user_id)),
-    ).await {
-        error!("❌ Erro no broadcast global de atualização: {}", e);
-    } else {
-        info!("✅ Broadcast global de atualização enviado com sucesso");
-    }
+    // Notificar sobre atualização de pedido
+    notify_order_updated(&app_handle, result.id).await;
 
     Ok(result)
 }
@@ -1235,14 +1212,8 @@ pub async fn update_order_status_flags(
         cache.invalidate_pattern("ready_orders").await;
         info!("Cache de pedidos pendentes e prontos invalidado após atualização de status");
         
-        // Emitir evento global para atualização de status
+        // Notificar sobre mudança de status
         if let Ok(ref order) = result {
-            info!("🚀 Emitindo evento 'order_status_updated' para pedido ID: {}", order.id);
-            app_handle
-                .emit_all("order_status_updated", order.id)
-                .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
-            
-            // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre atualização de status
             let status_details = format!(
                 "Status atualizado: Costura={}, Expedição={}, Pronto={}",
                 order.costura.unwrap_or(false),
@@ -1250,18 +1221,7 @@ pub async fn update_order_status_flags(
                 order.pronto.unwrap_or(false)
             );
             
-            if let Err(e) = broadcast_order_status_changed_global(
-                &app_handle,
-                order.id,
-                order.numero.clone(),
-                Some(_session_info.user_id),
-                status_details,
-                Some(format!("client_{}", _session_info.user_id)),
-            ).await {
-                error!("❌ Erro no broadcast global de status: {}", e);
-            } else {
-                info!("✅ Broadcast global de status enviado com sucesso");
-            }
+            notify_order_status_changed(&app_handle, order.id, status_details).await;
         }
     }
     
@@ -1369,24 +1329,8 @@ pub async fn delete_order(
             if result.rows_affected() > 0 {
                 info!("Pedido deletado com sucesso. ID: {}", order_id);
                 
-                // Emitir evento global para pedido deletado
-                info!("🚀 Emitindo evento 'order_deleted' para pedido ID: {}", order_id);
-                app_handle
-                    .emit_all("order_deleted", order_id)
-                    .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
-                
-                // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre exclusão de pedido
-                if let Err(e) = broadcast_order_deleted_global(
-                    &app_handle,
-                    order_id,
-                    None, // Não temos o número do pedido após exclusão
-                    Some(_session_info.user_id),
-                    Some(format!("client_{}", _session_info.user_id)),
-                ).await {
-                    error!("❌ Erro no broadcast global de exclusão: {}", e);
-                } else {
-                    info!("✅ Broadcast global de exclusão enviado com sucesso");
-                }
+                // Notificar sobre exclusão de pedido
+                notify_order_deleted(&app_handle, order_id).await;
                 
                 Ok(true)
             } else {
