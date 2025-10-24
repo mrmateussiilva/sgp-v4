@@ -2,6 +2,7 @@ use crate::db::DbPool;
 use crate::models::*;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
+use crate::notifications::{broadcast_order_status_changed_global, broadcast_order_created_global, broadcast_order_updated_global, broadcast_order_deleted_global};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use serde_json::{json, Map, Value};
 use sqlx::{QueryBuilder, Row};
@@ -509,6 +510,19 @@ pub async fn create_order(
         app_handle
             .emit_all("order_created", order.id)
             .unwrap_or_else(|e| error!("Erro ao emitir evento order_created: {}", e));
+        
+        // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre novo pedido
+        if let Err(e) = broadcast_order_created_global(
+            &app_handle,
+            order.id,
+            order.numero.clone(),
+            Some(_session_info.user_id),
+            Some(format!("client_{}", _session_info.user_id)),
+        ).await {
+            error!("❌ Erro no broadcast global de criação: {}", e);
+        } else {
+            info!("✅ Broadcast global de criação enviado com sucesso");
+        }
     }
     
     result
@@ -1019,12 +1033,13 @@ pub async fn get_order_audit_log(
 
 #[tauri::command]
 pub async fn update_order(
+    app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
     session_token: String,
     request: UpdateOrderRequest,
 ) -> Result<OrderWithItems, String> {
-    sessions
+    let session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
@@ -1180,7 +1195,22 @@ pub async fn update_order(
 
     info!("Pedido atualizado com sucesso. ID: {}", order.id);
 
-    Ok(build_order_with_items(order, items))
+    let result = build_order_with_items(order, items);
+    
+    // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre atualização de pedido
+    if let Err(e) = broadcast_order_updated_global(
+        &app_handle,
+        result.id,
+        result.numero.clone(),
+        Some(session_info.user_id),
+        Some(format!("client_{}", session_info.user_id)),
+    ).await {
+        error!("❌ Erro no broadcast global de atualização: {}", e);
+    } else {
+        info!("✅ Broadcast global de atualização enviado com sucesso");
+    }
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1211,6 +1241,27 @@ pub async fn update_order_status_flags(
             app_handle
                 .emit_all("order_status_updated", order.id)
                 .unwrap_or_else(|e| error!("Erro ao emitir evento order_status_updated: {}", e));
+            
+            // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre atualização de status
+            let status_details = format!(
+                "Status atualizado: Costura={}, Expedição={}, Pronto={}",
+                order.costura.unwrap_or(false),
+                order.expedicao.unwrap_or(false),
+                order.pronto.unwrap_or(false)
+            );
+            
+            if let Err(e) = broadcast_order_status_changed_global(
+                &app_handle,
+                order.id,
+                order.numero.clone(),
+                Some(_session_info.user_id),
+                status_details,
+                Some(format!("client_{}", _session_info.user_id)),
+            ).await {
+                error!("❌ Erro no broadcast global de status: {}", e);
+            } else {
+                info!("✅ Broadcast global de status enviado com sucesso");
+            }
         }
     }
     
@@ -1323,6 +1374,19 @@ pub async fn delete_order(
                 app_handle
                     .emit_all("order_deleted", order_id)
                     .unwrap_or_else(|e| error!("Erro ao emitir evento order_deleted: {}", e));
+                
+                // 🌐 BROADCAST GLOBAL: Notificar todos os clientes sobre exclusão de pedido
+                if let Err(e) = broadcast_order_deleted_global(
+                    &app_handle,
+                    order_id,
+                    None, // Não temos o número do pedido após exclusão
+                    Some(_session_info.user_id),
+                    Some(format!("client_{}", _session_info.user_id)),
+                ).await {
+                    error!("❌ Erro no broadcast global de exclusão: {}", e);
+                } else {
+                    info!("✅ Broadcast global de exclusão enviado com sucesso");
+                }
                 
                 Ok(true)
             } else {

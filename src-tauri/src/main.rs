@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::env;
 use tracing::{error, info};
 use tracing_subscriber;
+use tauri::Manager;
 
 mod commands;
 mod config;
@@ -192,7 +193,16 @@ async fn main() {
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
         .manage(NotificationManager::new())
-        .setup(|_app| {
+        .setup(|app| {
+            // Iniciar sistema de heartbeat para notificações
+            let notification_manager = app.state::<NotificationManager>();
+            let manager_clone = notification_manager.inner().clone();
+            
+            tokio::spawn(async move {
+                manager_clone.start_heartbeat_monitor().await;
+            });
+            
+            info!("🚀 Sistema de heartbeat iniciado para notificações globais");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -225,6 +235,10 @@ async fn main() {
             notifications::unsubscribe_from_notifications,
             notifications::get_notification_subscriber_count,
             notifications::test_notification_broadcast,
+            // Broadcast Global
+            notifications::send_heartbeat,
+            notifications::get_active_clients,
+            notifications::broadcast_status_update,
             // Reports
             commands::reports::generate_report,
             // Clientes

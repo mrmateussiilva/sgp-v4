@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/tauri';
 import { OrderWithItems } from '../types';
+import { useGlobalBroadcast } from './useGlobalBroadcast';
 
 // ========================================
 // HOOK PARA EVENTOS DE PEDIDOS EM TEMPO REAL
@@ -20,6 +21,20 @@ export const useOrderEvents = ({
   onOrderDeleted,
   onOrderStatusUpdated,
 }: UseOrderEventsProps = {}) => {
+  
+  // Usar o sistema de broadcast global
+  const { status: broadcastStatus } = useGlobalBroadcast();
+  
+  // Log do status do broadcast
+  useEffect(() => {
+    if (broadcastStatus.isConnected) {
+      console.log('🌐 Sistema de broadcast global ativo:', {
+        clientId: broadcastStatus.clientId,
+        activeClients: broadcastStatus.activeClients.length,
+        lastHeartbeat: broadcastStatus.lastHeartbeat,
+      });
+    }
+  }, [broadcastStatus]);
   
   // Função para buscar pedido atualizado
   const fetchUpdatedOrder = useCallback(async (orderId: number): Promise<OrderWithItems | null> => {
