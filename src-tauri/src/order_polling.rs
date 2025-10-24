@@ -179,12 +179,17 @@ async fn emit_order_status_changed(app_handle: &AppHandle, order: &OrderStatus) 
         timestamp: chrono::Utc::now(),
     };
     
+    info!("🚀 Tentando emitir evento order_status_changed para pedido {}", order.id);
+    info!("📋 Dados do evento: {:?}", notification);
+    
     match app_handle.emit_all("order_status_changed", &notification) {
         Ok(_) => {
-            info!("📡 Evento order_status_changed emitido para pedido {}: {}", order.id, order.status);
+            info!("✅ Evento order_status_changed emitido com SUCESSO para pedido {}: {}", order.id, order.status);
+            info!("📡 Evento enviado para todos os listeners conectados");
         }
         Err(e) => {
-            error!("❌ Erro ao emitir evento order_status_changed: {}", e);
+            error!("❌ ERRO ao emitir evento order_status_changed: {}", e);
+            error!("🔍 Detalhes do erro: {:?}", e);
         }
     }
 }
@@ -213,7 +218,7 @@ pub struct OrderStatusNotification {
 
 #[tauri::command]
 pub async fn test_order_polling(app_handle: AppHandle) -> Result<String, String> {
-    info!("🧪 Testando sistema de polling de pedidos...");
+    info!("🧪 [BACKEND] Testando sistema de polling de pedidos...");
     
     let test_notification = OrderStatusNotification {
         order_id: 999,
@@ -228,9 +233,19 @@ pub async fn test_order_polling(app_handle: AppHandle) -> Result<String, String>
         timestamp: chrono::Utc::now(),
     };
     
+    info!("🚀 [BACKEND] Tentando emitir evento de teste...");
+    info!("📋 [BACKEND] Dados do teste: {:?}", test_notification);
+    
     match app_handle.emit_all("order_status_changed", &test_notification) {
-        Ok(_) => Ok("✅ Teste de polling executado com sucesso".to_string()),
-        Err(e) => Err(format!("❌ Erro no teste de polling: {}", e)),
+        Ok(_) => {
+            info!("✅ [BACKEND] Teste executado com SUCESSO!");
+            info!("📡 [BACKEND] Evento enviado para todos os listeners");
+            Ok("✅ Teste de polling executado com sucesso - verifique o console do frontend".to_string())
+        }
+        Err(e) => {
+            error!("❌ [BACKEND] Erro no teste de polling: {}", e);
+            Err(format!("❌ Erro no teste de polling: {}", e))
+        }
     }
 }
 
