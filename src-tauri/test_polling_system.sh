@@ -87,3 +87,4 @@ echo ""
 
 echo "🎉 Sistema de polling implementado com sucesso!"
 echo "   Execute 'cargo run' para testar!"
+

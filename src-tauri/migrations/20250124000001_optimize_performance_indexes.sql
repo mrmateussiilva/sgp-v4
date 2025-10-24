@@ -40,3 +40,4 @@ BEGIN
     RAISE NOTICE '- idx_orders_delivery_date_optimized: Para consultas por data de entrega';
     RAISE NOTICE '- idx_orders_status_cliente_optimized: Para filtros combinados';
 END $$;
+

@@ -250,3 +250,4 @@ Se o evento não estiver chegando no frontend, o problema pode ser:
 - Problema na comunicação Tauri
 
 Use o `DebugEventListener` para identificar exatamente onde está o problema!
+

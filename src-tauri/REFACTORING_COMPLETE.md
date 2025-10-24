@@ -125,3 +125,4 @@ O sistema de notificações do SGP v4 foi **completamente refatorado** e agora o
 ### **Sistema Otimizado e Pronto para Uso! 🚀**
 
 A refatoração foi um **sucesso completo** e o sistema agora está **muito mais eficiente, escalável e fácil de manter**! 🎉
+

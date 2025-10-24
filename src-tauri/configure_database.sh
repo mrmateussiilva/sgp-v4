@@ -233,3 +233,4 @@ echo "💡 Para backup automático diário, adicione ao crontab:"
 echo "   0 2 * * * cd $(pwd) && ./backup_db.sh"
 echo ""
 success "Configuração concluída! 🎊"
+

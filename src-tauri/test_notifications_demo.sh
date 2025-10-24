@@ -118,3 +118,4 @@ echo "✅ Recursos gerenciados (cleanup automático)"
 echo ""
 
 echo "🎉 Sistema de notificações otimizado funcionando perfeitamente!"
+

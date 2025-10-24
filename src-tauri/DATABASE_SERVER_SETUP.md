@@ -345,3 +345,4 @@ Com estes passos, seu banco de dados PostgreSQL estará configurado e funcionand
 5. Monitore o desempenho
 
 **Banco de dados pronto para produção!** 🚀
+

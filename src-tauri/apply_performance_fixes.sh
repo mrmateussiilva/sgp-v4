@@ -99,3 +99,4 @@ echo "   - Consultas de itens: ~20ms (antes: 5-8s)"
 echo "   - Menos conexões de notificações desnecessárias"
 echo ""
 echo "💡 Dica: Reinicie a aplicação para aplicar todas as mudanças"
+

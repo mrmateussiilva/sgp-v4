@@ -198,3 +198,4 @@ pub async fn run_notification_simulation(app_handle: AppHandle) -> Result<String
     
     Ok("✅ Simulação concluída com sucesso! Verifique os logs para ver o fluxo otimizado.".to_string())
 }
+

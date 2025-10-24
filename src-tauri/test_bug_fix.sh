@@ -126,3 +126,4 @@ echo "   • Respeita configurações do usuário"
 echo "   • Não executa migrações quando RUN_MIGRATIONS=false"
 echo "   • Usa ambiente correto (production/development)"
 echo "   • Elimina conflitos de VersionMismatch"
+

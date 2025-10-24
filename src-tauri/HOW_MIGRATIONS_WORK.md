@@ -296,3 +296,4 @@ echo "APP_ENV=production" >> .env
 - **`DATABASE_URL`** ← **Configurado via .env**
 
 **Portanto, o sistema está configurado para executar migrações automaticamente!** 🚀
+

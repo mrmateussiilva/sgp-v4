@@ -207,3 +207,4 @@ O sistema de migrações agora é **muito mais robusto e confiável**:
 - **Manutenibilidade melhorada** com código mais limpo
 
 **Sistema de migrações otimizado e pronto para produção!** 🚀
+

@@ -216,3 +216,4 @@ O sistema de notificações agora é **muito mais eficiente e escalável**:
 4. **Ajustar cooldowns** se necessário baseado no uso
 
 **Sistema otimizado e pronto para uso em produção!** 🚀
+

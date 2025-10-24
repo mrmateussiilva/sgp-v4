@@ -139,3 +139,4 @@ echo ""
 echo "💡 Para testar:"
 echo "   ./target/release/sgp-v4"
 echo ""
+

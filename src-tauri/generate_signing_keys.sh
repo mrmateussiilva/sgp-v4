@@ -205,3 +205,4 @@ echo "📋 Para atualizar o tauri.conf.json:"
 echo "  Substitua o campo 'pubkey' por:"
 echo "  \"pubkey\": \"$PUBLIC_KEY_BASE64\""
 echo ""
+

@@ -83,3 +83,4 @@ echo "   mv src/notifications.rs src/notifications_simple.rs"
 echo "   mv src/notifications_disabled.rs src/notifications.rs"
 echo ""
 echo "🚀 Reinicie a aplicação para aplicar as mudanças!"
+

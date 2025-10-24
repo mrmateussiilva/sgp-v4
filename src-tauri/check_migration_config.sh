@@ -185,3 +185,4 @@ echo "🎯 Configuração atual do seu sistema:"
 echo "   RUN_MIGRATIONS: $RUN_MIGRATIONS_VALUE"
 echo "   APP_ENV: $APP_ENV_VALUE"
 echo "   Resultado: $([ "$MIGRATIONS_WILL_RUN" = "true" ] && echo "EXECUTA MIGRAÇÕES" || echo "NÃO EXECUTA MIGRAÇÕES")"
+

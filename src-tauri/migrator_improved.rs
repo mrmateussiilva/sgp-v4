@@ -333,3 +333,4 @@ pub struct MigrationInfo {
     pub pending_count: i64,
     pub last_migration: Option<String>,
 }
+

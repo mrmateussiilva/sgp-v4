@@ -174,3 +174,4 @@ APP_ENV=development
 - **Resultado**: Migrações são executadas automaticamente na inicialização
 
 **O sistema está configurado para executar migrações automaticamente!** 🎉
+

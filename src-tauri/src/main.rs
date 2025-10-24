@@ -12,6 +12,7 @@ mod commands;
 mod config;
 mod db;
 mod env_loader;
+mod logging;
 mod migrator;
 mod models;
 mod session;
@@ -26,6 +27,8 @@ use crate::cache::CacheManager;
 use crate::config::AppConfig;
 use crate::order_polling::start_order_polling;
 use crate::updater::check_updates_on_startup;
+use crate::logging::{LogManager, LogConfig, log_system_start};
+use std::sync::Mutex;
 // Sistema de notificações simples - sem complexidade desnecessária
 use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
 use crate::db::try_connect_db;
@@ -95,22 +98,25 @@ async fn try_connect_with_migrations() -> Result<(sqlx::PgPool, AppConfig), Stri
 
 #[tokio::main]
 async fn main() {
-    // Inicializar logging
-    // Configuração de logs otimizada para produção
-    let log_level = if cfg!(debug_assertions) {
-        tracing::Level::DEBUG
-    } else {
-        tracing::Level::INFO
+    // Inicializar sistema de logs avançado
+    let log_config = LogConfig::from_env();
+    let log_manager = match LogManager::new(log_config) {
+        Ok(manager) => {
+            info!("Sistema de logs inicializado com sucesso");
+            manager
+        }
+        Err(e) => {
+            eprintln!("Erro ao inicializar sistema de logs: {}", e);
+            // Fallback para logging básico
+            tracing_subscriber::fmt()
+                .with_max_level(tracing::Level::INFO)
+                .init();
+            return;
+        }
     };
 
-    tracing_subscriber::fmt()
-        .with_max_level(log_level)
-        .with_target(false) // Remove target info em produção
-        .with_thread_ids(false) // Remove thread IDs em produção
-        .with_thread_names(false) // Remove thread names em produção
-        .compact() // Formato compacto para produção
-        .init();
-
+    // Log de inicialização do sistema
+    log_system_start();
     info!("Iniciando Sistema de Gerenciamento de Pedidos...");
 
     // Tentar conectar ao banco de dados usando sistema profissional de migrações
@@ -209,6 +215,7 @@ async fn main() {
         .manage(pool)
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
+        .manage(Mutex::new(Some(log_manager)))
         .setup(|app| {
             info!("🚀 Sistema de notificações simples iniciado");
             
@@ -222,8 +229,26 @@ async fn main() {
                     check_updates_on_startup(&app_handle).await;
                 });
                 
+                // Configurar atalhos de teclado para DevTools
+                if let Some(window) = app.get_window("main") {
+                    // F12 para alternar DevTools
+                    window.listen("toggle_devtools", |event| {
+                        if let Some(window) = event.window() {
+                            let _ = window.toggle_devtools();
+                        }
+                    });
+                    
+                    // Ctrl+Shift+I para alternar DevTools
+                    window.listen("open_devtools", |event| {
+                        if let Some(window) = event.window() {
+                            let _ = window.open_devtools();
+                        }
+                    });
+                }
+                
                 info!("🔄 Sistema de polling de pedidos iniciado (verificação a cada 60s)");
                 info!("🔄 Sistema de atualizações automáticas ativado");
+                info!("🛠️ DevTools configurado - Use F12 ou Ctrl+Shift+I para abrir");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -236,6 +261,19 @@ async fn main() {
             // Auth
             commands::auth::login,
             commands::auth::logout,
+            // DevTools
+            commands::devtools::open_devtools,
+            commands::devtools::close_devtools,
+            commands::devtools::toggle_devtools,
+            commands::devtools::is_devtools_open,
+            // Logs
+            commands::logs::get_log_stats,
+            commands::logs::get_log_files,
+            commands::logs::get_log_content,
+            commands::logs::get_recent_logs,
+            commands::logs::search_logs,
+            commands::logs::clear_logs,
+            commands::logs::test_logging_system,
             // Orders
             commands::orders::get_orders,
             commands::orders::get_pending_orders_light,
