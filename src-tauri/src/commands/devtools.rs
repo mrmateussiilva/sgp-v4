@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Manager};
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 /// Abre o DevTools na janela principal
 #[tauri::command]
