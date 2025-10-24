@@ -61,6 +61,8 @@ pub struct NotificationManager {
     // Sistema de throttling para evitar spam
     event_throttles: Arc<RwLock<HashMap<String, EventThrottle>>>, // chave: "event_type_order_id"
     global_throttles: Arc<Mutex<HashMap<NotificationType, Instant>>>, // throttling global por tipo
+    // Controle de conexões ativas para evitar reconexões constantes
+    active_connections: Arc<Mutex<HashMap<String, Instant>>>, // client_id -> timestamp da última conexão
 }
 
 impl NotificationManager {
@@ -74,64 +76,110 @@ impl NotificationManager {
             heartbeat_interval: Duration::from_secs(30), // Heartbeat a cada 30 segundos
             event_throttles: Arc::new(RwLock::new(HashMap::new())),
             global_throttles: Arc::new(Mutex::new(HashMap::new())),
+            active_connections: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub async fn subscribe(&self, client_id: String) -> broadcast::Receiver<OrderNotification> {
+    pub async fn subscribe(&self, client_id: String) -> Result<broadcast::Receiver<OrderNotification>, String> {
+        let now = Instant::now();
+        
+        // Verificar se o cliente já está conectado recentemente (últimos 5 segundos)
+        {
+            let active_connections = self.active_connections.lock().await;
+            if let Some(last_connection) = active_connections.get(&client_id) {
+                if now.duration_since(*last_connection) < Duration::from_secs(5) {
+                    debug!("Cliente {} tentou reconectar muito rapidamente, ignorando", client_id);
+                    return Err(format!("Cliente {} já está conectado recentemente", client_id));
+                }
+            }
+        }
+
+        // Verificar se o cliente já está no sistema de notificações
+        {
+            let client_info = self.client_info.read().await;
+            if client_info.contains_key(&client_id) {
+                debug!("Cliente {} já está no sistema de notificações, ignorando nova conexão", client_id);
+                return Err(format!("Cliente {} já está no sistema de notificações", client_id));
+            }
+        }
+
         let receiver = self.sender.subscribe();
         
         let mut subscribers = self.subscribers.write().await;
         let mut client_info = self.client_info.write().await;
         
-        // Registrar cliente
-        subscribers.insert(client_id.clone(), receiver.resubscribe());
-        client_info.insert(client_id.clone(), ClientInfo {
-            last_heartbeat: Instant::now(),
-            is_active: true,
-            event_filters: vec![], // Por padrão, sem filtros (recebe todos os eventos)
-        });
+        // Registrar cliente apenas se não estiver conectado
+        if !client_info.contains_key(&client_id) {
+            subscribers.insert(client_id.clone(), receiver.resubscribe());
+            client_info.insert(client_id.clone(), ClientInfo {
+                last_heartbeat: Instant::now(),
+                is_active: true,
+                event_filters: vec![], // Por padrão, sem filtros (recebe todos os eventos)
+            });
+            
+            // Registrar conexão ativa
+            {
+                let mut active_connections = self.active_connections.lock().await;
+                active_connections.insert(client_id.clone(), now);
+            }
+            
+            info!("Cliente {} conectado ao sistema de notificações", client_id);
+            
+            // Enviar notificação de conexão apenas para clientes realmente novos
+            let connection_notification = OrderNotification {
+                notification_type: NotificationType::ClientConnected,
+                order_id: 0,
+                order_numero: None,
+                timestamp: chrono::Utc::now(),
+                user_id: None,
+                details: Some(format!("Cliente {} conectado", client_id)),
+                client_id: Some(client_id),
+                broadcast_to_all: true,
+            };
+            
+            let _ = self.sender.send(connection_notification);
+        } else {
+            debug!("Cliente {} já estava conectado, reutilizando conexão existente", client_id);
+        }
         
-        info!("Cliente {} conectado ao sistema de notificações", client_id);
-        
-        // Enviar notificação de conexão
-        let connection_notification = OrderNotification {
-            notification_type: NotificationType::ClientConnected,
-            order_id: 0,
-            order_numero: None,
-            timestamp: chrono::Utc::now(),
-            user_id: None,
-            details: Some(format!("Cliente {} conectado", client_id)),
-            client_id: Some(client_id),
-            broadcast_to_all: true,
-        };
-        
-        let _ = self.sender.send(connection_notification);
-        
-        receiver
+        Ok(receiver)
     }
 
     pub async fn unsubscribe(&self, client_id: &str) {
         let mut subscribers = self.subscribers.write().await;
         let mut client_info = self.client_info.write().await;
         
+        // Verificar se o cliente estava realmente conectado antes de remover
+        let was_connected = client_info.contains_key(client_id);
+        
         subscribers.remove(client_id);
         client_info.remove(client_id);
         
-        info!("Cliente {} desconectado do sistema de notificações", client_id);
+        // Limpar controle de conexões ativas
+        {
+            let mut active_connections = self.active_connections.lock().await;
+            active_connections.remove(client_id);
+        }
         
-        // Enviar notificação de desconexão
-        let disconnection_notification = OrderNotification {
-            notification_type: NotificationType::ClientDisconnected,
-            order_id: 0,
-            order_numero: None,
-            timestamp: chrono::Utc::now(),
-            user_id: None,
-            details: Some(format!("Cliente {} desconectado", client_id)),
-            client_id: Some(client_id.to_string()),
-            broadcast_to_all: true,
-        };
-        
-        let _ = self.sender.send(disconnection_notification);
+        if was_connected {
+            info!("Cliente {} desconectado do sistema de notificações", client_id);
+            
+            // Enviar notificação de desconexão apenas se estava realmente conectado
+            let disconnection_notification = OrderNotification {
+                notification_type: NotificationType::ClientDisconnected,
+                order_id: 0,
+                order_numero: None,
+                timestamp: chrono::Utc::now(),
+                user_id: None,
+                details: Some(format!("Cliente {} desconectado", client_id)),
+                client_id: Some(client_id.to_string()),
+                broadcast_to_all: true,
+            };
+            
+            let _ = self.sender.send(disconnection_notification);
+        } else {
+            debug!("Cliente {} não estava conectado, ignorando desconexão", client_id);
+        }
     }
 
     pub async fn broadcast(&self, notification: OrderNotification) -> Result<usize, String> {
@@ -294,6 +342,12 @@ impl NotificationManager {
             subscribers.remove(&client_id);
             client_info.remove(&client_id);
             
+            // Limpar controle de conexões ativas
+            {
+                let mut active_connections = self.active_connections.lock().await;
+                active_connections.remove(&client_id);
+            }
+            
             // Enviar notificação de desconexão por timeout
             let timeout_notification = OrderNotification {
                 notification_type: NotificationType::ClientDisconnected,
@@ -371,6 +425,10 @@ impl NotificationManager {
                         // Limpar throttles globais antigos
                         let mut global_throttles = manager.global_throttles.lock().await;
                         global_throttles.retain(|_, &mut last_sent| last_sent > cutoff);
+                        
+                        // Limpar conexões ativas antigas (mais de 10 minutos)
+                        let mut active_connections = manager.active_connections.lock().await;
+                        active_connections.retain(|_, &mut last_connection| last_connection > cutoff);
                     }
                 }
             }
@@ -424,16 +482,14 @@ pub async fn subscribe_to_notifications(
 ) -> Result<String, String> {
     let notification_manager = app_handle.state::<NotificationManager>();
     
-    // Verificar se o cliente já está inscrito
-    let subscribers = notification_manager.subscribers.read().await;
-    if subscribers.contains_key(&client_id) {
-        info!("Cliente {} já está inscrito, reutilizando conexão", client_id);
-        return Ok(format!("Cliente {} já estava inscrito", client_id));
-    }
-    drop(subscribers);
-    
-    // Criar um receiver para este cliente
-    let mut receiver = notification_manager.subscribe(client_id.clone()).await;
+    // Tentar criar um receiver para este cliente
+    let mut receiver = match notification_manager.subscribe(client_id.clone()).await {
+        Ok(receiver) => receiver,
+        Err(e) => {
+            debug!("Cliente {} já está conectado: {}", client_id, e);
+            return Ok(format!("Cliente {} já estava conectado", client_id));
+        }
+    };
     
     // Spawn uma task para escutar notificações e enviar para o frontend
     let app_handle_clone = app_handle.clone();
