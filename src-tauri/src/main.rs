@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::env;
 use tracing::{error, info};
 use tracing_subscriber;
+use tauri::Manager;
 
 mod commands;
 mod config;
@@ -16,11 +17,13 @@ mod models;
 mod session;
 mod cache;
 mod notifications;
+mod order_polling;
 
 use crate::migrator::MIGRATOR;
 use crate::session::SessionManager;
 use crate::cache::CacheManager;
 use crate::config::AppConfig;
+use crate::order_polling::start_order_polling;
 // Sistema de notificações simples - sem complexidade desnecessária
 use crate::commands::database::{test_db_connection, test_db_connection_with_pool, save_db_config, load_db_config, delete_db_config};
 use crate::db::try_connect_db;
@@ -191,8 +194,15 @@ async fn main() {
         .manage(pool)
         .manage(SessionManager::new(config.session_timeout_hours as i64))
         .manage(CacheManager::with_default_ttl(config.cache_ttl_seconds))
-        .setup(|_app| {
+        .setup(|app| {
             info!("🚀 Sistema de notificações simples iniciado");
+            
+            // Iniciar sistema de polling de pedidos
+            let app_handle = app.handle().clone();
+            let pool = app.state::<sqlx::PgPool>().inner().clone();
+            start_order_polling(app_handle, pool);
+            
+            info!("🔄 Sistema de polling de pedidos iniciado (verificação a cada 60s)");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -222,6 +232,9 @@ async fn main() {
             commands::orders::get_order_ficha,
             // Notifications simples
             notifications::test_simple_notification,
+            // Order Polling
+            order_polling::test_order_polling,
+            order_polling::force_order_check,
             // Reports
             commands::reports::generate_report,
             // Clientes
