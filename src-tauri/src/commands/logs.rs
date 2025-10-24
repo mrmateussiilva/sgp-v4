@@ -173,7 +173,7 @@ pub async fn search_logs(app_handle: AppHandle, query: String) -> Result<Vec<Str
 
 /// Testa o sistema de logs
 #[tauri::command]
-pub async fn test_logging_system(app_handle: AppHandle) -> Result<String, String> {
+pub async fn test_logging_system(_app_handle: AppHandle) -> Result<String, String> {
     info!("Testando sistema de logs...");
     
     // Testa diferentes níveis de log

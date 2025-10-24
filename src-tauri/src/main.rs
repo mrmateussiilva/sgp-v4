@@ -98,22 +98,24 @@ async fn try_connect_with_migrations() -> Result<(sqlx::PgPool, AppConfig), Stri
 
 #[tokio::main]
 async fn main() {
-    // Inicializar sistema de logs avançado
-    let log_config = LogConfig::from_env();
-    let log_manager = match LogManager::new(log_config) {
-        Ok(manager) => {
-            info!("Sistema de logs inicializado com sucesso");
-            manager
-        }
-        Err(e) => {
-            eprintln!("Erro ao inicializar sistema de logs: {}", e);
-            // Fallback para logging básico
-            tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::INFO)
-                .init();
-            return;
-        }
+    // Inicializar sistema de logs básico
+    let log_level = if cfg!(debug_assertions) {
+        tracing::Level::DEBUG
+    } else {
+        tracing::Level::INFO
     };
+
+    tracing_subscriber::fmt()
+        .with_max_level(log_level)
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .compact()
+        .init();
+
+    // Criar LogManager para comandos
+    let log_config = LogConfig::from_env();
+    let log_manager = LogManager::new(log_config).ok();
 
     // Log de inicialização do sistema
     log_system_start();
@@ -229,26 +231,11 @@ async fn main() {
                     check_updates_on_startup(&app_handle).await;
                 });
                 
-                // Configurar atalhos de teclado para DevTools
-                if let Some(window) = app.get_window("main") {
-                    // F12 para alternar DevTools
-                    window.listen("toggle_devtools", |event| {
-                        if let Some(window) = event.window() {
-                            let _ = window.toggle_devtools();
-                        }
-                    });
-                    
-                    // Ctrl+Shift+I para alternar DevTools
-                    window.listen("open_devtools", |event| {
-                        if let Some(window) = event.window() {
-                            let _ = window.open_devtools();
-                        }
-                    });
-                }
+                // DevTools está disponível via comandos Tauri
+                info!("🛠️ DevTools configurado - Use os comandos Tauri para abrir");
                 
                 info!("🔄 Sistema de polling de pedidos iniciado (verificação a cada 60s)");
                 info!("🔄 Sistema de atualizações automáticas ativado");
-                info!("🛠️ DevTools configurado - Use F12 ou Ctrl+Shift+I para abrir");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -266,6 +253,7 @@ async fn main() {
             commands::devtools::close_devtools,
             commands::devtools::toggle_devtools,
             commands::devtools::is_devtools_open,
+            commands::devtools::test_devtools_system,
             // Logs
             commands::logs::get_log_stats,
             commands::logs::get_log_files,
