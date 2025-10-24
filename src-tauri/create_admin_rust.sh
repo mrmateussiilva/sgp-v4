@@ -16,3 +16,4 @@ cargo run --manifest-path create_admin_user_Cargo.toml --bin create_admin_user
 
 echo
 echo "Script executado!"
+

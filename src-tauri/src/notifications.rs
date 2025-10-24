@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{broadcast, RwLock, Mutex};
 use tokio::time::interval;
 use tauri::{AppHandle, Manager};
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, debug};
 
 // ========================================
 // TIPOS DE NOTIFICAÇÃO
@@ -43,6 +43,13 @@ pub struct OrderNotification {
 pub struct ClientInfo {
     pub last_heartbeat: Instant,
     pub is_active: bool,
+    pub event_filters: Vec<NotificationType>, // Filtros de eventos para este cliente
+}
+
+#[derive(Debug, Clone)]
+pub struct EventThrottle {
+    pub last_sent: Instant,
+    pub cooldown: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +58,9 @@ pub struct NotificationManager {
     subscribers: Arc<RwLock<HashMap<String, broadcast::Receiver<OrderNotification>>>>,
     client_info: Arc<RwLock<HashMap<String, ClientInfo>>>,
     heartbeat_interval: Duration,
+    // Sistema de throttling para evitar spam
+    event_throttles: Arc<RwLock<HashMap<String, EventThrottle>>>, // chave: "event_type_order_id"
+    global_throttles: Arc<Mutex<HashMap<NotificationType, Instant>>>, // throttling global por tipo
 }
 
 impl NotificationManager {
@@ -62,6 +72,8 @@ impl NotificationManager {
             subscribers: Arc::new(RwLock::new(HashMap::new())),
             client_info: Arc::new(RwLock::new(HashMap::new())),
             heartbeat_interval: Duration::from_secs(30), // Heartbeat a cada 30 segundos
+            event_throttles: Arc::new(RwLock::new(HashMap::new())),
+            global_throttles: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -76,6 +88,7 @@ impl NotificationManager {
         client_info.insert(client_id.clone(), ClientInfo {
             last_heartbeat: Instant::now(),
             is_active: true,
+            event_filters: vec![], // Por padrão, sem filtros (recebe todos os eventos)
         });
         
         info!("Cliente {} conectado ao sistema de notificações", client_id);
@@ -147,6 +160,110 @@ impl NotificationManager {
     }
 
     // ========================================
+    // SISTEMA DE BROADCAST SEGURO COM THROTTLING
+    // ========================================
+
+    /// Verifica se um evento pode ser enviado (throttling)
+    async fn can_send_event(&self, notification: &OrderNotification) -> bool {
+        let now = Instant::now();
+        
+        // Throttling global por tipo de evento
+        let mut global_throttles = self.global_throttles.lock().await;
+        if let Some(last_sent) = global_throttles.get(&notification.notification_type) {
+            let cooldown = match notification.notification_type {
+                NotificationType::OrderStatusChanged => Duration::from_millis(2000), // 2s para mudanças de status
+                NotificationType::OrderStatusFlagsUpdated => Duration::from_millis(1500), // 1.5s para flags
+                NotificationType::Heartbeat => Duration::from_millis(1000), // 1s para heartbeat
+                _ => Duration::from_millis(500), // 500ms para outros eventos
+            };
+            
+            if now.duration_since(*last_sent) < cooldown {
+                debug!("Evento throttled: {:?} (cooldown: {:?})", notification.notification_type, cooldown);
+                return false;
+            }
+        }
+        
+        // Atualizar timestamp do último envio
+        global_throttles.insert(notification.notification_type.clone(), now);
+        
+        // Throttling específico por evento + order_id
+        if let Some(order_id) = notification.order_id.checked_abs() {
+            let event_key = format!("{:?}_{}", notification.notification_type, order_id);
+            let mut throttles = self.event_throttles.write().await;
+            
+            if let Some(throttle) = throttles.get(&event_key) {
+                let event_cooldown = Duration::from_millis(1000); // 1s entre eventos do mesmo pedido
+                if now.duration_since(throttle.last_sent) < event_cooldown {
+                    debug!("Evento específico throttled: {} (cooldown: {:?})", event_key, event_cooldown);
+                    return false;
+                }
+            }
+            
+            // Atualizar throttle específico
+            throttles.insert(event_key, EventThrottle {
+                last_sent: now,
+                cooldown: Duration::from_millis(1000),
+            });
+        }
+        
+        true
+    }
+
+    /// Broadcast seguro com throttling e segmentação
+    pub async fn safe_broadcast(
+        &self, 
+        notification: OrderNotification,
+        target_clients: Option<Vec<String>>,
+    ) -> Result<usize, String> {
+        // Verificar throttling
+        if !self.can_send_event(&notification).await {
+            debug!("Broadcast throttled para {:?}", notification.notification_type);
+            return Ok(0);
+        }
+
+        let receiver_count = self.sender.receiver_count();
+        
+        if receiver_count == 0 {
+            debug!("Nenhum cliente conectado para receber notificação");
+            return Ok(0);
+        }
+
+        // Se há clientes específicos, filtrar notificação
+        let should_broadcast = if let Some(targets) = target_clients {
+            // Verificar se algum cliente alvo está conectado
+            let client_info = self.client_info.read().await;
+            targets.iter().any(|client_id| client_info.contains_key(client_id))
+        } else {
+            true
+        };
+
+        if !should_broadcast {
+            debug!("Nenhum cliente alvo conectado para receber notificação");
+            return Ok(0);
+        }
+
+        match self.sender.send(notification.clone()) {
+            Ok(count) => {
+                debug!("Notificação enviada para {} clientes: {:?}", count, notification.notification_type);
+                Ok(count)
+            }
+            Err(e) => {
+                error!("Erro ao enviar notificação: {}", e);
+                Err(format!("Erro ao enviar notificação: {}", e))
+            }
+        }
+    }
+
+    /// Broadcast segmentado para clientes específicos
+    pub async fn broadcast_to_clients(
+        &self,
+        notification: OrderNotification,
+        client_ids: Vec<String>,
+    ) -> Result<usize, String> {
+        self.safe_broadcast(notification, Some(client_ids)).await
+    }
+
+    // ========================================
     // NOVOS MÉTODOS PARA BROADCAST GLOBAL
     // ========================================
 
@@ -215,28 +332,47 @@ impl NotificationManager {
         }
     }
 
-    /// Inicia o sistema de heartbeat automático
+    /// Inicia o sistema de heartbeat automático otimizado
     pub async fn start_heartbeat_monitor(&self) {
         let manager = self.clone();
         tokio::spawn(async move {
-            let mut interval = interval(Duration::from_secs(30));
+            let mut heartbeat_interval = interval(Duration::from_secs(30));
+            let mut cleanup_interval = interval(Duration::from_secs(60)); // Cleanup menos frequente
+            
             loop {
-                interval.tick().await;
-                manager.cleanup_inactive_clients().await;
-                
-                // Enviar heartbeat para todos os clientes ativos
-                let heartbeat_notification = OrderNotification {
-                    notification_type: NotificationType::Heartbeat,
-                    order_id: 0,
-                    order_numero: None,
-                    timestamp: chrono::Utc::now(),
-                    user_id: None,
-                    details: Some("Heartbeat do servidor".to_string()),
-                    client_id: None,
-                    broadcast_to_all: true,
-                };
-                
-                let _ = manager.sender.send(heartbeat_notification);
+                tokio::select! {
+                    _ = heartbeat_interval.tick() => {
+                        // Heartbeat leve - apenas ping sem logs detalhados
+                        if manager.sender.receiver_count() > 0 {
+                            let heartbeat_notification = OrderNotification {
+                                notification_type: NotificationType::Heartbeat,
+                                order_id: 0,
+                                order_numero: None,
+                                timestamp: chrono::Utc::now(),
+                                user_id: None,
+                                details: Some("ping".to_string()), // Mensagem mínima
+                                client_id: None,
+                                broadcast_to_all: true,
+                            };
+                            
+                            // Usar safe_broadcast para aplicar throttling no heartbeat
+                            let _ = manager.safe_broadcast(heartbeat_notification, None).await;
+                        }
+                    }
+                    _ = cleanup_interval.tick() => {
+                        // Cleanup de clientes inativos
+                        manager.cleanup_inactive_clients().await;
+                        
+                        // Limpar throttles antigos (mais de 5 minutos)
+                        let mut throttles = manager.event_throttles.write().await;
+                        let cutoff = Instant::now() - Duration::from_secs(300);
+                        throttles.retain(|_, throttle| throttle.last_sent > cutoff);
+                        
+                        // Limpar throttles globais antigos
+                        let mut global_throttles = manager.global_throttles.lock().await;
+                        global_throttles.retain(|_, &mut last_sent| last_sent > cutoff);
+                    }
+                }
             }
         });
     }
@@ -308,11 +444,29 @@ pub async fn subscribe_to_notifications(
         
         while let Ok(notification) = receiver.recv().await {
             let event_name = format!("order-notification-{}", client_id_clone);
-            info!("📡 Tentando enviar evento '{}' para cliente {}", event_name, client_id_clone);
+            
+            // Logs reduzidos - apenas para erros e eventos importantes
+            match notification.notification_type {
+                NotificationType::OrderStatusChanged | NotificationType::OrderStatusFlagsUpdated => {
+                    debug!("📡 Enviando evento crítico '{}' para cliente {}", event_name, client_id_clone);
+                }
+                NotificationType::Heartbeat => {
+                    // Não logar heartbeats para reduzir spam
+                }
+                _ => {
+                    debug!("📡 Enviando evento '{}' para cliente {}", event_name, client_id_clone);
+                }
+            }
             
             match app_handle_clone.emit_all(&event_name, &notification) {
                 Ok(_) => {
-                    info!("✅ Notificação enviada com sucesso para cliente {}: {:?}", client_id_clone, notification.notification_type);
+                    // Log reduzido - apenas para eventos críticos
+                    match notification.notification_type {
+                        NotificationType::OrderStatusChanged | NotificationType::OrderStatusFlagsUpdated => {
+                            debug!("✅ Evento crítico enviado para cliente {}: {:?}", client_id_clone, notification.notification_type);
+                        }
+                        _ => {}
+                    }
                 }
                 Err(e) => {
                     error!("❌ Erro ao enviar notificação para cliente {}: {}", client_id_clone, e);
@@ -390,7 +544,7 @@ pub async fn broadcast_order_created(
     order_numero: Option<String>,
     user_id: Option<i32>,
 ) -> Result<usize, String> {
-    info!("📢 Broadcasting order_created: order_id={}, numero={:?}, user_id={:?}", order_id, order_numero, user_id);
+    debug!("📢 Broadcasting order_created: order_id={}, numero={:?}, user_id={:?}", order_id, order_numero, user_id);
     
     let notification_manager = app_handle.state::<NotificationManager>();
     
@@ -404,8 +558,8 @@ pub async fn broadcast_order_created(
         false,
     );
     
-    let result = notification_manager.broadcast(notification).await?;
-    info!("✅ Broadcast order_created concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast order_created concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -427,7 +581,7 @@ pub async fn broadcast_order_updated(
         false,
     );
     
-    notification_manager.broadcast(notification).await
+    notification_manager.safe_broadcast(notification, None).await
 }
 
 pub async fn broadcast_order_deleted(
@@ -448,7 +602,7 @@ pub async fn broadcast_order_deleted(
         false,
     );
     
-    notification_manager.broadcast(notification).await
+    notification_manager.safe_broadcast(notification, None).await
 }
 
 pub async fn broadcast_order_status_changed(
@@ -458,7 +612,7 @@ pub async fn broadcast_order_status_changed(
     user_id: Option<i32>,
     status_details: String,
 ) -> Result<usize, String> {
-    info!("📢 Broadcasting order_status_changed: order_id={}, numero={:?}, user_id={:?}, details={}", order_id, order_numero, user_id, status_details);
+    debug!("📢 Broadcasting order_status_changed: order_id={}, numero={:?}, user_id={:?}, details={}", order_id, order_numero, user_id, status_details);
     
     let notification_manager = app_handle.state::<NotificationManager>();
     
@@ -472,8 +626,8 @@ pub async fn broadcast_order_status_changed(
         false,
     );
     
-    let result = notification_manager.broadcast(notification).await?;
-    info!("✅ Broadcast order_status_changed concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast order_status_changed concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -525,8 +679,8 @@ pub async fn broadcast_status_update(
         true, // broadcast_to_all = true
     );
     
-    let result = notification_manager.broadcast_to_all(notification).await?;
-    info!("✅ Broadcast global de status concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast global de status concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -553,8 +707,8 @@ pub async fn broadcast_order_created_global(
         true, // broadcast_to_all = true
     );
     
-    let result = notification_manager.broadcast_to_all(notification).await?;
-    info!("✅ Broadcast global order_created concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast global order_created concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -577,8 +731,8 @@ pub async fn broadcast_order_updated_global(
         true, // broadcast_to_all = true
     );
     
-    let result = notification_manager.broadcast_to_all(notification).await?;
-    info!("✅ Broadcast global order_updated concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast global order_updated concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -601,8 +755,8 @@ pub async fn broadcast_order_deleted_global(
         true, // broadcast_to_all = true
     );
     
-    let result = notification_manager.broadcast_to_all(notification).await?;
-    info!("✅ Broadcast global order_deleted concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast global order_deleted concluído, {} clientes notificados", result);
     Ok(result)
 }
 
@@ -628,7 +782,48 @@ pub async fn broadcast_order_status_changed_global(
         true, // broadcast_to_all = true
     );
     
-    let result = notification_manager.broadcast_to_all(notification).await?;
-    info!("✅ Broadcast global order_status_changed concluído, {} clientes notificados", result);
+    let result = notification_manager.safe_broadcast(notification, None).await?;
+    debug!("✅ Broadcast global order_status_changed concluído, {} clientes notificados", result);
+    Ok(result)
+}
+
+// ========================================
+// NOVO COMANDO PARA BROADCAST SEGMENTADO
+// ========================================
+
+#[tauri::command]
+pub async fn broadcast_to_specific_clients(
+    app_handle: AppHandle,
+    notification_type: String,
+    order_id: i32,
+    order_numero: Option<String>,
+    user_id: Option<i32>,
+    details: Option<String>,
+    client_ids: Vec<String>,
+) -> Result<usize, String> {
+    let notification_manager = app_handle.state::<NotificationManager>();
+    
+    // Converter string para enum
+    let notif_type = match notification_type.as_str() {
+        "OrderCreated" => NotificationType::OrderCreated,
+        "OrderUpdated" => NotificationType::OrderUpdated,
+        "OrderDeleted" => NotificationType::OrderDeleted,
+        "OrderStatusChanged" => NotificationType::OrderStatusChanged,
+        "OrderStatusFlagsUpdated" => NotificationType::OrderStatusFlagsUpdated,
+        _ => return Err(format!("Tipo de notificação inválido: {}", notification_type)),
+    };
+    
+    let notification = create_notification(
+        notif_type,
+        order_id,
+        order_numero,
+        user_id,
+        details,
+        None,
+        false,
+    );
+    
+    let result = notification_manager.broadcast_to_clients(notification, client_ids).await?;
+    debug!("✅ Broadcast segmentado concluído, {} clientes notificados", result);
     Ok(result)
 }

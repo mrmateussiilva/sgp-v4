@@ -235,6 +235,7 @@ async fn main() {
             notifications::unsubscribe_from_notifications,
             notifications::get_notification_subscriber_count,
             notifications::test_notification_broadcast,
+            notifications::broadcast_to_specific_clients,
             // Broadcast Global
             notifications::send_heartbeat,
             notifications::get_active_clients,

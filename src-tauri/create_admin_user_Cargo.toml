@@ -11,3 +11,4 @@ path = "create_admin_user.rs"
 sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "chrono"] }
 tokio = { version = "1", features = ["full"] }
 bcrypt = "0.15"
+
