@@ -32,19 +32,42 @@
       "identifier": "com.sgp.v4",
       "icon": [
         "icons/icon.icns",
-        "icons/icon.ico"
-      ]
+        "icons/icon.ico",
+        "icons/icon.png"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "© 2024 SGP Team. Todos os direitos reservados.",
+      "category": "Business",
+      "shortDescription": "Sistema de Gerenciamento de Pedidos",
+      "longDescription": "Sistema completo para gerenciamento de pedidos com controle de produção, estoque e relatórios.",
+      "deb": {
+        "depends": []
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* wss://localhost:*;"
     },
     "updater": {
-      "active": false,
+      "active": true,
       "dialog": true,
       "endpoints": [
-        "https://finderbit.com.br/update-tauri/{{target}}/{{current_version}}"
+        "https://sgp-v4-updates.finderbit.com.br/{{target}}/{{current_version}}"
       ],
-      "pubkey": "INSIRA_AQUI_A_CHAVE_PUBLICA_GERADA_PELO TAURI CLI"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEQjE2RjAxNDhFRDM5MjMKUldRak9lMUlBVyt4SFJoRW53UEEzWGRwVXQwaVp4QjJrRDN6VDdiZ3RlK3ZIVVZHd0hLc1NwNjUK",
+      "windows": {
+        "installMode": "passive"
+      }
     },
     "windows": [
       {

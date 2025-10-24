@@ -1,0 +1,34 @@
+# Configuração de Produção - SGP v4
+
+# Otimizações para produção
+[profile.release]
+# Otimizações de código
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# Otimizações de tamanho
+strip = true
+debug = false
+
+# Otimizações específicas para Tauri
+[profile.release.package."*"]
+opt-level = 3
+
+# Configurações específicas para dependências
+[profile.release.package.sqlx]
+opt-level = 3
+
+[profile.release.package.tokio]
+opt-level = 3
+
+[profile.release.package.serde]
+opt-level = 3
+
+# Configurações de build
+[build]
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "link-arg=-s"
+]
