@@ -8,6 +8,9 @@ pub type DbPool = Pool<Postgres>;
 
 /// Conecta ao banco de dados e executa migrações se necessário
 pub async fn try_connect_db() -> Result<PgPool, sqlx::Error> {
+    // Carregar .env antes de verificar variáveis para garantir que RUN_MIGRATIONS seja lida
+    let _ = crate::env_loader::load_env_file();
+    
     let database_url = env::var("DATABASE_URL")
         .expect("DATABASE_URL não encontrada no ambiente");
 
