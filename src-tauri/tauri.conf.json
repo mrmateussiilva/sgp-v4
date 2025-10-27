@@ -89,7 +89,7 @@
     },
 
     "security": {
-      "csp": "default-src 'self' blob: data: filesystem: ws: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:*; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* ws://* wss://*;"
+      "csp": "default-src 'self' blob: data: filesystem: ws: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* https://* http://*; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* https://* http://* ws://* wss://*;"
     },
 
 
