@@ -1,12 +1,28 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
+
 use tauri::Manager;
 use tracing::info;
+use commands::devtools::{
+    close_devtools,
+    is_devtools_open,
+    open_devtools,
+    test_devtools_system,
+    toggle_devtools,
+};
 
 fn main() {
     setup_tracing();
 
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            open_devtools,
+            close_devtools,
+            toggle_devtools,
+            is_devtools_open,
+            test_devtools_system
+        ])
         .setup(|app| {
             info!("Janela principal pronta: {:?}", app.get_window("main").is_some());
             info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");

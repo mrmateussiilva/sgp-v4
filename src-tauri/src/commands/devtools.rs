@@ -76,9 +76,6 @@ pub async fn test_devtools_system(app_handle: AppHandle) -> Result<String, Strin
         window.open_devtools();
         info!("✅ DevTools aberto com sucesso no teste");
         
-        // Aguarda um pouco e fecha
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        
         window.close_devtools();
         info!("✅ DevTools fechado com sucesso no teste");
         Ok("Sistema DevTools testado com sucesso!".to_string())
