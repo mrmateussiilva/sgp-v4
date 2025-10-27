@@ -226,6 +226,8 @@ export interface UpdateOrderStatusRequest {
   expedicao: boolean;
   sublimacao_maquina?: string | null;
   sublimacao_data_impressao?: string | null;
+  status?: OrderStatus;
+  pronto?: boolean;
 }
 
 export interface LoginRequest {

@@ -176,6 +176,17 @@ export default function OrderList() {
       payload.sublimacao_data_impressao = existingDate;
     }
 
+    const allComplete =
+      payload.financeiro && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
+
+    payload.pronto = allComplete;
+    if (allComplete) {
+      payload.status = OrderStatus.Concluido;
+    } else {
+      payload.status =
+        order.status === OrderStatus.Concluido ? OrderStatus.EmProcessamento : order.status;
+    }
+
     if (!payload.financeiro) {
       payload.conferencia = false;
       payload.sublimacao = false;
@@ -183,6 +194,10 @@ export default function OrderList() {
       payload.expedicao = false;
       payload.sublimacao_maquina = null;
       payload.sublimacao_data_impressao = null;
+      payload.pronto = false;
+      if (payload.status === OrderStatus.Concluido) {
+        payload.status = OrderStatus.EmProcessamento;
+      }
     }
 
     return payload;
@@ -925,8 +940,12 @@ export default function OrderList() {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
 
-      const mensagem =
-        payload.financeiro === false && campo === 'financeiro'
+      const mensagensTodosSetores =
+        payload.pronto && payload.status === OrderStatus.Concluido && novoValor;
+
+      const mensagem = mensagensTodosSetores
+        ? 'Todos os setores foram marcados. Pedido concluído!'
+        : payload.financeiro === false && campo === 'financeiro'
           ? 'Financeiro desmarcado. Todos os status foram resetados.'
           : `${statusConfirmModal.nomeSetor} ${novoValor ? 'marcado' : 'desmarcado'} com sucesso!`;
 
@@ -982,9 +1001,14 @@ export default function OrderList() {
     try {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
+      const allCompleted =
+        updatedOrder.pronto && updatedOrder.status === OrderStatus.Concluido;
+
       toast({
-        title: 'Sublimação marcada',
-        description: `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
+        title: allCompleted ? 'Pedido concluído' : 'Sublimação marcada',
+        description: allCompleted
+          ? `Todos os setores foram concluídos. Pedido marcado como pronto em ${formatDateForDisplay(normalizedDate, '-')}.`
+          : `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
       });
     } catch (error) {
       toast({

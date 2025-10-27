@@ -1,8 +1,7 @@
-import { useEffect, useCallback } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { useEffect, useCallback, useRef } from 'react';
 import { OrderWithItems } from '../types';
-import { useGlobalBroadcast } from './useGlobalBroadcast';
+import { api } from '@/services/api';
+import { getApiUrl } from '@/services/apiClient';
 
 // ========================================
 // HOOK PARA EVENTOS DE PEDIDOS EM TEMPO REAL
@@ -21,96 +20,98 @@ export const useOrderEvents = ({
   onOrderDeleted,
   onOrderStatusUpdated,
 }: UseOrderEventsProps = {}) => {
-  
-  // Usar o sistema de broadcast global
-  const { status: broadcastStatus } = useGlobalBroadcast();
-  
-  // Log do status do broadcast
-  useEffect(() => {
-    if (broadcastStatus.isConnected) {
-      console.log('🌐 Sistema de broadcast global ativo:', {
-        clientId: broadcastStatus.clientId,
-        activeClients: broadcastStatus.activeClients.length,
-        lastHeartbeat: broadcastStatus.lastHeartbeat,
-      });
-    }
-  }, [broadcastStatus]);
-  
-  // Função para buscar pedido atualizado
-  const fetchUpdatedOrder = useCallback(async (orderId: number): Promise<OrderWithItems | null> => {
-    try {
-      const order = await invoke<OrderWithItems>('get_order_by_id', { orderId });
-      return order;
-    } catch (error) {
-      console.error('Erro ao buscar pedido atualizado:', error);
-      return null;
-    }
-  }, []);
+  const handlersRef = useRef({
+    onOrderCreated,
+    onOrderUpdated,
+    onOrderDeleted,
+    onOrderStatusUpdated,
+  });
 
   useEffect(() => {
-    console.log('🔊 Configurando listeners de eventos de pedidos...');
-    
-    const unlistenPromises: Promise<() => void>[] = [];
-
-    // Listener para pedido criado
-    if (onOrderCreated) {
-      console.log('🎧 Configurando listener para order_created');
-      const unlistenCreated = listen<number>('order_created', (event) => {
-        const orderId = event.payload;
-        console.log('🆕 EVENTO RECEBIDO - Pedido criado:', orderId);
-        onOrderCreated(orderId);
-      });
-      unlistenPromises.push(unlistenCreated);
-    }
-
-    // Listener para pedido atualizado
-    if (onOrderUpdated) {
-      console.log('🎧 Configurando listener para order_updated');
-      const unlistenUpdated = listen<number>('order_updated', (event) => {
-        const orderId = event.payload;
-        console.log('📝 EVENTO RECEBIDO - Pedido atualizado:', orderId);
-        onOrderUpdated(orderId);
-      });
-      unlistenPromises.push(unlistenUpdated);
-    }
-
-    // Listener para pedido deletado
-    if (onOrderDeleted) {
-      console.log('🎧 Configurando listener para order_deleted');
-      const unlistenDeleted = listen<number>('order_deleted', (event) => {
-        const orderId = event.payload;
-        console.log('🗑️ EVENTO RECEBIDO - Pedido deletado:', orderId);
-        onOrderDeleted(orderId);
-      });
-      unlistenPromises.push(unlistenDeleted);
-    }
-
-    // Listener para status de pedido atualizado
-    if (onOrderStatusUpdated) {
-      console.log('🎧 Configurando listener para order_status_updated');
-      const unlistenStatusUpdated = listen<number>('order_status_updated', (event) => {
-        const orderId = event.payload;
-        console.log('🔄 EVENTO RECEBIDO - Status do pedido atualizado:', orderId);
-        onOrderStatusUpdated(orderId);
-      });
-      unlistenPromises.push(unlistenStatusUpdated);
-    }
-
-    console.log(`✅ ${unlistenPromises.length} listeners configurados`);
-
-    // Cleanup: remover todos os listeners quando o componente for desmontado
-    return () => {
-      console.log('🔇 Removendo listeners de eventos de pedidos...');
-      Promise.all(unlistenPromises).then((unlistenFunctions) => {
-        unlistenFunctions.forEach(unlisten => unlisten());
-        console.log('✅ Listeners removidos');
-      });
+    handlersRef.current = {
+      onOrderCreated,
+      onOrderUpdated,
+      onOrderDeleted,
+      onOrderStatusUpdated,
     };
   }, [onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated]);
 
-  return {
-    fetchUpdatedOrder,
-  };
+  useEffect(() => {
+    const apiBase = getApiUrl();
+    if (!apiBase) {
+      console.warn('⚠️ API URL não configurada. Eventos em tempo real desabilitados.');
+      return;
+    }
+
+    let socket: WebSocket | null = null;
+    let shouldReconnect = true;
+    const parsedUrl = new URL(apiBase);
+    parsedUrl.protocol = parsedUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    parsedUrl.pathname = '/ws/orders';
+    parsedUrl.search = '';
+    parsedUrl.hash = '';
+    const wsUrl = parsedUrl.toString();
+
+    const connect = () => {
+      console.log('🔌 Conectando ao WebSocket de pedidos em', wsUrl);
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        console.log('✅ WebSocket conectado');
+      };
+
+      socket.onclose = (event) => {
+        console.log('🔌 WebSocket desconectado', event.reason || 'sem motivo');
+        if (shouldReconnect) {
+          setTimeout(connect, 2000);
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error('❌ Erro no WebSocket de pedidos:', error);
+        socket?.close();
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data ?? '{}');
+          const orderId: number | undefined = data.order?.id ?? data.order_id;
+          const type: string | undefined = data.type;
+
+          if (!type) {
+            return;
+          }
+
+          const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
+
+          if ((type === 'order_created' || type === 'order_updated') && orderId && onOrderUpdated) {
+            onOrderUpdated(orderId);
+          }
+
+          if (type === 'order_created' && orderId && onOrderCreated) {
+            onOrderCreated(orderId);
+          }
+
+          if (type === 'order_deleted' && orderId && onOrderDeleted) {
+            onOrderDeleted(orderId);
+          }
+
+          if (type === 'order_status_updated' && orderId && onOrderStatusUpdated) {
+            onOrderStatusUpdated(orderId);
+          }
+        } catch (error) {
+          console.error('❌ Erro ao processar mensagem do WebSocket:', error);
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      shouldReconnect = false;
+      socket?.close();
+    };
+  }, []);
 };
 
 // ========================================
@@ -124,63 +125,55 @@ interface UseOrderAutoSyncProps {
 }
 
 export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAutoSyncProps) => {
-  
-  // Handler para pedido criado - recarrega a lista completa
-  const handleOrderCreated = useCallback(async (orderId: number) => {
-    console.log('🆕 Sincronizando pedido criado:', orderId);
-    // Para pedidos criados, geralmente recarregamos a lista completa
-    // ou adicionamos o pedido específico se tivermos os dados
-  }, []);
+  const handleOrderCreated = useCallback(
+    async (orderId: number) => {
+      try {
+        const newOrder = await api.getOrderById(orderId);
+        const exists = orders.some((order) => order.id === newOrder.id);
+        if (exists) {
+          return;
+        }
+        setOrders([newOrder, ...orders]);
+      } catch (error) {
+        console.error('❌ Erro ao sincronizar pedido criado:', error);
+      }
+    },
+    [orders, setOrders],
+  );
 
-  // Handler para pedido atualizado - atualiza apenas o pedido específico
-  const handleOrderUpdated = useCallback(async (orderId: number) => {
-    console.log('📝 Sincronizando pedido atualizado:', orderId);
-    
-    try {
-      const updatedOrder = await invoke<OrderWithItems>('get_order_by_id', { orderId });
-      
-      const updatedOrders = orders.map((order: OrderWithItems) => 
-        order.id === orderId ? updatedOrder : order
-      );
-      setOrders(updatedOrders);
-      
-      console.log('✅ Pedido sincronizado com sucesso');
-    } catch (error) {
-      console.error('❌ Erro ao sincronizar pedido:', error);
-    }
-  }, [setOrders]);
+  const handleOrderUpdated = useCallback(
+    async (orderId: number) => {
+      try {
+        const updatedOrder = await api.getOrderById(orderId);
+        const updated = orders.map((order) => (order.id === orderId ? updatedOrder : order));
+        setOrders(updated);
+      } catch (error) {
+        console.error('❌ Erro ao sincronizar pedido atualizado:', error);
+      }
+    },
+    [orders, setOrders],
+  );
 
-  // Handler para pedido deletado - remove da lista
-  const handleOrderDeleted = useCallback((orderId: number) => {
-    console.log('🗑️ Removendo pedido deletado:', orderId);
-    removeOrder(orderId);
-  }, [removeOrder]);
+  const handleOrderDeleted = useCallback(
+    (orderId: number) => {
+      removeOrder(orderId);
+    },
+    [removeOrder],
+  );
 
-  // Handler para status atualizado - atualiza apenas o pedido específico
-  const handleOrderStatusUpdated = useCallback(async (orderId: number) => {
-    console.log('🔄 Sincronizando status do pedido:', orderId);
-    
-    try {
-      const updatedOrder = await invoke<OrderWithItems>('get_order_by_id', { orderId });
-      
-      const updatedOrders = orders.map((order: OrderWithItems) => 
-        order.id === orderId ? updatedOrder : order
-      );
-      setOrders(updatedOrders);
-      
-      console.log('✅ Status do pedido sincronizado com sucesso');
-    } catch (error) {
-      console.error('❌ Erro ao sincronizar status do pedido:', error);
-    }
-  }, [setOrders]);
+  const handleOrderStatusUpdated = useCallback(
+    async (orderId: number) => {
+      try {
+        const updatedOrder = await api.getOrderById(orderId);
+        const updated = orders.map((order) => (order.id === orderId ? updatedOrder : order));
+        setOrders(updated);
+      } catch (error) {
+        console.error('❌ Erro ao sincronizar status do pedido:', error);
+      }
+    },
+    [orders, setOrders],
+  );
 
-  console.log('🔧 Configurando useOrderAutoSync com handlers:', {
-    hasOrders: orders.length > 0,
-    hasSetOrders: !!setOrders,
-    hasRemoveOrder: !!removeOrder,
-  });
-
-  // Configurar os listeners
   useOrderEvents({
     onOrderCreated: handleOrderCreated,
     onOrderUpdated: handleOrderUpdated,
@@ -189,7 +182,6 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   });
 
   return {
-    // Retornar funções para uso manual se necessário
     handleOrderCreated,
     handleOrderUpdated,
     handleOrderDeleted,

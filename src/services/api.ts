@@ -993,7 +993,7 @@ const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Record<strin
 };
 
 const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, any> => {
-  return sanitizePayload({
+  const payload: Record<string, any> = {
     financeiro: request.financeiro,
     conferencia: request.conferencia,
     sublimacao: request.sublimacao,
@@ -1001,7 +1001,16 @@ const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, a
     expedicao: request.expedicao,
     sublimacao_maquina: request.sublimacao_maquina,
     sublimacao_data_impressao: request.sublimacao_data_impressao,
-  });
+  };
+
+  if (request.status) {
+    payload.status = mapStatusToApi(request.status);
+  }
+  if (request.pronto !== undefined) {
+    payload.pronto = request.pronto;
+  }
+
+  return sanitizePayload(payload);
 };
 
 const buildBulkImportError = (index: number, item: BulkClienteImportItem, error: unknown): BulkClienteImportError => {
