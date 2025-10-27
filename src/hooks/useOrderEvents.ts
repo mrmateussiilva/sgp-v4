@@ -51,6 +51,7 @@ export const useOrderEvents = ({
     };
 
     const handleMessage = (message: OrderEventMessage) => {
+      console.log('📡 Evento WebSocket recebido:', message);
       const type = message.type;
       if (!type) {
         return;
@@ -63,6 +64,10 @@ export const useOrderEvents = ({
         parseOrderId(orderPayload?.order_id);
 
       const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
+
+      if (!orderId) {
+        console.warn('⚠️ Evento recebido sem order_id rastreável:', message);
+      }
 
       if ((type === 'order_created' || type === 'order_updated') && orderId && onOrderUpdated) {
         onOrderUpdated(orderId);

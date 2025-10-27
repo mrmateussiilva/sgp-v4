@@ -57,6 +57,7 @@ export const useRealtimeNotifications = () => {
   }, []);
 
   const handleNotification = useCallback((message: OrderEventMessage) => {
+    console.log('📨 Mensagem de notificação recebida:', message);
     if (!message || !message.type) {
       return;
     }
