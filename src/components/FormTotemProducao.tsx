@@ -10,6 +10,18 @@ import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 import { CurrencyInput } from '@/components/ui/currency-input';
 
+const normalizeDecimal = (value: string | number): string => {
+  const str = String(value ?? '').trim();
+  if (!str) return '0';
+  if (str.includes(',') && str.includes('.')) {
+    return str.replace(/\./g, '').replace(',', '.');
+  }
+  if (str.includes(',')) {
+    return str.replace(',', '.');
+  }
+  return str;
+};
+
 interface FormTotemProducaoProps {
   tabId: string;
   tabData: any;
@@ -35,10 +47,12 @@ export function FormTotemProducao({
 }: FormTotemProducaoProps) {
   const parseBR = (v: string | number): number => {
     if (!v) return 0;
-    if (typeof v === 'number') return v;
-    const normalized = String(v).replace(/\./g, '').replace(',', '.');
-    const num = parseFloat(normalized);
-    return isNaN(num) ? 0 : num;
+    if (typeof v === 'number') {
+      return Number.isFinite(v) ? v : 0;
+    }
+    const normalized = normalizeDecimal(v);
+    const num = Number.parseFloat(normalized);
+    return Number.isNaN(num) ? 0 : num;
   };
 
   const formatBR = (v: number): string => {
@@ -196,6 +210,7 @@ export function FormTotemProducao({
                     onClick={(e) => {
                       e.preventDefault();
                       onDataChange('imagem', '');
+                      onDataChange('legenda_imagem', '');
                     }}
                     className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
                   >
@@ -210,6 +225,15 @@ export function FormTotemProducao({
                 </div>
               )}
             </label>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-700">Legenda da imagem</Label>
+            <Input
+              value={tabData?.legenda_imagem || ''}
+              onChange={(e) => onDataChange('legenda_imagem', e.target.value)}
+              placeholder="Digite a legenda exibida abaixo da imagem"
+              className="h-10"
+            />
           </div>
         </div>
       </div>

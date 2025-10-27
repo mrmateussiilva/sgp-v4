@@ -246,6 +246,7 @@ const buildItemCard = (
   const itemRecord = item as unknown as Record<string, unknown>;
   const details = collectItemDetails(item);
   const imageUrl = item.imagem?.trim();
+  const imageCaption = getFieldValue(itemRecord, 'legenda_imagem');
 
   // Calcular valores financeiros do item
   const subtotal = parseCurrencyValue(item.subtotal);
@@ -287,14 +288,15 @@ const buildItemCard = (
                 <strong>Observações:</strong> ${escapeHtml(item.observacao.trim()).replace(/\n/g, '<br />')}
     </div>
             ` : ''}
-    </div>
-          <div class="item-image-column">
-            ${imageUrl ? `
-              <div class="image-wrapper">
-                <img src="${escapeHtml(imageUrl)}" alt="Imagem do item" />
-    </div>
-            ` : '<div class="no-image">Sem imagem</div>'}
-  </div>
+        </div>
+        <div class="item-image-column">
+          ${imageUrl ? `
+            <div class="image-wrapper">
+              <img src="${escapeHtml(imageUrl)}" alt="Imagem do item" />
+              ${imageCaption ? `<div class="image-caption">${escapeHtml(imageCaption)}</div>` : ''}
+            </div>
+          ` : '<div class="no-image">Sem imagem</div>'}
+        </div>
         </div>
 
         <!-- Linha 5: Resumo Financeiro do Item -->
@@ -669,16 +671,27 @@ const buildStyles = (): string => `
     max-height: 160mm;
     border: 1px solid #ddd;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background: #f9f9f9;
     padding: 6px;
+    gap: 8px;
   }
 
   .image-wrapper img {
     max-width: 100%;
-    max-height: 155mm;
+    max-height: 140mm;
     object-fit: contain;
+  }
+
+  .image-caption {
+    width: 100%;
+    font-size: 0.8rem;
+    color: #4b5563;
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
   }
 
   .no-image {

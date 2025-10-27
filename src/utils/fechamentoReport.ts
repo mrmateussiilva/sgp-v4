@@ -52,10 +52,13 @@ const parseCurrency = (value: unknown): number => {
     if (!trimmed) {
       return 0;
     }
-    const sanitised = trimmed.includes(',')
-      ? trimmed.replace(/\./g, '').replace(',', '.')
-      : trimmed;
-    const numeric = Number.parseFloat(sanitised);
+    let normalized = trimmed;
+    if (trimmed.includes(',') && trimmed.includes('.')) {
+      normalized = trimmed.replace(/\./g, '').replace(',', '.');
+    } else if (trimmed.includes(',')) {
+      normalized = trimmed.replace(',', '.');
+    }
+    const numeric = Number.parseFloat(normalized);
     return Number.isFinite(numeric) ? roundCurrency(numeric) : 0;
   }
   return 0;

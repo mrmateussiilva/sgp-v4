@@ -87,6 +87,7 @@ interface ApiPedidoItem {
   acabamento_lona?: string | null;
   acabamento_totem?: string | null;
   acabamento_totem_outro?: string | null;
+  legenda_imagem?: string | null;
   outros_valores?: string | null;
 }
 
@@ -482,6 +483,7 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
     valor_cordinha: item.valor_cordinha ?? undefined,
     observacao: item.observacao ?? undefined,
     imagem: item.imagem ?? undefined,
+    legenda_imagem: item.legenda_imagem ?? undefined,
     quantidade_paineis: item.quantidade_paineis ?? undefined,
     valor_painel: item.valor_painel ?? undefined,
     valores_adicionais: item.valores_adicionais ?? undefined,
@@ -813,6 +815,53 @@ const paginateOrders = (orders: OrderWithItems[], page = 1, pageSize = DEFAULT_P
   };
 };
 
+const isProductionComplete = (order: OrderWithItems): boolean => {
+  return Boolean(
+    order &&
+      order.financeiro &&
+      order.conferencia &&
+      order.sublimacao &&
+      order.costura &&
+      order.expedicao
+  );
+};
+
+const isPendingOrderByStages = (order: OrderWithItems): boolean => {
+  if (!order) return false;
+  if (order.status === OrderStatus.Pendente) {
+    return true;
+  }
+  return !isProductionComplete(order);
+};
+
+const sortOrdersByUpdatedAtDesc = (orders: OrderWithItems[]): OrderWithItems[] => {
+  return [...orders].sort((a, b) => {
+    const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    if (dateA === dateB) {
+      return (b.id ?? 0) - (a.id ?? 0);
+    }
+    return dateB - dateA;
+  });
+};
+
+const collectPendingOrders = async (): Promise<OrderWithItems[]> => {
+  const [pending, inProduction] = await Promise.all([
+    fetchOrdersByStatus('pendente'),
+    fetchOrdersByStatus('em_producao'),
+  ]);
+
+  const unique = new Map<number, OrderWithItems>();
+  [...pending, ...inProduction].forEach((order) => {
+    if (!isPendingOrderByStages(order)) {
+      return;
+    }
+    unique.set(order.id, order);
+  });
+
+  return sortOrdersByUpdatedAtDesc(Array.from(unique.values()));
+};
+
 const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
   const payload: Record<string, any> = {
     tipo_producao: inferTipoProducao(item),
@@ -828,6 +877,7 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     observacao: item?.observacao ?? '',
     valor_unitario: toCurrencyString(item?.valor_unitario ?? item?.unit_price ?? 0),
     imagem: item?.imagem ?? null,
+    legenda_imagem: normalizeNullableString(item?.legenda_imagem),
     quantidade_paineis: item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined),
     valor_painel: item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined,
     valores_adicionais: item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined,
@@ -1078,12 +1128,11 @@ export const api = {
   },
 
   getPendingOrdersLight: async (): Promise<OrderWithItems[]> => {
-    const orders = await fetchOrdersByStatus('pendente');
-    return orders;
+    return collectPendingOrders();
   },
 
   getPendingOrdersPaginated: async (page?: number, pageSize?: number): Promise<PaginatedOrders> => {
-    const orders = await fetchOrdersByStatus('pendente');
+    const orders = await collectPendingOrders();
     return paginateOrders(orders, page ?? 1, pageSize ?? DEFAULT_PAGE_SIZE);
   },
 
@@ -1205,8 +1254,14 @@ export const api = {
     const dateTo = filters.date_to ? new Date(filters.date_to) : null;
 
     const filtered = orders.filter((order) => {
-      if (statusFilter && order.status !== statusFilter) {
-        return false;
+      if (statusFilter) {
+        if (statusFilter === OrderStatus.Pendente) {
+          if (!isPendingOrderByStages(order)) {
+            return false;
+          }
+        } else if (order.status !== statusFilter) {
+          return false;
+        }
       }
       if (searchTerm) {
         const match =

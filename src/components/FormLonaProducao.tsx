@@ -11,6 +11,18 @@ import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 
+const normalizeDecimal = (value: string | number): string => {
+  const str = String(value ?? '').trim();
+  if (!str) return '0';
+  if (str.includes(',') && str.includes('.')) {
+    return str.replace(/\./g, '').replace(',', '.');
+  }
+  if (str.includes(',')) {
+    return str.replace(',', '.');
+  }
+  return str;
+};
+
 interface FormLonaProducaoProps {
   tabId: string;
   tabData: any;
@@ -36,9 +48,11 @@ export function FormLonaProducao({
 }: FormLonaProducaoProps) {
   const parseBR = (value: string | number): number => {
     if (!value) return 0;
-    if (typeof value === 'number') return value;
-    const normalized = String(value).replace(/\./g, '').replace(',', '.');
-    const parsed = parseFloat(normalized);
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = normalizeDecimal(value);
+    const parsed = Number.parseFloat(normalized);
     return Number.isNaN(parsed) ? 0 : parsed;
   };
 
@@ -281,6 +295,7 @@ export function FormLonaProducao({
                     onClick={(event) => {
                       event.preventDefault();
                       onDataChange('imagem', '');
+                      onDataChange('legenda_imagem', '');
                     }}
                     className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
                   >
@@ -295,6 +310,15 @@ export function FormLonaProducao({
                 </div>
               )}
             </label>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-700">Legenda da imagem</Label>
+            <Input
+              value={tabData?.legenda_imagem || ''}
+              onChange={(event) => onDataChange('legenda_imagem', event.target.value)}
+              placeholder="Digite a legenda exibida abaixo da imagem"
+              className="h-10"
+            />
           </div>
         </div>
       </div>

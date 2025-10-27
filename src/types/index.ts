@@ -33,6 +33,7 @@ export interface OrderItem {
   valor_cordinha?: string;
   observacao?: string;
   imagem?: string;
+  legenda_imagem?: string;
   quantidade_paineis?: string;
   valor_painel?: string;
   valores_adicionais?: string;
@@ -140,6 +141,7 @@ export interface CreateOrderItemRequest {
   valor_cordinha?: string;
   observacao?: string;
   imagem?: string;
+  legenda_imagem?: string;
   quantidade_paineis?: string;
   valor_painel?: string;
   valores_adicionais?: string;
@@ -204,6 +206,8 @@ export interface UpdateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  imagem?: string;
+  legenda_imagem?: string;
   valor_painel?: string;
   valores_adicionais?: string;
   emenda?: string;
@@ -512,6 +516,8 @@ export interface OrderItemFicha {
   espaco_cordinha?: string;
   valor_cordinha?: string;
   observacao?: string;
+  imagem?: string;
+  legenda_imagem?: string;
   emenda?: string;
   emenda_qtd?: string;
   ziper?: boolean;

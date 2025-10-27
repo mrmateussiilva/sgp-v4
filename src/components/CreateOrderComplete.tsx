@@ -66,6 +66,7 @@ interface TabItem {
   valor_cordinha: string;
   // Campos extras
   imagem: string;
+  legenda_imagem: string;
   valor_painel: string;
   valores_adicionais: string;
   quantidade_paineis: string;
@@ -136,6 +137,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       espaco_cordinha: '',
       valor_cordinha: '0,00',
       imagem: '',
+      legenda_imagem: '',
       valor_painel: '0,00',
       valores_adicionais: '0,00',
       quantidade_paineis: '1',
@@ -192,9 +194,33 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     const parsed = Number.parseFloat(normalized);
     if (Number.isNaN(parsed)) {
       return '0,00';
-    }
+  }
 
-    return parsed.toFixed(2).replace('.', ',');
+  return parsed.toFixed(2).replace('.', ',');
+}
+
+  function parseLocaleNumber(value?: string | number | null): number {
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return 0;
+    }
+    const compact = trimmed.replace(/\s+/g, '');
+    let normalized = compact;
+    if (compact.includes(',') && compact.includes('.')) {
+      normalized = compact.replace(/\./g, '').replace(',', '.');
+    } else if (compact.includes(',')) {
+      normalized = compact.replace(',', '.');
+    } else {
+      normalized = compact.replace(',', '.');
+    }
+    const parsed = Number.parseFloat(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   function toDateInputValue(value?: string | null): string {
@@ -249,6 +275,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       espaco_cordinha: anyItem.espaco_cordinha ?? '',
       valor_cordinha: formatCurrencyValue(anyItem.valor_cordinha),
       imagem: anyItem.imagem ?? '',
+      legenda_imagem: anyItem.legenda_imagem ?? '',
       valor_painel: formatCurrencyValue(
         anyItem.valor_painel ?? anyItem.valor_unitario ?? item.unit_price
       ),
@@ -539,8 +566,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   useEffect(() => {
     const currentData = tabsData[activeTab];
     if (currentData && currentData.largura && currentData.altura) {
-      const largura = parseFloat(String(currentData.largura).replace(',', '.')) || 0;
-      const altura = parseFloat(String(currentData.altura).replace(',', '.')) || 0;
+      const largura = parseLocaleNumber(currentData.largura);
+      const altura = parseLocaleNumber(currentData.altura);
       const area = (largura * altura).toFixed(2).replace('.', ',');
       
       // Atualizar área apenas se mudou
@@ -556,14 +583,14 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       const item = tabsData[tabId];
       if (item && (item.tipo_producao === 'painel' || item.tipo_producao === 'generica')) {
         // Calcular valor total do painel baseado nos campos específicos
-        const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-        const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
+        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
         
         // Calcular valor dos ilhós se aplicável
         let valorIlhos = 0;
         if (item.tipo_acabamento === 'ilhos') {
           const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-          const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
           valorIlhos = qtdIlhos * valorUnitIlhos;
         }
         
@@ -571,7 +598,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         let valorCordinha = 0;
         if (item.tipo_acabamento === 'cordinha') {
           const qtdCordinha = parseInt(item.quantidade_cordinha || '0');
-          const valorUnitCordinha = parseFloat(String(item.valor_cordinha || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          const valorUnitCordinha = parseLocaleNumber(item.valor_cordinha || '0,00');
           valorCordinha = qtdCordinha * valorUnitCordinha;
         }
         
@@ -605,8 +632,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
       if (item && item.tipo_producao === 'totem') {
-        const valorTotem = parseFloat(String(item.valor_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-        const outrosValores = parseFloat(String(item.outros_valores_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorTotem = parseLocaleNumber(item.valor_totem || '0,00');
+        const outrosValores = parseLocaleNumber(item.outros_valores_totem || '0,00');
         const valorTotalUnitario = valorTotem + outrosValores;
         const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
 
@@ -626,12 +653,12 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
       if (item && item.tipo_producao === 'lona') {
-        const valorLona = parseFloat(String(item.valor_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-        const outrosValores = parseFloat(String(item.outros_valores_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorLona = parseLocaleNumber(item.valor_lona || '0,00');
+        const outrosValores = parseLocaleNumber(item.outros_valores_lona || '0,00');
         let valorIlhos = 0;
         if (item.tipo_acabamento === 'ilhos') {
           const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-          const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
           valorIlhos = qtdIlhos * valorUnitIlhos;
         }
         const valorTotalUnitario = valorLona + outrosValores + valorIlhos;
@@ -656,8 +683,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
       if (item && item.tipo_producao === 'adesivo') {
-        const valorAdesivo = parseFloat(String(item.valor_adesivo || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-        const outrosValores = parseFloat(String(item.outros_valores_adesivo || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorAdesivo = parseLocaleNumber(item.valor_adesivo || '0,00');
+        const outrosValores = parseLocaleNumber(item.outros_valores_adesivo || '0,00');
         const valorTotalUnitario = valorAdesivo + outrosValores;
         const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
 
@@ -738,21 +765,21 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
 
         // Validar medidas para tipos que precisam
         if (item.tipo_producao !== 'painel') {
-          if (!item.largura || parseFloat(item.largura.replace(',', '.')) <= 0) {
+          if (!item.largura || parseLocaleNumber(item.largura) <= 0) {
             errors[`item_${tabId}_largura`] = 'Largura deve ser maior que zero';
           }
-          if (!item.altura || parseFloat(item.altura.replace(',', '.')) <= 0) {
+          if (!item.altura || parseLocaleNumber(item.altura) <= 0) {
             errors[`item_${tabId}_altura`] = 'Altura deve ser maior que zero';
           }
         }
 
         // Validar valor unitário
-        const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
         
         // Para painéis, verificar se pelo menos um campo de valor foi preenchido
         if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-          const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-          const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+          const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
+          const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
           
           if (valorPainel <= 0 && valoresAdicionais <= 0) {
             errors[`item_${tabId}_valor`] = 'Preencha pelo menos o valor do painel ou valores adicionais';
@@ -814,7 +841,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
 
     // Validar valor do frete (deve ser um número válido)
-    const valorFrete = parseFloat(formData.valor_frete.replace(/\./g, '').replace(',', '.')) || 0;
+    const valorFrete = parseLocaleNumber(formData.valor_frete);
     if (valorFrete < 0) {
       errors.valor_frete = 'Valor do frete não pode ser negativo';
     }
@@ -832,7 +859,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
 
     // Calcular valor total do pedido
-    const valorTotal = parseFloat(calcularTotal().replace('.', '').replace(',', '.'));
+    const valorTotal = parseLocaleNumber(calcularTotal());
     if (valorTotal <= 0) {
       errors.valor_total = 'Valor total do pedido deve ser maior que zero';
     }
@@ -904,7 +931,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         }
         break;
       case 'valor_frete':
-        const valorFrete = parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+        const valorFrete = parseLocaleNumber(value);
         if (valorFrete < 0) {
           error = 'Valor do frete não pode ser negativo';
         }
@@ -996,11 +1023,11 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       errors.push("Descrição é obrigatória (mínimo 3 caracteres)");
     }
 
-    if (!item.largura || parseFloat(item.largura.replace(',', '.')) <= 0) {
+    if (!item.largura || parseLocaleNumber(item.largura) <= 0) {
       errors.push("Largura é obrigatória e deve ser maior que zero");
     }
 
-    if (!item.altura || parseFloat(item.altura.replace(',', '.')) <= 0) {
+    if (!item.altura || parseLocaleNumber(item.altura) <= 0) {
       errors.push("Altura é obrigatória e deve ser maior que zero");
     }
 
@@ -1022,16 +1049,16 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
 
     // Validar valor
     if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-      const valorPainel = parseFloat(String(item.valor_painel || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-      const valoresAdicionais = parseFloat(String(item.valores_adicionais || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
+      const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
       
       if (valorPainel <= 0 && valoresAdicionais <= 0) {
         errors.push("Valor é obrigatório (preencha pelo menos o valor do painel ou valores adicionais)");
       }
     } else if (item.tipo_producao === 'totem') {
-      const valorTotem = parseFloat(String(item.valor_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-      const outrosTotem = parseFloat(String(item.outros_valores_totem || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-      const valorUnitarioTotem = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorTotem = parseLocaleNumber(item.valor_totem || '0,00');
+      const outrosTotem = parseLocaleNumber(item.outros_valores_totem || '0,00');
+      const valorUnitarioTotem = parseLocaleNumber(item.valor_unitario || '0,00');
 
       if (valorTotem <= 0 && outrosTotem <= 0) {
         errors.push("Informe o valor do totem ou outros valores adicionais");
@@ -1045,15 +1072,15 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         errors.push("Descreva o outro acabamento do totem");
       }
     } else if (item.tipo_producao === 'lona') {
-      const valorLona = parseFloat(String(item.valor_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
-      const outrosValoresLona = parseFloat(String(item.outros_valores_lona || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorLona = parseLocaleNumber(item.valor_lona || '0,00');
+      const outrosValoresLona = parseLocaleNumber(item.outros_valores_lona || '0,00');
       let valorIlhos = 0;
       if (item.tipo_acabamento === 'ilhos') {
         const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-        const valorUnitIlhos = parseFloat(String(item.valor_ilhos || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
         valorIlhos = qtdIlhos * valorUnitIlhos;
       }
-      const valorUnitarioLona = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorUnitarioLona = parseLocaleNumber(item.valor_unitario || '0,00');
 
       if (valorLona <= 0 && outrosValoresLona <= 0 && valorIlhos <= 0) {
         errors.push("Informe o valor da lona ou valores adicionais");
@@ -1070,7 +1097,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         }
       }
     } else {
-      const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
       if (valorUnitario <= 0) {
         errors.push("Valor unitário é obrigatório e deve ser maior que zero");
       }
@@ -1215,8 +1242,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       if (!item || !item.tipo_producao || !item.descricao) return sum;
       
       // Converter valor unitário corretamente
-      const valorUnitario = String(item.valor_unitario || '0,00');
-      const valor = parseFloat(valorUnitario.replace(/\./g, '').replace(',', '.')) || 0;
+      const valor = parseLocaleNumber(item.valor_unitario || '0,00');
       
       // Para painéis, considerar a quantidade
       if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
@@ -1258,7 +1284,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
 
   const calcularTotal = () => {
     const valorItens = calcularValorItens();
-    const frete = parseFloat(formData.valor_frete.replace(/\./g, '').replace(',', '.')) || 0;
+    const frete = parseLocaleNumber(formData.valor_frete);
     return (valorItens + frete).toFixed(2).replace('.', ',');
   };
 
@@ -1328,9 +1354,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         })
         .map((tabId) => {
           const item = tabsData[tabId]!;
-          const valorUnitario =
-            parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) ||
-            0;
+          const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
 
           const quantidadeRaw =
             item.tipo_producao === 'painel' || item.tipo_producao === 'generica'
@@ -1369,6 +1393,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
             valor_cordinha: item.valor_cordinha,
             observacao: item.observacao,
             imagem: item.imagem,
+            legenda_imagem: item.legenda_imagem,
             quantidade_paineis: item.quantidade_paineis,
             valor_painel: item.valor_painel,
             valores_adicionais: item.valores_adicionais,
@@ -1440,9 +1465,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
         }
       }
 
-      const valorFrete =
-        parseFloat(String(formData.valor_frete || '0,00').replace(/\./g, '').replace(',', '.')) ||
-        0;
+      const valorFrete = parseLocaleNumber(formData.valor_frete || '0,00');
 
       if (isEditMode && selectedOrderId) {
         if (!currentOrder) {
@@ -2382,7 +2405,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                 if (!item?.tipo_producao) return null;
                 
                 // Calcular valor total do item considerando quantidade
-                const valorUnitario = parseFloat(String(item.valor_unitario || '0,00').replace(/\./g, '').replace(',', '.')) || 0;
+                const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
                 let valorTotalItem = valorUnitario;
                 
                 if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {

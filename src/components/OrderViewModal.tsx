@@ -25,6 +25,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
 
   // Buscar formas de pagamento
@@ -48,13 +49,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   // Função para lidar com clique na imagem
-  const handleImageClick = (imageUrl: string) => {
+  const handleImageClick = (imageUrl: string, caption?: string) => {
     setSelectedImage(imageUrl);
+    setSelectedImageCaption(caption?.trim() ?? '');
   };
 
   // Função para fechar o modal de imagem
   const closeImageModal = () => {
     setSelectedImage(null);
+    setSelectedImageCaption('');
   };
 
   const handlePrint = () => {
@@ -233,38 +236,14 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     variant: DetailVariant;
   }
 
-  const buildDetailSections = (item: OrderItem): DetailEntry[] => {
+  interface DetailSectionsResult {
+    entries: DetailEntry[];
+    omitKeys: Set<string>;
+  }
+
+  const buildDetailSections = (item: OrderItem): DetailSectionsResult => {
     const sections: DetailEntry[] = [];
-    const omitKeys = new Set<string>([
-      'valor_unitario',
-      'overloque',
-      'elastico',
-      'tipo_acabamento',
-      'quantidade_ilhos',
-      'espaco_ilhos',
-      'valor_ilhos',
-      'quantidade_cordinha',
-      'espaco_cordinha',
-      'valor_cordinha',
-      'terceirizado',
-      'acabamento_lona',
-      'valor_lona',
-      'outros_valores_lona',
-      'acabamento_totem',
-      'acabamento_totem_outro',
-      'valor_totem',
-      'outros_valores_totem',
-      'tipo_adesivo',
-      'valor_adesivo',
-      'outros_valores_adesivo',
-      'ziper',
-      'cordinha_extra',
-      'alcinha',
-      'toalha_pronta',
-      'emenda',
-      'emenda_qtd',
-      'observacao',
-    ]);
+    const omitKeys = new Set<string>();
     const tipoProducao = normalizeText(item.tipo_producao).toLowerCase();
     const isLona = tipoProducao === 'lona';
     const isTotem = tipoProducao === 'totem';
@@ -278,24 +257,23 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       return /cm$/i.test(normalized) ? normalized : `${normalized} cm`;
     };
 
-    if (hasPositiveNumber(item.valor_unitario) && !isLona && !isTotem && !isAdesivo) {
-      sections.push({
-        label: 'Valor Unitário Informado',
-        value: formatCurrency(item.valor_unitario!),
-        variant: 'neutral',
-      });
+    const addBooleanFlag = (flag: keyof OrderItem | string, label: string) => {
+      if ((item as any)[flag]) {
+        sections.push({
+          label,
+          value: 'Sim',
+          variant: 'accent',
+        });
+        omitKeys.add(String(flag));
+      }
+    };
+
+    if (hasPositiveNumber(item.valor_unitario)) {
       omitKeys.add('valor_unitario');
     }
 
-    if (item.overloque) {
-      sections.push({ label: 'Overloque', value: 'Sim', variant: 'accent' });
-      omitKeys.add('overloque');
-    }
-
-    if (item.elastico) {
-      sections.push({ label: 'Elástico', value: 'Sim', variant: 'accent' });
-      omitKeys.add('elastico');
-    }
+    addBooleanFlag('overloque', 'Overloque');
+    addBooleanFlag('elastico', 'Elástico');
 
     if (hasTextValue(item.tipo_acabamento, { disallow: ['nenhum'] })) {
       sections.push({
@@ -306,116 +284,66 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       omitKeys.add('tipo_acabamento');
     }
 
+    const ilhosParts: string[] = [];
     if (hasQuantityValue(item.quantidade_ilhos)) {
-      sections.push({
-        label: 'Qtd. Ilhós',
-        value: (
-          <span className="text-lg font-bold text-red-600">
-            {item.quantidade_ilhos}
-          </span>
-        ),
-        variant: 'warning',
-      });
+      ilhosParts.push(`Qtd: ${normalizeText(item.quantidade_ilhos)}`);
       omitKeys.add('quantidade_ilhos');
     }
-
-    if (hasQuantityValue(item.espaco_ilhos)) {
-      const spacing = formatSpacing(item.espaco_ilhos);
-      if (spacing) {
-        sections.push({
-          label: 'Espaço Ilhós',
-          value: spacing,
-          variant: 'warning',
-        });
-        omitKeys.add('espaco_ilhos');
-      }
+    const ilhosSpacing = formatSpacing(item.espaco_ilhos);
+    if (ilhosSpacing) {
+      ilhosParts.push(`Espaçamento: ${ilhosSpacing}`);
+      omitKeys.add('espaco_ilhos');
     }
-
     if (hasPositiveNumber(item.valor_ilhos)) {
-      sections.push({
-        label: 'Valor Ilhós',
-        value: formatCurrency(item.valor_ilhos!),
-        variant: 'neutral',
-      });
       omitKeys.add('valor_ilhos');
     }
-
-    if (hasQuantityValue(item.quantidade_cordinha)) {
+    if (ilhosParts.length > 0) {
       sections.push({
-        label: 'Qtd. Cordinha',
-        value: (
-          <span className="text-lg font-bold text-red-600">
-            {item.quantidade_cordinha}
-          </span>
-        ),
+        label: 'Ilhós',
+        value: ilhosParts.join(' • '),
         variant: 'warning',
       });
+    }
+
+    const cordinhaParts: string[] = [];
+    if (hasQuantityValue(item.quantidade_cordinha)) {
+      cordinhaParts.push(`Qtd: ${normalizeText(item.quantidade_cordinha)}`);
       omitKeys.add('quantidade_cordinha');
     }
-
-    if (hasQuantityValue(item.espaco_cordinha)) {
-      const spacing = formatSpacing(item.espaco_cordinha);
-      if (spacing) {
-        sections.push({
-          label: 'Espaço Cordinha',
-          value: spacing,
-          variant: 'warning',
-        });
-        omitKeys.add('espaco_cordinha');
-      }
+    const cordinhaSpacing = formatSpacing(item.espaco_cordinha);
+    if (cordinhaSpacing) {
+      cordinhaParts.push(`Espaçamento: ${cordinhaSpacing}`);
+      omitKeys.add('espaco_cordinha');
     }
-
     if (hasPositiveNumber(item.valor_cordinha)) {
-      sections.push({
-        label: 'Valor Cordinha',
-        value: formatCurrency(item.valor_cordinha!),
-        variant: 'neutral',
-      });
       omitKeys.add('valor_cordinha');
+    }
+    if (cordinhaParts.length > 0) {
+      sections.push({
+        label: 'Cordinha',
+        value: cordinhaParts.join(' • '),
+        variant: 'warning',
+      });
     }
 
     if (isLona) {
       const terceirizado = (item as any).terceirizado;
       if (typeof terceirizado === 'boolean') {
-        sections.push({
-          label: 'Terceirizado',
-          value: terceirizado ? 'Sim' : 'Não',
-          variant: terceirizado ? 'warning' : 'neutral',
-        });
         omitKeys.add('terceirizado');
       }
 
       const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
       if (acabamentoLonaRaw) {
-        const acabamentoLabel = acabamentoLonaRaw
-          .split(/[_-]/)
-          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-          .join(' ');
-        sections.push({
-          label: 'Acabamento',
-          value: acabamentoLabel,
-          variant: 'accent',
-        });
         omitKeys.add('acabamento_lona');
       }
 
       const valorBaseLona = (item as any).valor_lona;
       if (hasPositiveNumber(valorBaseLona)) {
-        sections.push({
-          label: 'Valor Base',
-          value: formatCurrency(valorBaseLona),
-          variant: 'neutral',
-        });
         omitKeys.add('valor_lona');
       }
 
       const outrosValoresLona = (item as any).outros_valores_lona;
       if (hasPositiveNumber(outrosValoresLona)) {
-        sections.push({
-          label: 'Outros Valores',
-          value: formatCurrency(outrosValoresLona),
-          variant: 'neutral',
-        });
         omitKeys.add('outros_valores_lona');
       }
 
@@ -467,23 +395,70 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
       const valorTotem = (item as any).valor_totem;
       if (hasPositiveNumber(valorTotem)) {
-        sections.push({
-          label: 'Valor Base do Totem',
-          value: formatCurrency(valorTotem),
-          variant: 'neutral',
-        });
         omitKeys.add('valor_totem');
       }
 
       const outrosValoresTotem = (item as any).outros_valores_totem;
       if (hasPositiveNumber(outrosValoresTotem)) {
-        sections.push({
-          label: 'Outros Valores',
-          value: formatCurrency(outrosValoresTotem),
-          variant: 'neutral',
-        });
         omitKeys.add('outros_valores_totem');
       }
+    }
+
+    if (isAdesivo) {
+      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
+      if (tipoAdesivo) {
+        omitKeys.add('tipo_adesivo');
+      }
+
+      const valorAdesivo = (item as any).valor_adesivo;
+      if (hasPositiveNumber(valorAdesivo)) {
+        omitKeys.add('valor_adesivo');
+      }
+
+      const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
+      if (hasPositiveNumber(outrosValoresAdesivo)) {
+        omitKeys.add('outros_valores_adesivo');
+      }
+
+      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
+      if (quantidadeAdesivo) {
+        omitKeys.add('quantidade_adesivo');
+      }
+    }
+
+    const emendaTipoRaw = normalizeText((item as any).emenda);
+    const emendaTipo = emendaTipoRaw
+      ? emendaTipoRaw
+          .split(/[-_]/)
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(' ')
+      : '';
+
+    if (emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
+      const emendaQuantidade = normalizeText((item as any).emenda_qtd ?? (item as any).emendaQtd);
+      let emendaValue: React.ReactNode = emendaTipo;
+      if (emendaQuantidade) {
+        const emendaQtdNumber = parseNumberValue(emendaQuantidade);
+        const emendaQtdLabel = Number.isNaN(emendaQtdNumber)
+          ? emendaQuantidade
+          : emendaQtdNumber === 1
+            ? `${emendaQuantidade} emenda`
+            : `${emendaQuantidade} emendas`;
+        emendaValue = (
+          <span>
+            {emendaTipo}{' '}
+            <span className="text-sm text-amber-700">({emendaQtdLabel})</span>
+          </span>
+        );
+        omitKeys.add('emenda_qtd');
+      }
+
+      sections.push({
+        label: 'Emenda',
+        value: emendaValue,
+        variant: 'accent',
+      });
+      omitKeys.add('emenda');
     }
 
     const extraFlags: Array<[keyof OrderItem | string, string]> = [
@@ -504,103 +479,57 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
     });
 
-    if (isAdesivo) {
-      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
-      if (tipoAdesivo) {
-        sections.push({
-          label: 'Tipo de Adesivo',
-          value: tipoAdesivo,
-          variant: 'accent',
-        });
-        omitKeys.add('tipo_adesivo');
-      }
-
-      const valorAdesivo = (item as any).valor_adesivo;
-      if (hasPositiveNumber(valorAdesivo)) {
-        sections.push({
-          label: 'Valor do Adesivo',
-          value: formatCurrency(valorAdesivo),
-          variant: 'neutral',
-        });
-        omitKeys.add('valor_adesivo');
-      }
-
-      const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
-      if (hasPositiveNumber(outrosValoresAdesivo)) {
-        sections.push({
-          label: 'Outros Valores',
-          value: formatCurrency(outrosValoresAdesivo),
-          variant: 'neutral',
-        });
-        omitKeys.add('outros_valores_adesivo');
-      }
-
-      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
-      if (quantidadeAdesivo) {
-        sections.push({
-          label: 'Quantidade Solicitada',
-          value: quantidadeAdesivo,
-          variant: 'accent',
-        });
-        omitKeys.add('quantidade_adesivo');
-      }
-    }
-
-    const emendaTipoRaw = normalizeText((item as any).emenda);
-    const emendaTipo = emendaTipoRaw
-      ? emendaTipoRaw
-          .split(/[-_]/)
-          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-          .join(' ')
-      : '';
-
-    if (emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
-      sections.push({
-        label: 'Emenda',
-        value: emendaTipo,
-        variant: 'accent',
-      });
-      omitKeys.add('emenda');
-
-      const emendaQuantidade = normalizeText((item as any).emenda_qtd ?? (item as any).emendaQtd);
-      if (emendaQuantidade) {
-        const emendaQtdNumber = parseNumberValue(emendaQuantidade);
-        const emendaQtdLabel =
-          emendaQtdNumber === 1
-            ? `${emendaQuantidade} emenda`
-            : `${emendaQuantidade} emendas`;
-        sections.push({
-          label: 'Qtd. Emendas',
-          value: (
-            <span className="text-lg font-bold text-red-600">
-              {emendaQtdLabel}
-            </span>
-          ),
-          variant: 'warning',
-        });
-        omitKeys.add('emenda_qtd');
-      }
-    }
-
-    return sections;
+    return { entries: sections, omitKeys };
   };
 
   const hasDetailedData = (item: OrderItem) => {
-    const sections = buildDetailSections(item);
-    const fallback = getItemDisplayEntries(item as any);
+    const { entries, omitKeys } = buildDetailSections(item);
+    const fallbackOmitKeys = new Set(omitKeys);
+    [
+      'tipo_producao',
+      'descricao',
+      'vendedor',
+      'designer',
+      'largura',
+      'altura',
+      'metro_quadrado',
+      'tecido',
+      'tipo_adesivo',
+      'quantidade_paineis',
+      'quantidade_totem',
+      'quantidade_adesivo',
+      'quantidade_lona',
+      'valor_unitario',
+      'subtotal',
+      'legenda_imagem',
+    ].forEach((key) => fallbackOmitKeys.add(key));
+    const fallback = getItemDisplayEntries(item as any, {
+      omitKeys: Array.from(fallbackOmitKeys),
+    });
     const hasObservation = hasTextValue(item.observacao);
     const hasImage = hasTextValue(item.imagem);
-    return sections.length > 0 || fallback.length > 0 || hasObservation || hasImage;
+    const hasBasicInfo = [
+      normalizeText(item.tipo_producao),
+      normalizeText(item.descricao),
+      normalizeText(item.vendedor),
+      normalizeText(item.designer),
+      normalizeText(item.largura),
+      normalizeText(item.altura),
+      normalizeText(item.metro_quadrado),
+      normalizeText(item.tecido),
+      normalizeText((item as any).legenda_imagem),
+    ].some(Boolean);
+    return entries.length > 0 || fallback.length > 0 || hasObservation || hasImage || hasBasicInfo;
   };
 
   const getVariantClasses = (variant: DetailVariant) => {
     switch (variant) {
       case 'accent':
-        return 'bg-indigo-600 text-white';
+        return 'text-indigo-600';
       case 'warning':
-        return 'bg-amber-500 text-white';
+        return 'text-amber-600';
       default:
-        return 'bg-slate-200 text-slate-700';
+        return 'text-slate-600';
     }
   };
 
@@ -610,21 +539,17 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="rounded-lg border border-slate-200 bg-white/95 p-4">
-        <div className="grid gap-3">
+      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+        <div className="space-y-2">
           {entries.map((entry, index) => (
             <div
               key={`${entry.label}-${index}`}
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-baseline gap-2 text-sm"
             >
-              <span
-                className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${getVariantClasses(
-                  entry.variant
-                )}`}
-              >
-                {entry.label}
+              <span className={`font-semibold ${getVariantClasses(entry.variant)}`}>
+                {entry.label}:
               </span>
-              <span className="text-sm text-slate-800">{entry.value}</span>
+              <span className="text-slate-800">{entry.value}</span>
             </div>
           ))}
         </div>
@@ -633,8 +558,30 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   const renderItemDetailsContent = (item: OrderItem) => {
-    const detailEntries = buildDetailSections(item);
-    const fallbackEntries = getItemDisplayEntries(item as any);
+    const { entries: detailEntries, omitKeys } = buildDetailSections(item);
+    const fallbackOmitKeys = new Set(omitKeys);
+    [
+      'tipo_producao',
+      'descricao',
+      'vendedor',
+      'designer',
+      'largura',
+      'altura',
+      'metro_quadrado',
+      'tecido',
+      'tipo_adesivo',
+      'quantidade_paineis',
+      'quantidade_totem',
+      'quantidade_adesivo',
+      'quantidade_lona',
+      'valor_unitario',
+      'subtotal',
+      'legenda_imagem',
+    ].forEach((key) => fallbackOmitKeys.add(key));
+
+    const fallbackEntries = getItemDisplayEntries(item as any, {
+      omitKeys: Array.from(fallbackOmitKeys),
+    });
     const primaryLabels = new Set(detailEntries.map((entry) => entry.label.toLowerCase()));
     const filteredFallback = fallbackEntries.filter((entry) => {
       const lower = entry.label.toLowerCase();
@@ -647,98 +594,137 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const hasObservation = hasTextValue(item.observacao);
     const hasImage = hasTextValue(item.imagem);
     const tipo = normalizeText(item.tipo_producao);
+    const tipoLower = tipo.toLowerCase();
+    const isLonaType = tipoLower === 'lona';
     const descricao = normalizeText(item.descricao);
     const painelQuantidade = hasQuantityValue(item.quantidade_paineis)
       ? normalizeText(item.quantidade_paineis)
       : '';
+    const quantidadeTotem = normalizeText((item as any).quantidade_totem);
+    const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
+    const quantidadeLona = normalizeText((item as any).quantidade_lona);
     const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
-    const quantidadeDisplay = painelQuantidade || itemQuantidade;
+    const quantidadeDisplay =
+      painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
 
+    const vendedor = normalizeText(item.vendedor);
+    const designer = normalizeText(item.designer);
+    const largura = normalizeText(item.largura);
+    const altura = normalizeText(item.altura);
+    const area = normalizeText(item.metro_quadrado);
+    const material =
+      normalizeText(item.tecido) || normalizeText((item as any).tipo_adesivo);
+    const legendaImagem = normalizeText((item as any).legenda_imagem);
+
+    const formatMeasure = (value: string) => {
+      if (!value) return '-';
+      if (/[a-zA-Z]/.test(value)) {
+        return value;
+      }
+      return `${value} m`;
+    };
+
+    const formatAreaValue = (value: string) => {
+      if (!value) return '';
+      if (/m²|m2|metro/i.test(value)) {
+        return value;
+      }
+      return `${value} m²`;
+    };
+
+    const dimensionBase = `${formatMeasure(largura)} x ${formatMeasure(altura)}`;
+    const dimensionLine = area ? `${dimensionBase} = ${formatAreaValue(area)}` : dimensionBase;
+
+    const infoRows: React.ReactNode[] = [];
     const summaryParts: string[] = [];
     if (tipo) summaryParts.push(tipo.toUpperCase());
     if (descricao) summaryParts.push(descricao);
     if (quantidadeDisplay) summaryParts.push(`Qtd: ${quantidadeDisplay}`);
-    const summaryLine = summaryParts.join(' • ');
-
-    const vendedor = normalizeText(item.vendedor);
-    const designer = normalizeText(item.designer);
-    const equipeLine = [
-      vendedor ? `Vendedor: ${vendedor}` : '',
-      designer ? `Designer: ${designer}` : '',
-    ]
-      .filter(Boolean)
-      .join('  |  ');
-
-    const largura = normalizeText(item.largura);
-    const altura = normalizeText(item.altura);
-    const area = normalizeText(item.metro_quadrado);
-    let dimensoesLine = '';
-    if (largura || altura || area) {
-      const larguraLabel = largura || '-';
-      const alturaLabel = altura || '-';
-      const areaLabel = area ? ` = ${area} m²` : '';
-      const larguraSuffix = largura ? ' m' : '';
-      const alturaSuffix = altura ? ' m' : '';
-      dimensoesLine = `${larguraLabel}${larguraSuffix} x ${alturaLabel}${alturaSuffix}${areaLabel}`;
+    if (summaryParts.length > 0) {
+      infoRows.push(
+        <div key="summary" className="text-sm font-semibold text-slate-900">
+          {summaryParts.join(' • ')}
+        </div>
+      );
     }
 
-    const materialLabel = tipo === 'totem' ? 'Material' : tipo === 'adesivo' ? 'Tipo de Adesivo' : 'Tecido';
-    const tecido = normalizeText(item.tecido);
+    const teamSegments: React.ReactNode[] = [
+      <span key="vendor">
+        Vendedor: <strong>{vendedor || '-'}</strong>
+      </span>,
+      <span key="designer">
+        Designer: <strong>{designer || '-'}</strong>
+      </span>,
+      <span key="dimensions">
+        Largura x Altura = <strong>{dimensionLine}</strong>
+      </span>,
+    ];
 
-    const highlightCards: Array<{ label: string; value: React.ReactNode; className: string }> = [];
+    infoRows.push(
+      <div
+        key="team"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-700"
+      >
+        {teamSegments.map((segment, index) => (
+          <React.Fragment key={index}>
+            {segment}
+            {index < teamSegments.length - 1 && (
+              <span className="text-slate-300">|</span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    );
 
-    if (summaryLine) {
-      highlightCards.push({
-        label: 'Item',
-        value: summaryLine,
-        className: 'bg-slate-900 text-white',
-      });
+    if (material) {
+      infoRows.push(
+        <div key="material" className="text-sm text-slate-700">
+          <span className="font-semibold">Material:</span>{' '}
+          <span>{material}</span>
+        </div>
+      );
     }
 
-    if (equipeLine) {
-      highlightCards.push({
-        label: 'Equipe',
-        value: equipeLine,
-        className: 'bg-purple-600 text-white',
-      });
+    if (isLonaType) {
+      const acabamentoLona = normalizeText((item as any).acabamento_lona);
+      if (acabamentoLona) {
+        const normalized = acabamentoLona.toLowerCase();
+        const refilarDisplay =
+          normalized === 'refilar'
+            ? 'Sim'
+            : normalized === 'nao_refilar' || normalized === 'não_refilar'
+              ? 'Não'
+              : acabamentoLona
+                  .split(/[_-]/)
+                  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                  .join(' ');
+
+        infoRows.push(
+          <div key="refilar" className="text-sm text-slate-700">
+            <span className="font-semibold">Refilar:</span>{' '}
+            <span>{refilarDisplay}</span>
+          </div>
+        );
+      }
+
+      const terceirizado = (item as any).terceirizado;
+      if (typeof terceirizado === 'boolean') {
+        infoRows.push(
+          <div key="terceirizado" className="text-sm text-slate-700">
+            <span className="font-semibold">Vai ser terceirizado:</span>{' '}
+            <span>{terceirizado ? 'Sim' : 'Não'}</span>
+          </div>
+        );
+      }
     }
 
-    if (dimensoesLine) {
-      const medidasSuffix = ' (m)';
-      highlightCards.push({
-        label: 'Dimensões',
-        value: `${dimensoesLine}${medidasSuffix}`,
-        className: 'bg-sky-600 text-white',
-      });
-    }
-
-    if (tecido) {
-      highlightCards.push({
-        label: materialLabel,
-        value: tecido,
-        className: 'bg-emerald-600 text-white',
-      });
-    }
-    if (painelQuantidade) {
-      const unitLabel = tipo === 'totem' ? 'totem' : tipo === 'adesivo' ? 'adesivo' : 'painel';
-      const unitPlural = tipo === 'totem' ? 'totens' : tipo === 'adesivo' ? 'adesivos' : 'painéis';
-      const painelLabel =
-        parseNumberValue(painelQuantidade) === 1
-          ? `Quantidade: 1 ${unitLabel}`
-          : `Quantidade: ${painelQuantidade} ${unitPlural}`;
-
-      highlightCards.push({
-        label: tipo === 'totem' ? 'Totens' : tipo === 'adesivo' ? 'Adesivos' : 'Painéis',
-        value: (
-          <span className="text-lg font-semibold leading-tight">
-            {painelLabel}
-          </span>
-        ),
-        className: 'bg-rose-600 text-white',
-      });
-    }
-
-    if (highlightCards.length === 0 && detailEntries.length === 0 && !hasObservation && !hasImage) {
+    if (
+      infoRows.length === 0 &&
+      detailEntries.length === 0 &&
+      filteredFallback.length === 0 &&
+      !hasObservation &&
+      !hasImage
+    ) {
       return (
         <div className="text-sm text-slate-500">
           Nenhum detalhe adicional informado.
@@ -749,20 +735,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     return (
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className={`space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
-          {highlightCards.length > 0 && (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {highlightCards.map((card) => (
-                <div
-                  key={`${card.label}-${card.value}`}
-                  className={`rounded-lg px-4 py-3 shadow-sm ${card.className}`}
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide opacity-80">
-                    {card.label}
-                  </div>
-                  <div className="text-sm font-semibold leading-snug">
-                    {card.value}
-                  </div>
-                </div>
+          {infoRows.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-4 py-3">
+              {infoRows.map((row, index) => (
+                <div key={index}>{row}</div>
               ))}
             </div>
           )}
@@ -813,11 +789,16 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleImageClick(item.imagem!)}
+                onClick={() => handleImageClick(item.imagem!, legendaImagem)}
                 className="w-full"
               >
                 Abrir imagem em destaque
               </Button>
+              {legendaImagem && (
+                <p className="w-full rounded-md bg-white px-3 py-2 text-center text-xs text-slate-600 shadow-sm">
+                  {legendaImagem}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -934,10 +915,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
                           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
                             <div className="font-medium">Qtd: {item.quantity}</div>
-                            <div>Valor unit.: {formatCurrency(item.unit_price)}</div>
-                            <div className="font-semibold text-slate-900">
-                              Subtotal: {formatCurrency(item.subtotal)}
-                            </div>
                             <ChevronDown
                               className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
                                 isOpen ? 'rotate-180' : ''
@@ -949,20 +926,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
                       {isOpen && (
                         <div className="space-y-4 border-t border-slate-200 bg-white px-4 py-4">
-                          <div className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
-                            <div className="flex flex-wrap items-center gap-4">
-                              <span>
-                                Quantidade: <strong>{item.quantity}</strong>
-                              </span>
-                              <span>
-                                Valor unitário: <strong>{formatCurrency(item.unit_price)}</strong>
-                              </span>
-                              <span>
-                                Subtotal: <strong>{formatCurrency(item.subtotal)}</strong>
-                              </span>
-                            </div>
-                          </div>
-
                           {renderItemDetailsContent(item)}
                         </div>
                       )}
@@ -1027,12 +990,17 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               </DialogTitle>
             </DialogHeader>
             <div className="p-6 pt-0">
-              <div className="flex justify-center">
-                <img 
-                  src={selectedImage} 
+              <div className="flex flex-col items-center gap-4">
+                <img
+                  src={selectedImage}
                   alt="Imagem do item"
                   className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
                 />
+                {selectedImageCaption && (
+                  <p className="max-w-3xl text-center text-sm text-slate-600">
+                    {selectedImageCaption}
+                  </p>
+                )}
               </div>
             </div>
           </DialogContent>

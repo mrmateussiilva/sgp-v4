@@ -52,6 +52,42 @@ const LABELS: Record<string, string> = {
   valor_unitario: 'Valor unitário',
   subtotal: 'Subtotal',
   observacao: 'Observação do item',
+  legenda_imagem: 'Legenda da imagem',
+};
+
+const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
+  quantidade_paineis: ['painel', 'generica'],
+  valor_painel: ['painel', 'generica'],
+  valores_adicionais: ['painel', 'generica'],
+  tipo_acabamento: ['painel', 'generica', 'lona'],
+  quantidade_ilhos: ['painel', 'generica', 'lona'],
+  espaco_ilhos: ['painel', 'generica', 'lona'],
+  valor_ilhos: ['painel', 'generica', 'lona'],
+  quantidade_cordinha: ['painel', 'generica'],
+  espaco_cordinha: ['painel', 'generica'],
+  valor_cordinha: ['painel', 'generica'],
+  emenda: ['painel', 'generica', 'lona'],
+  emenda_qtd: ['painel', 'generica', 'lona'],
+  overloque: ['painel', 'generica'],
+  elastico: ['painel', 'generica'],
+  ziper: ['painel', 'generica'],
+  cordinha_extra: ['painel', 'generica'],
+  alcinha: ['painel', 'generica'],
+  toalha_pronta: ['painel', 'generica'],
+  terceirizado: ['lona'],
+  acabamento_lona: ['lona'],
+  valor_lona: ['lona'],
+  quantidade_lona: ['lona'],
+  outros_valores_lona: ['lona'],
+  tipo_adesivo: ['adesivo'],
+  valor_adesivo: ['adesivo'],
+  quantidade_adesivo: ['adesivo'],
+  outros_valores_adesivo: ['adesivo'],
+  acabamento_totem: ['totem'],
+  acabamento_totem_outro: ['totem'],
+  valor_totem: ['totem'],
+  quantidade_totem: ['totem'],
+  outros_valores_totem: ['totem'],
 };
 
 const CURRENCY_FIELDS = new Set([
@@ -200,9 +236,20 @@ export const getItemDisplayEntries = (
 ): ItemDisplayEntry[] => {
   const entries: ItemDisplayEntry[] = [];
   const omitSet = new Set(options.omitKeys ?? []);
+  const rawType =
+    typeof item.tipo_producao === 'string'
+      ? item.tipo_producao
+      : typeof (item as Record<string, unknown>).tipoProducao === 'string'
+        ? ((item as Record<string, unknown>).tipoProducao as string)
+        : '';
+  const itemType = rawType.trim().toLowerCase();
 
   Object.entries(LABELS).forEach(([key, label]) => {
     if (omitSet.has(key)) {
+      return;
+    }
+    const allowedTypes = FIELD_ALLOWED_TYPES[key];
+    if (allowedTypes && itemType && !allowedTypes.includes(itemType)) {
       return;
     }
     const raw = (item as Record<string, unknown>)[key];
