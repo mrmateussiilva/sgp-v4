@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { OrderWithItems } from '../types';
 import { api } from '@/services/api';
-import { getApiUrl } from '@/services/apiClient';
+import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
 
 // ========================================
 // HOOK PARA EVENTOS DE PEDIDOS EM TEMPO REAL
@@ -37,79 +37,43 @@ export const useOrderEvents = ({
   }, [onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated]);
 
   useEffect(() => {
-    const apiBase = getApiUrl();
-    if (!apiBase) {
-      console.warn('⚠️ API URL não configurada. Eventos em tempo real desabilitados.');
-      return;
-    }
+    const handleMessage = (message: OrderEventMessage) => {
+      const type = message.type;
+      if (!type) {
+        return;
+      }
 
-    let socket: WebSocket | null = null;
-    let shouldReconnect = true;
-    const parsedUrl = new URL(apiBase);
-    parsedUrl.protocol = parsedUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-    parsedUrl.pathname = '/ws/orders';
-    parsedUrl.search = '';
-    parsedUrl.hash = '';
-    const wsUrl = parsedUrl.toString();
+      const orderId: number | undefined =
+        typeof message.order_id === 'number'
+          ? message.order_id
+          : typeof (message as any).order?.id === 'number'
+            ? Number((message as any).order.id)
+            : undefined;
 
-    const connect = () => {
-      console.log('🔌 Conectando ao WebSocket de pedidos em', wsUrl);
-      socket = new WebSocket(wsUrl);
+      const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
 
-      socket.onopen = () => {
-        console.log('✅ WebSocket conectado');
-      };
+      if ((type === 'order_created' || type === 'order_updated') && orderId && onOrderUpdated) {
+        onOrderUpdated(orderId);
+      }
 
-      socket.onclose = (event) => {
-        console.log('🔌 WebSocket desconectado', event.reason || 'sem motivo');
-        if (shouldReconnect) {
-          setTimeout(connect, 2000);
-        }
-      };
+      if (type === 'order_created' && orderId && onOrderCreated) {
+        onOrderCreated(orderId);
+      }
 
-      socket.onerror = (error) => {
-        console.error('❌ Erro no WebSocket de pedidos:', error);
-        socket?.close();
-      };
+      if (type === 'order_deleted' && orderId && onOrderDeleted) {
+        onOrderDeleted(orderId);
+      }
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data ?? '{}');
-          const orderId: number | undefined = data.order?.id ?? data.order_id;
-          const type: string | undefined = data.type;
-
-          if (!type) {
-            return;
-          }
-
-          const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
-
-          if ((type === 'order_created' || type === 'order_updated') && orderId && onOrderUpdated) {
-            onOrderUpdated(orderId);
-          }
-
-          if (type === 'order_created' && orderId && onOrderCreated) {
-            onOrderCreated(orderId);
-          }
-
-          if (type === 'order_deleted' && orderId && onOrderDeleted) {
-            onOrderDeleted(orderId);
-          }
-
-          if (type === 'order_status_updated' && orderId && onOrderStatusUpdated) {
-            onOrderStatusUpdated(orderId);
-          }
-        } catch (error) {
-          console.error('❌ Erro ao processar mensagem do WebSocket:', error);
-        }
-      };
+      if (type === 'order_status_updated' && orderId && onOrderStatusUpdated) {
+        onOrderStatusUpdated(orderId);
+      }
     };
 
-    connect();
+    const unsubscribe = ordersSocket.subscribe(handleMessage);
+    ordersSocket.connect();
 
     return () => {
-      shouldReconnect = false;
-      socket?.close();
+      unsubscribe();
     };
   }, []);
 };

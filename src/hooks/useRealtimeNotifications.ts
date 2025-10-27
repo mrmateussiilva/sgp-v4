@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 import { useToast } from './use-toast';
+import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
 
 // ========================================
 // TIPOS DE NOTIFICAÇÃO
@@ -35,100 +34,37 @@ export const useRealtimeNotifications = () => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
-  const clientIdRef = useRef<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const subscriptionRef = useRef<(() => void) | null>(null);
+  const statusSubscriptionRef = useRef<(() => void) | null>(null);
 
-  // Gerar ID único para este cliente
-  const generateClientId = () => {
-    return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
+  const updateStatusFromManager = useCallback(() => {
+    const status = ordersSocket.getCurrentStatus();
+    setIsConnected(status.isConnected);
+    setSubscriberCount(ordersSocket.getListenerCount());
+  }, []);
 
-  // Conectar às notificações
-  const connect = async () => {
-    if (!sessionToken || isConnected || clientIdRef.current) {
-      console.log('🚫 Conexão ignorada - já conectado ou sem token');
+  const handleNotification = useCallback((message: OrderEventMessage) => {
+    if (!message || !message.type) {
       return;
     }
 
-    try {
-      const clientId = generateClientId();
-      clientIdRef.current = clientId;
-
-      console.log('🔌 Tentando conectar com ID:', clientId);
-
-      // Inscrever-se nas notificações
-      await invoke('subscribe_to_notifications', { clientId });
-      
-      // Escutar eventos de notificação
-      const unsubscribe = await listen<OrderNotification>(
-        `order-notification-${clientId}`,
-        (event) => {
-          console.log('🔔 Evento recebido do Tauri:', event);
-          console.log('📦 Payload da notificação:', event.payload);
-          handleNotification(event.payload);
-        }
-      );
-
-      unsubscribeRef.current = unsubscribe;
-      setIsConnected(true);
-
-      // Atualizar contador de subscribers
-      updateSubscriberCount();
-
-      console.log('✅ Conectado às notificações em tempo real');
-    } catch (error) {
-      console.error('❌ Erro ao conectar às notificações:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível conectar às notificações em tempo real",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Desconectar das notificações
-  const disconnect = async () => {
-    if (!clientIdRef.current || !isConnected) {
-      console.log('🚫 Desconexão ignorada - não conectado');
-      return;
-    }
-
-    try {
-      console.log('🔌 Desconectando cliente:', clientIdRef.current);
-
-      // Cancelar inscrição
-      await invoke('unsubscribe_from_notifications', { 
-        clientId: clientIdRef.current 
-      });
-
-      // Remover listener
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-
-      setIsConnected(false);
-      clientIdRef.current = null;
-
-      console.log('✅ Desconectado das notificações em tempo real');
-    } catch (error) {
-      console.error('❌ Erro ao desconectar das notificações:', error);
-    }
-  };
-
-  // Atualizar contador de subscribers
-  const updateSubscriberCount = async () => {
-    try {
-      const count = await invoke<number>('get_notification_subscriber_count');
-      setSubscriberCount(count);
-    } catch (error) {
-      console.error('Erro ao obter contador de subscribers:', error);
-    }
-  };
-
-  // Processar notificação recebida
-  const handleNotification = (notification: OrderNotification) => {
-    console.log('📨 Notificação recebida:', notification);
+    const notification: OrderNotification = {
+      notification_type: normalizeEventType(message.type),
+      order_id: typeof message.order_id === 'number'
+        ? message.order_id
+        : typeof (message.order as any)?.id === 'number'
+          ? ((message.order as any).id as number)
+          : 0,
+      order_numero:
+        typeof (message.order as any)?.numero === 'string'
+          ? (message.order as any).numero
+          : undefined,
+      timestamp: new Date().toISOString(),
+      user_id: typeof (message.order as any)?.user_id === 'number'
+        ? (message.order as any).user_id
+        : undefined,
+      details: typeof message.message === 'string' ? message.message : undefined,
+    };
 
     // Não mostrar notificação para ações do próprio usuário
     if (notification.user_id === userId) {
@@ -173,7 +109,38 @@ export const useRealtimeNotifications = () => {
     if (notification.notification_type !== NotificationType.OrderDeleted) {
       refreshOrders();
     }
-  };
+  }, [removeOrder, toast, userId]);
+
+  const connect = useCallback(() => {
+    if (subscriptionRef.current) {
+      return;
+    }
+
+    subscriptionRef.current = ordersSocket.subscribe(handleNotification);
+    statusSubscriptionRef.current = ordersSocket.onStatus((status) => {
+      setIsConnected(status.isConnected);
+      setSubscriberCount(ordersSocket.getListenerCount());
+    });
+
+    ordersSocket.connect();
+    updateStatusFromManager();
+  }, [handleNotification, updateStatusFromManager]);
+
+  const disconnect = useCallback(() => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current();
+      subscriptionRef.current = null;
+    }
+    if (statusSubscriptionRef.current) {
+      statusSubscriptionRef.current();
+      statusSubscriptionRef.current = null;
+    }
+    updateStatusFromManager();
+  }, [updateStatusFromManager]);
+
+  const updateSubscriberCount = useCallback(() => {
+    setSubscriberCount(ordersSocket.getListenerCount());
+  }, []);
 
   // Recarregar lista de pedidos
   const refreshOrders = async () => {
@@ -197,11 +164,9 @@ export const useRealtimeNotifications = () => {
     
     // Cleanup ao desmontar
     return () => {
-      if (isConnected) {
-        disconnect();
-      }
+      disconnect();
     };
-  }, [sessionToken, isConnected]); // Dependências corretas
+  }, [sessionToken, connect, disconnect, isConnected]);
 
   return {
     isConnected,
@@ -233,4 +198,17 @@ export const useOrderRefresh = () => {
   }, []);
 
   return refreshTrigger;
+};
+
+const normalizeEventType = (eventType: string): NotificationType => {
+  switch (eventType) {
+    case 'order_created':
+      return NotificationType.OrderCreated;
+    case 'order_deleted':
+      return NotificationType.OrderDeleted;
+    case 'order_status_updated':
+      return NotificationType.OrderStatusChanged;
+    default:
+      return NotificationType.OrderUpdated;
+  }
 };

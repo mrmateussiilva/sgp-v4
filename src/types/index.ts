@@ -34,6 +34,8 @@ export interface OrderItem {
   observacao?: string;
   imagem?: string;
   quantidade_paineis?: string;
+  valor_painel?: string;
+  valores_adicionais?: string;
   valor_unitario?: string;
   emenda?: string;
   emenda_qtd?: string;
@@ -139,6 +141,8 @@ export interface CreateOrderItemRequest {
   observacao?: string;
   imagem?: string;
   quantidade_paineis?: string;
+  valor_painel?: string;
+  valores_adicionais?: string;
   valor_unitario?: string;
   emenda?: string;
   emenda_qtd?: string;
@@ -200,6 +204,8 @@ export interface UpdateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  valor_painel?: string;
+  valores_adicionais?: string;
   emenda?: string;
   emenda_qtd?: string;
   terceirizado?: boolean;
@@ -512,6 +518,8 @@ export interface OrderItemFicha {
   cordinha_extra?: boolean;
   alcinha?: boolean;
   toalha_pronta?: boolean;
+  valor_painel?: string;
+  valores_adicionais?: string;
   acabamento_lona?: string;
   valor_lona?: string;
   quantidade_lona?: string;

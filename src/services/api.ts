@@ -60,6 +60,8 @@ interface ApiPedidoItem {
   ilhos_valor_unitario?: string | null;
   ilhos_distancia?: string | null;
   quantidade_paineis?: string | null;
+  valor_painel?: string | null;
+  valores_adicionais?: string | null;
   quantidade_cordinha?: string | null;
   valor_cordinha?: string | null;
   espaco_cordinha?: string | null;
@@ -481,6 +483,8 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
     observacao: item.observacao ?? undefined,
     imagem: item.imagem ?? undefined,
     quantidade_paineis: item.quantidade_paineis ?? undefined,
+    valor_painel: item.valor_painel ?? undefined,
+    valores_adicionais: item.valores_adicionais ?? undefined,
     valor_unitario: item.valor_unitario ?? undefined,
     emenda: item.emenda ?? undefined,
     emenda_qtd: item.emenda_qtd ?? undefined,
@@ -825,6 +829,8 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     valor_unitario: toCurrencyString(item?.valor_unitario ?? item?.unit_price ?? 0),
     imagem: item?.imagem ?? null,
     quantidade_paineis: item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined),
+    valor_painel: item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined,
+    valores_adicionais: item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined,
     quantidade_totem: item?.quantidade_totem ?? undefined,
     quantidade_lona: item?.quantidade_lona ?? undefined,
     quantidade_adesivo: item?.quantidade_adesivo ?? undefined,

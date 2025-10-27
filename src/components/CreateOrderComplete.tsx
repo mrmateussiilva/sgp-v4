@@ -1370,6 +1370,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
             observacao: item.observacao,
             imagem: item.imagem,
             quantidade_paineis: item.quantidade_paineis,
+            valor_painel: item.valor_painel,
+            valores_adicionais: item.valores_adicionais,
             valor_unitario: item.valor_unitario,
             emenda: item.emenda,
             emenda_qtd:

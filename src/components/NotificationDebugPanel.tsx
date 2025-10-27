@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
-import { invoke } from '@tauri-apps/api/tauri';
+import { getApiUrl } from '@/services/apiClient';
 
 export const NotificationDebugPanel = () => {
   const { isConnected, subscriberCount, connect, disconnect } = useRealtimeNotifications();
@@ -14,12 +14,21 @@ export const NotificationDebugPanel = () => {
 
   const getDebugInfo = async () => {
     try {
-      const count = await invoke<number>('get_notification_subscriber_count');
+      const baseUrl = getApiUrl();
+      if (!baseUrl) {
+        addLog('API base URL não configurada');
+        return;
+      }
+
+      const target = new URL('/health', baseUrl).toString();
+      const response = await fetch(target, { method: 'GET' });
+      const result = await response.json().catch(() => ({}));
       setDebugInfo({
-        subscriberCount: count,
+        health: result?.status ?? 'unknown',
+        version: result?.version ?? 'n/a',
         timestamp: new Date().toISOString(),
       });
-      addLog(`Backend subscribers: ${count}`);
+      addLog(`Health check: ${response.status}`);
     } catch (error) {
       console.error('Erro ao obter debug info:', error);
       addLog(`Erro: ${error}`);
@@ -42,8 +51,14 @@ export const NotificationDebugPanel = () => {
   const testBackendBroadcast = async () => {
     try {
       addLog('Testando broadcast do backend...');
-      const result = await invoke<string>('test_notification_broadcast');
-      addLog(result);
+      const baseUrl = getApiUrl();
+      if (!baseUrl) {
+        addLog('API não configurada');
+        return;
+      }
+
+      const response = await fetch(new URL('/health', baseUrl).toString(), { method: 'GET' });
+      addLog(`Resposta do backend: ${response.status}`);
     } catch (error) {
       addLog(`Erro no teste de broadcast: ${error}`);
     }
@@ -66,17 +81,17 @@ export const NotificationDebugPanel = () => {
           </span>
         </div>
         
-        <div className="flex justify-between">
-          <span>Frontend:</span>
-          <span>{subscriberCount}</span>
-        </div>
-        
         {debugInfo && (
           <div className="flex justify-between">
-            <span>Backend:</span>
-            <span>{debugInfo.subscriberCount}</span>
+            <span>Versão:</span>
+            <span>{debugInfo.version}</span>
           </div>
         )}
+        
+        <div className="flex justify-between">
+          <span>Clientes (local):</span>
+          <span>{subscriberCount}</span>
+        </div>
         
         <div className="flex gap-1 mt-3">
           <button

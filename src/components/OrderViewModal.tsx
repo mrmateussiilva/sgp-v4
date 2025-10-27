@@ -8,6 +8,7 @@ import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
+import { getItemDisplayEntries } from '@/utils/order-item-display';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -234,6 +235,36 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const buildDetailSections = (item: OrderItem): DetailEntry[] => {
     const sections: DetailEntry[] = [];
+    const omitKeys = new Set<string>([
+      'valor_unitario',
+      'overloque',
+      'elastico',
+      'tipo_acabamento',
+      'quantidade_ilhos',
+      'espaco_ilhos',
+      'valor_ilhos',
+      'quantidade_cordinha',
+      'espaco_cordinha',
+      'valor_cordinha',
+      'terceirizado',
+      'acabamento_lona',
+      'valor_lona',
+      'outros_valores_lona',
+      'acabamento_totem',
+      'acabamento_totem_outro',
+      'valor_totem',
+      'outros_valores_totem',
+      'tipo_adesivo',
+      'valor_adesivo',
+      'outros_valores_adesivo',
+      'ziper',
+      'cordinha_extra',
+      'alcinha',
+      'toalha_pronta',
+      'emenda',
+      'emenda_qtd',
+      'observacao',
+    ]);
     const tipoProducao = normalizeText(item.tipo_producao).toLowerCase();
     const isLona = tipoProducao === 'lona';
     const isTotem = tipoProducao === 'totem';
@@ -253,14 +284,17 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: formatCurrency(item.valor_unitario!),
         variant: 'neutral',
       });
+      omitKeys.add('valor_unitario');
     }
 
     if (item.overloque) {
       sections.push({ label: 'Overloque', value: 'Sim', variant: 'accent' });
+      omitKeys.add('overloque');
     }
 
     if (item.elastico) {
       sections.push({ label: 'Elástico', value: 'Sim', variant: 'accent' });
+      omitKeys.add('elastico');
     }
 
     if (hasTextValue(item.tipo_acabamento, { disallow: ['nenhum'] })) {
@@ -269,6 +303,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: item.tipo_acabamento,
         variant: 'accent',
       });
+      omitKeys.add('tipo_acabamento');
     }
 
     if (hasQuantityValue(item.quantidade_ilhos)) {
@@ -281,6 +316,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         ),
         variant: 'warning',
       });
+      omitKeys.add('quantidade_ilhos');
     }
 
     if (hasQuantityValue(item.espaco_ilhos)) {
@@ -291,6 +327,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: spacing,
           variant: 'warning',
         });
+        omitKeys.add('espaco_ilhos');
       }
     }
 
@@ -300,6 +337,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: formatCurrency(item.valor_ilhos!),
         variant: 'neutral',
       });
+      omitKeys.add('valor_ilhos');
     }
 
     if (hasQuantityValue(item.quantidade_cordinha)) {
@@ -312,6 +350,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         ),
         variant: 'warning',
       });
+      omitKeys.add('quantidade_cordinha');
     }
 
     if (hasQuantityValue(item.espaco_cordinha)) {
@@ -322,6 +361,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: spacing,
           variant: 'warning',
         });
+        omitKeys.add('espaco_cordinha');
       }
     }
 
@@ -331,6 +371,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: formatCurrency(item.valor_cordinha!),
         variant: 'neutral',
       });
+      omitKeys.add('valor_cordinha');
     }
 
     if (isLona) {
@@ -341,6 +382,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: terceirizado ? 'Sim' : 'Não',
           variant: terceirizado ? 'warning' : 'neutral',
         });
+        omitKeys.add('terceirizado');
       }
 
       const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
@@ -354,6 +396,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: acabamentoLabel,
           variant: 'accent',
         });
+        omitKeys.add('acabamento_lona');
       }
 
       const valorBaseLona = (item as any).valor_lona;
@@ -363,6 +406,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: formatCurrency(valorBaseLona),
           variant: 'neutral',
         });
+        omitKeys.add('valor_lona');
       }
 
       const outrosValoresLona = (item as any).outros_valores_lona;
@@ -372,8 +416,93 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: formatCurrency(outrosValoresLona),
           variant: 'neutral',
         });
+        omitKeys.add('outros_valores_lona');
+      }
+
+      const quantidadeLona = normalizeText((item as any).quantidade_lona);
+      if (quantidadeLona) {
+        sections.push({
+          label: 'Quantidade de Lonas',
+          value: quantidadeLona,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_lona');
       }
     }
+
+    if (isTotem) {
+      const acabamentoTotem = normalizeText((item as any).acabamento_totem);
+      if (acabamentoTotem) {
+        const label = acabamentoTotem
+          .split(/[_-]/)
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(' ');
+        sections.push({
+          label: 'Acabamento do Totem',
+          value: label,
+          variant: 'accent',
+        });
+        omitKeys.add('acabamento_totem');
+      }
+
+      const acabamentoTotemOutro = normalizeText((item as any).acabamento_totem_outro);
+      if (acabamentoTotemOutro) {
+        sections.push({
+          label: 'Acabamento Extra',
+          value: acabamentoTotemOutro,
+          variant: 'accent',
+        });
+        omitKeys.add('acabamento_totem_outro');
+      }
+
+      const quantidadeTotem = normalizeText((item as any).quantidade_totem);
+      if (quantidadeTotem) {
+        sections.push({
+          label: 'Quantidade de Totens',
+          value: quantidadeTotem,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_totem');
+      }
+
+      const valorTotem = (item as any).valor_totem;
+      if (hasPositiveNumber(valorTotem)) {
+        sections.push({
+          label: 'Valor Base do Totem',
+          value: formatCurrency(valorTotem),
+          variant: 'neutral',
+        });
+        omitKeys.add('valor_totem');
+      }
+
+      const outrosValoresTotem = (item as any).outros_valores_totem;
+      if (hasPositiveNumber(outrosValoresTotem)) {
+        sections.push({
+          label: 'Outros Valores',
+          value: formatCurrency(outrosValoresTotem),
+          variant: 'neutral',
+        });
+        omitKeys.add('outros_valores_totem');
+      }
+    }
+
+    const extraFlags: Array<[keyof OrderItem | string, string]> = [
+      ['ziper', 'Zíper'],
+      ['cordinha_extra', 'Cordinha Extra'],
+      ['alcinha', 'Alcinha'],
+      ['toalha_pronta', 'Toalha Pronta'],
+    ];
+
+    extraFlags.forEach(([key, label]) => {
+      if ((item as any)[key]) {
+        sections.push({
+          label,
+          value: 'Sim',
+          variant: 'accent',
+        });
+        omitKeys.add(String(key));
+      }
+    });
 
     if (isAdesivo) {
       const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
@@ -383,6 +512,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: tipoAdesivo,
           variant: 'accent',
         });
+        omitKeys.add('tipo_adesivo');
       }
 
       const valorAdesivo = (item as any).valor_adesivo;
@@ -392,6 +522,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: formatCurrency(valorAdesivo),
           variant: 'neutral',
         });
+        omitKeys.add('valor_adesivo');
       }
 
       const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
@@ -401,6 +532,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: formatCurrency(outrosValoresAdesivo),
           variant: 'neutral',
         });
+        omitKeys.add('outros_valores_adesivo');
       }
 
       const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
@@ -410,6 +542,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           value: quantidadeAdesivo,
           variant: 'accent',
         });
+        omitKeys.add('quantidade_adesivo');
       }
     }
 
@@ -427,6 +560,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         value: emendaTipo,
         variant: 'accent',
       });
+      omitKeys.add('emenda');
 
       const emendaQuantidade = normalizeText((item as any).emenda_qtd ?? (item as any).emendaQtd);
       if (emendaQuantidade) {
@@ -444,6 +578,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ),
           variant: 'warning',
         });
+        omitKeys.add('emenda_qtd');
       }
     }
 
@@ -452,9 +587,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const hasDetailedData = (item: OrderItem) => {
     const sections = buildDetailSections(item);
+    const fallback = getItemDisplayEntries(item as any);
     const hasObservation = hasTextValue(item.observacao);
     const hasImage = hasTextValue(item.imagem);
-    return sections.length > 0 || hasObservation || hasImage;
+    return sections.length > 0 || fallback.length > 0 || hasObservation || hasImage;
   };
 
   const getVariantClasses = (variant: DetailVariant) => {
@@ -498,6 +634,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const renderItemDetailsContent = (item: OrderItem) => {
     const detailEntries = buildDetailSections(item);
+    const fallbackEntries = getItemDisplayEntries(item as any);
+    const primaryLabels = new Set(detailEntries.map((entry) => entry.label.toLowerCase()));
+    const filteredFallback = fallbackEntries.filter((entry) => {
+      const lower = entry.label.toLowerCase();
+      if (lower === 'observação do item') {
+        return false;
+      }
+      return !primaryLabels.has(lower);
+    });
 
     const hasObservation = hasTextValue(item.observacao);
     const hasImage = hasTextValue(item.imagem);
@@ -623,6 +768,22 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           )}
 
           {renderDetailLines(detailEntries)}
+
+          {filteredFallback.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {filteredFallback.map((entry) => (
+                <div
+                  key={entry.key}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {entry.label}
+                  </div>
+                  <div className="text-sm text-slate-900">{entry.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {hasObservation && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

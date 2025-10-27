@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
+import { getItemDisplayEntries } from '@/utils/order-item-display';
 
 interface FichaDeServicoProps {
   orderId: number;
@@ -142,8 +143,13 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
       {/* Fichas de Serviço - Uma por item */}
       <div className="max-w-4xl mx-auto space-y-6">
-        {orderData.items.map((item) => (
-          <div key={item.id} className="ficha-container">
+        {orderData.items.map((item) => {
+          const detailEntries = getItemDisplayEntries(item as any, {
+            omitKeys: ['observacao', 'subtotal'],
+          });
+
+          return (
+            <div key={item.id} className="ficha-container">
             {/* Cabeçalho */}
             <div className="ficha-header">
               <div className="ficha-title">EMISSÃO FICHA DE SERVIÇO</div>
@@ -237,6 +243,20 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
               </table>
             </div>
 
+            {detailEntries.length > 0 && (
+              <div className="ficha-details">
+                <h4 className="ficha-details-title">Detalhes informados no cadastro do item</h4>
+                <div className="ficha-details-grid">
+                  {detailEntries.map((entry) => (
+                    <div key={entry.key} className="ficha-detail-card">
+                      <span className="ficha-detail-label">{entry.label}</span>
+                      <span className="ficha-detail-value">{entry.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Rodapé */}
             <div className="ficha-footer">
               <div className="observations">
@@ -250,8 +270,9 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                 <div className="signature-label">Assinatura</div>
               </div>
             </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* Estilos CSS */}
@@ -376,6 +397,53 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           font-weight: bold;
           background: #e8e8e8;
           border: 2px solid #999;
+        }
+
+        .ficha-details {
+          padding: 3mm 6mm 1mm 6mm;
+          background: #f6f8fb;
+          border-top: 1px solid #d0d8e5;
+        }
+
+        .ficha-details-title {
+          margin: 0 0 3mm 0;
+          font-size: 11pt;
+          font-weight: bold;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #1e293b;
+        }
+
+        .ficha-details-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(48mm, 1fr));
+          gap: 2mm;
+        }
+
+        .ficha-detail-card {
+          background: #fff;
+          border: 1px solid #d6dce8;
+          border-radius: 4px;
+          padding: 2mm;
+          min-height: 18mm;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 1mm;
+        }
+
+        .ficha-detail-label {
+          font-size: 8pt;
+          font-weight: bold;
+          text-transform: uppercase;
+          color: #475569;
+          letter-spacing: 0.4px;
+        }
+
+        .ficha-detail-value {
+          font-size: 10pt;
+          color: #0f172a;
+          word-break: break-word;
         }
 
         .ficha-footer {
