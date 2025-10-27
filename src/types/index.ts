@@ -87,6 +87,8 @@ export interface OrderWithItems {
   costura?: boolean;
   expedicao?: boolean;
   pronto?: boolean;
+  sublimacao_maquina?: string | null;
+  sublimacao_data_impressao?: string | null;
   
   items: OrderItem[];
 }
@@ -222,6 +224,8 @@ export interface UpdateOrderStatusRequest {
   sublimacao: boolean;
   costura: boolean;
   expedicao: boolean;
+  sublimacao_maquina?: string | null;
+  sublimacao_data_impressao?: string | null;
 }
 
 export interface LoginRequest {

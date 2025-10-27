@@ -29,6 +29,7 @@ import {
   OrderItem,
   OrderFicha,
 } from '../types';
+import { generateFechamentoReport } from '../utils/fechamentoReport';
 
 type ApiOrderStatus = 'pendente' | 'em_producao' | 'pronto' | 'entregue' | 'cancelado';
 type ApiPriority = 'NORMAL' | 'ALTA';
@@ -113,6 +114,9 @@ interface ApiPedido {
   items?: ApiPedidoItem[];
   data_criacao?: string | null;
   ultima_atualizacao?: string | null;
+  conferencia?: boolean | null;
+  sublimacao_maquina?: string | null;
+  sublimacao_data_impressao?: string | null;
 }
 
 interface MaterialApi {
@@ -538,11 +542,13 @@ const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
     forma_pagamento_id: parseNumericId(pedido.tipo_pagamento ?? undefined) ?? undefined,
     observacao: pedido.observacao ?? undefined,
     financeiro: Boolean(pedido.financeiro),
-    conferencia: Boolean((pedido as any).conferencia),
+    conferencia: Boolean(pedido.conferencia),
     sublimacao: Boolean(pedido.sublimacao),
     costura: Boolean(pedido.costura),
     expedicao: Boolean(pedido.expedicao),
     pronto: status === OrderStatus.Concluido,
+    sublimacao_maquina: pedido.sublimacao_maquina ?? undefined,
+    sublimacao_data_impressao: pedido.sublimacao_data_impressao ?? undefined,
     items,
   };
 };
@@ -993,6 +999,8 @@ const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, a
     sublimacao: request.sublimacao,
     costura: request.costura,
     expedicao: request.expedicao,
+    sublimacao_maquina: request.sublimacao_maquina,
+    sublimacao_data_impressao: request.sublimacao_data_impressao,
   });
 };
 
@@ -1105,6 +1113,67 @@ export const api = {
     const payload = buildStatusPayload(request);
     const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
     return mapPedidoFromApi(response.data);
+  },
+
+  getOrdersByDeliveryDateRange: async (startDate: string, endDate?: string | null): Promise<OrderWithItems[]> => {
+    const trimmedStart = (startDate ?? '').trim();
+    if (!trimmedStart) {
+      throw new Error('Informe a data inicial.');
+    }
+
+    const parseDate = (value: string, label: string): Date => {
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new Error(`Data inválida (${label}). Use o formato YYYY-MM-DD.`);
+      }
+      return parsed;
+    };
+
+    const start = parseDate(trimmedStart, 'inicial');
+    const end = (() => {
+      const trimmedEnd = (endDate ?? '').trim();
+      if (!trimmedEnd) {
+        const clone = new Date(start);
+        clone.setHours(23, 59, 59, 999);
+        return clone;
+      }
+      const parsedEnd = parseDate(trimmedEnd, 'final');
+      parsedEnd.setHours(23, 59, 59, 999);
+      if (parsedEnd < start) {
+        throw new Error('A data final não pode ser anterior à data inicial.');
+      }
+      return parsedEnd;
+    })();
+
+    const orders = await fetchOrders();
+
+    const filtered = orders.filter((order) => {
+      const reference = order.data_entrega ?? order.data_entrada ?? null;
+      if (!reference) {
+        return false;
+      }
+      const current = new Date(reference);
+      if (Number.isNaN(current.getTime())) {
+        return false;
+      }
+      return current >= start && current <= end;
+    });
+
+    return filtered.sort((a, b) => {
+      const dateA = a.data_entrega ?? a.data_entrada ?? '';
+      const dateB = b.data_entrega ?? b.data_entrada ?? '';
+      if (dateA === dateB) {
+        const formaA = (a.forma_envio ?? '').toLowerCase();
+        const formaB = (b.forma_envio ?? '').toLowerCase();
+        if (formaA === formaB) {
+          const clienteA = (a.cliente ?? a.customer_name ?? '').toLowerCase();
+          const clienteB = (b.cliente ?? b.customer_name ?? '').toLowerCase();
+          return clienteA.localeCompare(clienteB, 'pt-BR');
+        }
+        return formaA.localeCompare(formaB, 'pt-BR');
+      }
+      return dateA.localeCompare(dateB);
+    });
   },
 
   deleteOrder: async (orderId: number): Promise<boolean> => {
@@ -1298,8 +1367,9 @@ export const api = {
       .map((forma) => ({ id: forma.id, nome: forma.nome }));
   },
 
-  generateReport: async (_request: ReportRequestPayload): Promise<ReportResponse> => {
-    return Promise.reject(new Error('Relatórios não estão disponíveis na API HTTP.'));
+  generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
+    const orders = await fetchOrders();
+    return generateFechamentoReport(orders, request);
   },
 };
 

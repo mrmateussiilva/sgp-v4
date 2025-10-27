@@ -4,12 +4,10 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { invoke } from '@tauri-apps/api/tauri';
-import { useAuthStore } from '../store/authStore';
-import { useNavigate } from 'react-router-dom';
 import { formatDateForDisplay } from '@/utils/date';
 import { printEnvioReport } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/services/api';
 
 interface RelatorioEnvio {
   forma_envio: string;
@@ -23,8 +21,6 @@ export default function RelatoriosEnvios() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const sessionToken = useAuthStore((state) => state.sessionToken);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const gerarRelatorio = async () => {
@@ -43,59 +39,47 @@ export default function RelatoriosEnvios() {
 
     try {
       const dataInicialSelecionada = dataInicio;
-      const dataFinalSelecionada = dataFim || dataInicio;
-      console.log('Intervalo selecionado:', {
-        inicio: dataInicialSelecionada,
-        fim: dataFinalSelecionada,
-      });
-      
-      if (!sessionToken) {
-        navigate('/login');
-        return;
-      }
-
-      const pedidos: OrderWithItems[] = await invoke('get_orders_by_delivery_date', {
-        sessionToken,
-        startDate: dataInicialSelecionada,
-        endDate: dataFim || null,
-      });
-
-      console.log('Pedidos retornados:', pedidos.length); // Para debug
-      console.log('Primeiro pedido:', pedidos[0]?.data_entrega); // Para debug
-      
-      // Debug: mostrar todas as datas dos pedidos retornados
-      pedidos.forEach((pedido, index) => {
-        console.log(`Pedido ${index + 1}:`, {
-          id: pedido.id,
-          cliente: pedido.cliente,
-          data_entrega: pedido.data_entrega,
-          forma_envio: pedido.forma_envio
-        });
-      });
+      const pedidos = await api.getOrdersByDeliveryDateRange(
+        dataInicialSelecionada,
+        dataFim || null,
+      );
 
       // Agrupar pedidos por forma de envio
-      const agrupado = pedidos.reduce((acc, pedido) => {
-        const formaEnvio = pedido.forma_envio || 'SEM FORMA DE ENVIO';
-        
-        if (!acc[formaEnvio]) {
-          acc[formaEnvio] = [];
+      const gruposMap = new Map<string, OrderWithItems[]>();
+      pedidos.forEach((pedido) => {
+        const key = (pedido.forma_envio ?? 'SEM FORMA DE ENVIO').trim() || 'SEM FORMA DE ENVIO';
+        if (!gruposMap.has(key)) {
+          gruposMap.set(key, []);
         }
-        
-        acc[formaEnvio].push(pedido);
-        return acc;
-      }, {} as Record<string, OrderWithItems[]>);
+        gruposMap.get(key)!.push(pedido);
+      });
 
-      // Converter para array e ordenar
-      const relatorioArray = Object.entries(agrupado)
-        .map(([forma_envio, pedidos]) => ({
+      const relatorioArray = Array.from(gruposMap.entries())
+        .map(([forma_envio, lista]) => ({
           forma_envio,
-          pedidos: pedidos.sort((a, b) => a.cliente?.localeCompare(b.cliente || '') || 0)
+          pedidos: lista.sort((a, b) => {
+            const clienteA = (a.cliente ?? a.customer_name ?? '').toLowerCase();
+            const clienteB = (b.cliente ?? b.customer_name ?? '').toLowerCase();
+            return clienteA.localeCompare(clienteB, 'pt-BR');
+          }),
         }))
-        .sort((a, b) => a.forma_envio.localeCompare(b.forma_envio));
+        .sort((a, b) => a.forma_envio.localeCompare(b.forma_envio, 'pt-BR'));
 
       setRelatorio(relatorioArray);
+      if (!relatorioArray.length) {
+        toast({
+          title: 'Nenhum pedido encontrado',
+          description: 'Não há envios no intervalo selecionado.',
+        });
+      }
     } catch (err) {
-      setError('Erro ao gerar relatório: ' + (err as Error).message);
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao gerar o relatório.';
+      setError(`Erro ao gerar relatório: ${message}`);
+      toast({
+        title: 'Falha ao gerar relatório',
+        description: message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -157,8 +141,12 @@ export default function RelatoriosEnvios() {
   };
 
   const obterCidadeEstado = (pedido: OrderWithItems) => {
-    const cidade = pedido.cidade_cliente || '';
-    return cidade;
+    const cidade = (pedido.cidade_cliente ?? '').trim();
+    const estado = (pedido.estado_cliente ?? '').trim();
+    if (cidade && estado) {
+      return `${cidade}/${estado}`;
+    }
+    return cidade || estado || '-';
   };
 
   return (

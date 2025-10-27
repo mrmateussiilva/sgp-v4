@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Eye, FileText, Printer, Search } from 'lucide-react';
 import { api } from '../services/api';
@@ -12,9 +12,10 @@ import { SmoothTableWrapper } from './SmoothTableWrapper';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
-import { formatDateForDisplay } from '@/utils/date';
+import { formatDateForDisplay, ensureDateInputValue } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Select, 
   SelectContent, 
@@ -104,6 +105,18 @@ export default function OrderList() {
     novoValor: false,
     nomeSetor: '',
   });
+  const [sublimationModal, setSublimationModal] = useState<{
+    show: boolean;
+    pedidoId: number;
+    machine: string;
+    printDate: string;
+  }>({
+    show: false,
+    pedidoId: 0,
+    machine: '',
+    printDate: '',
+  });
+  const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const extractErrorMessage = (error: unknown): string => {
@@ -130,89 +143,143 @@ export default function OrderList() {
     return normalized.includes('sessão inválida') || normalized.includes('sessão expirada');
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  const buildStatusUpdatePayload = (
+    order: OrderWithItems,
+    campo: string,
+    novoValor: boolean,
+    extra?: { machine?: string; date?: string | null },
+  ): UpdateOrderStatusRequest => {
+    const payload: UpdateOrderStatusRequest = {
+      id: order.id,
+      financeiro: campo === 'financeiro' ? novoValor : order.financeiro === true,
+      conferencia: campo === 'conferencia' ? novoValor : order.conferencia === true,
+      sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
+      costura: campo === 'costura' ? novoValor : order.costura === true,
+      expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
+    };
 
-  useEffect(() => {
-    loadOrders();
-  }, [page, rowsPerPage]);
+    const existingMachine = order.sublimacao_maquina ?? null;
+    const existingDate = order.sublimacao_data_impressao ?? null;
 
-  useEffect(() => {
-    setPage(0);
-  }, [productionStatusFilter, dateFrom, dateTo]);
+    if (campo === 'sublimacao') {
+      if (novoValor) {
+        payload.sublimacao_maquina =
+          extra?.machine !== undefined ? extra.machine : existingMachine;
+        payload.sublimacao_data_impressao =
+          extra?.date !== undefined ? extra.date : existingDate;
+      } else {
+        payload.sublimacao_maquina = null;
+        payload.sublimacao_data_impressao = null;
+      }
+    } else {
+      payload.sublimacao_maquina = existingMachine;
+      payload.sublimacao_data_impressao = existingDate;
+    }
 
-  useEffect(() => {
-    loadOrders(); // Recarregar pedidos quando o filtro muda (após setPage)
-  }, [productionStatusFilter, page, dateFrom, dateTo]);
+    if (!payload.financeiro) {
+      payload.conferencia = false;
+      payload.sublimacao = false;
+      payload.costura = false;
+      payload.expedicao = false;
+      payload.sublimacao_maquina = null;
+      payload.sublimacao_data_impressao = null;
+    }
 
-  useEffect(() => {
-    setPage(0);
-  }, [searchTerm, rowsPerPage]);
+    return payload;
+  };
 
-  const loadOrders = async () => {
+  const loadRequestRef = useRef(0);
+
+  const loadOrders = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     setLoading(true);
     try {
-      // Se há filtros de data, usar API de filtros
+      const currentPage = page;
+      const currentPageSize = rowsPerPage;
+
       if (dateFrom || dateTo) {
         const filters = {
-          status: productionStatusFilter === 'all' ? undefined : 
-                   productionStatusFilter === 'pending' ? OrderStatus.Pendente : OrderStatus.Concluido,
+          status:
+            productionStatusFilter === 'all'
+              ? undefined
+              : productionStatusFilter === 'pending'
+                ? OrderStatus.Pendente
+                : OrderStatus.Concluido,
           cliente: searchTerm || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
-          page: page + 1,
-          page_size: rowsPerPage
+          page: currentPage + 1,
+          page_size: currentPageSize,
         };
-        
+
         const paginatedData = await api.getOrdersWithFilters(filters);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        setOrders(paginatedData.orders);
+        setTotalPages(paginatedData.total_pages);
+        setTotalOrders(paginatedData.total);
+      } else if (productionStatusFilter === 'pending') {
+        const paginatedData = await api.getPendingOrdersPaginated(currentPage + 1, currentPageSize);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        setOrders(paginatedData.orders);
+        setTotalPages(paginatedData.total_pages);
+        setTotalOrders(paginatedData.total);
+      } else if (productionStatusFilter === 'ready') {
+        const paginatedData = await api.getReadyOrdersPaginated(currentPage + 1, currentPageSize);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
         setOrders(paginatedData.orders);
         setTotalPages(paginatedData.total_pages);
         setTotalOrders(paginatedData.total);
       } else {
-        // Usar API paginada para pedidos pendentes
-        if (productionStatusFilter === 'pending') {
-          const paginatedData = await api.getPendingOrdersPaginated(page + 1, rowsPerPage);
-          setOrders(paginatedData.orders);
-          setTotalPages(paginatedData.total_pages);
-          setTotalOrders(paginatedData.total);
-        } else if (productionStatusFilter === 'ready') {
-          // Usar API paginada para pedidos prontos
-          const paginatedData = await api.getReadyOrdersPaginated(page + 1, rowsPerPage);
-          setOrders(paginatedData.orders);
-          setTotalPages(paginatedData.total_pages);
-          setTotalOrders(paginatedData.total);
-        } else {
-          // Para filtro 'all', usar API completa
-          const data = await api.getOrders();
-          setOrders(data);
-          setTotalPages(Math.ceil(data.length / rowsPerPage) || 1);
-          setTotalOrders(data.length);
+        const data = await api.getOrders();
+        if (loadRequestRef.current !== requestId) {
+          return;
         }
+        setOrders(data);
+        setTotalPages(Math.ceil(data.length / currentPageSize) || 1);
+        setTotalOrders(data.length);
       }
     } catch (error) {
       const message = extractErrorMessage(error);
       if (isSessionError(message)) {
         toast({
-          title: "Sessão expirada",
-          description: "Faça login novamente para continuar.",
-          variant: "destructive",
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar.',
+          variant: 'destructive',
         });
         console.error('Session error while loading orders:', error);
         logout();
         navigate('/login', { replace: true });
       } else {
         toast({
-          title: "Erro",
-          description: "Não foi possível carregar os pedidos.",
-          variant: "destructive",
+          title: 'Erro',
+          description: 'Não foi possível carregar os pedidos.',
+          variant: 'destructive',
         });
         console.error('Error loading orders:', error);
       }
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
-  };
+  }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, searchTerm, toast, logout, navigate]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [productionStatusFilter, dateFrom, dateTo]);
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, rowsPerPage]);
 
   const handleEdit = (order: OrderWithItems) => {
     setEditOrderId(order.id);
@@ -815,6 +882,25 @@ export default function OrderList() {
   };
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
+    const targetOrder = orders.find((order) => order.id === pedidoId);
+    if (!targetOrder) {
+      return;
+    }
+
+    if (campo === 'sublimacao' && !valorAtual) {
+      const defaultDate =
+        ensureDateInputValue(targetOrder.sublimacao_data_impressao ?? null) ||
+        new Date().toISOString().slice(0, 10);
+      setSublimationModal({
+        show: true,
+        pedidoId,
+        machine: targetOrder.sublimacao_maquina ?? '',
+        printDate: defaultDate,
+      });
+      setSublimationError(null);
+      return;
+    }
+
     setStatusConfirmModal({
       show: true,
       pedidoId,
@@ -833,24 +919,7 @@ export default function OrderList() {
       return;
     }
 
-    let payload: UpdateOrderStatusRequest = {
-      id: pedidoId,
-      financeiro: campo === 'financeiro' ? novoValor : targetOrder.financeiro === true,
-      conferencia: campo === 'conferencia' ? novoValor : targetOrder.conferencia === true,
-      sublimacao: campo === 'sublimacao' ? novoValor : targetOrder.sublimacao === true,
-      costura: campo === 'costura' ? novoValor : targetOrder.costura === true,
-      expedicao: campo === 'expedicao' ? novoValor : targetOrder.expedicao === true,
-    };
-
-    if (!payload.financeiro) {
-      payload = {
-        ...payload,
-        conferencia: false,
-        sublimacao: false,
-        costura: false,
-        expedicao: false,
-      };
-    }
+    const payload = buildStatusUpdatePayload(targetOrder, campo, novoValor);
 
     try {
       const updatedOrder = await api.updateOrderStatus(payload);
@@ -874,6 +943,58 @@ export default function OrderList() {
       console.error('Error updating status:', error);
     } finally {
       setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
+    }
+  };
+
+  const handleCloseSublimationModal = () => {
+    setSublimationModal({ show: false, pedidoId: 0, machine: '', printDate: '' });
+    setSublimationError(null);
+  };
+
+  const handleConfirmSublimation = async () => {
+    if (!sublimationModal.show) {
+      return;
+    }
+    const targetOrder = orders.find((order) => order.id === sublimationModal.pedidoId);
+    if (!targetOrder) {
+      handleCloseSublimationModal();
+      return;
+    }
+
+    const machine = sublimationModal.machine.trim();
+    const printDateRaw = sublimationModal.printDate.trim();
+    const normalizedDate = ensureDateInputValue(printDateRaw);
+
+    if (!machine) {
+      setSublimationError('Informe o nome da máquina.');
+      return;
+    }
+    if (!normalizedDate) {
+      setSublimationError('Informe a data de impressão.');
+      return;
+    }
+
+    const payload = buildStatusUpdatePayload(targetOrder, 'sublimacao', true, {
+      machine,
+      date: normalizedDate,
+    });
+
+    try {
+      const updatedOrder = await api.updateOrderStatus(payload);
+      updateOrder(updatedOrder);
+      toast({
+        title: 'Sublimação marcada',
+        description: `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o status de sublimação.',
+        variant: 'destructive',
+      });
+      console.error('Error updating sublimation status:', error);
+    } finally {
+      handleCloseSublimationModal();
     }
   };
 
@@ -1051,6 +1172,14 @@ export default function OrderList() {
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
                           />
+                          {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
+                            <div className="mt-1 text-[10px] text-muted-foreground leading-tight text-center">
+                              {order.sublimacao_maquina && <div>{order.sublimacao_maquina}</div>}
+                              {order.sublimacao_data_impressao && (
+                                <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         
                         {/* Costura - Só habilitado se Financeiro estiver marcado */}
@@ -1211,6 +1340,58 @@ export default function OrderList() {
       </Dialog>
 
       {/* Modal de Confirmação de Status */}
+      <Dialog
+        open={sublimationModal.show}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseSublimationModal();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Sublimação</DialogTitle>
+            <DialogDescription>
+              Informe os detalhes da impressão antes de marcar a sublimação como concluída.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="sublimation-machine">Máquina</Label>
+              <Input
+                id="sublimation-machine"
+                value={sublimationModal.machine}
+                onChange={(event) =>
+                  setSublimationModal((prev) => ({ ...prev, machine: event.target.value }))
+                }
+                placeholder="Ex: Epson SureColor F570"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sublimation-date">Data da impressão</Label>
+              <Input
+                id="sublimation-date"
+                type="date"
+                value={sublimationModal.printDate}
+                onChange={(event) =>
+                  setSublimationModal((prev) => ({ ...prev, printDate: event.target.value }))
+                }
+              />
+            </div>
+            {sublimationError && (
+              <p className="text-sm text-destructive">{sublimationError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseSublimationModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmSublimation}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={statusConfirmModal.show} onOpenChange={(open) => {
         if (!open) {
           setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
