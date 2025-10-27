@@ -6,8 +6,11 @@ export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: {
+    host: true, // 🔹 Permite acesso de qualquer IP (0.0.0.0)
     port: 1420,
     strictPort: true,
+    allowedHosts: ['*'], // 🔹 Aceita requisições de qualquer IP dentro da rede
+    cors: true, // 🔹 Libera CORS no ambiente de dev
   },
   envPrefix: ['VITE_', 'TAURI_'],
   resolve: {
@@ -21,6 +24,3 @@ export default defineConfig({
     sourcemap: !!process.env.TAURI_DEBUG,
   },
 });
-
-
-
