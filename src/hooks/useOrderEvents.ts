@@ -37,18 +37,30 @@ export const useOrderEvents = ({
   }, [onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated]);
 
   useEffect(() => {
+    const parseOrderId = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      if (typeof value === 'string') {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+      return undefined;
+    };
+
     const handleMessage = (message: OrderEventMessage) => {
       const type = message.type;
       if (!type) {
         return;
       }
 
-      const orderId: number | undefined =
-        typeof message.order_id === 'number'
-          ? message.order_id
-          : typeof (message as any).order?.id === 'number'
-            ? Number((message as any).order.id)
-            : undefined;
+      const orderPayload = (message as any).order;
+      const orderId =
+        parseOrderId(message.order_id) ??
+        parseOrderId(orderPayload?.id) ??
+        parseOrderId(orderPayload?.order_id);
 
       const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
 

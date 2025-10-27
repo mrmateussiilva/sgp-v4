@@ -43,28 +43,45 @@ export const useRealtimeNotifications = () => {
     setSubscriberCount(ordersSocket.getListenerCount());
   }, []);
 
+  const parseOrderId = useCallback((value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    return undefined;
+  }, []);
+
   const handleNotification = useCallback((message: OrderEventMessage) => {
     if (!message || !message.type) {
       return;
     }
 
+    const orderPayload = (message as any).order;
+    const orderId =
+      parseOrderId(message.order_id) ??
+      parseOrderId(orderPayload?.id) ??
+      parseOrderId(orderPayload?.order_id);
+
     const notification: OrderNotification = {
       notification_type: normalizeEventType(message.type),
-      order_id: typeof message.order_id === 'number'
-        ? message.order_id
-        : typeof (message.order as any)?.id === 'number'
-          ? ((message.order as any).id as number)
-          : 0,
-      order_numero:
-        typeof (message.order as any)?.numero === 'string'
-          ? (message.order as any).numero
-          : undefined,
+      order_id: orderId ?? 0,
+      order_numero: typeof orderPayload?.numero === 'string' ? orderPayload.numero : undefined,
       timestamp: new Date().toISOString(),
-      user_id: typeof (message.order as any)?.user_id === 'number'
-        ? (message.order as any).user_id
+      user_id: typeof orderPayload?.user_id === 'number'
+        ? orderPayload.user_id
         : undefined,
       details: typeof message.message === 'string' ? message.message : undefined,
     };
+
+    if (!notification.order_id) {
+      console.warn('⚠️ Notificação recebida sem order_id válido:', message);
+      return;
+    }
 
     // Não mostrar notificação para ações do próprio usuário
     if (notification.user_id === userId) {
@@ -109,7 +126,7 @@ export const useRealtimeNotifications = () => {
     if (notification.notification_type !== NotificationType.OrderDeleted) {
       refreshOrders();
     }
-  }, [removeOrder, toast, userId]);
+  }, [parseOrderId, removeOrder, toast, userId]);
 
   const connect = useCallback(() => {
     if (subscriptionRef.current) {
