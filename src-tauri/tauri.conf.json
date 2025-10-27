@@ -24,12 +24,41 @@
         "message": true,
         "open": true,
         "save": true
+      },
+      "fs": {
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "removeFile": true,
+        "createDir": true,
+        "exists": true,
+        "scope": [
+          "$APP_CONFIG",
+          "$APP_CONFIG/*",
+          "$APP_CONFIG/**",
+          "$APP_CONFIG/com.sgp.v4",
+          "$APP_CONFIG/com.sgp.v4/*",
+          "$APP_CONFIG/com.sgp.v4/**",
+          "$APP_CONFIG/com.sgp.desktop",
+          "$APP_CONFIG/com.sgp.desktop/*",
+          "$APP_CONFIG/com.sgp.desktop/**",
+          "$APP_CONFIG/config.json",
+          "$CONFIG/com.sgp.v4",
+          "$CONFIG/com.sgp.v4/*",
+          "$CONFIG/com.sgp.v4/**",
+          "$CONFIG/com.sgp.desktop",
+          "$CONFIG/com.sgp.desktop/*",
+          "$CONFIG/com.sgp.desktop/**"
+        ]
+      },
+      "path": {
+        "all": true
       }
     },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.sgp.v4",
+      "identifier": "com.sgp.desktop",
       "icon": [
         "icons/icon.icns",
         "icons/icon_fixed.ico",

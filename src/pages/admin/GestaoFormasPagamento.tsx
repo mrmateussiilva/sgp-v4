@@ -11,17 +11,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useAuthStore } from '../../store/authStore';
+import {
+  getFormasPagamento,
+  createFormaPagamento,
+  updateFormaPagamento,
+  deleteFormaPagamento,
+  FormaPagamentoEntity,
+} from '../../services/api';
 
-interface FormaPagamento {
-  id: number;
-  nome: string;
-  parcelas_max: number;
-  taxa_percentual: number | string;
-  ativo: boolean;
-  observacao?: string;
-}
+type FormaPagamento = FormaPagamentoEntity;
 
 export default function GestaoFormasPagamento() {
   const { toast } = useToast();
@@ -56,7 +55,7 @@ export default function GestaoFormasPagamento() {
         return;
       }
 
-      const data = await invoke<FormaPagamento[]>('get_formas_pagamento', { sessionToken });
+      const data = await getFormasPagamento(sessionToken);
       setFormas(data);
     } catch (error) {
       toast({
@@ -132,16 +131,13 @@ export default function GestaoFormasPagamento() {
           return;
         }
 
-        await invoke('update_forma_pagamento', {
-          sessionToken,
-          request: {
-            id: form.id,
-            nome: form.nome,
-            parcelas_max: parcelas,
-            taxa_percentual: taxa,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await updateFormaPagamento(sessionToken, {
+          id: form.id,
+          nome: form.nome,
+          parcelas_max: parcelas,
+          taxa_percentual: taxa,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -153,15 +149,12 @@ export default function GestaoFormasPagamento() {
           return;
         }
 
-        await invoke('create_forma_pagamento', {
-          sessionToken,
-          request: {
-            nome: form.nome,
-            parcelas_max: parcelas,
-            taxa_percentual: taxa,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await createFormaPagamento(sessionToken, {
+          nome: form.nome,
+          parcelas_max: parcelas,
+          taxa_percentual: taxa,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -193,7 +186,7 @@ export default function GestaoFormasPagamento() {
         return;
       }
 
-      await invoke('delete_forma_pagamento', { sessionToken, formaId: formaToDelete.id });
+      await deleteFormaPagamento(sessionToken, formaToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Forma de pagamento excluída com sucesso!',

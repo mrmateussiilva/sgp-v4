@@ -8,31 +8,23 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { getDesigners, createDesigner, updateDesigner, deleteDesigner } from '../../services/api';
+import type { DesignerEntity } from '../../services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useAuthStore } from '../../store/authStore';
-
-interface Designer {
-  id: number;
-  nome: string;
-  email?: string;
-  telefone?: string;
-  ativo: boolean;
-  observacao?: string;
-}
 
 export default function GestaoDesigners() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [designers, setDesigners] = useState<Designer[]>([]);
+  const [designers, setDesigners] = useState<DesignerEntity[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [designerToDelete, setDesignerToDelete] = useState<Designer | null>(null);
+  const [designerToDelete, setDesignerToDelete] = useState<DesignerEntity | null>(null);
   const sessionToken = useAuthStore((state) => state.sessionToken);
 
   const [form, setForm] = useState({
@@ -56,7 +48,7 @@ export default function GestaoDesigners() {
         return;
       }
 
-      const data = await invoke<Designer[]>('get_designers', { sessionToken });
+      const data = await getDesigners(sessionToken);
       setDesigners(data);
     } catch (error) {
       toast({
@@ -70,7 +62,7 @@ export default function GestaoDesigners() {
     }
   };
 
-  const handleOpenModal = (designer?: Designer) => {
+  const handleOpenModal = (designer?: DesignerEntity) => {
     if (designer) {
       setIsEditing(true);
       setForm({
@@ -129,17 +121,14 @@ export default function GestaoDesigners() {
           return;
         }
 
-        await invoke('update_designer', {
-          sessionToken,
-          request: {
+        await updateDesigner(sessionToken, {
             id: form.id,
             nome: form.nome,
             email: form.email || null,
             telefone: form.telefone || null,
             ativo: form.ativo,
             observacao: form.observacao || null,
-          },
-        });
+          });
         toast({
           title: 'Sucesso',
           description: 'Designer atualizado com sucesso!',
@@ -150,16 +139,13 @@ export default function GestaoDesigners() {
           return;
         }
 
-        await invoke('create_designer', {
-          sessionToken,
-          request: {
+        await createDesigner(sessionToken, {
             nome: form.nome,
             email: form.email || null,
             telefone: form.telefone || null,
             ativo: form.ativo,
             observacao: form.observacao || null,
-          },
-        });
+          });
         toast({
           title: 'Sucesso',
           description: 'Designer cadastrado com sucesso!',
@@ -190,7 +176,7 @@ export default function GestaoDesigners() {
         return;
       }
 
-      await invoke('delete_designer', { sessionToken, designerId: designerToDelete.id });
+      await deleteDesigner(sessionToken, designerToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Designer excluído com sucesso!',

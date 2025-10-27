@@ -361,9 +361,10 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
+  const [materiaisTecido, setMateriaisTecido] = useState<string[]>([]);
   const [materiaisLona, setMateriaisLona] = useState<string[]>([]);
-  const [tiposAdesivo, setTiposAdesivo] = useState<string[]>([]);
   const [materiaisTotem, setMateriaisTotem] = useState<string[]>([]);
+  const [tiposAdesivo, setTiposAdesivo] = useState<string[]>([]);
   const [formasEnvio, setFormasEnvio] = useState<any[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [descontos] = useState([
@@ -373,6 +374,17 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     { id: 4, name: 'R$ 50,00', type: 'valor_fixo', value: 50 },
   ]);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const normalizeNomeList = (entries: Array<{ nome: string }>) => {
+    const unique = new Set<string>();
+    entries.forEach((entry) => {
+      const trimmed = entry.nome.trim();
+      if (trimmed.length > 0) {
+        unique.add(trimmed);
+      }
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  };
 
 
   useEffect(() => {
@@ -475,18 +487,20 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     let isMounted = true;
     (async () => {
       try {
-        const [vend, des, tec, totens, adesivos] = await Promise.all([
+        const [vend, des, tecidos, totens, lonas, adesivos] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
-          api.getTecidosAtivos(),
+          api.getMateriaisAtivosPorTipo('tecido'),
           api.getMateriaisAtivosPorTipo('totem'),
+          api.getMateriaisAtivosPorTipo('lona'),
           api.getMateriaisAtivosPorTipo('adesivo'),
         ]);
         if (!isMounted) return;
-        setVendedores(vend.map(v => v.nome));
-        setDesigners(des.map(d => d.nome));
-        setMateriaisLona(tec);
+        setVendedores(normalizeNomeList(vend));
+        setDesigners(normalizeNomeList(des));
+        setMateriaisTecido(tecidos);
         setMateriaisTotem(totens);
+        setMateriaisLona(lonas);
         setTiposAdesivo(adesivos);
       } catch (e) {
         console.error('Erro ao carregar catálogos:', e);
@@ -1857,7 +1871,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                       tabData={tabsData[tabId]}
                       vendedores={vendedores}
                       designers={designers}
-                      tecidos={materiaisLona}
+                      tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
                       onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
@@ -1874,7 +1888,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                       tabData={tabsData[tabId]}
                       vendedores={vendedores}
                       designers={designers}
-                      tecidos={materiaisLona}
+                      tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
                       onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
@@ -1891,7 +1905,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                       tabData={tabsData[tabId]}
                       vendedores={vendedores}
                       designers={designers}
-                      tiposLona={materiaisLona.filter((item) => item.toLowerCase().includes("lona"))}
+                      tiposLona={materiaisLona}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
                       onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
@@ -2032,7 +2046,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
-                            {materiaisLona.map(t => (
+                            {materiaisTecido.map(t => (
                               <SelectItem key={t} value={t}>{t}</SelectItem>
                             ))}
                           </SelectContent>

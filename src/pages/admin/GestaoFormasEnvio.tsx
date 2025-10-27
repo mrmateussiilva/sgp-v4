@@ -11,17 +11,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useAuthStore } from '../../store/authStore';
-
-interface FormaEnvio {
-  id: number;
-  nome: string;
-  valor: number | string;
-  prazo_dias: number;
-  ativo: boolean;
-  observacao?: string;
-}
+import {
+  getFormasEnvio,
+  createFormaEnvio,
+  updateFormaEnvio,
+  deleteFormaEnvio,
+  FormaEnvioEntity,
+} from '../../services/api';
+type FormaEnvio = FormaEnvioEntity;
 
 export default function GestaoFormasEnvio() {
   const { toast } = useToast();
@@ -56,7 +54,7 @@ export default function GestaoFormasEnvio() {
         return;
       }
 
-      const data = await invoke<FormaEnvio[]>('get_formas_envio', { sessionToken });
+      const data = await getFormasEnvio(sessionToken);
       setFormas(data);
     } catch (error) {
       toast({
@@ -132,16 +130,13 @@ export default function GestaoFormasEnvio() {
           return;
         }
 
-        await invoke('update_forma_envio', {
-          sessionToken,
-          request: {
-            id: form.id,
-            nome: form.nome,
-            valor,
-            prazo_dias: prazo,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await updateFormaEnvio(sessionToken, {
+          id: form.id,
+          nome: form.nome,
+          valor,
+          prazo_dias: prazo,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -153,15 +148,12 @@ export default function GestaoFormasEnvio() {
           return;
         }
 
-        await invoke('create_forma_envio', {
-          sessionToken,
-          request: {
-            nome: form.nome,
-            valor,
-            prazo_dias: prazo,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await createFormaEnvio(sessionToken, {
+          nome: form.nome,
+          valor,
+          prazo_dias: prazo,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -193,7 +185,7 @@ export default function GestaoFormasEnvio() {
         return;
       }
 
-      await invoke('delete_forma_envio', { sessionToken, formaId: formaToDelete.id });
+      await deleteFormaEnvio(sessionToken, formaToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Forma de envio excluída com sucesso!',

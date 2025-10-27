@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { invoke } from '@tauri-apps/api/tauri';
+import { getVendedores, createVendedor, updateVendedor, deleteVendedor } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 interface Vendedor {
@@ -58,7 +58,7 @@ export default function GestaoVendedores() {
         return;
       }
 
-      const data = await invoke<Vendedor[]>('get_vendedores', { sessionToken });
+      const data = await getVendedores(sessionToken);
       setVendedores(data);
     } catch (error) {
       toast({
@@ -136,17 +136,14 @@ export default function GestaoVendedores() {
           return;
         }
 
-        await invoke('update_vendedor', {
-          sessionToken,
-          request: {
-            id: form.id,
-            nome: form.nome,
-            email: form.email || null,
-            telefone: form.telefone || null,
-            comissao_percentual: comissao,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await updateVendedor(sessionToken, {
+          id: form.id,
+          nome: form.nome,
+          email: form.email || null,
+          telefone: form.telefone || null,
+          comissao_percentual: comissao,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -158,16 +155,13 @@ export default function GestaoVendedores() {
           return;
         }
 
-        await invoke('create_vendedor', {
-          sessionToken,
-          request: {
-            nome: form.nome,
-            email: form.email || null,
-            telefone: form.telefone || null,
-            comissao_percentual: comissao,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await createVendedor(sessionToken, {
+          nome: form.nome,
+          email: form.email || null,
+          telefone: form.telefone || null,
+          comissao_percentual: comissao,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -199,7 +193,7 @@ export default function GestaoVendedores() {
         return;
       }
 
-      await invoke('delete_vendedor', { sessionToken, vendedorId: vendedorToDelete.id });
+      await deleteVendedor(sessionToken, vendedorToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Vendedor excluído com sucesso!',

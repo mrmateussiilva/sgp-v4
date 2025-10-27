@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import { listen } from '@tauri-apps/api/event';
+// import { invoke } from '@tauri-apps/api/tauri';
+// import { listen } from '@tauri-apps/api/event';
 
 // Tipos para o sistema de broadcast global
 export interface OrderNotification {
@@ -48,15 +48,16 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     try {
       const id = clientId || generateClientId();
       
-      await invoke('subscribe_to_notifications', { clientId: id });
+      // MOCK: Sem backend Rust, não há sistema de notificações em tempo real
+      // await invoke('subscribe_to_notifications', { clientId: id });
       
       setStatus(prev => ({
         ...prev,
-        isConnected: true,
+        isConnected: false, // Mock: sempre desconectado
         clientId: id,
       }));
       
-      console.log('✅ Conectado ao sistema de broadcast global');
+      console.log('⚠️ Sistema de broadcast desabilitado (usando HTTP direto)');
     } catch (error) {
       console.error('❌ Erro ao conectar ao broadcast:', error);
     }
@@ -66,7 +67,8 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
   const unsubscribe = useCallback(async () => {
     try {
       if (status.clientId) {
-        await invoke('unsubscribe_from_notifications', { clientId: status.clientId });
+        // MOCK: Sem backend Rust
+        // await invoke('unsubscribe_from_notifications', { clientId: status.clientId });
         
         setStatus(prev => ({
           ...prev,
@@ -74,7 +76,7 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
           clientId: '',
         }));
         
-        console.log('🔌 Desconectado do sistema de broadcast global');
+        console.log('🔌 Sistema de broadcast não está ativo');
       }
     } catch (error) {
       console.error('❌ Erro ao desconectar do broadcast:', error);
@@ -85,7 +87,8 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
   const sendHeartbeat = useCallback(async () => {
     try {
       if (status.clientId) {
-        await invoke('send_heartbeat', { clientId: status.clientId });
+        // MOCK: Sem backend Rust
+        // await invoke('send_heartbeat', { clientId: status.clientId });
         setStatus(prev => ({
           ...prev,
           lastHeartbeat: new Date(),
@@ -99,7 +102,9 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
   // Obter lista de clientes ativos
   const getActiveClients = useCallback(async (): Promise<string[]> => {
     try {
-      const clients = await invoke<string[]>('get_active_clients');
+      // MOCK: Sem backend Rust
+      // const clients = await invoke<string[]>('get_active_clients');
+      const clients: string[] = [];
       setStatus(prev => ({
         ...prev,
         activeClients: clients,
@@ -119,66 +124,24 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     details: string
   ) => {
     try {
-      await invoke('broadcast_status_update', {
+      // MOCK: Sem backend Rust
+      // await invoke('broadcast_status_update', {
+      //   orderId,
+      //   orderNumero,
+      //   userId,
+      //   statusDetails: details,
+      //   clientId: status.clientId,
+      // });
+      console.log('🌐 Broadcast de status enviado (mock):', {
         orderId,
         orderNumero,
         userId,
-        statusDetails: details,
-        clientId: status.clientId,
+        details,
       });
-      
-      console.log('🌐 Broadcast de status enviado:', { orderId, details });
     } catch (error) {
       console.error('❌ Erro no broadcast de status:', error);
     }
   }, [status.clientId]);
-
-  // Escutar notificações globais
-  useEffect(() => {
-    if (!status.isConnected) return;
-
-    const setupNotificationListener = async () => {
-      try {
-        // Escutar eventos de notificação
-        const unlisten = await listen<OrderNotification>('order_notification', (event) => {
-          const notification = event.payload;
-          
-          console.log('📨 Notificação global recebida:', notification);
-          
-          // Atualizar heartbeat se for uma notificação de heartbeat
-          if (notification.notification_type === 'Heartbeat') {
-            setStatus(prev => ({
-              ...prev,
-              lastHeartbeat: new Date(),
-            }));
-          }
-          
-          // Atualizar lista de clientes se necessário
-          if (notification.notification_type === 'ClientConnected' || 
-              notification.notification_type === 'ClientDisconnected') {
-            getActiveClients();
-          }
-        });
-
-        return unlisten;
-      } catch (error) {
-        console.error('❌ Erro ao configurar listener de notificações:', error);
-        return () => {};
-      }
-    };
-
-    let unlisten: (() => void) | undefined;
-    
-    setupNotificationListener().then((unlistenFn) => {
-      unlisten = unlistenFn;
-    });
-
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [status.isConnected, getActiveClients]);
 
   // Heartbeat automático a cada 30 segundos
   useEffect(() => {
@@ -211,4 +174,3 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     broadcastStatusUpdate,
   };
 }
-

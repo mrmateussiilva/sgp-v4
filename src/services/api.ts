@@ -1,4 +1,10 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { AxiosError } from 'axios';
+import {
+  apiClient,
+  getApiUrl as getConfiguredApiUrl,
+  setApiUrl as setHttpApiUrl,
+  setAuthToken,
+} from './apiClient';
 import { useAuthStore } from '../store/authStore';
 import {
   LoginRequest,
@@ -18,153 +24,1222 @@ import {
   ReportResponse,
   BulkClienteImportItem,
   BulkClienteImportResult,
+  BulkClienteImportError,
+  OrderStatus,
+  OrderItem,
+  OrderFicha,
 } from '../types';
 
-const requireSessionToken = () => {
+type ApiOrderStatus = 'pendente' | 'em_producao' | 'pronto' | 'entregue' | 'cancelado';
+type ApiPriority = 'NORMAL' | 'ALTA';
+
+interface ApiAcabamento {
+  overloque?: boolean;
+  elastico?: boolean;
+  ilhos?: boolean;
+}
+
+interface ApiPedidoItem {
+  id?: number;
+  tipo_producao?: string;
+  descricao?: string;
+  largura?: string | null;
+  altura?: string | null;
+  metro_quadrado?: string | null;
+  vendedor?: string | null;
+  designer?: string | null;
+  tecido?: string | null;
+  tipo_acabamento?: string | null;
+  acabamento?: ApiAcabamento | null;
+  emenda?: string | null;
+  observacao?: string | null;
+  valor_unitario?: string | null;
+  imagem?: string | null;
+  ilhos_qtd?: string | null;
+  ilhos_valor_unitario?: string | null;
+  ilhos_distancia?: string | null;
+  quantidade_paineis?: string | null;
+  quantidade_cordinha?: string | null;
+  valor_cordinha?: string | null;
+  espaco_cordinha?: string | null;
+  quantidade_ilhos?: string | null;
+  valor_ilhos?: string | null;
+  espaco_ilhos?: string | null;
+  quantidade_totem?: string | null;
+  valor_totem?: string | null;
+  outros_valores_totem?: string | null;
+  quantidade_lona?: string | null;
+  valor_lona?: string | null;
+  outros_valores_lona?: string | null;
+  tipo_adesivo?: string | null;
+  quantidade_adesivo?: string | null;
+  valor_adesivo?: string | null;
+  outros_valores_adesivo?: string | null;
+  ziper?: boolean | null;
+  cordinha_extra?: boolean | null;
+  alcinha?: boolean | null;
+  toalha_pronta?: boolean | null;
+  emenda_qtd?: string | null;
+  terceirizado?: boolean | null;
+  acabamento_lona?: string | null;
+  acabamento_totem?: string | null;
+  acabamento_totem_outro?: string | null;
+  outros_valores?: string | null;
+}
+
+interface ApiPedido {
+  id: number;
+  numero?: string | null;
+  data_entrada?: string | null;
+  data_entrega?: string | null;
+  observacao?: string | null;
+  prioridade?: ApiPriority | string | null;
+  status: ApiOrderStatus;
+  cliente: string;
+  telefone_cliente?: string | null;
+  cidade_cliente?: string | null;
+  estado_cliente?: string | null;
+  valor_total?: string | null;
+  valor_frete?: string | null;
+  valor_itens?: string | null;
+  tipo_pagamento?: string | null;
+  obs_pagamento?: string | null;
+  forma_envio?: string | null;
+  forma_envio_id?: number | null;
+  financeiro?: boolean | null;
+  sublimacao?: boolean | null;
+  costura?: boolean | null;
+  expedicao?: boolean | null;
+  items?: ApiPedidoItem[];
+  data_criacao?: string | null;
+  ultima_atualizacao?: string | null;
+}
+
+interface MaterialApi {
+  id: number;
+  nome: string;
+  tipo: string;
+  valor_metro: number;
+  estoque_metros: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface DesignerApi {
+  id: number;
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface DesignerPayload {
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface VendedorApi {
+  id: number;
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  comissao_percentual: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface VendedorPayload {
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  comissao_percentual: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface FormaEnvioApi {
+  id: number;
+  nome: string;
+  valor?: number | null;
+  prazo_dias: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface FormaEnvioPayload {
+  nome: string;
+  valor?: number | null;
+  prazo_dias: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface FormaPagamentoApi {
+  id: number;
+  nome: string;
+  parcelas_max: number;
+  taxa_percentual: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface FormaPagamentoPayload {
+  nome: string;
+  parcelas_max: number;
+  taxa_percentual: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+interface UserApi {
+  id: number;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  created_at?: string | null;
+}
+
+interface UserCreatePayload {
+  username: string;
+  password: string;
+  is_admin: boolean;
+  is_active?: boolean;
+}
+
+interface UserUpdatePayload {
+  username?: string;
+  password?: string;
+  is_admin?: boolean;
+  is_active?: boolean;
+}
+
+interface MaterialPayload {
+  nome: string;
+  tipo: string;
+  valor_metro: number;
+  estoque_metros: number;
+  ativo: boolean;
+  observacao?: string | null;
+}
+
+export interface DesignerEntity {
+  id: number;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  ativo: boolean;
+  observacao?: string;
+}
+
+export interface VendedorEntity {
+  id: number;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  comissao_percentual: number;
+  ativo: boolean;
+  observacao?: string;
+}
+
+export interface FormaEnvioEntity {
+  id: number;
+  nome: string;
+  valor: number;
+  prazo_dias: number;
+  ativo: boolean;
+  observacao?: string;
+}
+
+export interface FormaPagamentoEntity {
+  id: number;
+  nome: string;
+  parcelas_max: number;
+  taxa_percentual: number;
+  ativo: boolean;
+  observacao?: string;
+}
+
+export interface UserEntity {
+  id: number;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface FormaPagamentoEntity {
+  id: number;
+  nome: string;
+  parcelas_max: number;
+  taxa_percentual: number;
+  ativo: boolean;
+  observacao?: string;
+}
+
+type MaterialEntity = Omit<MaterialApi, 'observacao'> & {
+  observacao?: string;
+};
+
+const API_STATUS_TO_APP: Record<ApiOrderStatus, OrderStatus> = {
+  pendente: OrderStatus.Pendente,
+  em_producao: OrderStatus.EmProcessamento,
+  pronto: OrderStatus.Concluido,
+  entregue: OrderStatus.Concluido,
+  cancelado: OrderStatus.Cancelado,
+};
+
+const APP_STATUS_TO_API: Record<OrderStatus, ApiOrderStatus> = {
+  [OrderStatus.Pendente]: 'pendente',
+  [OrderStatus.EmProcessamento]: 'em_producao',
+  [OrderStatus.Concluido]: 'pronto',
+  [OrderStatus.Cancelado]: 'cancelado',
+};
+
+const DEFAULT_PAGE_SIZE = 20;
+
+const requireSessionToken = (): string => {
   const token = useAuthStore.getState().sessionToken;
   if (!token) {
     throw new Error('Sessão expirada. Faça login novamente.');
   }
+  setAuthToken(token);
   return token;
 };
 
+const sanitizeDecimalString = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '0';
+  }
+  if (trimmed.includes(',')) {
+    return trimmed.replace(/\./g, '').replace(',', '.');
+  }
+  return trimmed;
+};
+
+const parseDecimal = (value: string | number | null | undefined): number => {
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? 0 : value;
+  }
+  if (typeof value === 'string') {
+    const numeric = Number.parseFloat(sanitizeDecimalString(value));
+    return Number.isNaN(numeric) ? 0 : numeric;
+  }
+  if (value == null) {
+    return 0;
+  }
+  return 0;
+};
+
+const toCurrencyString = (value: string | number | null | undefined): string => {
+  return parseDecimal(value).toFixed(2);
+};
+
+const safeString = (value: unknown, fallback = ''): string => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  return String(value);
+};
+
+const parseNumericId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length > 0 && /^[0-9]+$/.test(trimmed)) {
+      return Number.parseInt(trimmed, 10);
+    }
+  }
+  return null;
+};
+
+const deriveQuantity = (source: any): number => {
+  const candidates = [
+    source?.quantity,
+    source?.quantidade_paineis,
+    source?.quantidade_totem,
+    source?.quantidade_lona,
+    source?.quantidade_adesivo,
+    source?.quantidade,
+  ];
+
+  for (const candidate of candidates) {
+    const numeric = parseDecimal(candidate);
+    if (numeric > 0) {
+      return numeric;
+    }
+  }
+  return 1;
+};
+
+const deriveUnitPrice = (source: any): number => {
+  const candidates = [
+    source?.unit_price,
+    source?.valor_unitario,
+    source?.valor_totem,
+    source?.valor_lona,
+    source?.valor_adesivo,
+  ];
+
+  for (const candidate of candidates) {
+    const numeric = parseDecimal(candidate);
+    if (numeric > 0) {
+      return numeric;
+    }
+  }
+  return 0;
+};
+
+const inferTipoProducao = (item: any): string => {
+  if (item?.tipo_producao) {
+    return String(item.tipo_producao);
+  }
+  if (typeof item?.descricao === 'string') {
+    const lower = item.descricao.toLowerCase();
+    if (lower.includes('totem')) return 'totem';
+    if (lower.includes('lona')) return 'lona';
+    if (lower.includes('adesivo')) return 'adesivo';
+  }
+  return 'generica';
+};
+
+const buildAcabamento = (item: any): ApiAcabamento => ({
+  overloque: Boolean(item?.overloque),
+  elastico: Boolean(item?.elastico),
+  ilhos:
+    Boolean(item?.tipo_acabamento && String(item.tipo_acabamento).toLowerCase().includes('ilho')) ||
+    Boolean(item?.quantidade_ilhos || item?.ilhos_qtd),
+});
+
+const sanitizePayload = (payload: Record<string, any>): Record<string, any> => {
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+  return payload;
+};
+
+const normalizeNullableString = (value?: string | null): string | null => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizePriority = (value?: string | null): ApiPriority => {
+  if (value && value.toUpperCase() === 'ALTA') {
+    return 'ALTA';
+  }
+  return 'NORMAL';
+};
+
+const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): OrderItem => {
+  const quantity = deriveQuantity(item);
+  const unitPrice =
+    item.valor_unitario != null || item.valor_totem != null || item.valor_lona != null || item.valor_adesivo != null
+      ? parseDecimal(item.valor_unitario ?? item.valor_totem ?? item.valor_lona ?? item.valor_adesivo)
+      : deriveUnitPrice(item);
+  const subtotal = Number((unitPrice * quantity).toFixed(2));
+  const fallbackId = item.id ?? orderId * 1000 + index;
+
+  return {
+    id: fallbackId,
+    order_id: orderId,
+    item_name: safeString(item.descricao ?? item.tipo_producao ?? 'Item'),
+    quantity,
+    unit_price: unitPrice,
+    subtotal,
+    tipo_producao: item.tipo_producao,
+    descricao: item.descricao,
+    largura: item.largura ?? undefined,
+    altura: item.altura ?? undefined,
+    metro_quadrado: item.metro_quadrado ?? undefined,
+    vendedor: item.vendedor ?? undefined,
+    designer: item.designer ?? undefined,
+    tecido: item.tecido ?? undefined,
+    overloque: Boolean(item.acabamento?.overloque),
+    elastico: Boolean(item.acabamento?.elastico),
+    tipo_acabamento: item.tipo_acabamento ?? undefined,
+    quantidade_ilhos: item.quantidade_ilhos ?? item.ilhos_qtd ?? undefined,
+    espaco_ilhos: item.espaco_ilhos ?? item.ilhos_distancia ?? undefined,
+    valor_ilhos: item.valor_ilhos ?? item.ilhos_valor_unitario ?? undefined,
+    quantidade_cordinha: item.quantidade_cordinha ?? undefined,
+    espaco_cordinha: item.espaco_cordinha ?? undefined,
+    valor_cordinha: item.valor_cordinha ?? undefined,
+    observacao: item.observacao ?? undefined,
+    imagem: item.imagem ?? undefined,
+    quantidade_paineis: item.quantidade_paineis ?? undefined,
+    valor_unitario: item.valor_unitario ?? undefined,
+    emenda: item.emenda ?? undefined,
+    emenda_qtd: item.emenda_qtd ?? undefined,
+    terceirizado: Boolean(item.terceirizado),
+    acabamento_lona: item.acabamento_lona ?? undefined,
+    valor_lona: item.valor_lona ?? undefined,
+    quantidade_lona: item.quantidade_lona ?? undefined,
+    outros_valores_lona: item.outros_valores_lona ?? undefined,
+    tipo_adesivo: item.tipo_adesivo ?? undefined,
+    valor_adesivo: item.valor_adesivo ?? undefined,
+    quantidade_adesivo: item.quantidade_adesivo ?? undefined,
+    outros_valores_adesivo: item.outros_valores_adesivo ?? undefined,
+    ziper: Boolean(item.ziper),
+    cordinha_extra: Boolean(item.cordinha_extra),
+    alcinha: Boolean(item.alcinha),
+    toalha_pronta: Boolean(item.toalha_pronta),
+    acabamento_totem: item.acabamento_totem ?? undefined,
+    acabamento_totem_outro: item.acabamento_totem_outro ?? undefined,
+    valor_totem: item.valor_totem ?? undefined,
+    quantidade_totem: item.quantidade_totem ?? undefined,
+    outros_valores_totem: item.outros_valores_totem ?? undefined,
+  };
+};
+
+const mapStatusFromApi = (status: ApiOrderStatus): OrderStatus => {
+  return API_STATUS_TO_APP[status] ?? OrderStatus.Pendente;
+};
+
+const mapStatusToApi = (status: OrderStatus): ApiOrderStatus => {
+  return APP_STATUS_TO_API[status] ?? 'pendente';
+};
+
+const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
+  const items = (pedido.items ?? []).map((item, index) => mapItemFromApi(item, pedido.id, index));
+  const valorFrete = parseDecimal(pedido.valor_frete);
+  const valorItens = parseDecimal(pedido.valor_itens ?? pedido.valor_total);
+  const totalValue = valorItens || items.reduce((sum, item) => sum + item.subtotal, 0);
+  const status = mapStatusFromApi(pedido.status);
+
+  return {
+    id: pedido.id,
+    numero: pedido.numero ?? undefined,
+    customer_name: pedido.cliente ?? '',
+    cliente: pedido.cliente ?? '',
+    address: pedido.cidade_cliente ?? '',
+    cidade_cliente: pedido.cidade_cliente ?? undefined,
+    estado_cliente: pedido.estado_cliente ?? undefined,
+    telefone_cliente: pedido.telefone_cliente ?? undefined,
+    data_entrada: pedido.data_entrada ?? undefined,
+    data_entrega: pedido.data_entrega ?? undefined,
+    total_value: totalValue,
+    valor_total: totalValue,
+    valor_frete: valorFrete,
+    created_at: pedido.data_criacao ?? undefined,
+    updated_at: pedido.ultima_atualizacao ?? undefined,
+    status,
+    prioridade: pedido.prioridade ?? undefined,
+    forma_envio: pedido.forma_envio ?? undefined,
+    forma_pagamento_id: parseNumericId(pedido.tipo_pagamento ?? undefined) ?? undefined,
+    observacao: pedido.observacao ?? undefined,
+    financeiro: Boolean(pedido.financeiro),
+    conferencia: Boolean((pedido as any).conferencia),
+    sublimacao: Boolean(pedido.sublimacao),
+    costura: Boolean(pedido.costura),
+    expedicao: Boolean(pedido.expedicao),
+    pronto: status === OrderStatus.Concluido,
+    items,
+  };
+};
+
+const mapOrderToFicha = (order: OrderWithItems): OrderFicha => ({
+  id: order.id,
+  numero: order.numero,
+  cliente: order.cliente,
+  telefone_cliente: order.telefone_cliente,
+  cidade_cliente: order.cidade_cliente,
+  estado_cliente: order.estado_cliente,
+  data_entrada: order.data_entrada,
+  data_entrega: order.data_entrega,
+  forma_envio: order.forma_envio,
+  forma_pagamento_id: order.forma_pagamento_id ?? undefined,
+  valor_frete:
+    typeof order.valor_frete === 'string'
+      ? parseDecimal(order.valor_frete)
+      : order.valor_frete ?? 0,
+  total_value:
+    typeof order.total_value === 'string'
+      ? parseDecimal(order.total_value)
+      : order.total_value ?? 0,
+  observacao: order.observacao,
+  items: order.items.map((item) => ({ ...item })),
+});
+
+const mapMaterialFromApi = (material: MaterialApi): MaterialEntity => ({
+  id: material.id,
+  nome: material.nome,
+  tipo: material.tipo,
+  valor_metro: Number(material.valor_metro ?? 0),
+  estoque_metros: Number(material.estoque_metros ?? 0),
+  ativo: Boolean(material.ativo),
+  observacao: material.observacao ?? undefined,
+});
+
+const buildMaterialCreatePayload = (payload: MaterialPayload): MaterialPayload => ({
+  nome: payload.nome,
+  tipo: payload.tipo,
+  valor_metro: Number(payload.valor_metro ?? 0),
+  estoque_metros: Number(payload.estoque_metros ?? 0),
+  ativo: payload.ativo ?? true,
+  observacao: normalizeNullableString(payload.observacao),
+});
+
+const buildMaterialUpdatePayload = (payload: Partial<MaterialPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.nome !== undefined) {
+    update.nome = payload.nome;
+  }
+  if (payload.tipo !== undefined) {
+    update.tipo = payload.tipo;
+  }
+  if (payload.valor_metro !== undefined) {
+    update.valor_metro = Number(payload.valor_metro ?? 0);
+  }
+  if (payload.estoque_metros !== undefined) {
+    update.estoque_metros = Number(payload.estoque_metros ?? 0);
+  }
+  if (payload.ativo !== undefined) {
+    update.ativo = Boolean(payload.ativo);
+  }
+  if (payload.observacao !== undefined) {
+    update.observacao = normalizeNullableString(payload.observacao);
+  }
+  return sanitizePayload(update);
+};
+
+const mapDesignerFromApi = (designer: DesignerApi): DesignerEntity => ({
+  id: designer.id,
+  nome: designer.nome,
+  email: designer.email ?? undefined,
+  telefone: designer.telefone ?? undefined,
+  ativo: Boolean(designer.ativo),
+  observacao: designer.observacao ?? undefined,
+});
+
+const buildDesignerCreatePayload = (payload: DesignerPayload): DesignerPayload => ({
+  nome: payload.nome,
+  email: normalizeNullableString(payload.email),
+  telefone: normalizeNullableString(payload.telefone),
+  ativo: payload.ativo ?? true,
+  observacao: normalizeNullableString(payload.observacao),
+});
+
+const buildDesignerUpdatePayload = (payload: Partial<DesignerPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.nome !== undefined) update.nome = payload.nome;
+  if (payload.email !== undefined) update.email = normalizeNullableString(payload.email);
+  if (payload.telefone !== undefined) update.telefone = normalizeNullableString(payload.telefone);
+  if (payload.ativo !== undefined) update.ativo = Boolean(payload.ativo);
+  if (payload.observacao !== undefined) update.observacao = normalizeNullableString(payload.observacao);
+  return sanitizePayload(update);
+};
+
+const mapVendedorFromApi = (vendedor: VendedorApi): VendedorEntity => ({
+  id: vendedor.id,
+  nome: vendedor.nome,
+  email: vendedor.email ?? undefined,
+  telefone: vendedor.telefone ?? undefined,
+  comissao_percentual: Number(vendedor.comissao_percentual ?? 0),
+  ativo: Boolean(vendedor.ativo),
+  observacao: vendedor.observacao ?? undefined,
+});
+
+const buildVendedorCreatePayload = (payload: VendedorPayload): VendedorPayload => ({
+  nome: payload.nome,
+  email: normalizeNullableString(payload.email),
+  telefone: normalizeNullableString(payload.telefone),
+  comissao_percentual: Number(payload.comissao_percentual ?? 0),
+  ativo: payload.ativo ?? true,
+  observacao: normalizeNullableString(payload.observacao),
+});
+
+const buildVendedorUpdatePayload = (payload: Partial<VendedorPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.nome !== undefined) update.nome = payload.nome;
+  if (payload.email !== undefined) update.email = normalizeNullableString(payload.email);
+  if (payload.telefone !== undefined) update.telefone = normalizeNullableString(payload.telefone);
+  if (payload.comissao_percentual !== undefined) {
+    update.comissao_percentual = Number(payload.comissao_percentual ?? 0);
+  }
+  if (payload.ativo !== undefined) update.ativo = Boolean(payload.ativo);
+  if (payload.observacao !== undefined) update.observacao = normalizeNullableString(payload.observacao);
+  return sanitizePayload(update);
+};
+
+const mapFormaEnvioFromApi = (forma: FormaEnvioApi): FormaEnvioEntity => ({
+  id: forma.id,
+  nome: forma.nome,
+  valor: Number(forma.valor ?? 0),
+  prazo_dias: Number(forma.prazo_dias ?? 0),
+  ativo: Boolean(forma.ativo),
+  observacao: forma.observacao ?? undefined,
+});
+
+const buildFormaEnvioCreatePayload = (payload: FormaEnvioPayload): FormaEnvioPayload => ({
+  nome: payload.nome,
+  valor: payload.valor ?? 0,
+  prazo_dias: Number(payload.prazo_dias ?? 0),
+  ativo: payload.ativo ?? true,
+  observacao: normalizeNullableString(payload.observacao),
+});
+
+const buildFormaEnvioUpdatePayload = (payload: Partial<FormaEnvioPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.nome !== undefined) update.nome = payload.nome;
+  if (payload.valor !== undefined) update.valor = payload.valor ?? 0;
+  if (payload.prazo_dias !== undefined) update.prazo_dias = Number(payload.prazo_dias ?? 0);
+  if (payload.ativo !== undefined) update.ativo = Boolean(payload.ativo);
+  if (payload.observacao !== undefined) update.observacao = normalizeNullableString(payload.observacao);
+  return sanitizePayload(update);
+};
+
+const mapFormaPagamentoFromApi = (forma: FormaPagamentoApi): FormaPagamentoEntity => ({
+  id: forma.id,
+  nome: forma.nome,
+  parcelas_max: Number(forma.parcelas_max ?? 1),
+  taxa_percentual: Number(forma.taxa_percentual ?? 0),
+  ativo: Boolean(forma.ativo),
+  observacao: forma.observacao ?? undefined,
+});
+
+const buildFormaPagamentoCreatePayload = (payload: FormaPagamentoPayload): FormaPagamentoPayload => ({
+  nome: payload.nome,
+  parcelas_max: Number(payload.parcelas_max ?? 1),
+  taxa_percentual: Number(payload.taxa_percentual ?? 0),
+  ativo: payload.ativo ?? true,
+  observacao: normalizeNullableString(payload.observacao),
+});
+
+const buildFormaPagamentoUpdatePayload = (payload: Partial<FormaPagamentoPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.nome !== undefined) update.nome = payload.nome;
+  if (payload.parcelas_max !== undefined) update.parcelas_max = Number(payload.parcelas_max ?? 1);
+  if (payload.taxa_percentual !== undefined) update.taxa_percentual = Number(payload.taxa_percentual ?? 0);
+  if (payload.ativo !== undefined) update.ativo = Boolean(payload.ativo);
+  if (payload.observacao !== undefined) update.observacao = normalizeNullableString(payload.observacao);
+  return sanitizePayload(update);
+};
+
+const mapUserFromApi = (user: UserApi): UserEntity => ({
+  id: user.id,
+  username: user.username,
+  is_admin: Boolean(user.is_admin),
+  is_active: Boolean(user.is_active),
+  created_at: user.created_at ?? undefined,
+});
+
+const buildUserCreatePayload = (payload: UserCreatePayload): Record<string, any> =>
+  sanitizePayload({
+    username: payload.username,
+    password: payload.password,
+    is_admin: payload.is_admin ?? false,
+    is_active: payload.is_active ?? true,
+  });
+
+const buildUserUpdatePayload = (payload: UserUpdatePayload): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.username !== undefined) update.username = payload.username;
+  if (payload.password) update.password = payload.password;
+  if (payload.is_admin !== undefined) update.is_admin = payload.is_admin;
+  if (payload.is_active !== undefined) update.is_active = payload.is_active;
+  return sanitizePayload(update);
+};
+
+const fetchOrdersRaw = async (): Promise<ApiPedido[]> => {
+  requireSessionToken();
+  const response = await apiClient.get<ApiPedido[]>('/pedidos');
+  return response.data ?? [];
+};
+
+const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
+  requireSessionToken();
+  const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
+  return mapPedidoFromApi(response.data);
+};
+
+const fetchOrders = async (): Promise<OrderWithItems[]> => {
+  const data = await fetchOrdersRaw();
+  return data.map(mapPedidoFromApi);
+};
+
+const fetchOrdersByStatus = async (status: ApiOrderStatus): Promise<OrderWithItems[]> => {
+  requireSessionToken();
+  const response = await apiClient.get<ApiPedido[]>(`/pedidos/status/${status}`);
+  const data = Array.isArray(response.data) ? response.data : [];
+  return data.map(mapPedidoFromApi);
+};
+
+const fetchDesignersRaw = async (): Promise<DesignerApi[]> => {
+  requireSessionToken();
+  const response = await apiClient.get<DesignerApi[]>('/designers');
+  return response.data ?? [];
+};
+
+const fetchMateriaisRaw = async (): Promise<MaterialApi[]> => {
+  requireSessionToken();
+  const response = await apiClient.get<MaterialApi[]>('/materiais');
+  return response.data ?? [];
+};
+
+const paginateOrders = (orders: OrderWithItems[], page = 1, pageSize = DEFAULT_PAGE_SIZE): PaginatedOrders => {
+  const total = orders.length;
+  const safePageSize = pageSize <= 0 ? DEFAULT_PAGE_SIZE : pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const start = (currentPage - 1) * safePageSize;
+  const paginated = orders.slice(start, start + safePageSize);
+
+  return {
+    orders: paginated,
+    total,
+    page: currentPage,
+    page_size: safePageSize,
+    total_pages: totalPages,
+  };
+};
+
+const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
+  const payload: Record<string, any> = {
+    tipo_producao: inferTipoProducao(item),
+    descricao: safeString(item?.descricao ?? item?.item_name ?? 'Item'),
+    largura: item?.largura ?? '',
+    altura: item?.altura ?? '',
+    metro_quadrado: item?.metro_quadrado ?? '',
+    vendedor: item?.vendedor ?? '',
+    designer: item?.designer ?? '',
+    tecido: item?.tecido ?? '',
+    acabamento: buildAcabamento(item),
+    emenda: item?.emenda ?? 'sem-emenda',
+    observacao: item?.observacao ?? '',
+    valor_unitario: toCurrencyString(item?.valor_unitario ?? item?.unit_price ?? 0),
+    imagem: item?.imagem ?? null,
+    quantidade_paineis: item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined),
+    quantidade_totem: item?.quantidade_totem ?? undefined,
+    quantidade_lona: item?.quantidade_lona ?? undefined,
+    quantidade_adesivo: item?.quantidade_adesivo ?? undefined,
+    quantidade_cordinha: item?.quantidade_cordinha ?? undefined,
+    valor_cordinha: item?.valor_cordinha ?? undefined,
+    espaco_cordinha: item?.espaco_cordinha ?? undefined,
+    quantidade_ilhos: item?.quantidade_ilhos ?? item?.ilhos_qtd ?? undefined,
+    valor_ilhos: item?.valor_ilhos ?? item?.ilhos_valor_unitario ?? undefined,
+    espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
+    valor_totem: item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined,
+    valor_lona: item?.valor_lona ? toCurrencyString(item.valor_lona) : undefined,
+    valor_adesivo: item?.valor_adesivo ? toCurrencyString(item.valor_adesivo) : undefined,
+    outros_valores_totem: item?.outros_valores_totem ?? undefined,
+    outros_valores_lona: item?.outros_valores_lona ?? undefined,
+    outros_valores_adesivo: item?.outros_valores_adesivo ?? undefined,
+    ziper: item?.ziper ?? false,
+    cordinha_extra: item?.cordinha_extra ?? false,
+    alcinha: item?.alcinha ?? false,
+    toalha_pronta: item?.toalha_pronta ?? false,
+    emenda_qtd: item?.emenda_qtd ?? item?.emendaQtd ?? undefined,
+    terceirizado: item?.terceirizado ?? false,
+    acabamento_lona: item?.acabamento_lona ?? undefined,
+    acabamento_totem: item?.acabamento_totem ?? undefined,
+    acabamento_totem_outro: item?.acabamento_totem_outro ?? undefined,
+    tipo_adesivo: item?.tipo_adesivo ?? undefined,
+  };
+
+  const identifier = item?.orderItemId ?? item?.id;
+  if (identifier) {
+    payload.id = identifier;
+  }
+
+  return sanitizePayload(payload);
+};
+
+const computeTotalsFromItems = (items: any[], frete: number): { valorItens: number; valorTotal: number } => {
+  const valorItens = items.reduce((sum, item) => {
+    const qty = deriveQuantity(item);
+    const unitPrice = deriveUnitPrice(item);
+    return sum + qty * unitPrice;
+  }, 0);
+  const valorTotal = valorItens + frete;
+  return { valorItens, valorTotal };
+};
+
+const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<string, any> => {
+  const freteNumber = parseDecimal(request.valor_frete ?? 0);
+  const { valorItens, valorTotal } = computeTotalsFromItems(request.items ?? [], freteNumber);
+  const itemsPayload = (request.items ?? []).map((item) => buildItemPayloadFromRequest(item));
+
+  const payload: Record<string, any> = {
+    numero: request.numero ?? undefined,
+    cliente: request.cliente ?? request.customer_name ?? '',
+    telefone_cliente: request.telefone_cliente ?? '',
+    cidade_cliente: request.cidade_cliente ?? '',
+    estado_cliente: request.estado_cliente ?? '',
+    data_entrada: request.data_entrada ?? new Date().toISOString().split('T')[0],
+    data_entrega: request.data_entrega ?? null,
+    observacao: request.observacao ?? '',
+    prioridade: normalizePriority(request.prioridade ?? null),
+    status: mapStatusToApi(request.status),
+    valor_frete: toCurrencyString(freteNumber),
+    valor_itens: toCurrencyString(valorItens),
+    valor_total: toCurrencyString(valorTotal),
+    tipo_pagamento: request.forma_pagamento_id ? String(request.forma_pagamento_id) : '',
+    forma_envio: request.forma_envio ?? '',
+    forma_envio_id: parseNumericId(request.forma_envio) ?? 0,
+    items: itemsPayload,
+    financeiro: false,
+    conferencia: false,
+    sublimacao: false,
+    costura: false,
+    expedicao: false,
+  };
+
+  return sanitizePayload(payload);
+};
+
+const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, any> => {
+  const payload: Record<string, any> = {};
+
+  if (request.customer_name || request.cliente) {
+    payload.cliente = request.cliente ?? request.customer_name;
+  }
+  if (request.address) {
+    payload.cidade_cliente = request.address;
+  }
+  if (request.cidade_cliente) {
+    payload.cidade_cliente = request.cidade_cliente;
+  }
+  if (request.estado_cliente) {
+    payload.estado_cliente = request.estado_cliente;
+  }
+  if (request.telefone_cliente) {
+    payload.telefone_cliente = request.telefone_cliente;
+  }
+  if (request.status) {
+    payload.status = mapStatusToApi(request.status);
+  }
+  if (request.prioridade) {
+    payload.prioridade = normalizePriority(request.prioridade);
+  }
+  if (request.forma_envio) {
+    payload.forma_envio = request.forma_envio;
+    const parsed = parseNumericId(request.forma_envio);
+    if (parsed !== null) {
+      payload.forma_envio_id = parsed;
+    }
+  }
+  if (request.forma_pagamento_id !== undefined) {
+    payload.forma_pagamento_id = request.forma_pagamento_id;
+    payload.tipo_pagamento = request.forma_pagamento_id ? String(request.forma_pagamento_id) : '';
+  }
+  if (request.observacao !== undefined) {
+    payload.observacao = request.observacao ?? '';
+  }
+
+  if (Array.isArray(request.items)) {
+    payload.items = request.items.map((item) => buildItemPayloadFromRequest(item));
+  }
+
+  if (request.valor_frete !== undefined) {
+    payload.valor_frete = toCurrencyString(request.valor_frete);
+  }
+
+  if (Array.isArray(request.items) || request.valor_frete !== undefined) {
+    const frete = parseDecimal(payload.valor_frete ?? request.valor_frete ?? 0);
+    const { valorItens, valorTotal } = computeTotalsFromItems(request.items ?? [], frete);
+    payload.valor_itens = toCurrencyString(valorItens);
+    payload.valor_total = toCurrencyString(valorTotal);
+  }
+
+  return sanitizePayload(payload);
+};
+
+const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Record<string, any> => {
+  const payload: Record<string, any> = {};
+  (
+    [
+      'cliente',
+      'cidade_cliente',
+      'estado_cliente',
+      'telefone_cliente',
+      'prioridade',
+      'forma_envio',
+      'observacao',
+    ] as Array<keyof UpdateOrderMetadataRequest>
+  ).forEach((key) => {
+    if (request[key] !== undefined) {
+      payload[key] = request[key];
+    }
+  });
+
+  if (request.data_entrega !== undefined) {
+    payload.data_entrega = request.data_entrega ?? null;
+  }
+  if (request.forma_pagamento_id !== undefined) {
+    payload.forma_pagamento_id = request.forma_pagamento_id;
+    payload.tipo_pagamento = request.forma_pagamento_id ? String(request.forma_pagamento_id) : '';
+  }
+  if (request.valor_frete !== undefined) {
+    payload.valor_frete = toCurrencyString(request.valor_frete);
+  }
+
+  return sanitizePayload(payload);
+};
+
+const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, any> => {
+  return sanitizePayload({
+    financeiro: request.financeiro,
+    conferencia: request.conferencia,
+    sublimacao: request.sublimacao,
+    costura: request.costura,
+    expedicao: request.expedicao,
+  });
+};
+
+const buildBulkImportError = (index: number, item: BulkClienteImportItem, error: unknown): BulkClienteImportError => {
+  const message =
+    error instanceof AxiosError
+      ? error.response?.data?.detail ?? error.message
+      : error instanceof Error
+        ? error.message
+        : 'Falha desconhecida ao importar cliente';
+
+  return {
+    index,
+    nome: item.nome,
+    message,
+  };
+};
+
+const createClienteRequest = async (payload: CreateClienteRequest): Promise<Cliente> => {
+  requireSessionToken();
+  const response = await apiClient.post<Cliente>('/clientes', payload);
+  return response.data;
+};
+
+const updateClienteRequest = async (payload: UpdateClienteRequest): Promise<Cliente> => {
+  requireSessionToken();
+  const response = await apiClient.patch<Cliente>(`/clientes/${payload.id}`, payload);
+  return response.data;
+};
+
+export { setHttpApiUrl as setApiUrl, getConfiguredApiUrl as getApiUrl };
+
+export async function getFichas(): Promise<any> {
+  requireSessionToken();
+  const response = await apiClient.get('/pedidos');
+  return response.data;
+}
+
 export const api = {
-  // Autenticação
   login: async (request: LoginRequest): Promise<LoginResponse> => {
-    return await invoke<LoginResponse>('login', { request });
+    const response = await apiClient.post<LoginResponse>('/auth/login', request);
+    if (response.data.session_token) {
+      setAuthToken(response.data.session_token);
+    }
+    return response.data;
   },
 
   logout: async (): Promise<void> => {
-    const sessionToken = useAuthStore.getState().sessionToken;
-    if (!sessionToken) {
-      return;
-    }
-
     try {
-      await invoke<boolean>('logout', { sessionToken });
+      requireSessionToken();
+      await apiClient.post('/auth/logout');
     } finally {
+      setAuthToken(null);
       useAuthStore.getState().logout();
     }
   },
 
-  // Pedidos
   getOrders: async (): Promise<OrderWithItems[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems[]>('get_orders', { sessionToken });
+    return await fetchOrders();
   },
 
   getPendingOrdersLight: async (): Promise<OrderWithItems[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems[]>('get_pending_orders_light', { sessionToken });
+    const orders = await fetchOrdersByStatus('pendente');
+    return orders;
   },
 
   getPendingOrdersPaginated: async (page?: number, pageSize?: number): Promise<PaginatedOrders> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<PaginatedOrders>('get_pending_orders_paginated', { 
-      sessionToken, 
-      page: page || 1, 
-      pageSize: pageSize || 20 
-    });
+    const orders = await fetchOrdersByStatus('pendente');
+    return paginateOrders(orders, page ?? 1, pageSize ?? DEFAULT_PAGE_SIZE);
   },
 
   getReadyOrdersPaginated: async (page?: number, pageSize?: number): Promise<PaginatedOrders> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<PaginatedOrders>('get_ready_orders_paginated', { 
-      sessionToken, 
-      page: page || 1, 
-      pageSize: pageSize || 20 
+    const ready = await fetchOrdersByStatus('pronto');
+    const delivered = await fetchOrdersByStatus('entregue');
+    const combined = [...ready, ...delivered].sort((a, b) => {
+      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dateB - dateA;
     });
+    return paginateOrders(combined, page ?? 1, pageSize ?? DEFAULT_PAGE_SIZE);
   },
 
   getOrderById: async (orderId: number): Promise<OrderWithItems> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems>('get_order_by_id', { sessionToken, orderId });
+    return fetchOrderById(orderId);
   },
 
   createOrder: async (request: CreateOrderRequest): Promise<OrderWithItems> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems>('create_order', { sessionToken, request });
+    requireSessionToken();
+    const payload = buildPedidoCreatePayload(request);
+    const response = await apiClient.post<ApiPedido>('/pedidos', payload);
+    return mapPedidoFromApi(response.data);
   },
 
   updateOrder: async (request: UpdateOrderRequest): Promise<OrderWithItems> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems>('update_order', { sessionToken, request });
+    requireSessionToken();
+    const payload = buildPedidoUpdatePayload(request);
+    const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
+    return mapPedidoFromApi(response.data);
   },
 
   updateOrderMetadata: async (request: UpdateOrderMetadataRequest): Promise<OrderWithItems> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems>('update_order_metadata', { sessionToken, request });
+    requireSessionToken();
+    const payload = buildMetadataPayload(request);
+    const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
+    return mapPedidoFromApi(response.data);
   },
 
   updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderWithItems>('update_order_status_flags', { sessionToken, request });
+    requireSessionToken();
+    const payload = buildStatusPayload(request);
+    const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
+    return mapPedidoFromApi(response.data);
   },
 
   deleteOrder: async (orderId: number): Promise<boolean> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<boolean>('delete_order', { sessionToken, orderId });
+    requireSessionToken();
+    await apiClient.delete(`/pedidos/${orderId}`);
+    return true;
   },
 
   getOrdersWithFilters: async (filters: OrderFilters): Promise<PaginatedOrders> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<PaginatedOrders>('get_orders_with_filters', { sessionToken, filters });
+    const orders = await fetchOrders();
+    const statusFilter = filters.status;
+    const searchTerm = (filters.customer_name ?? (filters as any).cliente ?? '').toLowerCase();
+    const dateFrom = filters.date_from ? new Date(filters.date_from) : null;
+    const dateTo = filters.date_to ? new Date(filters.date_to) : null;
+
+    const filtered = orders.filter((order) => {
+      if (statusFilter && order.status !== statusFilter) {
+        return false;
+      }
+      if (searchTerm) {
+        const match =
+          (order.cliente ?? '').toLowerCase().includes(searchTerm) ||
+          (order.customer_name ?? '').toLowerCase().includes(searchTerm) ||
+          (order.numero ?? '').toLowerCase().includes(searchTerm);
+        if (!match) {
+          return false;
+        }
+      }
+      if (dateFrom || dateTo) {
+        const delivery = order.data_entrega ? new Date(order.data_entrega) : null;
+        if (!delivery) {
+          return false;
+        }
+        if (dateFrom && delivery < dateFrom) {
+          return false;
+        }
+        if (dateTo && delivery > dateTo) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    const page = filters.page ?? 1;
+    const pageSize = filters.page_size ?? DEFAULT_PAGE_SIZE;
+    return paginateOrders(filtered, page, pageSize);
   },
 
   getOrderHistory: async (orderId: number): Promise<OrderAuditLogEntry[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<OrderAuditLogEntry[]>('get_order_audit_log', { sessionToken, orderId });
+    void orderId;
+    return [];
   },
 
-  // Clientes
+  getOrderFicha: async (orderId: number): Promise<OrderFicha> => {
+    const order = await fetchOrderById(orderId);
+    return mapOrderToFicha(order);
+  },
+
   getClientes: async (): Promise<Cliente[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Cliente[]>('get_clientes', { sessionToken });
+    requireSessionToken();
+    const response = await apiClient.get<Cliente[]>('/clientes');
+    return response.data ?? [];
   },
 
   getClienteById: async (clienteId: number): Promise<Cliente> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Cliente>('get_cliente_by_id', { sessionToken, clienteId });
+    requireSessionToken();
+    const response = await apiClient.get<Cliente>(`/clientes/${clienteId}`);
+    return response.data;
   },
 
   createCliente: async (request: CreateClienteRequest): Promise<Cliente> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Cliente>('create_cliente', { sessionToken, request });
+    return createClienteRequest(request);
   },
 
   updateCliente: async (request: UpdateClienteRequest): Promise<Cliente> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Cliente>('update_cliente', { sessionToken, request });
+    return updateClienteRequest(request);
   },
 
   deleteCliente: async (clienteId: number): Promise<boolean> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<boolean>('delete_cliente', { sessionToken, clienteId });
+    requireSessionToken();
+    await apiClient.delete(`/clientes/${clienteId}`);
+    return true;
   },
 
-  importClientesBulk: async (
-    clientes: BulkClienteImportItem[]
-  ): Promise<BulkClienteImportResult> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<BulkClienteImportResult>('import_clientes_bulk', {
-      sessionToken,
-      request: { clientes },
-    });
+  importClientesBulk: async (clientes: BulkClienteImportItem[]): Promise<BulkClienteImportResult> => {
+    const imported: Cliente[] = [];
+    const errors: BulkClienteImportError[] = [];
+
+    for (let index = 0; index < clientes.length; index += 1) {
+      const item = clientes[index];
+      try {
+        const created = await createClienteRequest({
+          nome: item.nome,
+          cep: item.cep ?? undefined,
+          cidade: item.cidade ?? undefined,
+          estado: item.estado ?? undefined,
+          telefone: item.telefone ?? undefined,
+        });
+        imported.push(created);
+      } catch (error) {
+        errors.push(buildBulkImportError(index, item, error));
+      }
+    }
+
+    return { imported, errors };
   },
 
-  // Catálogos (Vendedores, Designers, Materiais/Tecidos)
   getVendedoresAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Array<{ id: number; nome: string }>>('get_vendedores_ativos', {
-      sessionToken,
-    });
+    requireSessionToken();
+    const response = await apiClient.get<VendedorApi[]>('/vendedores/ativos');
+    return (response.data ?? [])
+      .filter((vendedor) => Boolean(vendedor?.nome))
+      .map((vendedor) => ({ id: vendedor.id, nome: vendedor.nome.trim() }))
+      .filter((vendedor) => vendedor.nome.length > 0);
   },
 
   getDesignersAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<Array<{ id: number; nome: string }>>('get_designers_ativos', {
-      sessionToken,
+    const designers = await fetchDesignersRaw();
+    const unique = new Map<string, DesignerApi>();
+    designers.forEach((designer) => {
+      if (!designer?.ativo) {
+        return;
+      }
+      const nome = designer.nome?.trim();
+      if (!nome) {
+        return;
+      }
+      const key = nome.toLowerCase();
+      if (!unique.has(key)) {
+        unique.set(key, designer);
+      }
     });
+    return Array.from(unique.values())
+      .map((designer) => ({ id: designer.id, nome: designer.nome.trim() }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   },
 
   getTecidosAtivos: async (): Promise<string[]> => {
@@ -172,30 +1247,285 @@ export const api = {
   },
 
   getMateriaisAtivosPorTipo: async (tipo: string): Promise<string[]> => {
-    const sessionToken = requireSessionToken();
-    const materiais = await invoke<
-      Array<{ id: number; nome: string; tipo: string; ativo: boolean }>
-    >('get_materiais_ativos', { sessionToken });
-    return (materiais || [])
-      .filter((m) => (m as any).tipo?.toLowerCase() === tipo.toLowerCase())
-      .map((m) => m.nome);
+    const normalizedTipo = String(tipo ?? '')
+      .trim()
+      .toLowerCase();
+    if (!normalizedTipo) {
+      return [];
+    }
+
+    const materiais = await fetchMateriaisRaw();
+    const unique = new Set<string>();
+
+    materiais.forEach((material) => {
+      if (!material?.ativo) {
+        return;
+      }
+      const materialTipo = String(material.tipo ?? '')
+        .trim()
+        .toLowerCase();
+      if (materialTipo !== normalizedTipo) {
+        return;
+      }
+      const nome = String(material.nome ?? '').trim();
+      if (!nome) {
+        return;
+      }
+      unique.add(nome);
+    });
+
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   },
 
-  // Formas de Envio
-  getFormasEnvioAtivas: async (): Promise<any[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<any[]>('get_formas_envio_ativas', { sessionToken });
+  getFormasEnvioAtivas: async (): Promise<Array<{ id: number; nome: string; valor: number }>> => {
+    requireSessionToken();
+    const response = await apiClient.get<FormaEnvioApi[]>('/tipos-envios/ativos');
+    return (response.data ?? [])
+      .filter((forma) => Boolean(forma?.nome))
+      .map((forma) => ({
+        id: forma.id,
+        nome: (forma.nome ?? '').trim(),
+        valor: Number(forma.valor ?? 0),
+      }))
+      .filter((forma) => forma.nome.length > 0);
   },
 
-  // Formas de Pagamento
-  getFormasPagamentoAtivas: async (): Promise<any[]> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<any[]>('get_formas_pagamento_ativas', { sessionToken });
+  getFormasPagamentoAtivas: async (): Promise<Array<{ id: number; nome: string }>> => {
+    requireSessionToken();
+    const response = await apiClient.get<FormaPagamentoApi[]>('/tipos-pagamentos/ativos');
+    return (response.data ?? [])
+      .filter((forma) => Boolean(forma?.nome))
+      .map((forma) => ({ id: forma.id, nome: forma.nome }));
   },
 
-  // Relatórios
-  generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
-    const sessionToken = requireSessionToken();
-    return await invoke<ReportResponse>('generate_report', { sessionToken, request });
+  generateReport: async (_request: ReportRequestPayload): Promise<ReportResponse> => {
+    return Promise.reject(new Error('Relatórios não estão disponíveis na API HTTP.'));
   },
 };
+
+export async function getMateriais(_sessionToken: string): Promise<MaterialEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<MaterialApi[]>('/materiais');
+  return (response.data ?? []).map(mapMaterialFromApi);
+}
+
+export async function createMaterial(
+  _sessionToken: string,
+  request: MaterialPayload,
+): Promise<MaterialEntity> {
+  requireSessionToken();
+  const payload = buildMaterialCreatePayload(request);
+  const response = await apiClient.post<MaterialApi>('/materiais', payload);
+  return mapMaterialFromApi(response.data);
+}
+
+export async function updateMaterial(
+  _sessionToken: string,
+  request: MaterialPayload & { id: number },
+): Promise<MaterialEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildMaterialUpdatePayload(rest);
+  const response = await apiClient.patch<MaterialApi>(`/materiais/${id}`, payload);
+  return mapMaterialFromApi(response.data);
+}
+
+export async function deleteMaterial(_sessionToken: string, materialId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/materiais/${materialId}`);
+  return true;
+}
+
+export async function getVendedores(_sessionToken: string): Promise<VendedorEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<VendedorApi[]>('/vendedores');
+  return (response.data ?? []).map(mapVendedorFromApi);
+}
+
+export async function createVendedor(
+  _sessionToken: string,
+  request: VendedorPayload,
+): Promise<VendedorEntity> {
+  requireSessionToken();
+  const payload = buildVendedorCreatePayload(request);
+  const response = await apiClient.post<VendedorApi>('/vendedores', payload);
+  return mapVendedorFromApi(response.data);
+}
+
+export async function updateVendedor(
+  _sessionToken: string,
+  request: VendedorPayload & { id: number },
+): Promise<VendedorEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildVendedorUpdatePayload(rest);
+  const response = await apiClient.patch<VendedorApi>(`/vendedores/${id}`, payload);
+  return mapVendedorFromApi(response.data);
+}
+
+export async function deleteVendedor(_sessionToken: string, vendedorId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/vendedores/${vendedorId}`);
+  return true;
+}
+
+export async function getDesigners(_sessionToken: string): Promise<DesignerEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<DesignerApi[]>("/designers");
+  return (response.data ?? []).map(mapDesignerFromApi);
+}
+
+export async function createDesigner(
+  _sessionToken: string,
+  request: DesignerPayload,
+): Promise<DesignerEntity> {
+  requireSessionToken();
+  const payload = buildDesignerCreatePayload(request);
+  const response = await apiClient.post<DesignerApi>("/designers", payload);
+  return mapDesignerFromApi(response.data);
+}
+
+export async function updateDesigner(
+  _sessionToken: string,
+  request: DesignerPayload & { id: number },
+): Promise<DesignerEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildDesignerUpdatePayload(rest);
+  const response = await apiClient.patch<DesignerApi>(`/designers/${id}`, payload);
+  return mapDesignerFromApi(response.data);
+}
+
+export async function deleteDesigner(_sessionToken: string, designerId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/designers/${designerId}`);
+  return true;
+}
+
+export async function getFormasEnvio(_sessionToken: string): Promise<FormaEnvioEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<FormaEnvioApi[]>('/tipos-envios');
+  return (response.data ?? []).map(mapFormaEnvioFromApi);
+}
+
+export async function createFormaEnvio(
+  _sessionToken: string,
+  request: FormaEnvioPayload,
+): Promise<FormaEnvioEntity> {
+  requireSessionToken();
+  const payload = buildFormaEnvioCreatePayload(request);
+  const response = await apiClient.post<FormaEnvioApi>('/tipos-envios', payload);
+  return mapFormaEnvioFromApi(response.data);
+}
+
+export async function updateFormaEnvio(
+  _sessionToken: string,
+  request: FormaEnvioPayload & { id: number },
+): Promise<FormaEnvioEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildFormaEnvioUpdatePayload(rest);
+  const response = await apiClient.patch<FormaEnvioApi>(`/tipos-envios/${id}`, payload);
+  return mapFormaEnvioFromApi(response.data);
+}
+
+export async function deleteFormaEnvio(_sessionToken: string, formaId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/tipos-envios/${formaId}`);
+  return true;
+}
+
+export async function getFormasPagamento(_sessionToken: string): Promise<FormaPagamentoEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<FormaPagamentoApi[]>('/tipos-pagamentos');
+  return (response.data ?? []).map(mapFormaPagamentoFromApi);
+}
+
+export async function createFormaPagamento(
+  _sessionToken: string,
+  request: FormaPagamentoPayload,
+): Promise<FormaPagamentoEntity> {
+  requireSessionToken();
+  const payload = buildFormaPagamentoCreatePayload(request);
+  const response = await apiClient.post<FormaPagamentoApi>('/tipos-pagamentos', payload);
+  return mapFormaPagamentoFromApi(response.data);
+}
+
+export async function updateFormaPagamento(
+  _sessionToken: string,
+  request: FormaPagamentoPayload & { id: number },
+): Promise<FormaPagamentoEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildFormaPagamentoUpdatePayload(rest);
+  const response = await apiClient.patch<FormaPagamentoApi>(`/tipos-pagamentos/${id}`, payload);
+  return mapFormaPagamentoFromApi(response.data);
+}
+
+export async function deleteFormaPagamento(_sessionToken: string, formaId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/tipos-pagamentos/${formaId}`);
+  return true;
+}
+
+export async function getUsers(_sessionToken: string): Promise<UserEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<UserApi[]>('/users');
+  return (response.data ?? []).map(mapUserFromApi);
+}
+
+export async function createUser(
+  _sessionToken: string,
+  request: UserCreatePayload,
+): Promise<UserEntity> {
+  requireSessionToken();
+  const payload = buildUserCreatePayload(request);
+  const response = await apiClient.post<UserApi>('/users', payload);
+  return mapUserFromApi(response.data);
+}
+
+export async function updateUser(
+  _sessionToken: string,
+  request: UserUpdatePayload & { id: number },
+): Promise<UserEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildUserUpdatePayload(rest);
+  const response = await apiClient.patch<UserApi>(`/users/${id}`, payload);
+  return mapUserFromApi(response.data);
+}
+
+export async function deleteUser(_sessionToken: string, userId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/users/${userId}`);
+  return true;
+}
+
+export async function getOrdersByDeliveryDate(
+  _sessionToken: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<OrderWithItems[]> {
+  const orders = await fetchOrders();
+  const from = dateFrom ? new Date(dateFrom) : null;
+  const to = dateTo ? new Date(dateTo) : null;
+
+  return orders.filter((order) => {
+    if (!order.data_entrega) {
+      return false;
+    }
+    const deliveryDate = new Date(order.data_entrega);
+    if (from && deliveryDate < from) {
+      return false;
+    }
+    if (to && deliveryDate > to) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export async function getOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
+  const order = await fetchOrderById(orderId);
+  return mapOrderToFicha(order);
+}

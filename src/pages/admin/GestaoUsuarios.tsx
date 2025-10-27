@@ -11,15 +11,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuthStore } from '../../store/authStore';
-import { invoke } from '@tauri-apps/api/tauri';
+import {
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  UserEntity,
+} from '../../services/api';
 import { formatDateForDisplay } from '@/utils/date';
 
-interface Usuario {
-  id: number;
-  username: string;
-  is_admin: boolean;
-  created_at?: string;
-}
+type Usuario = UserEntity;
 
 export default function GestaoUsuarios() {
   const { toast } = useToast();
@@ -53,7 +54,7 @@ export default function GestaoUsuarios() {
         return;
       }
 
-      const data = await invoke<Usuario[]>('get_users', { sessionToken });
+      const data = await getUsers(sessionToken);
       setUsuarios(data);
     } catch (error) {
       toast({
@@ -151,14 +152,12 @@ export default function GestaoUsuarios() {
           return;
         }
 
-        await invoke('update_user', {
-          sessionToken,
-          request: {
-            id: form.id,
-            username: form.username,
-            password: form.password || null,
-            is_admin: form.is_admin,
-          },
+        await updateUser(sessionToken, {
+          id: form.id,
+          username: form.username,
+          password: form.password || undefined,
+          is_admin: form.is_admin,
+          is_active: true,
         });
         toast({
           title: 'Sucesso',
@@ -170,13 +169,11 @@ export default function GestaoUsuarios() {
           return;
         }
 
-        await invoke('create_user', {
-          sessionToken,
-          request: {
-            username: form.username,
-            password: form.password,
-            is_admin: form.is_admin,
-          },
+        await createUser(sessionToken, {
+          username: form.username,
+          password: form.password,
+          is_admin: form.is_admin,
+          is_active: true,
         });
         toast({
           title: 'Sucesso',
@@ -208,7 +205,7 @@ export default function GestaoUsuarios() {
         return;
       }
 
-      await invoke('delete_user', { sessionToken, userId: usuarioToDelete.id });
+      await deleteUser(sessionToken, usuarioToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Usuário excluído com sucesso!',

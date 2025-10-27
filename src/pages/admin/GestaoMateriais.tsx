@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { invoke } from '@tauri-apps/api/tauri';
+import { getMateriais, createMaterial, updateMaterial, deleteMaterial } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 interface Material {
@@ -61,7 +61,7 @@ export default function GestaoMateriais() {
         return;
       }
 
-      const data = await invoke<Material[]>('get_materiais', { sessionToken });
+      const data = await getMateriais(sessionToken);
       setMateriais(data);
     } catch (error) {
       toast({
@@ -140,17 +140,14 @@ export default function GestaoMateriais() {
           return;
         }
 
-        await invoke('update_material', {
-          sessionToken,
-          request: {
-            id: form.id,
-            nome: form.nome,
-            tipo: form.tipo,
-            valor_metro,
-            estoque_metros,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await updateMaterial(sessionToken, {
+          id: form.id,
+          nome: form.nome,
+          tipo: form.tipo,
+          valor_metro,
+          estoque_metros,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -162,16 +159,13 @@ export default function GestaoMateriais() {
           return;
         }
 
-        await invoke('create_material', {
-          sessionToken,
-          request: {
-            nome: form.nome,
-            tipo: form.tipo,
-            valor_metro,
-            estoque_metros,
-            ativo: form.ativo,
-            observacao: form.observacao || null,
-          },
+        await createMaterial(sessionToken, {
+          nome: form.nome,
+          tipo: form.tipo,
+          valor_metro,
+          estoque_metros,
+          ativo: form.ativo,
+          observacao: form.observacao || null,
         });
         toast({
           title: 'Sucesso',
@@ -203,7 +197,7 @@ export default function GestaoMateriais() {
         return;
       }
 
-      await invoke('delete_material', { sessionToken, materialId: materialToDelete.id });
+      await deleteMaterial(sessionToken, materialToDelete.id);
       toast({
         title: 'Sucesso',
         description: 'Material excluído com sucesso!',

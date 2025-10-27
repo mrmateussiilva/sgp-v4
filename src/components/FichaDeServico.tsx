@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 
 interface FichaDeServicoProps {
@@ -26,10 +26,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
       setLoading(true);
       setError(null);
       
-      const data = await invoke<OrderFicha>('get_order_ficha', {
-        sessionToken,
-        orderId
-      });
+      const data = await api.getOrderFicha(orderId);
       
       setOrderData(data);
     } catch (err) {
