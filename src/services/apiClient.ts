@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import { applyTauriAdapter } from './tauriAxiosAdapter';
 
 const STATUS_ENDPOINTS = ['/health', '/pedidos'];
 
@@ -12,6 +13,8 @@ const listeners = new Set<ApiFailureListener>();
 const apiClient: AxiosInstance = axios.create({
   timeout: 20000,
 });
+
+applyTauriAdapter(apiClient);
 
 apiClient.interceptors.request.use((config) => {
   if (authToken) {
@@ -58,7 +61,7 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
 
   for (const endpoint of STATUS_ENDPOINTS) {
     try {
-      const response = await axios.get(`${normalized}${endpoint}`, { timeout: 5000 });
+      const response = await apiClient.get(endpoint, { baseURL: normalized, timeout: 5000 });
       if (response.status >= 200 && response.status < 300) {
         return endpoint;
       }

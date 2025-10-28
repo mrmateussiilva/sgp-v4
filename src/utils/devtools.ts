@@ -1,10 +1,7 @@
 import { invoke } from '@tauri-apps/api/tauri';
+import { isTauri } from './isTauri';
 
 let isInitialized = false;
-
-function isTauri(): boolean {
-  return typeof window !== 'undefined' && Boolean((window as any).__TAURI_IPC__);
-}
 
 async function openDevtools() {
   try {
