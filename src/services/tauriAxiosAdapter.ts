@@ -83,7 +83,7 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const axiosResponse: AxiosResponse = {
     data: response.data,
     status: response.status,
-    statusText: response.statusText ?? '',
+    statusText: response.ok ? 'OK' : '',
     headers: response.headers ?? {},
     config,
     request: requestInfo,
@@ -109,4 +109,3 @@ export function applyTauriAdapter(instance: AxiosInstance): void {
     instance.defaults.adapter = tauriAxiosAdapter;
   }
 }
-
