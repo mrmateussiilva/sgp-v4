@@ -233,15 +233,6 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
             </Button>
           </div>
 
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-2 text-gray-700">Como iniciar a API:</h4>
-            <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm overflow-x-auto">
-              <pre className="whitespace-pre-wrap">
-                {`cd /home/mateus/Projetcs/api-sgp
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4`}
-              </pre>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
