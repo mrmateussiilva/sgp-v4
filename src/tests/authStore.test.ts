@@ -1,15 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useAuthStore } from '../store/authStore';
+
+const resetStore = () => {
+  useAuthStore.setState({
+    isAuthenticated: false,
+    userId: null,
+    username: null,
+    isAdmin: false,
+    sessionToken: null,
+    sessionExpiresAt: null,
+  });
+};
 
 describe('Auth Store', () => {
   beforeEach(() => {
-    useAuthStore.setState({
-      isAuthenticated: false,
-      userId: null,
-      username: null,
-      isAdmin: false,
-      sessionToken: null,
-    });
+    resetStore();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should initialize with default values', () => {
@@ -17,9 +27,11 @@ describe('Auth Store', () => {
     expect(state.isAuthenticated).toBe(false);
     expect(state.userId).toBe(null);
     expect(state.username).toBe(null);
+    expect(state.sessionToken).toBe(null);
+    expect(state.sessionExpiresAt).toBe(null);
   });
 
-  it('should login user correctly', () => {
+  it('should login user and set expiration', () => {
     const { login } = useAuthStore.getState();
     login({ userId: 1, username: 'testuser', sessionToken: 'token123' });
 
@@ -28,6 +40,18 @@ describe('Auth Store', () => {
     expect(state.userId).toBe(1);
     expect(state.username).toBe('testuser');
     expect(state.sessionToken).toBe('token123');
+    expect(state.sessionExpiresAt).not.toBeNull();
+    expect(state.sessionExpiresAt ?? 0).toBeGreaterThan(Date.now());
+  });
+
+  it('should respect custom expiration', () => {
+    const { login } = useAuthStore.getState();
+    login({ userId: 1, username: 'user', sessionToken: 'abc', expiresInSeconds: 60 });
+
+    const state = useAuthStore.getState();
+    const expectedExpiry = Date.now() + 60 * 1000;
+    expect(state.sessionExpiresAt ?? 0).toBeGreaterThanOrEqual(expectedExpiry - 50);
+    expect(state.sessionExpiresAt ?? 0).toBeLessThanOrEqual(expectedExpiry + 50);
   });
 
   it('should logout user correctly', () => {
@@ -41,7 +65,7 @@ describe('Auth Store', () => {
     expect(state.userId).toBe(null);
     expect(state.username).toBe(null);
     expect(state.sessionToken).toBe(null);
+    expect(state.sessionExpiresAt).toBe(null);
   });
 });
-
 

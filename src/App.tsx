@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { loadConfig } from '@/utils/config';
 import ConfigApi from './pages/ConfigApi';
@@ -83,7 +83,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -97,7 +97,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
       <Toaster />
-    </Router>
+    </HashRouter>
   );
 }
 
