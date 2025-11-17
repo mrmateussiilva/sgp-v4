@@ -1,4 +1,5 @@
 import { getApiUrl } from '@/services/apiClient';
+import { useAuthStore } from '@/store/authStore';
 
 export interface OrdersSocketStatus {
   isConnected: boolean;
@@ -33,6 +34,8 @@ class OrdersWebSocketManager {
   private status: OrdersSocketStatus = { ...INITIAL_STATUS };
   private shouldStayConnected = false;
   private reconnectDelayMs = 2000;
+  private maxReconnectAttempts = 3; // Limitar tentativas para evitar spam de erros
+  private consecutiveFailures = 0;
 
   subscribe(listener: MessageListener): () => void {
     this.listeners.add(listener);
@@ -106,14 +109,52 @@ class OrdersWebSocketManager {
     this.clearReconnectTimer();
 
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔌 Tentando conectar WebSocket:', wsUrl);
+      }
+      
       this.socket = new WebSocket(wsUrl);
     } catch (error) {
-      console.error('Erro ao criar WebSocket:', error);
+      // Silenciar erros esperados de criação de WebSocket
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
+      }
       this.scheduleReconnect();
       return;
     }
 
     this.socket.onopen = () => {
+      // Resetar contador de falhas ao conectar com sucesso
+      this.consecutiveFailures = 0;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ WebSocket conectado com sucesso:', this.currentUrl);
+      }
+      
+      // Tentar autenticar enviando token como mensagem (caso o servidor espere dessa forma)
+      // Alguns servidores podem esperar autenticação após a conexão ser estabelecida
+      const authState = useAuthStore.getState();
+      const token = authState.sessionToken;
+      
+      if (token && this.socket && this.socket.readyState === WebSocket.OPEN) {
+        try {
+          // Enviar mensagem de autenticação (alguns servidores esperam isso)
+          // O servidor pode esperar: { type: 'auth', token: '...' } ou similar
+          this.socket.send(JSON.stringify({ 
+            type: 'authenticate', 
+            token: token 
+          }));
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔐 Token de autenticação enviado via mensagem');
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ Erro ao enviar token de autenticação:', error);
+          }
+        }
+      }
+      
       this.updateStatus({
         isConnected: true,
         reconnectAttempts: 0,
@@ -124,9 +165,38 @@ class OrdersWebSocketManager {
 
     this.socket.onclose = (event) => {
       const wasConnected = this.status.isConnected;
+      
+      // Incrementar contador de falhas se não foi um fechamento limpo
+      if (!event.wasClean) {
+        this.consecutiveFailures++;
+      } else {
+        // Resetar se foi fechamento limpo
+        this.consecutiveFailures = 0;
+      }
+      
+      // Log detalhado em desenvolvimento para debug
+      if (process.env.NODE_ENV === 'development') {
+        if (!event.wasClean) {
+          console.warn('⚠️ WebSocket fechado:', {
+            code: event.code,
+            reason: event.reason || 'Sem razão fornecida',
+            wasClean: event.wasClean,
+            wasConnected,
+            url: this.currentUrl,
+          });
+          
+          // Mensagens específicas por código de erro
+          if (event.code === 1006) {
+            console.warn('💡 Dica: Código 1006 geralmente indica que o servidor rejeitou a conexão. Verifique se o token de autenticação está sendo enviado corretamente.');
+          }
+        }
+      }
+      
       this.updateStatus({
         isConnected: false,
-        lastError: event.reason || (event.wasClean ? undefined : 'Conexão encerrada inesperadamente'),
+        lastError: event.wasClean 
+          ? undefined 
+          : event.reason || `Conexão fechada (código: ${event.code})`,
       });
       this.stopPing();
       this.socket = null;
@@ -137,14 +207,18 @@ class OrdersWebSocketManager {
     };
 
     this.socket.onerror = (event) => {
-      console.error('Erro no WebSocket de pedidos:', event);
+      // Silenciar erros de conexão esperados (servidor não disponível)
+      // Apenas logar em modo debug
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ WebSocket não disponível (isso é normal se o servidor não suporta WebSocket):', event);
+      }
       this.updateStatus({
-        lastError: 'Erro na conexão do WebSocket',
+        lastError: 'WebSocket não disponível',
       });
       try {
         this.socket?.close();
       } catch (error) {
-        console.warn('Falha ao fechar WebSocket após erro:', error);
+        // Silenciar erros ao fechar WebSocket
       }
     };
 
@@ -186,7 +260,17 @@ class OrdersWebSocketManager {
       const url = new URL(apiBase);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.pathname = '/ws/orders';
-      url.search = '';
+      
+      // Obter token de autenticação do store
+      // Como estamos em uma classe, precisamos acessar o store de forma estática
+      const authState = useAuthStore.getState();
+      const token = authState.sessionToken;
+      
+      // Adicionar token como query parameter se disponível
+      if (token) {
+        url.searchParams.set('token', token);
+      }
+      
       url.hash = '';
       return url.toString();
     } catch (error) {
@@ -199,6 +283,18 @@ class OrdersWebSocketManager {
     if (!this.shouldStayConnected || this.reconnectTimer) {
       return;
     }
+    
+    // Se já tentou muitas vezes sem sucesso, parar de tentar
+    if (this.consecutiveFailures >= this.maxReconnectAttempts) {
+      if (process.env.NODE_ENV === 'development') {
+        console.info('ℹ️ WebSocket: Parando tentativas de reconexão após múltiplas falhas. O sistema continuará funcionando normalmente sem atualizações em tempo real.');
+      }
+      this.updateStatus({
+        lastError: 'WebSocket não disponível - funcionando sem tempo real',
+      });
+      return;
+    }
+    
     this.updateStatus({
       reconnectAttempts: this.status.reconnectAttempts + 1,
     });
