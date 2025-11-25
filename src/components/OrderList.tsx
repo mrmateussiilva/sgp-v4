@@ -43,6 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export default function OrderList() {
@@ -368,6 +369,7 @@ export default function OrderList() {
         toast({
           title: "Sucesso",
           description: "Pedido excluído com sucesso!",
+          variant: "success",
         });
       } catch (error) {
         toast({
@@ -575,7 +577,7 @@ export default function OrderList() {
       toast({
         title: "Aviso",
         description: "Não foi possível localizar os pedidos selecionados.",
-        variant: "destructive",
+        variant: "warning",
       });
       setSelectedOrderIdsForPrint([]);
       return;
@@ -585,6 +587,7 @@ export default function OrderList() {
     toast({
       title: "Impressão",
       description: `Abrindo visualização de impressão de ${ordersToPrint.length} pedido(s).`,
+      variant: "info",
     });
   };
 
@@ -1116,6 +1119,7 @@ export default function OrderList() {
       toast({
         title: "Status atualizado",
         description: mensagem,
+        variant: "success",
       });
     } catch (error) {
       toast({
@@ -1173,6 +1177,7 @@ export default function OrderList() {
         description: allCompleted
           ? `Todos os setores foram concluídos. Pedido marcado como pronto em ${formatDateForDisplay(normalizedDate, '-')}.`
           : `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
+        variant: "success",
       });
     } catch (error) {
       toast({
@@ -1483,14 +1488,54 @@ export default function OrderList() {
               </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={13} className="h-24 text-center">
-                  <div className="flex justify-center items-center">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    Carregando pedidos...
-                  </div>
-                </TableCell>
-              </TableRow>
+              <>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell className="sticky left-0 z-10 bg-background border-r">
+                      <Skeleton className="h-4 w-4" />
+                    </TableCell>
+                    <TableCell className="sticky left-[44px] z-10 bg-background border-r">
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Skeleton className="h-5 w-16 mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-right sticky right-0 z-10 bg-background border-l">
+                      <div className="flex justify-end gap-2">
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </>
             ) : paginatedOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={13} className="h-24 text-center">
