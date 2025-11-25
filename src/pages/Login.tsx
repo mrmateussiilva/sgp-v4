@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -21,7 +20,6 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -37,14 +35,22 @@ export default function Login() {
         });
         toast({
           title: "Login realizado!",
-          description: "Bem-vindo ao sistema de gerenciamento de pedidos.",
+          description: "Bem-vindo de volta.",
         });
         navigate('/dashboard');
       } else {
-        setError(response.message || 'Não foi possível autenticar.');
+        toast({
+          variant: "destructive",
+          title: "Falha na autenticação",
+          description: response.message || 'Usuário ou senha inválidos.',
+        });
       }
     } catch (err) {
-      setError('Erro ao conectar com o servidor');
+      toast({
+        variant: "destructive",
+        title: "Erro de conexão",
+        description: 'Não foi possível conectar ao servidor. Tente novamente mais tarde.',
+      });
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -52,27 +58,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="space-y-1 flex flex-col items-center pb-6">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center pb-6">
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Lock className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold text-center">
-            SGP - Sistema de Gerenciamento
+          <CardTitle className="text-2xl font-bold">
+            SGP - Acessar Sistema
           </CardTitle>
-          <CardDescription className="text-center">
-            Faça login para continuar
+          <CardDescription>
+            Faça login com suas credenciais para continuar
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm border border-destructive/20">
-                {error}
-              </div>
-            )}
-
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="username">Usuário</Label>
               <Input
@@ -84,6 +84,7 @@ export default function Login() {
                 required
                 autoFocus
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
 
@@ -97,14 +98,14 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
-
-            
           </form>
         </CardContent>
       </Card>

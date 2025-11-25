@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Square } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Square, Inbox, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -1484,14 +1484,21 @@ export default function OrderList() {
           <TableBody>
             {loading ? (
               <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8">
-                  Carregando...
+                <TableCell colSpan={13} className="h-24 text-center">
+                  <div className="flex justify-center items-center">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    Carregando pedidos...
+                  </div>
                 </TableCell>
               </TableRow>
             ) : paginatedOrders.length === 0 ? (
               <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8">
-                  Nenhum pedido encontrado
+                <TableCell colSpan={13} className="h-24 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Inbox className="h-10 w-10 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
+                    <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

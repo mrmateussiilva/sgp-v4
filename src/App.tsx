@@ -1,17 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { loadConfig } from '@/utils/config';
-import ConfigApi from './pages/ConfigApi';
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
 import { normalizeApiUrl, onApiFailure, verifyApiConnection } from './services/apiClient';
 import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
+import { ThemeProvider } from './components/ThemeProvider';
+import { Loader2 } from 'lucide-react';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Login = lazy(() => import('./pages/Login'));
+const ConfigApi = lazy(() => import('./pages/ConfigApi'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+      <div className="text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+        <p>Carregando página...</p>
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -57,47 +71,49 @@ function App() {
 
   if (isCheckingConnection) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando conexão com a API...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p>Verificando conexão com a API...</p>
         </div>
       </div>
     );
   }
 
-  if (showFallback || !apiUrl) {
-    return (
-      <div>
-        <ConfigApi
-          onConfigured={(url) => {
-            const normalizedUrl = normalizeApiUrl(url);
-            applyApiUrl(normalizedUrl);
-            setApiUrl(normalizedUrl);
-            setShowFallback(false);
-          }}
-        />
-        <Toaster />
-      </div>
-    );
-  }
-
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/dashboard/*"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-      </Routes>
-      <Toaster />
-    </HashRouter>
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <Suspense fallback={<LoadingFallback />}>
+        {showFallback || !apiUrl ? (
+          <div className="bg-background text-foreground min-h-screen">
+            <ConfigApi
+              onConfigured={(url) => {
+                const normalizedUrl = normalizeApiUrl(url);
+                applyApiUrl(normalizedUrl);
+                setApiUrl(normalizedUrl);
+                setShowFallback(false);
+              }}
+            />
+            <Toaster />
+          </div>
+        ) : (
+          <HashRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/dashboard/*"
+                element={
+                  <PrivateRoute>
+                    <Dashboard />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+            </Routes>
+            <Toaster />
+          </HashRouter>
+        )}
+      </Suspense>
+    </ThemeProvider>
   );
 }
 

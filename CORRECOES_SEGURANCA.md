@@ -131,3 +131,4 @@ async def listar_pedidos(
 4. **Aplicar nos demais**: Replicar para todos os outros routers
 5. **Documentar**: Atualizar documentação da API
 
+

@@ -36,6 +36,7 @@ import GestaoUsuarios from './admin/GestaoUsuarios';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
@@ -338,6 +339,10 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Sistema de Gerenciamento de Pedidos</h2>
                 <p className="text-sm text-muted-foreground">Olá, {username}</p>
               </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
             </div>
           </div>
         </header>
