@@ -291,6 +291,40 @@ type MaterialEntity = Omit<MaterialApi, 'observacao'> & {
   observacao?: string;
 };
 
+const DESIGNERS_ENDPOINT = '/designers';
+const DESIGNERS_LIST_ENDPOINT = `${DESIGNERS_ENDPOINT}/`;
+const MATERIAIS_ENDPOINT = '/materiais';
+const MATERIAIS_LIST_ENDPOINT = `${MATERIAIS_ENDPOINT}/`;
+const CATALOG_CACHE_TTL_MS = 60_000;
+
+interface TimedCache<T> {
+  data: T;
+  timestamp: number;
+}
+
+const isCacheFresh = <T>(cache: TimedCache<T> | null): cache is TimedCache<T> => {
+  if (!cache) {
+    return false;
+  }
+  return Date.now() - cache.timestamp < CATALOG_CACHE_TTL_MS;
+};
+
+const createCacheEntry = <T>(data: T): TimedCache<T> => ({
+  data,
+  timestamp: Date.now(),
+});
+
+let designersCache: TimedCache<DesignerApi[]> | null = null;
+let materiaisCache: TimedCache<MaterialApi[]> | null = null;
+
+const clearDesignersCache = (): void => {
+  designersCache = null;
+};
+
+const clearMateriaisCache = (): void => {
+  materiaisCache = null;
+};
+
 const API_STATUS_TO_APP: Record<ApiOrderStatus, OrderStatus> = {
   pendente: OrderStatus.Pendente,
   em_producao: OrderStatus.EmProcessamento,
@@ -764,7 +798,7 @@ const buildUserUpdatePayload = (payload: UserUpdatePayload): Record<string, any>
 
 const fetchOrdersRaw = async (): Promise<ApiPedido[]> => {
   requireSessionToken();
-  const response = await apiClient.get<ApiPedido[]>('/pedidos');
+  const response = await apiClient.get<ApiPedido[]>('/pedidos/');
   return response.data ?? [];
 };
 
@@ -788,14 +822,24 @@ const fetchOrdersByStatus = async (status: ApiOrderStatus): Promise<OrderWithIte
 
 const fetchDesignersRaw = async (): Promise<DesignerApi[]> => {
   requireSessionToken();
-  const response = await apiClient.get<DesignerApi[]>('/designers');
-  return response.data ?? [];
+  if (isCacheFresh(designersCache)) {
+    return designersCache.data;
+  }
+  const response = await apiClient.get<DesignerApi[]>(DESIGNERS_LIST_ENDPOINT);
+  const data = response.data ?? [];
+  designersCache = createCacheEntry(data);
+  return data;
 };
 
 const fetchMateriaisRaw = async (): Promise<MaterialApi[]> => {
   requireSessionToken();
-  const response = await apiClient.get<MaterialApi[]>('/materiais');
-  return response.data ?? [];
+  if (isCacheFresh(materiaisCache)) {
+    return materiaisCache.data;
+  }
+  const response = await apiClient.get<MaterialApi[]>(MATERIAIS_LIST_ENDPOINT);
+  const data = response.data ?? [];
+  materiaisCache = createCacheEntry(data);
+  return data;
 };
 
 const paginateOrders = (orders: OrderWithItems[], page = 1, pageSize = DEFAULT_PAGE_SIZE): PaginatedOrders => {
@@ -1086,7 +1130,7 @@ const buildBulkImportError = (index: number, item: BulkClienteImportItem, error:
 
 const createClienteRequest = async (payload: CreateClienteRequest): Promise<Cliente> => {
   requireSessionToken();
-  const response = await apiClient.post<Cliente>('/clientes', payload);
+  const response = await apiClient.post<Cliente>('/clientes/', payload);
   return response.data;
 };
 
@@ -1100,7 +1144,7 @@ export { setHttpApiUrl as setApiUrl, getConfiguredApiUrl as getApiUrl };
 
 export async function getFichas(): Promise<any> {
   requireSessionToken();
-  const response = await apiClient.get('/pedidos');
+  const response = await apiClient.get('/pedidos/');
   return response.data;
 }
 
@@ -1154,7 +1198,7 @@ export const api = {
   createOrder: async (request: CreateOrderRequest): Promise<OrderWithItems> => {
     requireSessionToken();
     const payload = buildPedidoCreatePayload(request);
-    const response = await apiClient.post<ApiPedido>('/pedidos', payload);
+    const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
     return mapPedidoFromApi(response.data);
   },
 
@@ -1304,7 +1348,7 @@ export const api = {
 
   getClientes: async (): Promise<Cliente[]> => {
     requireSessionToken();
-    const response = await apiClient.get<Cliente[]>('/clientes');
+    const response = await apiClient.get<Cliente[]>('/clientes/');
     return response.data ?? [];
   },
 
@@ -1445,7 +1489,7 @@ export const api = {
 
 export async function getMateriais(_sessionToken: string): Promise<MaterialEntity[]> {
   requireSessionToken();
-  const response = await apiClient.get<MaterialApi[]>('/materiais');
+  const response = await apiClient.get<MaterialApi[]>(MATERIAIS_LIST_ENDPOINT);
   return (response.data ?? []).map(mapMaterialFromApi);
 }
 
@@ -1455,8 +1499,10 @@ export async function createMaterial(
 ): Promise<MaterialEntity> {
   requireSessionToken();
   const payload = buildMaterialCreatePayload(request);
-  const response = await apiClient.post<MaterialApi>('/materiais', payload);
-  return mapMaterialFromApi(response.data);
+  const response = await apiClient.post<MaterialApi>(MATERIAIS_LIST_ENDPOINT, payload);
+  const material = mapMaterialFromApi(response.data);
+  clearMateriaisCache();
+  return material;
 }
 
 export async function updateMaterial(
@@ -1466,13 +1512,16 @@ export async function updateMaterial(
   requireSessionToken();
   const { id, ...rest } = request;
   const payload = buildMaterialUpdatePayload(rest);
-  const response = await apiClient.patch<MaterialApi>(`/materiais/${id}`, payload);
-  return mapMaterialFromApi(response.data);
+  const response = await apiClient.patch<MaterialApi>(`${MATERIAIS_ENDPOINT}/${id}`, payload);
+  const material = mapMaterialFromApi(response.data);
+  clearMateriaisCache();
+  return material;
 }
 
 export async function deleteMaterial(_sessionToken: string, materialId: number): Promise<boolean> {
   requireSessionToken();
-  await apiClient.delete(`/materiais/${materialId}`);
+  await apiClient.delete(`${MATERIAIS_ENDPOINT}/${materialId}`);
+  clearMateriaisCache();
   return true;
 }
 
@@ -1511,7 +1560,7 @@ export async function deleteVendedor(_sessionToken: string, vendedorId: number):
 
 export async function getDesigners(_sessionToken: string): Promise<DesignerEntity[]> {
   requireSessionToken();
-  const response = await apiClient.get<DesignerApi[]>("/designers");
+  const response = await apiClient.get<DesignerApi[]>(DESIGNERS_LIST_ENDPOINT);
   return (response.data ?? []).map(mapDesignerFromApi);
 }
 
@@ -1521,8 +1570,10 @@ export async function createDesigner(
 ): Promise<DesignerEntity> {
   requireSessionToken();
   const payload = buildDesignerCreatePayload(request);
-  const response = await apiClient.post<DesignerApi>("/designers", payload);
-  return mapDesignerFromApi(response.data);
+  const response = await apiClient.post<DesignerApi>(DESIGNERS_LIST_ENDPOINT, payload);
+  const designer = mapDesignerFromApi(response.data);
+  clearDesignersCache();
+  return designer;
 }
 
 export async function updateDesigner(
@@ -1532,13 +1583,16 @@ export async function updateDesigner(
   requireSessionToken();
   const { id, ...rest } = request;
   const payload = buildDesignerUpdatePayload(rest);
-  const response = await apiClient.patch<DesignerApi>(`/designers/${id}`, payload);
-  return mapDesignerFromApi(response.data);
+  const response = await apiClient.patch<DesignerApi>(`${DESIGNERS_ENDPOINT}/${id}`, payload);
+  const designer = mapDesignerFromApi(response.data);
+  clearDesignersCache();
+  return designer;
 }
 
 export async function deleteDesigner(_sessionToken: string, designerId: number): Promise<boolean> {
   requireSessionToken();
-  await apiClient.delete(`/designers/${designerId}`);
+  await apiClient.delete(`${DESIGNERS_ENDPOINT}/${designerId}`);
+  clearDesignersCache();
   return true;
 }
 

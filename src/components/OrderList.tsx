@@ -138,32 +138,43 @@ export default function OrderList() {
   const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Carregar dados para filtros
+  // Carregar dados para filtros (vendedores + designers)
   useEffect(() => {
+    let isMounted = true;
     const loadFilterData = async () => {
       try {
         const [vendedoresData, designersData] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
         ]);
+        if (!isMounted) {
+          return;
+        }
         setVendedores(vendedoresData);
         setDesigners(designersData);
-        
-        // Extrair cidades únicas dos pedidos
-        const uniqueCidades = Array.from(
-          new Set(
-            orders
-              .map(order => order.cidade_cliente)
-              .filter((cidade): cidade is string => Boolean(cidade))
-          )
-        ).sort();
-        setCidades(uniqueCidades);
       } catch (error) {
-        console.error('Erro ao carregar dados para filtros:', error);
+        if (isMounted) {
+          console.error('Erro ao carregar dados para filtros:', error);
+        }
       }
     };
-    
+
     loadFilterData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const uniqueCidades = Array.from(
+      new Set(
+        orders
+          .map((order) => order.cidade_cliente)
+          .filter((cidade): cidade is string => Boolean(cidade)),
+      ),
+    ).sort();
+    setCidades(uniqueCidades);
   }, [orders]);
 
   const extractErrorMessage = (error: unknown): string => {
