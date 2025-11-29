@@ -1,4 +1,5 @@
 {
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -102,12 +103,9 @@
       "active": true,
       "dialog": true,
       "endpoints": [
-        "https://sgp-v4-updates.finderbit.com.br/{{target}}/{{current_version}}"
+        "http://sgp.finderbit.com.br/update"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEQjE2RjAxNDhFRDM5MjMKUldRak9lMUlBVyt4SFJoRW53UEEzWGRwVXQwaVp4QjJrRDN6VDdiZ3RlK3ZIVVZHd0hLc1NwNjUK",
-      "windows": {
-        "installMode": "passive"
-      }
+      "pubkey": "INSERIR_PUBKEY_AQUI"
     },
     "windows": [
       {
