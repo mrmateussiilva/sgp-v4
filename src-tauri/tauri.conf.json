@@ -103,7 +103,7 @@
       "active": true,
       "dialog": true,
       "endpoints": [
-        "http://sgp.finderbit.com.br/update"
+        "https://sgp.finderbit.com.br/update"
       ],
       "pubkey": "INSERIR_PUBKEY_AQUI"
     },
