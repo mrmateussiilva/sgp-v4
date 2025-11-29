@@ -573,14 +573,14 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
               <div className="space-y-2">
                 <Label htmlFor="forma-pagamento">Forma de Pagamento</Label>
                 <Select
-                  value={formaPagamentoId?.toString() || ''}
-                  onValueChange={(value) => setFormaPagamentoId(value ? parseInt(value, 10) : null)}
+                  value={formaPagamentoId?.toString() || 'none'}
+                  onValueChange={(value) => setFormaPagamentoId(value === 'none' ? null : parseInt(value, 10))}
                 >
                   <SelectTrigger id="forma-pagamento">
                     <SelectValue placeholder="Selecione a forma de pagamento" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="none">Nenhuma</SelectItem>
                     {formasPagamento.map((forma) => (
                       <SelectItem key={forma.id} value={forma.id.toString()}>
                         {forma.nome}

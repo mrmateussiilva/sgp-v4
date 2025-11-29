@@ -36,6 +36,7 @@ class OrdersWebSocketManager {
   private reconnectDelayMs = 2000;
   private maxReconnectAttempts = 3; // Limitar tentativas para evitar spam de erros
   private consecutiveFailures = 0;
+  private isConnecting = false; // Flag para evitar múltiplas conexões simultâneas
 
   subscribe(listener: MessageListener): () => void {
     this.listeners.add(listener);
@@ -83,6 +84,11 @@ class OrdersWebSocketManager {
   }
 
   private ensureConnection(forceReconnect = false): void {
+    // Evitar múltiplas conexões simultâneas
+    if (this.isConnecting && !forceReconnect) {
+      return;
+    }
+
     const wsUrl = this.buildWebSocketUrl();
     if (!wsUrl) {
       this.updateStatus({
@@ -92,21 +98,64 @@ class OrdersWebSocketManager {
       return;
     }
 
+    // Se já existe um socket, verificar o estado
     if (this.socket) {
+      const currentState = this.socket.readyState;
+      
+      // Se está conectado ou conectando, não fazer nada (a menos que force reconnect)
+      if (!forceReconnect && (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING)) {
+        // Se a URL mudou, precisamos reconectar
+        if (this.currentUrl && this.currentUrl !== wsUrl) {
+          forceReconnect = true;
+        } else {
+          return; // Já está conectando ou conectado com a URL correta
+        }
+      }
+      
+      // Se precisa reconectar, fechar o socket antigo de forma segura
       if (forceReconnect || (this.currentUrl && this.currentUrl !== wsUrl)) {
+        // Se está conectando, aguardar um pouco antes de fechar
+        if (currentState === WebSocket.CONNECTING) {
+          // Aguardar até que o estado mude ou timeout
+          setTimeout(() => {
+            if (this.socket) {
+              try {
+                const state = this.socket.readyState;
+                if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+                  this.socket.close(1000, 'Reconnecting');
+                }
+              } catch (error) {
+                // Ignorar erros ao fechar
+              }
+              this.socket = null;
+              this.isConnecting = false;
+              // Tentar conectar novamente após fechar
+              if (this.shouldStayConnected) {
+                this.ensureConnection(false);
+              }
+            }
+          }, 200);
+          return;
+        }
+        
+        // Se está aberto, pode fechar normalmente
         try {
-          this.socket.close(1000, 'Reconnecting');
+          if (currentState === WebSocket.OPEN) {
+            this.socket.close(1000, 'Reconnecting');
+          }
         } catch (error) {
-          console.warn('Falha ao fechar WebSocket antigo:', error);
+          // Ignorar erros ao fechar
         }
         this.socket = null;
-      } else if (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING) {
-        return;
+      } else if (currentState === WebSocket.CLOSED || currentState === WebSocket.CLOSING) {
+        // Socket já está fechado ou fechando, apenas limpar referência
+        this.socket = null;
       }
     }
 
     this.currentUrl = wsUrl;
     this.clearReconnectTimer();
+    this.isConnecting = true;
 
     try {
       if (process.env.NODE_ENV === 'development') {
@@ -115,6 +164,9 @@ class OrdersWebSocketManager {
       
       this.socket = new WebSocket(wsUrl);
     } catch (error) {
+      // Resetar flag de conexão em caso de erro
+      this.isConnecting = false;
+      
       // Silenciar erros esperados de criação de WebSocket
       if (process.env.NODE_ENV === 'development') {
         console.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
@@ -124,7 +176,8 @@ class OrdersWebSocketManager {
     }
 
     this.socket.onopen = () => {
-      // Resetar contador de falhas ao conectar com sucesso
+      // Resetar flag de conexão e contador de falhas
+      this.isConnecting = false;
       this.consecutiveFailures = 0;
       
       if (process.env.NODE_ENV === 'development') {
@@ -165,6 +218,9 @@ class OrdersWebSocketManager {
 
     this.socket.onclose = (event) => {
       const wasConnected = this.status.isConnected;
+      
+      // Resetar flag de conexão
+      this.isConnecting = false;
       
       // Incrementar contador de falhas se não foi um fechamento limpo
       if (!event.wasClean) {
@@ -210,16 +266,14 @@ class OrdersWebSocketManager {
       // Silenciar erros de conexão esperados (servidor não disponível)
       // Apenas logar em modo debug
       if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ WebSocket não disponível (isso é normal se o servidor não suporta WebSocket):', event);
+        console.warn('⚠️ Erro no WebSocket:', event);
       }
+      
+      // Não fechar imediatamente - deixar o onclose lidar com isso
+      // Isso evita o erro "closed before connection is established"
       this.updateStatus({
-        lastError: 'WebSocket não disponível',
+        lastError: 'Erro na conexão WebSocket',
       });
-      try {
-        this.socket?.close();
-      } catch (error) {
-        // Silenciar erros ao fechar WebSocket
-      }
     };
 
     this.socket.onmessage = (event) => {

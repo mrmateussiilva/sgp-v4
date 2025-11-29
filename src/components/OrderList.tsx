@@ -215,14 +215,28 @@ export default function OrderList() {
     novoValor: boolean,
     extra?: { machine?: string; date?: string | null },
   ): UpdateOrderStatusRequest => {
+    // CRÍTICO: Não incluir campo financeiro no payload quando não está sendo alterado
+    // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
+    // O campo financeiro só deve ser incluído quando está sendo explicitamente alterado
+    
+    // Usar valor atual do pedido para cálculos internos, mas não incluir no payload se não está sendo alterado
+    const financeiroAtual = order.financeiro === true;
+    
+    // Construir payload - financeiro será incluído apenas se estiver sendo alterado
+    // Para cálculos internos, usar valor atual; para envio, só incluir se mudou
     const payload: UpdateOrderStatusRequest = {
       id: order.id,
-      financeiro: campo === 'financeiro' ? novoValor : order.financeiro === true,
+      // Incluir financeiro APENAS se o campo sendo alterado é 'financeiro'
+      // Caso contrário, usar valor atual para cálculos, mas buildStatusPayload vai remover do payload final
+      financeiro: campo === 'financeiro' ? novoValor : financeiroAtual,
       conferencia: campo === 'conferencia' ? novoValor : order.conferencia === true,
       sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
       costura: campo === 'costura' ? novoValor : order.costura === true,
       expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
     };
+    
+    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir
+    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
 
     const existingMachine = order.sublimacao_maquina ?? null;
     const existingDate = order.sublimacao_data_impressao ?? null;
@@ -265,6 +279,10 @@ export default function OrderList() {
         payload.status = OrderStatus.EmProcessamento;
       }
     }
+
+    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir no payload final
+    // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
+    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
 
     return payload;
   };
@@ -1088,8 +1106,8 @@ export default function OrderList() {
   };
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
-    // Verificar se é ação que requer admin (financeiro ou sublimacao) e se o usuário não é admin
-    if ((campo === 'financeiro' || campo === 'sublimacao') && !isAdmin) {
+    // Verificar se é ação financeira e se o usuário não é admin
+    if (campo === 'financeiro' && !isAdmin) {
       toast({
         title: "Acesso negado",
         description: "Somente administradores podem executar esta ação.",
@@ -1158,15 +1176,38 @@ export default function OrderList() {
     } catch (error: any) {
       const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
       const isForbidden = error?.response?.status === 403;
+      const campo = statusConfirmModal.campo;
+      const isFinanceiro = campo === 'financeiro';
       
-      toast({
-        title: isForbidden ? "Acesso negado" : "Erro",
-        description: isForbidden 
-          ? "Somente administradores podem executar esta ação."
-          : errorMessage,
-        variant: "destructive",
-      });
-      console.error('Error updating status:', error);
+      if (isForbidden) {
+        if (isFinanceiro) {
+          toast({
+            title: "Acesso negado",
+            description: "Somente administradores podem atualizar o status financeiro.",
+            variant: "destructive",
+          });
+        } else {
+          // Erro 403 para campos que não deveriam precisar de admin
+          // Isso indica que o backend está exigindo admin para todos os campos
+          const nomeCampo = statusConfirmModal.nomeSetor || campo;
+          toast({
+            title: "⚠️ Problema de permissão no servidor",
+            description: `O servidor está bloqueando a atualização de "${nomeCampo}" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.`,
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Erro",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+      
+      // Log apenas em desenvolvimento para não poluir o console em produção
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error updating status:', error);
+      }
     } finally {
       setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
     }
@@ -1181,18 +1222,6 @@ export default function OrderList() {
     if (!sublimationModal.show) {
       return;
     }
-
-    // Verificar se o usuário é admin
-    if (!isAdmin) {
-      toast({
-        title: "Acesso negado",
-        description: "Somente administradores podem executar esta ação.",
-        variant: "destructive",
-      });
-      handleCloseSublimationModal();
-      return;
-    }
-
     const targetOrder = orders.find((order) => order.id === sublimationModal.pedidoId);
     if (!targetOrder) {
       handleCloseSublimationModal();
@@ -1232,12 +1261,12 @@ export default function OrderList() {
       });
     } catch (error: any) {
       const errorMessage = error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status de sublimação.';
+      const isForbidden = error?.response?.status === 403;
       
-      // Se for erro 403, mostrar mensagem específica
-      if (error?.response?.status === 403) {
+      if (isForbidden) {
         toast({
-          title: 'Acesso negado',
-          description: errorMessage || 'Somente administradores podem executar esta ação.',
+          title: '⚠️ Problema de permissão no servidor',
+          description: 'O servidor está bloqueando a atualização de "Sublimação" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.',
           variant: 'destructive',
         });
       } else {
@@ -1247,7 +1276,11 @@ export default function OrderList() {
           variant: 'destructive',
         });
       }
-      console.error('Error updating sublimation status:', error);
+      
+      // Log apenas em desenvolvimento para não poluir o console em produção
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error updating sublimation status:', error);
+      }
     } finally {
       handleCloseSublimationModal();
     }
@@ -1680,32 +1713,13 @@ export default function OrderList() {
                           />
                         </TableCell>
                         
-                        {/* Sublimação - Só habilitado se Financeiro estiver marcado e usuário for admin */}
+                        {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
                         <TableCell className="text-center whitespace-nowrap">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="inline-block">
-                                  <Checkbox
-                                    checked={order.sublimacao === true}
-                                    disabled={!order.financeiro || !isAdmin}
-                                    onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
-                                    className={(!order.financeiro || !isAdmin) ? "opacity-50 cursor-not-allowed" : ""}
-                                  />
-                                </div>
-                              </TooltipTrigger>
-                              {!isAdmin && (
-                                <TooltipContent>
-                                  <p>Somente administradores podem executar esta ação.</p>
-                                </TooltipContent>
-                              )}
-                              {!order.financeiro && isAdmin && (
-                                <TooltipContent>
-                                  <p>Marque o campo Financeiro primeiro.</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TooltipProvider>
+                          <Checkbox
+                            checked={order.sublimacao === true}
+                            disabled={!order.financeiro}
+                            onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
+                          />
                           {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
                             <div className="mt-1 text-[10px] text-muted-foreground leading-tight text-center">
                               {order.sublimacao_maquina && <div>{order.sublimacao_maquina}</div>}

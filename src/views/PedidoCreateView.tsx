@@ -1,6 +1,6 @@
-import PedidoForm from '../components/PedidoForm';
+import CreateOrderComplete from '../components/CreateOrderComplete';
 
 export default function PedidoCreateView() {
-  return <PedidoForm mode="create" />;
+  return <CreateOrderComplete mode="create" />;
 }
 

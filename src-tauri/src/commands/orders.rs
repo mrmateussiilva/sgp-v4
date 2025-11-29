@@ -1199,10 +1199,15 @@ pub async fn update_order_status_flags(
     session_token: String,
     request: UpdateOrderStatusRequest,
 ) -> Result<OrderWithItems, String> {
-    let _session_info = sessions
+    let session_info = sessions
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
+    
+    // Verificar se o payload contém o campo financeiro e se o usuário não é admin
+    if request.financeiro.is_some() && !session_info.is_admin {
+        return Err("Somente administradores podem alterar o status financeiro.".to_string());
+    }
     
     let result = update_order_status_flags_internal(pool.inner(), request.clone()).await;
     

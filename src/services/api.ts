@@ -1057,6 +1057,9 @@ const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, a
     payload.valor_total = toCurrencyString(valorTotal);
   }
 
+  // Garantir que campo financeiro nunca seja enviado neste payload (não é tela financeira)
+  delete payload.financeiro;
+
   return sanitizePayload(payload);
 };
 
@@ -1089,12 +1092,14 @@ const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Record<strin
     payload.valor_frete = toCurrencyString(request.valor_frete);
   }
 
+  // Garantir que campo financeiro nunca seja enviado neste payload (não é tela financeira)
+  delete payload.financeiro;
+
   return sanitizePayload(payload);
 };
 
 const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, any> => {
   const payload: Record<string, any> = {
-    financeiro: request.financeiro,
     conferencia: request.conferencia,
     sublimacao: request.sublimacao,
     costura: request.costura,
@@ -1102,6 +1107,17 @@ const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, a
     sublimacao_maquina: request.sublimacao_maquina,
     sublimacao_data_impressao: request.sublimacao_data_impressao,
   };
+
+  // CRÍTICO: Incluir financeiro APENAS se está sendo explicitamente alterado
+  // Verificar se há um flag indicando que financeiro está sendo atualizado
+  // Se não houver flag ou se for false, não incluir financeiro no payload
+  // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
+  const isFinanceiroUpdate = (request as any)._isFinanceiroUpdate === true;
+  if (isFinanceiroUpdate && request.financeiro !== undefined) {
+    payload.financeiro = request.financeiro;
+  }
+  // Remover flag interno antes de enviar
+  delete payload._isFinanceiroUpdate;
 
   if (request.status) {
     payload.status = mapStatusToApi(request.status);
@@ -1219,6 +1235,23 @@ export const api = {
   updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
     requireSessionToken();
     const payload = buildStatusPayload(request);
+    
+    // CRÍTICO: Remover campo financeiro do payload quando não está sendo explicitamente alterado
+    // O problema: buildStatusUpdatePayload sempre inclui financeiro com o valor atual do pedido,
+    // mesmo quando o usuário está apenas atualizando expedição, produção, etc.
+    // Isso causa erro 403 para usuários comuns porque o backend detecta financeiro no payload.
+    // 
+    // Solução: Remover financeiro do payload ANTES de enviar, EXCETO quando sabemos que está sendo alterado.
+    // Como não temos essa informação aqui, removemos sempre e deixamos a atualização de financeiro
+    // ser feita através de uma chamada separada (que já tem verificação de admin no frontend).
+    
+    // Remover todos os campos financeiros do payload antes de enviar
+    // Isso garante que usuários comuns possam atualizar expedição, produção, etc. sem erro 403
+    delete payload.financeiro;
+    delete payload.financeiro_aprovado;
+    delete payload.status_financeiro;
+    delete payload.financeiroStatus;
+    
     const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
     return mapPedidoFromApi(response.data);
   },

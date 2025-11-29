@@ -86,8 +86,8 @@ export const useOrderEvents = ({
       }
     };
 
+    // subscribe() já chama ensureConnection() internamente, não precisa chamar connect() novamente
     const unsubscribe = ordersSocket.subscribe(handleMessage);
-    ordersSocket.connect();
 
     return () => {
       unsubscribe();
