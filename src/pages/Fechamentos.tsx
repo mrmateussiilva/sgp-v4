@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, FileDown, RefreshCcw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { isTauri } from '@/utils/isTauri';
 
 const REPORT_OPTIONS: Record<
   'analitico' | 'sintetico',
@@ -36,9 +37,9 @@ const REPORT_OPTIONS: Record<
   analitico: [
     { value: 'analitico_designer_cliente', label: 'Designer × Cliente' },
     { value: 'analitico_cliente_designer', label: 'Cliente × Designer' },
-    { value: 'analitico_cliente_painel', label: 'Cliente × Painel' },
-    { value: 'analitico_designer_painel', label: 'Designer × Painel' },
-    { value: 'analitico_entrega_painel', label: 'Entrega × Painel' },
+    { value: 'analitico_cliente_painel', label: 'Cliente × Tecido' },
+    { value: 'analitico_designer_painel', label: 'Designer × Tecido' },
+    { value: 'analitico_entrega_painel', label: 'Entrega × Tecido' },
   ],
   sintetico: [
     { value: 'sintetico_data', label: 'Por Data' },
@@ -111,6 +112,7 @@ export default function Fechamentos() {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
+  const [nomeFilter, setNomeFilter] = useState<string>('');
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -184,11 +186,19 @@ export default function Fechamentos() {
     return cursorY;
   };
 
-  const exportToPdf = () => {
-    if (!report) return;
+  const exportToPdf = async () => {
+    if (!report) {
+      toast({
+        title: 'Nenhum relatório disponível',
+        description: 'Gere um relatório antes de exportar.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    let cursorY = 22;
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      let cursorY = 22;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
@@ -297,69 +307,142 @@ export default function Fechamentos() {
     );
     doc.setTextColor(0, 0, 0);
 
-    const filenameSuffix =
-      filters.startDate && filters.endDate && filters.endDate !== filters.startDate
-        ? `${filters.startDate}_${filters.endDate}`
-        : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
-    const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
+      const filenameSuffix =
+        filters.startDate && filters.endDate && filters.endDate !== filters.startDate
+          ? `${filters.startDate}_${filters.endDate}`
+          : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
+      const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
 
-    const triggerDownload = () => {
-      doc.save(filename);
-    };
-
-    try {
-      if (typeof doc.autoPrint === 'function') {
-        doc.autoPrint({ variant: 'non-conform' });
-      }
-    } catch (error) {
-      console.warn('Falha ao preparar impressão automática, realizando download direto.', error);
-      triggerDownload();
-      return;
-    }
-
-    try {
+      // Gerar o PDF como blob
       const blob = doc.output('blob');
       const blobUrl = URL.createObjectURL(blob);
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = blobUrl;
 
-      const cleanup = () => {
-        if (iframe.parentNode) {
-          document.body.removeChild(iframe);
-        }
-        URL.revokeObjectURL(blobUrl);
-      };
-
-      iframe.onload = () => {
+      // Se estiver no Tauri, tentar usar shell.open
+      if (isTauri()) {
         try {
-          iframe.contentWindow?.focus();
-          const printResult = iframe.contentWindow?.print() as unknown;
-          if (typeof printResult === 'boolean' && printResult === false) {
-            throw new Error('Impressão bloqueada pelo navegador');
+          const { save } = await import('@tauri-apps/api/dialog');
+          const { writeBinaryFile } = await import('@tauri-apps/api/fs');
+          const { appDataDir } = await import('@tauri-apps/api/path');
+
+          const dataDir = await appDataDir();
+          const filePath = await save({
+            defaultPath: filename,
+            filters: [{ name: 'PDF', extensions: ['pdf'] }],
+          });
+
+          if (filePath) {
+            // Converter blob para array de bytes
+            const arrayBuffer = await blob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            await writeBinaryFile(filePath, uint8Array);
+
+            // Tentar abrir o arquivo
+            try {
+              const { open } = await import('@tauri-apps/api/shell');
+              await open(filePath);
+              toast({
+                title: 'Relatório exportado',
+                description: 'O arquivo foi salvo e aberto com sucesso.',
+              });
+            } catch (openError) {
+              console.warn('Erro ao abrir arquivo:', openError);
+              toast({
+                title: 'Relatório exportado',
+                description: 'O arquivo foi salvo, mas não foi possível abri-lo automaticamente.',
+              });
+            }
+          } else {
+            // Usuário cancelou
+            URL.revokeObjectURL(blobUrl);
+            return;
           }
-          setTimeout(cleanup, 1000);
-        } catch (printError) {
-          console.warn('Impressão automática indisponível, baixando PDF.', printError);
-          cleanup();
-          triggerDownload();
+        } catch (tauriError) {
+          console.error('Erro ao exportar via Tauri:', tauriError);
+          // Fallback para download direto
+          doc.save(filename);
+          toast({
+            title: 'Relatório exportado',
+            description: 'O arquivo foi baixado com sucesso.',
+          });
+        } finally {
+          URL.revokeObjectURL(blobUrl);
         }
-      };
-
-      iframe.onerror = () => {
-        cleanup();
-        triggerDownload();
-      };
-
-      document.body.appendChild(iframe);
+      } else {
+        // Ambiente web: download direto
+        try {
+          doc.save(filename);
+          toast({
+            title: 'Relatório exportado',
+            description: 'O arquivo foi baixado com sucesso.',
+          });
+        } catch (saveError) {
+          console.error('Erro ao salvar PDF:', saveError);
+          toast({
+            title: 'Falha ao exportar relatório',
+            description: 'Não foi possível salvar o arquivo. Tente novamente.',
+            variant: 'destructive',
+          });
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
+      }
     } catch (error) {
       console.error('Erro ao exportar relatório de fechamentos:', error);
-      triggerDownload();
+      toast({
+        title: 'Falha ao exportar relatório',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado ao exportar o relatório.',
+        variant: 'destructive',
+      });
     }
   };
+
+  // Função para filtrar grupos recursivamente por nome
+  const filterGroupByName = (group: ReportGroup, filterText: string): ReportGroup | null => {
+    if (!filterText.trim()) {
+      return group;
+    }
+
+    const filterLower = filterText.toLowerCase().trim();
+    const filteredSubgroups = (group.subgroups ?? [])
+      .map((sub) => filterGroupByName(sub, filterText))
+      .filter((sub): sub is ReportGroup => sub !== null);
+
+    const filteredRows = (group.rows ?? []).filter(
+      (row) =>
+        row.ficha?.toLowerCase().includes(filterLower) ||
+        row.descricao?.toLowerCase().includes(filterLower)
+    );
+
+    // Se não há subgrupos nem linhas após filtrar, retornar null
+    if (filteredSubgroups.length === 0 && filteredRows.length === 0) {
+      // Mas se o próprio label do grupo contém o filtro, manter o grupo
+      if (group.label?.toLowerCase().includes(filterLower)) {
+        return { ...group, subgroups: [], rows: [] };
+      }
+      return null;
+    }
+
+    return {
+      ...group,
+      subgroups: filteredSubgroups,
+      rows: filteredRows,
+    };
+  };
+
+  const filteredReport = useMemo(() => {
+    if (!report || !nomeFilter.trim()) {
+      return report;
+    }
+
+    const filteredGroups = report.groups
+      .map((group) => filterGroupByName(group, nomeFilter))
+      .filter((group): group is ReportGroup => group !== null);
+
+    return {
+      ...report,
+      groups: filteredGroups,
+    };
+  }, [report, nomeFilter]);
 
   const renderGroup = (group: ReportGroup, depth = 0, path = group.key): JSX.Element => {
     const marginLeft = depth * 16;
@@ -458,6 +541,22 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Filtro por Nome */}
+          {report && (
+            <div className="space-y-2">
+              <Label>Filtrar por nome</Label>
+              <Input
+                type="text"
+                placeholder="Filtrar por nome..."
+                value={nomeFilter}
+                onChange={(e) => setNomeFilter(e.target.value)}
+                className="bg-white"
+              />
+              <p className="text-sm text-muted-foreground">
+                Digite o nome da ficha ou descrição para filtrar os resultados
+              </p>
+            </div>
+          )}
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as 'analitico' | 'sintetico')}
@@ -584,28 +683,30 @@ export default function Fechamentos() {
         </CardContent>
       </Card>
 
-      {report ? (
+      {filteredReport ? (
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-              <CardTitle className="text-lg font-semibold">{report.title}</CardTitle>
-              <span className="text-base text-slate-500">Página {report.page}</span>
+              <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
+              <span className="text-base text-slate-500">Página {filteredReport.page}</span>
             </div>
             <div className="mt-3 grid gap-2 text-base text-slate-500 md:grid-cols-4">
-              <div>{report.period_label}</div>
-              <div>{report.status_label}</div>
-              <div>Tipo: {report.report_type.replace(/_/g, ' ').toUpperCase()}</div>
-              <div className="md:text-right">Emitido em: {report.generated_at}</div>
+              <div>{filteredReport.period_label}</div>
+              <div>{filteredReport.status_label}</div>
+              <div>Tipo: {filteredReport.report_type.replace(/_/g, ' ').toUpperCase()}</div>
+              <div className="md:text-right">Emitido em: {filteredReport.generated_at}</div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6 bg-slate-50 py-6">
-            {report.groups.length === 0 ? (
+            {filteredReport.groups.length === 0 ? (
               <div className="rounded border border-dashed border-slate-200 bg-white py-12 text-center text-muted-foreground">
-                Nenhum dado encontrado para os filtros selecionados.
+                {nomeFilter.trim() 
+                  ? 'Nenhum resultado encontrado para o filtro de nome selecionado.'
+                  : 'Nenhum dado encontrado para os filtros selecionados.'}
               </div>
             ) : (
               <div className="space-y-6">
-                {report.groups.map((group, index) => renderGroup(group, 0, `root-${index}`))}
+                {filteredReport.groups.map((group, index) => renderGroup(group, 0, `root-${index}`))}
               </div>
             )}
 
@@ -613,8 +714,8 @@ export default function Fechamentos() {
               <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100 px-6 py-3 text-base text-slate-700 md:flex-row md:items-center md:justify-between">
                 <span>Total do período</span>
                 <span className="font-semibold text-slate-900">
-                  Frete: {formatCurrency(report.total.valor_frete)} | Serviços:{' '}
-                  {formatCurrency(report.total.valor_servico)}
+                  Frete: {formatCurrency(filteredReport.total.valor_frete)} | Serviços:{' '}
+                  {formatCurrency(filteredReport.total.valor_servico)}
                 </span>
               </div>
               <div className="bg-slate-50 px-6 py-3 text-base text-slate-500">

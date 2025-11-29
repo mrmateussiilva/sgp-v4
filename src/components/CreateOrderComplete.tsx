@@ -33,7 +33,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 
 const TIPOS_PRODUCAO = [
-  { value: 'painel', label: 'Painel' },
+  { value: 'painel', label: 'Tecido' },
   { value: 'generica', label: 'Produção Genérica' },
   { value: 'totem', label: 'Totem' },
   { value: 'lona', label: 'Lona' },
@@ -308,6 +308,12 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   }
 
   function populateFormFromOrder(order: OrderWithItems) {
+    const orderStatus = order.status ?? OrderStatus.Pendente;
+    const isConcluido = orderStatus === OrderStatus.Concluido;
+    
+    setIsLocked(isConcluido);
+    setLocalStatus(orderStatus);
+    
     setFormData((prev) => ({
       ...prev,
       numero: order.numero ?? '',
@@ -318,7 +324,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       data_entrada: toDateInputValue(order.data_entrada) || prev.data_entrada,
       data_entrega: toDateInputValue(order.data_entrega),
       prioridade: order.prioridade ?? 'NORMAL',
-      status: order.status ?? OrderStatus.Pendente,
+      status: isConcluido ? OrderStatus.EmProcessamento : orderStatus, // Permite edição mudando para EmProcessamento
       observacao: order.observacao ?? '',
       forma_envio: order.forma_envio ?? '',
       tipo_pagamento: order.forma_pagamento_id
@@ -385,6 +391,10 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [optionalWarnings, setOptionalWarnings] = useState<string[]>([]);
+  
+  // Estado para controlar se a ficha está bloqueada (concluída)
+  const [isLocked, setIsLocked] = useState(false);
+  const [localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
@@ -394,6 +404,9 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   const [tiposAdesivo, setTiposAdesivo] = useState<string[]>([]);
   const [formasEnvio, setFormasEnvio] = useState<any[]>([]);
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
+  // Campo de desconto desativado por padrão
+  const descontoAtivo = false;
+  
   const [descontos] = useState([
     { id: 1, name: 'Sem Desconto', type: 'none', value: 0 },
     { id: 2, name: '5%', type: 'percentual', value: 5 },
@@ -1270,6 +1283,11 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       return sum + valor;
     }, 0);
 
+    // Se desconto estiver desativado, não aplicar desconto
+    if (!descontoAtivo) {
+      return totalBruto;
+    }
+    
     const desconto = descontos.find(d => d.name === formData.desconto_tipo);
     if (desconto && desconto.type !== 'none') {
       if (desconto.type === 'percentual') {
@@ -1648,8 +1666,47 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
   };
 
+  const handleReabrirFicha = () => {
+    setIsLocked(false);
+    setLocalStatus(OrderStatus.EmProcessamento);
+    setFormData((prev) => ({
+      ...prev,
+      status: OrderStatus.EmProcessamento,
+    }));
+    toast({
+      title: 'Ficha reaberta',
+      description: 'A ficha foi reaberta e agora pode ser editada.',
+    });
+  };
+
   return (
     <div className="space-y-4 max-w-full mx-auto pb-8 px-4">
+
+      {/* Alerta de Ficha Concluída */}
+      {isLocked && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Esta ficha está concluída</h3>
+                <p className="text-sm text-yellow-700 mt-1">Para editar, clique em "Reabrir ficha" abaixo.</p>
+              </div>
+            </div>
+            <Button
+              onClick={handleReabrirFicha}
+              variant="outline"
+              className="bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
+            >
+              Reabrir Ficha
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Indicador de Validação */}
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
@@ -2190,7 +2247,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       <Card className="border-l-4 border-l-orange-500 bg-orange-50/30">
         <CardContent className="p-6 space-y-4">
           {/* Linha 1 */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid gap-4 ${descontoAtivo ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div className="space-y-2">
               <Label className="text-base font-medium">Forma de Envio *</Label>
               <Select
@@ -2236,22 +2293,24 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Desconto</Label>
-              <Select
-                value={formData.desconto_tipo}
-                onValueChange={(value) => handleChange('desconto_tipo', value)}
-              >
-                <SelectTrigger className="bg-white h-12 text-base">
-                  <SelectValue placeholder="Sem desconto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {descontos.map(d => (
-                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {descontoAtivo && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Desconto</Label>
+                <Select
+                  value={formData.desconto_tipo}
+                  onValueChange={(value) => handleChange('desconto_tipo', value)}
+                >
+                  <SelectTrigger className="bg-white h-12 text-base">
+                    <SelectValue placeholder="Sem desconto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {descontos.map(d => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Linha 2 - Valores */}

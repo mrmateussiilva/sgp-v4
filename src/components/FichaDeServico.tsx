@@ -218,7 +218,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                     <td className="field-label">Valores:</td>
                     <td className="field-value financial-values">
                       <div className="financial-line">
-                        <span>Painel:</span>
+                        <span>Tecido:</span>
                         <span>{formatCurrency(item.subtotal)}</span>
                       </div>
                       <div className="financial-line">

@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
+import { normalizeImagePath, isValidImagePath } from '@/utils/path';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -50,14 +52,24 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   // Função para lidar com clique na imagem
   const handleImageClick = (imageUrl: string, caption?: string) => {
-    setSelectedImage(imageUrl);
+    if (!imageUrl || !isValidImagePath(imageUrl)) {
+      return;
+    }
+    const normalizedPath = normalizeImagePath(imageUrl);
+    setSelectedImage(normalizedPath);
     setSelectedImageCaption(caption?.trim() ?? '');
+    setImageError(false);
   };
 
   // Função para fechar o modal de imagem
-  const closeImageModal = () => {
-    setSelectedImage(null);
-    setSelectedImageCaption('');
+  const closeImageModal = (open?: boolean) => {
+    // Só fecha se explicitamente solicitado (open === false)
+    // Isso previne fechamento automático indesejado
+    if (open === false) {
+      setSelectedImage(null);
+      setSelectedImageCaption('');
+      setImageError(false);
+    }
   };
 
   const handlePrint = () => {
@@ -776,24 +788,35 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </span>
             <div className="flex w-full flex-col items-center gap-3">
               <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
-                <img
-                  src={item.imagem!}
-                  alt={`Imagem do item ${item.item_name}`}
-                  className="h-full w-full object-contain"
-                  onError={(event) => {
-                    const target = event.currentTarget as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
+                {isValidImagePath(item.imagem!) ? (
+                  <img
+                    src={normalizeImagePath(item.imagem!)}
+                    alt={`Imagem do item ${item.item_name}`}
+                    className="h-full w-full object-contain"
+                    onError={(event) => {
+                      const target = event.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      const placeholder = target.parentElement?.querySelector('.image-placeholder');
+                      if (placeholder) {
+                        (placeholder as HTMLElement).style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" style={{ display: isValidImagePath(item.imagem!) ? 'none' : 'flex' }}>
+                  <span className="text-sm">Imagem não disponível</span>
+                </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleImageClick(item.imagem!, legendaImagem)}
-                className="w-full"
-              >
-                Abrir imagem em destaque
-              </Button>
+              {isValidImagePath(item.imagem!) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleImageClick(item.imagem!, legendaImagem)}
+                  className="w-full"
+                >
+                  Abrir imagem em destaque
+                </Button>
+              )}
               {legendaImagem && (
                 <p className="w-full rounded-md bg-white px-3 py-2 text-center text-xs text-slate-600 shadow-sm">
                   {legendaImagem}
@@ -979,24 +1002,36 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
       {/* Modal de Imagem */}
       {selectedImage && (
-        <Dialog open={!!selectedImage} onOpenChange={closeImageModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <Dialog open={!!selectedImage} onOpenChange={(open) => closeImageModal(open)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0" onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader className="p-6 pb-0">
               <DialogTitle className="flex items-center justify-between">
                 <span>Visualização da Imagem</span>
-                <Button onClick={closeImageModal} variant="ghost" size="sm">
+                <Button onClick={() => closeImageModal(false)} variant="ghost" size="sm">
                   <X className="h-4 w-4" />
                 </Button>
               </DialogTitle>
             </DialogHeader>
             <div className="p-6 pt-0">
               <div className="flex flex-col items-center gap-4">
-                <img
-                  src={selectedImage}
-                  alt="Imagem do item"
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                />
-                {selectedImageCaption && (
+                {!imageError ? (
+                  <img
+                    src={selectedImage}
+                    alt="Imagem do item"
+                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                    onError={() => {
+                      setImageError(true);
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-[70vh] w-full items-center justify-center rounded-lg bg-slate-100">
+                    <div className="text-center">
+                      <p className="text-slate-500 mb-2">Imagem não encontrada</p>
+                      <p className="text-sm text-slate-400">O arquivo pode ter sido movido ou excluído</p>
+                    </div>
+                  </div>
+                )}
+                {selectedImageCaption && !imageError && (
                   <p className="max-w-3xl text-center text-sm text-slate-600">
                     {selectedImageCaption}
                   </p>

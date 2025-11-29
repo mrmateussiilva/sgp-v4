@@ -7,6 +7,9 @@ import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Loader2 } from 'lucide-react';
+import { useNotifications } from './hooks/useNotifications';
+import { listen } from '@tauri-apps/api/event';
+import { toast } from '@/hooks/use-toast';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -32,6 +35,10 @@ function App() {
   const [apiUrl, setApiUrl] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [showFallback, setShowFallback] = useState(false);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Hook de notificações (só funciona quando API está configurada)
+  useNotifications();
 
   useEffect(() => {
     const verifyConfig = async () => {
@@ -68,6 +75,36 @@ function App() {
       unsubscribe();
     };
   }, []);
+
+  // Listener para eventos de novo pedido
+  useEffect(() => {
+    if (!apiUrl || !isAuthenticated) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+
+    const setupListener = async () => {
+      try {
+        unsubscribe = await listen("novo_pedido", (event) => {
+          toast({
+            title: "Novo pedido criado!",
+            description: "Um novo pedido foi criado no sistema.",
+          });
+        });
+      } catch (error) {
+        console.error("Erro ao configurar listener de notificações:", error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [apiUrl, isAuthenticated]);
 
   if (isCheckingConnection) {
     return (

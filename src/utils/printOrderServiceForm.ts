@@ -246,7 +246,7 @@ const buildServiceFormBody = (order: OrderWithItems, financials: OrderFinancials
             <td class="field-label">Valores:</td>
             <td class="field-value financial-values">
               <div class="financial-line">
-                <span>Painel:</span>
+                <span>Tecido:</span>
                 <span>${formatCurrency(financials.itemsSubtotal)}</span>
               </div>
               <div class="financial-line">

@@ -271,7 +271,7 @@ const buildItemCard = (
       <div class="item-section">
         <!-- Card de Numeração -->
         <div class="item-numbering-card">
-          <div class="numbering-label">Painel</div>
+          <div class="numbering-label">Tecido</div>
           <div class="numbering-value">${itemIndex}/${totalQuantity}</div>
       </div>
 

@@ -92,11 +92,11 @@ export function FormPainelCompleto({
       {/* === TOPO: DESCRIÇÃO + MEDIDAS === */}
       <div className="flex items-end gap-4">
         <div className="flex-1 space-y-2">
-          <Label className="text-base font-medium">Descrição do painel *</Label>
+          <Label className="text-base font-medium">Descrição do tecido *</Label>
           <Input
             value={tabData?.descricao || ''}
             onChange={(e) => onDataChange('descricao', e.target.value)}
-            placeholder="Ex: Painel promocional para evento"
+            placeholder="Ex: Tecido promocional para evento"
             className="h-10 text-sm"
           />
         </div>
@@ -452,7 +452,7 @@ export function FormPainelCompleto({
         {/* Valores */}
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-2">
-            <Label className="text-base font-medium">Valor painel</Label>
+            <Label className="text-base font-medium">Valor tecido</Label>
             <CurrencyInput
               value={tabData?.valor_painel ?? '0,00'}
               onValueChange={(formatted) => onDataChange('valor_painel', formatted)}
@@ -462,7 +462,7 @@ export function FormPainelCompleto({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-base font-medium">Quantidade de painéis?</Label>
+            <Label className="text-base font-medium">Quantidade de tecidos?</Label>
             <Input
               type="number"
               min="1"
@@ -499,7 +499,7 @@ export function FormPainelCompleto({
             </div>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span>Valor Base do Painel:</span>
+                <span>Valor Base do Tecido:</span>
                 <strong>R$ {formatBR(parseBR(tabData?.valor_painel))}</strong>
               </div>
               {valorTotalIlhos > 0 && (
