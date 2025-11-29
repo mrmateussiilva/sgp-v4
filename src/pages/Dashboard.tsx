@@ -18,9 +18,9 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import OrderList from '../components/OrderList';
-import OrderForm from '../components/OrderForm';
-import CreateOrderComplete from '../components/CreateOrderComplete';
 import ProtectedRoute from '../components/ProtectedRoute';
+import PedidoCreateView from '../views/PedidoCreateView';
+import PedidoEditView from '../views/PedidoEditView';
 import DashboardOverview from './DashboardOverview';
 import Clientes from './Clientes';
 import RelatoriosEnvios from './RelatoriosEnvios';
@@ -352,8 +352,8 @@ export default function Dashboard() {
         <Routes>
           <Route path="/" element={<DashboardOverview />} />
           <Route path="/orders" element={<OrderList />} />
-            <Route path="/orders/new" element={<CreateOrderComplete />} />
-          <Route path="/orders/edit/:id" element={<OrderForm />} />
+          <Route path="/orders/new" element={<PedidoCreateView />} />
+          <Route path="/orders/edit/:id" element={<PedidoEditView />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/relatorios-envios" element={<RelatoriosEnvios />} />
             <Route

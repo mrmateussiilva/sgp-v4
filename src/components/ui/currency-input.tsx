@@ -15,17 +15,38 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
     const displayValue = value ?? DEFAULT_VALUE;
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const rawDigits = event.target.value.replace(/\D/g, '');
-      const sanitized = rawDigits.replace(/^0+(?=\d)/, '');
-      const limitedDigits = sanitized.slice(0, MAX_DIGITS + 2); // include cents
-
-      if (limitedDigits.length === 0) {
+      const inputValue = event.target.value;
+      
+      // Remove tudo exceto dígitos, vírgula e ponto
+      const cleaned = inputValue.replace(/[^\d,.-]/g, '');
+      
+      // Se estiver vazio, retorna valor padrão
+      if (!cleaned || cleaned.trim().length === 0) {
         onValueChange(DEFAULT_VALUE);
         return;
       }
 
-      const numericValue = parseInt(limitedDigits, 10);
-      const formattedValue = (numericValue / 100).toLocaleString('pt-BR', {
+      // Normaliza para formato numérico (substitui vírgula por ponto)
+      let normalized = cleaned;
+      if (cleaned.includes(',') && cleaned.includes('.')) {
+        // Se tem ambos, remove pontos e mantém vírgula como separador decimal
+        normalized = cleaned.replace(/\./g, '').replace(',', '.');
+      } else if (cleaned.includes(',')) {
+        // Se só tem vírgula, substitui por ponto
+        normalized = cleaned.replace(',', '.');
+      }
+
+      // Parse do valor numérico
+      const numericValue = parseFloat(normalized);
+      
+      // Se não for um número válido, retorna valor padrão
+      if (isNaN(numericValue)) {
+        onValueChange(DEFAULT_VALUE);
+        return;
+      }
+
+      // Formata como moeda brasileira (sem dividir por 100 - já está em reais)
+      const formattedValue = numericValue.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
@@ -46,7 +67,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         value={displayValue}
         onChange={handleChange}
         onBlur={handleBlur}
-        inputMode="numeric"
+        inputMode="decimal"
         className={cn(
           'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
           className

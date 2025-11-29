@@ -6,6 +6,7 @@ import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/useUser';
 import { AutoRefreshStatus } from './AutoRefreshStatus';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
@@ -44,12 +45,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export default function OrderList() {
   const navigate = useNavigate();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
+  const { isAdmin } = useUser();
   
   // Sistema de sincronização em tempo real via eventos Tauri
   const [isRealtimeActive, setIsRealtimeActive] = useState(true);
@@ -382,10 +390,15 @@ export default function OrderList() {
           description: "Pedido excluído com sucesso!",
           variant: "success",
         });
-      } catch (error) {
+      } catch (error: any) {
+        const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível excluir o pedido.";
+        const isForbidden = error?.response?.status === 403;
+        
         toast({
-          title: "Erro",
-          description: "Não foi possível excluir o pedido.",
+          title: isForbidden ? "Acesso negado" : "Erro",
+          description: isForbidden 
+            ? "Somente administradores podem executar esta ação."
+            : errorMessage,
           variant: "destructive",
         });
         console.error('Error deleting order:', error);
@@ -1075,6 +1088,16 @@ export default function OrderList() {
   };
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
+    // Verificar se é ação que requer admin (financeiro ou sublimacao) e se o usuário não é admin
+    if ((campo === 'financeiro' || campo === 'sublimacao') && !isAdmin) {
+      toast({
+        title: "Acesso negado",
+        description: "Somente administradores podem executar esta ação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const targetOrder = orders.find((order) => order.id === pedidoId);
     if (!targetOrder) {
       return;
@@ -1132,10 +1155,15 @@ export default function OrderList() {
         description: mensagem,
         variant: "success",
       });
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
+      const isForbidden = error?.response?.status === 403;
+      
       toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o status.",
+        title: isForbidden ? "Acesso negado" : "Erro",
+        description: isForbidden 
+          ? "Somente administradores podem executar esta ação."
+          : errorMessage,
         variant: "destructive",
       });
       console.error('Error updating status:', error);
@@ -1153,6 +1181,18 @@ export default function OrderList() {
     if (!sublimationModal.show) {
       return;
     }
+
+    // Verificar se o usuário é admin
+    if (!isAdmin) {
+      toast({
+        title: "Acesso negado",
+        description: "Somente administradores podem executar esta ação.",
+        variant: "destructive",
+      });
+      handleCloseSublimationModal();
+      return;
+    }
+
     const targetOrder = orders.find((order) => order.id === sublimationModal.pedidoId);
     if (!targetOrder) {
       handleCloseSublimationModal();
@@ -1190,12 +1230,23 @@ export default function OrderList() {
           : `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
         variant: "success",
       });
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível atualizar o status de sublimação.',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status de sublimação.';
+      
+      // Se for erro 403, mostrar mensagem específica
+      if (error?.response?.status === 403) {
+        toast({
+          title: 'Acesso negado',
+          description: errorMessage || 'Somente administradores podem executar esta ação.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
       console.error('Error updating sublimation status:', error);
     } finally {
       handleCloseSublimationModal();
@@ -1597,12 +1648,27 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Checkboxes de Status */}
-                        {/* Financeiro - Sempre habilitado (é o primeiro) */}
+                        {/* Financeiro - Apenas admins podem alterar */}
                         <TableCell className="text-center whitespace-nowrap">
-                          <Checkbox
-                            checked={order.financeiro === true}
-                            onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
-                          />
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="inline-block">
+                                  <Checkbox
+                                    checked={order.financeiro === true}
+                                    disabled={!isAdmin}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
+                                    className={!isAdmin ? "opacity-50 cursor-not-allowed" : ""}
+                                  />
+                                </div>
+                              </TooltipTrigger>
+                              {!isAdmin && (
+                                <TooltipContent>
+                                  <p>Somente administradores podem executar esta ação.</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                         
                         {/* Conferência - Só habilitado se Financeiro estiver marcado */}
@@ -1614,13 +1680,32 @@ export default function OrderList() {
                           />
                         </TableCell>
                         
-                        {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
+                        {/* Sublimação - Só habilitado se Financeiro estiver marcado e usuário for admin */}
                         <TableCell className="text-center whitespace-nowrap">
-                          <Checkbox
-                            checked={order.sublimacao === true}
-                            disabled={!order.financeiro}
-                            onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
-                          />
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="inline-block">
+                                  <Checkbox
+                                    checked={order.sublimacao === true}
+                                    disabled={!order.financeiro || !isAdmin}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
+                                    className={(!order.financeiro || !isAdmin) ? "opacity-50 cursor-not-allowed" : ""}
+                                  />
+                                </div>
+                              </TooltipTrigger>
+                              {!isAdmin && (
+                                <TooltipContent>
+                                  <p>Somente administradores podem executar esta ação.</p>
+                                </TooltipContent>
+                              )}
+                              {!order.financeiro && isAdmin && (
+                                <TooltipContent>
+                                  <p>Marque o campo Financeiro primeiro.</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
                           {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
                             <div className="mt-1 text-[10px] text-muted-foreground leading-tight text-center">
                               {order.sublimacao_maquina && <div>{order.sublimacao_maquina}</div>}
@@ -1686,14 +1771,16 @@ export default function OrderList() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                      onClick={() => handleDeleteClick(order.id)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                    >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteClick(order.id)}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                   </TableCell>
                 </TableRow>
