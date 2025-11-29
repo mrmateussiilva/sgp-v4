@@ -1,4 +1,5 @@
-import { vi } from 'vitest';
+
+import '@testing-library/jest-dom/vitest';
 
 const localStorageMock = (() => {
   let store: { [key: string]: string } = {};

@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../test-utils';
 import { OrderViewModal } from '@/components/OrderViewModal';
-import { OrderWithItems } from '@/types';
+import { OrderWithItems, OrderStatus, OrderItem } from '@/types';
 
 // Mock do normalizeImagePath
 vi.mock('@/utils/path', () => ({
@@ -16,19 +16,27 @@ describe('ImagemModal no OrderViewModal', () => {
   const mockOrder: OrderWithItems = {
     id: 1,
     numero: '001',
+    customer_name: 'João Silva',
     cliente: 'João Silva',
+    address: 'Rua Teste, 123',
     data_entrada: '2024-01-15',
     data_entrega: '2024-01-20',
-    status: 'pendente',
+    status: OrderStatus.Pendente,
     valor_total: '1000.00',
+    total_value: '1000.00',
     items: [
       {
         id: 1,
+        order_id: 1,
+        item_name: 'Painel promocional',
+        quantity: 1,
+        unit_price: 1000,
+        subtotal: 1000,
         descricao: 'Painel promocional',
         largura: '2.0',
         altura: '1.5',
         imagem: '/home/user/img.png',
-      },
+      } as OrderItem,
     ],
   };
 

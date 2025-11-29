@@ -54,7 +54,7 @@ describe('FechamentoView', () => {
 
   it('deve aplicar filtros corretamente', async () => {
     server.use(
-      http.post('http://localhost:8000/api/reports', ({ request }) => {
+      http.post('http://localhost:8000/api/reports', () => {
         return HttpResponse.json({
           groups: [],
           total: { valor_frete: 0, valor_servico: 0 },

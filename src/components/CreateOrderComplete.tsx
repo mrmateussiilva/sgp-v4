@@ -394,7 +394,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   
   // Estado para controlar se a ficha está bloqueada (concluída)
   const [isLocked, setIsLocked] = useState(false);
-  const [localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
+  const [_localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);

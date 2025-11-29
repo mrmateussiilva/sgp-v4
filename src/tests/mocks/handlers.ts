@@ -96,7 +96,7 @@ export const handlers = [
 
   // POST /api/pedidos
   http.post('*/api/pedidos', async ({ request }) => {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json(
       {
         id: 1,
@@ -111,7 +111,7 @@ export const handlers = [
   // PATCH /api/pedidos/:id
   http.patch('*/api/pedidos/:id', async ({ params, request }) => {
     const { id } = params;
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({
       id: Number(id),
       ...body,

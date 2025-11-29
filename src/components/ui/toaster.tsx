@@ -12,7 +12,7 @@ import { CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react"
 export function Toaster() {
   const { toasts } = useToast()
 
-  const getIcon = (variant?: string) => {
+  const getIcon = (variant?: string | null) => {
     switch (variant) {
       case "success":
         return <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -30,7 +30,7 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, variant, ...props }) {
-        const icon = getIcon(variant)
+        const icon = getIcon(variant ?? undefined)
         return (
           <Toast key={id} variant={variant} {...props}>
             <div className="flex gap-3 w-full">

@@ -8,7 +8,6 @@ export interface CurrencyInputProps
 }
 
 const DEFAULT_VALUE = '0,00';
-const MAX_DIGITS = 9; // allows up to 9 digits before the decimal part
 
 export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onValueChange, onBlur, ...props }, ref) => {

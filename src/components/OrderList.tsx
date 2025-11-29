@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Square, Inbox, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -51,7 +51,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
 export default function OrderList() {
   const navigate = useNavigate();

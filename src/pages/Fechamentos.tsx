@@ -324,7 +324,7 @@ export default function Fechamentos() {
           const { writeBinaryFile } = await import('@tauri-apps/api/fs');
           const { appDataDir } = await import('@tauri-apps/api/path');
 
-          const dataDir = await appDataDir();
+          await appDataDir();
           const filePath = await save({
             defaultPath: filename,
             filters: [{ name: 'PDF', extensions: ['pdf'] }],

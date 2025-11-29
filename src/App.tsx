@@ -86,7 +86,7 @@ function App() {
 
     const setupListener = async () => {
       try {
-        unsubscribe = await listen("novo_pedido", (event) => {
+        unsubscribe = await listen("novo_pedido", () => {
           toast({
             title: "Novo pedido criado!",
             description: "Um novo pedido foi criado no sistema.",

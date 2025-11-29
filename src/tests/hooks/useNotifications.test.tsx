@@ -118,7 +118,7 @@ describe('useNotifications', () => {
   it('não deve iniciar polling se API não está configurada', async () => {
     setApiUrl('');
     
-    const { result } = renderHook(() => useNotifications());
+    const { result: _result } = renderHook(() => useNotifications());
 
     // Avançar timer
     await vi.advanceTimersByTimeAsync(5000);

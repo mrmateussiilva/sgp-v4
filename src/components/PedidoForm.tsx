@@ -79,21 +79,13 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
   ]);
 
   // Catálogos
-  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
-  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [formasPagamento, setFormasPagamento] = useState<Array<{ id: number; nome: string }>>([]);
 
   // Carregar catálogos
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [vend, des, pag] = await Promise.all([
-          api.getVendedoresAtivos(),
-          api.getDesignersAtivos(),
-          api.getFormasPagamentoAtivas(),
-        ]);
-        setVendedores(vend);
-        setDesigners(des);
+        const pag = await api.getFormasPagamentoAtivas();
         setFormasPagamento(pag);
       } catch (error) {
         console.error('Erro ao carregar catálogos:', error);

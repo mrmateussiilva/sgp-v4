@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save, RotateCcw } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
-import { OrderStatus, UpdateOrderRequest, UpdateOrderItemRequest, OrderItem } from '../types';
+import { OrderStatus, UpdateOrderRequest, UpdateOrderItemRequest } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,21 +75,13 @@ export default function PedidoEditor() {
   const [items, setItems] = useState<EditableOrderItem[]>([]);
 
   // Catálogos
-  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
-  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [formasPagamento, setFormasPagamento] = useState<Array<{ id: number; nome: string }>>([]);
 
   // Carregar catálogos
   useEffect(() => {
     const loadCatalogs = async () => {
       try {
-        const [vend, des, pag] = await Promise.all([
-          api.getVendedoresAtivos(),
-          api.getDesignersAtivos(),
-          api.getFormasPagamentoAtivas(),
-        ]);
-        setVendedores(vend);
-        setDesigners(des);
+        const pag = await api.getFormasPagamentoAtivas();
         setFormasPagamento(pag);
       } catch (error) {
         console.error('Erro ao carregar catálogos:', error);

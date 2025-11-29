@@ -34,9 +34,9 @@ describe('FichasView (OrderList)', () => {
 
     await waitFor(() => {
       // Verificar mensagem de lista vazia
-      const emptyMessage = screen.queryByText(/nenhum pedido/i) || 
-                          screen.queryByText(/sem pedidos/i) ||
-                          screen.queryByText(/vazio/i);
+      screen.queryByText(/nenhum pedido/i) || 
+      screen.queryByText(/sem pedidos/i) ||
+      screen.queryByText(/vazio/i);
       // Pode não ter mensagem específica, então apenas verificar que não quebra
       expect(screen.getByText(/pedidos/i)).toBeInTheDocument();
     });
