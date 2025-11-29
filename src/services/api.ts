@@ -1242,18 +1242,27 @@ export const api = {
     // Isso causa erro 403 para usuários comuns porque o backend detecta financeiro no payload.
     // 
     // Solução: Remover financeiro do payload ANTES de enviar, EXCETO quando sabemos que está sendo alterado.
-    // Como não temos essa informação aqui, removemos sempre e deixamos a atualização de financeiro
-    // ser feita através de uma chamada separada (que já tem verificação de admin no frontend).
+    // Verificar se financeiro está sendo alterado através do flag _isFinanceiroUpdate
+    const isFinanceiroUpdate = (request as any)._isFinanceiroUpdate === true;
     
-    // Remover todos os campos financeiros do payload antes de enviar
+    // Remover campos financeiros do payload apenas quando NÃO está sendo alterado
     // Isso garante que usuários comuns possam atualizar expedição, produção, etc. sem erro 403
-    delete payload.financeiro;
-    delete payload.financeiro_aprovado;
-    delete payload.status_financeiro;
-    delete payload.financeiroStatus;
+    if (!isFinanceiroUpdate) {
+      delete payload.financeiro;
+      delete payload.financeiro_aprovado;
+      delete payload.status_financeiro;
+      delete payload.financeiroStatus;
+    }
     
-    const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-    return mapPedidoFromApi(response.data);
+    // Fazer PATCH para atualizar o status
+    await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
+    
+    // 🔥 CORREÇÃO CRÍTICA: Após o PATCH, fazer um GET explícito para garantir que o estado está sincronizado
+    // Isso resolve o problema onde o checkbox volta ao estado anterior após atualização
+    // O backend pode retornar dados stale no response do PATCH, então sempre buscamos o pedido atualizado
+    const updatedOrder = await fetchOrderById(request.id);
+    
+    return updatedOrder;
   },
 
   getOrdersByDeliveryDateRange: async (startDate: string, endDate?: string | null): Promise<OrderWithItems[]> => {
