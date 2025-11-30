@@ -4,7 +4,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 // Tipos TypeScript para as notificações
 interface OrderStatusNotification {
@@ -183,4 +183,3 @@ export function useOrderPollingWithZustand() {
   }, [reloadOrders]);
 }
 */
-

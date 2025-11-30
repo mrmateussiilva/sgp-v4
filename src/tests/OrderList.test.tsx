@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import OrderList from '../components/OrderList';
 
 // Mock Tauri API
-vi.mock('@tauri-apps/api/tauri', () => ({
+vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn().mockResolvedValue([]),
 }));
 
@@ -39,5 +39,4 @@ describe('OrderList Component', () => {
     expect(screen.getByText('PDF')).toBeInTheDocument();
   });
 });
-
 

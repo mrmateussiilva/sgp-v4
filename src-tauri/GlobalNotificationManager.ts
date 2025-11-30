@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
 // Tipos para as notificações
@@ -246,4 +246,3 @@ export function GlobalNotificationExample() {
     </div>
   );
 }
-

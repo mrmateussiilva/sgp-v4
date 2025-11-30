@@ -74,7 +74,7 @@ pnpm test useNotifications
 ### Tauri API
 
 - `@tauri-apps/api/event`: `emit` e `listen` mockados
-- `@tauri-apps/api/tauri`: `invoke` mockado
+- `@tauri-apps/api/core`: `invoke` mockado
 - `@tauri-apps/api/shell`: `open` mockado
 
 ### API HTTP
@@ -89,4 +89,3 @@ Todos os endpoints são mockados via MSW:
 - Os testes não dependem da intranet ou API real
 - Fake timers são usados para testar polling (useNotifications)
 - Componentes são renderizados com providers necessários (BrowserRouter, Toast)
-

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 // Tipos para as notificações
 export interface OrderNotification {
@@ -200,4 +200,3 @@ export function useGlobalStableNotifications() {
   
   return useStableNotifications(globalClientId);
 }
-

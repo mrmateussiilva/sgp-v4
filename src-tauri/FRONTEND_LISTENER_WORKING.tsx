@@ -4,7 +4,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 // Interface para a notificação
 interface OrderStatusNotification {
@@ -210,4 +210,3 @@ export function DebugEventListener() {
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 // Sistema de atalhos de teclado para DevTools
 // Este arquivo deve ser incluído no frontend para detectar atalhos de teclado
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 class DevToolsShortcuts {
     constructor() {
