@@ -1,6 +1,6 @@
 import type { AxiosAdapter, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AxiosError } from 'axios';
-import { Body, ResponseType, fetch, type HttpVerb } from '@tauri-apps/api/http';
+import { fetch } from '@tauri-apps/plugin-http';
 import { isTauri } from '@/utils/isTauri';
 
 function resolveUrl(config: AxiosRequestConfig): string {
@@ -23,68 +23,97 @@ function resolveUrl(config: AxiosRequestConfig): string {
   return url;
 }
 
-function mapResponseType(responseType?: AxiosRequestConfig['responseType']): ResponseType {
-  switch (responseType) {
-    case 'arraybuffer':
-    case 'blob':
-      return ResponseType.Binary;
-    case 'document':
-    case 'text':
-      return ResponseType.Text;
-    case 'json':
-    default:
-      return ResponseType.JSON;
-  }
-}
-
-function buildBody(data: unknown) {
+function buildBody(data: unknown): BodyInit | undefined {
   if (data === undefined || data === null) {
     return undefined;
   }
 
   if (typeof data === 'string') {
-    return Body.text(data);
+    return data;
   }
 
   if (data instanceof ArrayBuffer) {
-    return Body.bytes(new Uint8Array(data));
+    return data;
   }
 
   if (data instanceof Uint8Array) {
-    return Body.bytes(data);
+    // Converter Uint8Array para ArrayBuffer para compatibilidade com BodyInit
+    // Criar uma cópia para garantir que é um ArrayBuffer válido
+    return new Uint8Array(data).buffer;
   }
 
-  return Body.json(data as any);
-}
+  if (data instanceof FormData || data instanceof Blob) {
+    return data;
+  }
 
-function toHttpVerb(method?: string): HttpVerb {
-  const normalized = (method ?? 'GET').toUpperCase() as HttpVerb;
-  return normalized;
+  // Para objetos, converter para JSON string
+  return JSON.stringify(data);
 }
 
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
-  const method = toHttpVerb(config.method);
+  const method = (config.method ?? 'GET').toUpperCase();
 
-  const headers = (config.headers && typeof (config.headers as any).toJSON === 'function')
-    ? (config.headers as any).toJSON()
+  const headers = (config.headers && typeof (config.headers as Record<string, unknown>).toJSON === 'function')
+    ? (config.headers as { toJSON: () => Record<string, string> }).toJSON()
     : { ...(config.headers as Record<string, string> | undefined) };
 
-  const response = await fetch(url, {
+  // Se não houver Content-Type e os dados forem um objeto, definir como application/json
+  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData) && !(config.data instanceof Blob) && !(config.data instanceof ArrayBuffer) && !(config.data instanceof Uint8Array)) {
+    if (!headers['Content-Type'] && !headers['content-type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+  }
+
+  const fetchOptions: RequestInit & { timeout?: number } = {
     method,
     headers,
-    timeout: config.timeout,
-    responseType: mapResponseType(config.responseType),
     body: buildBody(config.data),
-  });
+  };
+
+  // timeout pode não estar disponível em todas as versões do plugin
+  if (config.timeout !== undefined) {
+    (fetchOptions as { timeout?: number }).timeout = config.timeout;
+  }
+
+  const response = await fetch(url, fetchOptions);
 
   const requestInfo = { url, method, headers };
 
+  // Processar a resposta baseado no responseType do Axios
+  let responseData: unknown;
+  const responseType = config.responseType || 'json';
+
+  try {
+    switch (responseType) {
+      case 'arraybuffer':
+        responseData = await response.arrayBuffer();
+        break;
+      case 'blob':
+        responseData = await response.blob();
+        break;
+      case 'text':
+        responseData = await response.text();
+        break;
+      case 'json':
+      default:
+        responseData = await response.json();
+        break;
+    }
+  } catch (error) {
+    // Se falhar ao parsear JSON, tentar como texto
+    if (responseType === 'json') {
+      responseData = await response.text();
+    } else {
+      throw error;
+    }
+  }
+
   const axiosResponse: AxiosResponse = {
-    data: response.data,
+    data: responseData,
     status: response.status,
-    statusText: response.ok ? 'OK' : '',
-    headers: response.headers ?? {},
+    statusText: response.statusText || (response.ok ? 'OK' : ''),
+    headers: Object.fromEntries(response.headers.entries()),
     config,
     request: requestInfo,
   };
