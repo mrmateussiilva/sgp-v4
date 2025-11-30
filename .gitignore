@@ -26,6 +26,9 @@ dist-ssr
 
 # Tauri
 src-tauri/target
+src-tauri/capabilities
+src-tauri/gen
+tmp-tauri-init
 
 # Environment
 .env
