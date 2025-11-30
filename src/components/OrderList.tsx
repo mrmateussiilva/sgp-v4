@@ -14,6 +14,8 @@ import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { formatDateForDisplay, ensureDateInputValue } from '@/utils/date';
+import { getCachedOrFetch, STATIC_TTL } from '@/utils/cache';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,6 +89,8 @@ export default function OrderList() {
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Debounce da busca para reduzir requisições durante digitação
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -145,14 +149,15 @@ export default function OrderList() {
   const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Carregar dados para filtros (vendedores + designers)
+  // Carregar dados para filtros (vendedores + designers) com cache
   useEffect(() => {
     let isMounted = true;
     const loadFilterData = async () => {
       try {
+        // Usar cache com TTL estendido para dados estáticos
         const [vendedoresData, designersData] = await Promise.all([
-          api.getVendedoresAtivos(),
-          api.getDesignersAtivos(),
+          getCachedOrFetch('vendedores_ativos', () => api.getVendedoresAtivos(), STATIC_TTL),
+          getCachedOrFetch('designers_ativos', () => api.getDesignersAtivos(), STATIC_TTL),
         ]);
         if (!isMounted) {
           return;
@@ -173,16 +178,20 @@ export default function OrderList() {
     };
   }, []);
 
-  useEffect(() => {
-    const uniqueCidades = Array.from(
+  // Otimização: usar useMemo para calcular cidades únicas
+  const uniqueCidades = useMemo(() => {
+    return Array.from(
       new Set(
         orders
           .map((order) => order.cidade_cliente)
           .filter((cidade): cidade is string => Boolean(cidade)),
       ),
     ).sort();
-    setCidades(uniqueCidades);
   }, [orders]);
+
+  useEffect(() => {
+    setCidades(uniqueCidades);
+  }, [uniqueCidades]);
 
   const extractErrorMessage = (error: unknown): string => {
     if (error instanceof Error) {
@@ -303,7 +312,7 @@ export default function OrderList() {
               : productionStatusFilter === 'pending'
                 ? OrderStatus.Pendente
                 : OrderStatus.Concluido,
-          cliente: searchTerm || undefined,
+          cliente: debouncedSearchTerm || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
           page: currentPage + 1,
@@ -366,7 +375,7 @@ export default function OrderList() {
         setLoading(false);
       }
     }
-  }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, searchTerm, toast, logout, navigate]);
+  }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, debouncedSearchTerm, toast, logout, navigate]);
 
   useEffect(() => {
     loadOrders();
@@ -374,7 +383,7 @@ export default function OrderList() {
 
   useEffect(() => {
     setPage(0);
-  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, searchTerm, rowsPerPage]);
+  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, debouncedSearchTerm, rowsPerPage]);
 
   const handleEdit = (order: OrderWithItems) => {
     setEditOrderId(order.id);
