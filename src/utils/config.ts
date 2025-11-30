@@ -1,5 +1,5 @@
-import { createDir, readTextFile, writeTextFile, removeFile } from '@tauri-apps/api/fs';
-import { appDir, join, dirname } from '@tauri-apps/api/path';
+import { mkdir, readTextFile, writeTextFile, remove } from '@tauri-apps/plugin-fs';
+import { appConfigDir, join, dirname } from '@tauri-apps/api/path';
 
 const CONFIG_FILENAME = 'api_config.json';
 
@@ -8,7 +8,7 @@ export interface AppConfig {
 }
 
 async function getConfigPath(): Promise<string> {
-  const dir = await appDir();
+  const dir = await appConfigDir();
   return await join(dir, CONFIG_FILENAME);
 }
 
@@ -34,14 +34,14 @@ export async function saveConfig(apiUrl: string): Promise<void> {
   const payload: AppConfig = { api_url: normalizedUrl };
   const path = await getConfigPath();
   const directory = await dirname(path);
-  await createDir(directory, { recursive: true });
+  await mkdir(directory, { recursive: true });
   await writeTextFile(path, JSON.stringify(payload));
 }
 
 export async function deleteConfig(): Promise<void> {
   try {
     const path = await getConfigPath();
-    await removeFile(path);
+    await remove(path);
   } catch {
     // Ignore errors when removing config
   }
