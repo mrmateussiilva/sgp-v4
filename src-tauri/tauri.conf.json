@@ -14,9 +14,7 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null,
-      "dangerousDisableAssetCspModification": false,
-      "dangerousRemoteDomainIpcAccess": []
+      "csp": null
     },
     "windows": [
       {
