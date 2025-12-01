@@ -3,7 +3,8 @@ import { applyTauriAdapter } from './tauriAxiosAdapter';
 
 // Endpoints para verificação de conexão (sem autenticação)
 // Tentar /health primeiro (se disponível), depois / (root)
-const STATUS_ENDPOINTS = ['/health', '/', '/api/health', '/api/'];
+// const STATUS_ENDPOINTS = ['/health', '/', '/api/health', '/api/'];
+const STATUS_ENDPOINTS = ['/health'];
 
 let API_BASE_URL = '';
 let authToken: string | null = null;
@@ -69,10 +70,10 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
     try {
       const fullUrl = `${normalized}${endpoint}`;
       console.log(`🔍 Tentando verificar conexão em: ${fullUrl}`);
-      
+
       // Criar uma requisição sem o interceptor de autenticação para verificação
-      const response = await apiClient.get(endpoint, { 
-        baseURL: normalized, 
+      const response = await apiClient.get(endpoint, {
+        baseURL: normalized,
         timeout,
         // Não enviar token de autenticação na verificação
         headers: {
@@ -81,9 +82,9 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
         // Aceitar qualquer status HTTP (mesmo 401/403/404) como indicação de que API está acessível
         validateStatus: () => true, // Aceitar qualquer status
       });
-      
+
       console.log(`✅ Endpoint ${endpoint} respondeu com status ${response.status}`);
-      
+
       // Se recebeu qualquer resposta HTTP (mesmo que seja erro), significa que API está acessível
       if (response.status >= 200 && response.status < 500) {
         return endpoint;
@@ -94,7 +95,7 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
       if (error instanceof AxiosError) {
         const fullUrl = `${normalized}${endpoint}`;
         lastResponse = error;
-        
+
         console.error(`❌ Erro ao verificar ${fullUrl}:`, {
           message: error.message,
           code: error.code,
@@ -104,7 +105,7 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
           // Se recebeu resposta HTTP (mesmo que erro), API está acessível
           isApiAccessible: error.response !== undefined,
         });
-        
+
         // Se recebeu resposta HTTP (mesmo que seja erro 401/403/404/307), API está acessível
         // Isso significa que conseguiu conectar ao servidor
         if (error.response && error.response.status < 500) {
@@ -128,12 +129,12 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
 
   if (lastError instanceof AxiosError) {
     // Melhorar mensagem de erro
-    const errorMessage = lastError.code === 'ECONNREFUSED' 
+    const errorMessage = lastError.code === 'ECONNREFUSED'
       ? `Não foi possível conectar ao servidor em ${normalized}. Verifique:\n- Se a API está rodando na porta 8000\n- Se o IP está correto (ex: 192.168.15.2:8000)\n- Se o firewall permite conexões\n- Se está na mesma rede`
       : lastError.code === 'ETIMEDOUT'
-      ? `Timeout ao conectar ao servidor em ${normalized}. Verifique a conexão de rede.`
-      : lastError.message || 'Erro desconhecido ao conectar à API';
-    
+        ? `Timeout ao conectar ao servidor em ${normalized}. Verifique a conexão de rede.`
+        : lastError.message || 'Erro desconhecido ao conectar à API';
+
     const enhancedError = new Error(errorMessage);
     // Adicionar erro original para debug
     Object.assign(enhancedError, { originalError: lastError });
