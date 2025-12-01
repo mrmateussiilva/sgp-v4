@@ -127,6 +127,8 @@ Com 20 clientes acessando o mesmo servidor:
 ### Problema: Cliente Tauri não consegue acessar API em outro computador
 **Data:** 2024-12-XX
 
+**IP do servidor:** 192.168.15.2:8000
+
 #### Alterações Realizadas
 
 1. **Capabilities do Tauri v2** (`src-tauri/capabilities/default.json`)
@@ -151,6 +153,14 @@ Com 20 clientes acessando o mesmo servidor:
 4. **Interface de Configuração** (`src/pages/ConfigApi.tsx`)
    - Mensagens de erro mais claras
    - Instruções para verificar firewall e rede
+
+5. **Correção de Endpoints de Verificação** (`src/services/apiClient.ts`)
+   - **Problema identificado:** Endpoint `/pedidos` retorna 307 e requer autenticação
+   - **Solução:** Mudado para usar `/health` como endpoint principal
+   - Adicionados endpoints alternativos: `/`, `/api/health`, `/api/`
+   - Lógica melhorada: Aceita qualquer resposta HTTP < 500 como indicação de que API está acessível
+   - Logs detalhados para debug em outros computadores
+   - Aceita respostas 401/403/404 como sucesso (significa que API está respondendo)
 
 ## Resumo das Otimizações
 
