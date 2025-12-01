@@ -14,12 +14,7 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null,
-      "capability": {
-        "network": {
-          "allowUnknownOrigins": true
-        }
-      }
+      "csp": null
     },
     "windows": [
       {
