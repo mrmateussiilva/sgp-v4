@@ -54,6 +54,8 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
   const method = (config.method ?? 'GET').toUpperCase();
 
+  console.log(`🌐 [Tauri Adapter] Fazendo requisição: ${method} ${url}`);
+
   const headers = (config.headers && typeof (config.headers as Record<string, unknown>).toJSON === 'function')
     ? (config.headers as { toJSON: () => Record<string, string> }).toJSON()
     : { ...(config.headers as Record<string, string> | undefined) };
@@ -76,7 +78,32 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     (fetchOptions as { timeout?: number }).timeout = config.timeout;
   }
 
-  const response = await fetch(url, fetchOptions);
+  console.log(`🌐 [Tauri Adapter] Opções de fetch:`, {
+    method,
+    url,
+    hasHeaders: !!headers,
+    hasBody: !!fetchOptions.body,
+    timeout: fetchOptions.timeout,
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, fetchOptions);
+    console.log(`✅ [Tauri Adapter] Resposta recebida:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url,
+    });
+  } catch (error) {
+    console.error(`❌ [Tauri Adapter] Erro na requisição:`, {
+      url,
+      method,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 
   const requestInfo = { url, method, headers };
 

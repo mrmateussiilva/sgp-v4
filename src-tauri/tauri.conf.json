@@ -14,7 +14,9 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousDisableAssetCspModification": false,
+      "dangerousRemoteDomainIpcAccess": []
     },
     "windows": [
       {
@@ -26,7 +28,7 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
-        "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.3:8000 --disable-features=BlockInsecurePrivateNetworkRequests"
+        "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.2:8000,http://192.168.15.3:8000,http://192.168.*:8000 --disable-features=BlockInsecurePrivateNetworkRequests --disable-web-security --allow-insecure-localhost"
       }
     ]
   },

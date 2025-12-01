@@ -162,6 +162,25 @@ Com 20 clientes acessando o mesmo servidor:
    - Logs detalhados para debug em outros computadores
    - Aceita respostas 401/403/404 como sucesso (significa que API está respondendo)
 
+6. **Configurações de Segurança do Tauri** (`src-tauri/tauri.conf.json`)
+   - Adicionadas flags do browser para permitir requisições de rede:
+     - `--disable-web-security`
+     - `--allow-insecure-localhost`
+     - `--unsafely-treat-insecure-origin-as-secure` com múltiplos IPs
+   - Atualizado IP no `unsafely-treat-insecure-origin-as-secure` para incluir 192.168.15.2:8000
+   - Adicionadas configurações de segurança explícitas
+
+7. **Capabilities do Tauri** (`src-tauri/capabilities/default.json`)
+   - Adicionados IPs específicos nas permissões HTTP:
+     - `http://192.168.15.2:*`
+     - `http://192.168.15.3:*`
+     - `http://192.168.0.*:*`
+
+8. **Logs de Debug no Adaptador Tauri** (`src/services/tauriAxiosAdapter.ts`)
+   - Adicionados logs detalhados para debug de requisições
+   - Logs mostram URL, método, headers, e resposta
+   - Facilita identificar problemas de conectividade em outros computadores
+
 ## Resumo das Otimizações
 
 ### Performance
