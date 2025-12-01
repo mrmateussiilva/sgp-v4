@@ -229,7 +229,7 @@ export interface UpdateOrderItemRequest {
 
 export interface UpdateOrderStatusRequest {
   id: number;
-  financeiro: boolean;
+  financeiro?: boolean;
   conferencia: boolean;
   sublimacao: boolean;
   costura: boolean;

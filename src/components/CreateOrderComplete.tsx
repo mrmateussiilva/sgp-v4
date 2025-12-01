@@ -513,7 +513,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             if (updatedOrder) {
               setCurrentOrder(updatedOrder);
               // Recarregar formulário com dados atualizados
-              await populateFormWithOrderData(updatedOrder);
+              populateFormFromOrder(updatedOrder);
             }
           } catch (error) {
             console.error('Erro ao recarregar pedido após evento:', error);
