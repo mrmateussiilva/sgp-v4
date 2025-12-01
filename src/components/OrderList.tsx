@@ -1615,10 +1615,10 @@ export default function OrderList() {
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <SmoothTableWrapper>
-              <Table className="w-full max-w-full">
+              <Table className="w-full">
               <TableHeader>
             <TableRow>
-                  <TableHead className="w-[44px] sticky left-0 z-10 bg-background border-r">
+                  <TableHead className="min-w-[40px] w-[40px] sticky left-0 z-10 bg-background border-r">
                     <Checkbox
                       checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
                       onCheckedChange={(checked) => {
@@ -1631,7 +1631,7 @@ export default function OrderList() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="w-[72px] sticky left-[44px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[60px] w-[60px] sticky left-[40px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('id')}
                   >
                     <div className="flex items-center">
@@ -1640,7 +1640,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('cliente')}
                   >
                     <div className="flex items-center">
@@ -1649,7 +1649,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[110px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[100px] w-[100px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('data_entrega')}
                   >
                     <div className="flex items-center">
@@ -1658,7 +1658,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[88px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[80px] w-[80px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('prioridade')}
                   >
                     <div className="flex items-center">
@@ -1667,7 +1667,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[140px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[120px] w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('cidade')}
                   >
                     <div className="flex items-center">
@@ -1675,13 +1675,13 @@ export default function OrderList() {
                       {getSortIcon('cidade')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Fin.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Conf.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Subl.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Cost.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Exp.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l">Ações</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Fin.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Conf.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Subl.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Cost.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Exp.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[80px] w-[80px]">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] w-[140px]">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
@@ -1692,7 +1692,7 @@ export default function OrderList() {
                     <TableCell className="sticky left-0 z-10 bg-background border-r">
                       <Skeleton className="h-4 w-4" />
                     </TableCell>
-                    <TableCell className="sticky left-[44px] z-10 bg-background border-r">
+                    <TableCell className="sticky left-[40px] z-10 bg-background border-r">
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
                     <TableCell>
@@ -1760,16 +1760,16 @@ export default function OrderList() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[44px] z-10 bg-background border-r">
+                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[40px] z-10 bg-background border-r">
                           #{order.numero || order.id}
                         </TableCell>
-                        <TableCell className="font-medium max-w-[220px] truncate">
+                        <TableCell className="font-medium min-w-[120px] truncate">
                           {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap min-w-[100px]">
                           {formatDateForDisplay(order.data_entrega, '-')}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap min-w-[80px]">
                           <Badge 
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
                             className="text-xs"
@@ -1777,7 +1777,7 @@ export default function OrderList() {
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[180px] truncate">
+                        <TableCell className="min-w-[120px] truncate">
                           {order.cidade_cliente && order.estado_cliente 
                             ? `${order.cidade_cliente}/${order.estado_cliente}`
                             : order.cidade_cliente || '-'}
@@ -1785,7 +1785,7 @@ export default function OrderList() {
                         
                         {/* Checkboxes de Status */}
                         {/* Financeiro - Apenas admins podem alterar */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1808,7 +1808,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
                           <Checkbox
                             checked={order.conferencia === true}
                             disabled={!order.financeiro}
@@ -1817,7 +1817,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
                           <Checkbox
                             checked={order.sublimacao === true}
                             disabled={!order.financeiro}
@@ -1834,7 +1834,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
                           <Checkbox
                             checked={order.costura === true}
                             disabled={!order.financeiro}
@@ -1843,7 +1843,7 @@ export default function OrderList() {
                   </TableCell>
                         
                         {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
                           <Checkbox
                             checked={order.expedicao === true}
                             disabled={!order.financeiro}
@@ -1852,7 +1852,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap min-w-[80px]">
                           <Badge 
                             variant={order.pronto ? 'success' : 'secondary'}
                             className="text-xs"
@@ -1860,7 +1860,7 @@ export default function OrderList() {
                             {order.pronto ? 'Pronto' : 'Em Andamento'}
                           </Badge>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px]">
                         <div className="flex justify-end gap-1">
                           <Button
                             size="icon"
