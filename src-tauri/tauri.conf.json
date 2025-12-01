@@ -14,7 +14,110 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": [
+          "'self'",
+          "https://com.sgp.desktop.localhost"
+        ],
+        "connect-src": [
+          "ipc:",
+          "https://ipc.localhost",
+          "https://com.sgp.desktop.localhost",
+          "http://localhost:*",
+          "http://127.0.0.1:*",
+          "http://192.168.15.2:8000",
+          "http://192.168.15.3:8000",
+          "http://192.168.0.0:8000",
+          "http://192.168.1.0:8000",
+          "http://192.168.2.0:8000",
+          "http://192.168.3.0:8000"
+        ],
+        "img-src": [
+          "'self'",
+          "data:",
+          "asset:",
+          "https://asset.localhost"
+        ],
+        "font-src": [
+          "'self'",
+          "data:",
+          "asset:"
+        ],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'"
+        ],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'"
+        ]
+      },
+      "devCsp": {
+        "default-src": [
+          "'self'",
+          "https://com.sgp.desktop.localhost",
+          "http://localhost:*"
+        ],
+        "connect-src": [
+          "ipc:",
+          "http://ipc.localhost",
+          "https://ipc.localhost",
+          "https://com.sgp.desktop.localhost",
+          "http://localhost:*",
+          "http://127.0.0.1:*",
+          "http://192.168.15.2:8000",
+          "http://192.168.15.3:8000",
+          "http://192.168.0.0:8000",
+          "http://192.168.1.0:8000",
+          "http://192.168.2.0:8000",
+          "http://192.168.3.0:8000"
+        ],
+        "img-src": [
+          "'self'",
+          "data:",
+          "asset:",
+          "https://asset.localhost"
+        ],
+        "font-src": [
+          "'self'",
+          "data:",
+          "asset:"
+        ],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'"
+        ],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'"
+        ]
+      },
+      "headers": {
+        "Access-Control-Allow-Origin": "https://com.sgp.desktop.localhost",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "Timing-Allow-Origin": [
+          "https://com.sgp.desktop.localhost"
+        ]
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APP/*",
+          "$RESOURCE/*"
+        ]
+      },
+      "pattern": {
+        "use": "brownfield"
+      },
+      "capabilities": [
+        "default"
+      ]
     },
     "windows": [
       {
