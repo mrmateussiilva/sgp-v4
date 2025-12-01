@@ -181,6 +181,12 @@ Com 20 clientes acessando o mesmo servidor:
    - Logs mostram URL, método, headers, e resposta
    - Facilita identificar problemas de conectividade em outros computadores
 
+9. **Correção do Header Origin** (`src/services/tauriAxiosAdapter.ts`)
+   - **Problema:** Tauri v2 requer header `Origin` em todas as requisições HTTP
+   - **Erro:** "missing Origin header" causava falha em requisições de rede
+   - **Solução:** Adicionado header `Origin` automaticamente baseado na URL da requisição
+   - Origin é extraído da URL: `protocol://host` (ex: `http://192.168.15.2:8000`)
+
 ## Resumo das Otimizações
 
 ### Performance
