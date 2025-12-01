@@ -80,10 +80,20 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
           if (error.response) {
             return `❌ API respondeu com status ${error.response.status}.`;
           }
-          if (error.code === AxiosError.ERR_NETWORK) {
-            return '❌ Não foi possível conectar à API. Verifique se ela está em execução.';
+          if (error.code === AxiosError.ERR_NETWORK || error.code === 'ECONNREFUSED') {
+            return `❌ Não foi possível conectar ao servidor em ${trimmed}. Verifique:\n- Se a API está rodando\n- Se o IP e porta estão corretos\n- Se o firewall permite conexões\n- Se está na mesma rede`;
           }
-          return '❌ Falha na comunicação com a API.';
+          if (error.code === 'ETIMEDOUT') {
+            return `❌ Timeout ao conectar ao servidor em ${trimmed}. Verifique a conexão de rede.`;
+          }
+          // Usar mensagem do erro se disponível
+          if (error.message && error.message.includes('Não foi possível conectar')) {
+            return error.message;
+          }
+          return `❌ Falha na comunicação com a API: ${error.message || 'Erro desconhecido'}`;
+        }
+        if (error instanceof Error) {
+          return error.message || '❌ Não foi possível verificar a conexão com a API.';
         }
         return '❌ Não foi possível verificar a conexão com a API.';
       })();

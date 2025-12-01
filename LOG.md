@@ -122,6 +122,36 @@ Com 20 clientes acessando o mesmo servidor:
 - **Polling otimizado:** Notificações usam cache para evitar requisições desnecessárias
 - **Debounce:** Busca com debounce reduz requisições durante digitação
 
+## Correções de Conectividade de Rede
+
+### Problema: Cliente Tauri não consegue acessar API em outro computador
+**Data:** 2024-12-XX
+
+#### Alterações Realizadas
+
+1. **Capabilities do Tauri v2** (`src-tauri/capabilities/default.json`)
+   - Adicionadas permissões explícitas para IPs de rede local:
+     - `http://localhost:*`
+     - `http://127.0.0.1:*`
+     - `http://192.168.*:*` (rede privada classe C)
+     - `http://10.*:*` (rede privada classe A)
+     - `http://172.16.*:*` (rede privada classe B)
+   - Mantidas permissões genéricas `http://*:*` e `https://*:*`
+
+2. **Timeout Aumentado** (`src/services/apiClient.ts`)
+   - Timeout padrão: 20s → 30s
+   - Timeout de verificação: 5s → 15s
+   - Melhor suporte para conexões de rede mais lentas
+
+3. **Melhor Tratamento de Erros** (`src/services/apiClient.ts`)
+   - Mensagens de erro mais descritivas
+   - Identificação específica de erros de conexão (ECONNREFUSED, ETIMEDOUT)
+   - Logs detalhados para debug
+
+4. **Interface de Configuração** (`src/pages/ConfigApi.tsx`)
+   - Mensagens de erro mais claras
+   - Instruções para verificar firewall e rede
+
 ## Resumo das Otimizações
 
 ### Performance

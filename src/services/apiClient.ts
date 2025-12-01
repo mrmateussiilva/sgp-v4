@@ -11,7 +11,7 @@ type ApiFailureListener = (error: AxiosError) => void;
 const listeners = new Set<ApiFailureListener>();
 
 const apiClient: AxiosInstance = axios.create({
-  timeout: 20000,
+  timeout: 30000, // Aumentar timeout para 30 segundos para conexões de rede
 });
 
 applyTauriAdapter(apiClient);
@@ -59,22 +59,50 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
   const normalized = normalizeBaseUrl(baseUrl);
   let lastError: unknown;
 
+  // Aumentar timeout para 15 segundos para dar tempo em conexões de rede
+  const timeout = 15000;
+
   for (const endpoint of STATUS_ENDPOINTS) {
     try {
-      const response = await apiClient.get(endpoint, { baseURL: normalized, timeout: 5000 });
+      const response = await apiClient.get(endpoint, { 
+        baseURL: normalized, 
+        timeout,
+        // Permitir requisições para qualquer origem em Tauri
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
       if (response.status >= 200 && response.status < 300) {
         return endpoint;
       }
     } catch (error) {
       lastError = error;
+      // Log mais detalhado para debug
+      if (error instanceof AxiosError) {
+        console.error(`Erro ao verificar ${endpoint} em ${normalized}:`, {
+          message: error.message,
+          code: error.code,
+          response: error.response?.status,
+          config: error.config?.url
+        });
+      }
     }
   }
 
   if (lastError instanceof AxiosError) {
-    throw lastError;
+    // Melhorar mensagem de erro
+    const errorMessage = lastError.code === 'ECONNREFUSED' 
+      ? `Não foi possível conectar ao servidor em ${normalized}. Verifique se a API está rodando e acessível na rede.`
+      : lastError.code === 'ETIMEDOUT'
+      ? `Timeout ao conectar ao servidor em ${normalized}. Verifique a conexão de rede.`
+      : lastError.message || 'Erro desconhecido ao conectar à API';
+    
+    const enhancedError = new Error(errorMessage);
+    (enhancedError as any).originalError = lastError;
+    throw enhancedError;
   }
 
-  throw new Error('API não respondeu aos endpoints de verificação.');
+  throw new Error(`API não respondeu aos endpoints de verificação em ${normalized}. Verifique se a API está rodando e acessível.`);
 }
 
 export function setAuthToken(token: string | null): void {
