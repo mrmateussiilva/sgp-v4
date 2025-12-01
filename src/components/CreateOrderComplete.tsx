@@ -489,6 +489,53 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
 
+  // Integração com eventos de pedidos em tempo real
+  // Quando o pedido sendo editado é atualizado em outra máquina, avisar o usuário
+  useEffect(() => {
+    if (!isEditMode || !selectedOrderId) {
+      return;
+    }
+
+    const { subscribeToOrderEvents, fetchOrderAfterEvent } = require('@/services/orderEvents');
+    
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderUpdated: async (orderId) => {
+        // Se o pedido sendo editado foi atualizado, recarregar dados
+        if (orderId === selectedOrderId) {
+          toast({
+            title: 'Pedido Atualizado',
+            description: 'Este pedido foi atualizado em outra máquina. Recarregando dados...',
+            variant: 'default',
+          });
+          
+          // Recarregar o pedido
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              setCurrentOrder(updatedOrder);
+              // Recarregar formulário com dados atualizados
+              await populateFormWithOrderData(updatedOrder);
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido após evento:', error);
+          }
+        }
+      },
+      onOrderCanceled: async (orderId) => {
+        // Se o pedido sendo editado foi cancelado, avisar
+        if (orderId === selectedOrderId) {
+          toast({
+            title: 'Pedido Cancelado',
+            description: 'Este pedido foi cancelado em outra máquina.',
+            variant: 'destructive',
+          });
+        }
+      },
+    }, false); // Não mostrar toast automático, vamos mostrar mensagens customizadas
+    
+    return unsubscribe;
+  }, [isEditMode, selectedOrderId, toast]);
+
   // Efeito para detectar ID da rota e entrar em modo edição automaticamente
   useEffect(() => {
     if (routeOrderId) {

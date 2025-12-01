@@ -70,6 +70,34 @@ export default function OrderList() {
     removeOrder,
   });
   
+  // Adicionar notificações toast para eventos de pedidos
+  useEffect(() => {
+    const { subscribeToOrderEvents } = require('@/services/orderEvents');
+    
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderCreated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+      onOrderUpdated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+      onOrderCanceled: async (orderId) => {
+        // useOrderAutoSync já remove o pedido, apenas logar
+        console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+    }, true, toast); // showToast = true, passar função toast
+    
+    return unsubscribe;
+  }, [toast]);
+  
   // Função para forçar sincronização manual (recarregar lista completa)
   const handleForceSync = async () => {
     console.log('🔄 Forçando sincronização manual...');
@@ -892,15 +920,15 @@ export default function OrderList() {
         }
 
         .order-item {
-          border: 2px solid #2563eb;
-          padding: 5mm;
-          margin-bottom: 5mm;
+          border: 1px solid #94a3b8;
+          padding: 3mm;
+          margin-bottom: 4mm;
           page-break-inside: avoid;
           display: grid;
-          grid-template-columns: 1.25fr 0.75fr;
-          gap: 4mm;
-          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          grid-template-columns: 1.3fr 0.7fr;
+          gap: 3mm;
+          background: #ffffff;
+          box-shadow: none;
           border-radius: 6px;
         }
 
@@ -911,7 +939,7 @@ export default function OrderList() {
         .left-column {
           display: flex;
           flex-direction: column;
-          gap: 2mm;
+          gap: 1.5mm;
         }
 
         .right-column {
@@ -921,17 +949,17 @@ export default function OrderList() {
         }
 
         .header-info {
-          font-size: 8.5pt;
+          font-size: 8pt;
           color: #0f172a;
-          margin-bottom: 3mm;
+          margin-bottom: 2mm;
           line-height: 1.3;
           background: #e5e7eb;
-          padding: 2mm 3mm;
+          padding: 1.5mm 2.5mm;
           border-radius: 4px;
           font-weight: 600;
           display: flex;
           flex-direction: column;
-          gap: 1mm;
+          gap: 0.8mm;
         }
 
         .header-main {
@@ -941,12 +969,12 @@ export default function OrderList() {
         }
 
         .header-os {
-          font-size: 10pt;
+          font-size: 9.5pt;
           font-weight: 800;
         }
 
         .header-client {
-          font-size: 9pt;
+          font-size: 8.5pt;
           font-weight: 600;
         }
 
@@ -960,7 +988,7 @@ export default function OrderList() {
         }
 
         .section-title {
-          font-size: 9.5pt;
+          font-size: 9pt;
           font-weight: 700;
           margin-bottom: 2mm;
           color: #111827;
@@ -975,17 +1003,19 @@ export default function OrderList() {
         }
 
         .item-details {
-          font-size: 9pt;
+          font-size: 8.5pt;
           line-height: 1.3;
           color: #111827;
           background: #ffffff;
-          padding: 1.5mm 2mm;
+          padding: 1.2mm 1.8mm;
           border-radius: 4px;
           border: 1px solid #d1d5db;
+          max-height: 30mm;
+          overflow: hidden;
         }
 
         .item-line {
-          margin-bottom: 1mm;
+          margin-bottom: 0.8mm;
           white-space: pre-wrap;
         }
 
@@ -1003,8 +1033,8 @@ export default function OrderList() {
           align-items: center;
           justify-content: center;
           border: 2px solid #e2e8f0;
-          padding: 3mm;
-          min-height: 110px;
+          padding: 2mm;
+          min-height: 80px;
           background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
           border-radius: 6px;
           box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -1012,7 +1042,7 @@ export default function OrderList() {
 
         .item-image-container img {
           max-width: 100%;
-          max-height: 180px;
+          max-height: 120px;
           object-fit: contain;
           border-radius: 4px;
           box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
@@ -1039,7 +1069,7 @@ export default function OrderList() {
         /* Otimização para 3 pedidos por página */
         .order-item {
           break-inside: avoid;
-          max-height: 90mm; /* Aproximadamente 1/3 de uma página A4 */
+          max-height: 85mm; /* Aproximadamente 1/3 de uma página A4 */
         }
 
         @media print {
@@ -1084,12 +1114,16 @@ export default function OrderList() {
         // Coletar dados usando a mesma lógica do modal
         const orderData = collectOrderData(item);
 
-        const basicHtml = orderData.basic.length > 0
-          ? orderData.basic.map((text) => `<div class="item-line">• ${text}</div>`).join('')
+        // Limitar quantidade de linhas para caber 3 itens por folha
+        const basicLines = orderData.basic.slice(0, 3);
+        const detailsLines = orderData.details.slice(0, 5);
+
+        const basicHtml = basicLines.length > 0
+          ? basicLines.map((text) => `<div class="item-line">• ${text}</div>`).join('')
           : '';
 
-        const detailsHtml = orderData.details.length > 0
-          ? orderData.details.map((text) => `<div class="item-line">• ${text}</div>`).join('')
+        const detailsHtml = detailsLines.length > 0
+          ? detailsLines.map((text) => `<div class="item-line">• ${text}</div>`).join('')
           : '<div class="item-line item-line-empty">Nenhum detalhe técnico informado</div>';
 
         const imageUrl = item.imagem?.trim();

@@ -80,6 +80,56 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
     };
   }, [open, selectedOrder?.id]);
 
+  // Integração com eventos de pedidos em tempo real
+  // Quando o pedido sendo visualizado é atualizado, recarregar dados
+  useEffect(() => {
+    if (!open || !selectedOrder) {
+      return;
+    }
+
+    const { subscribeToOrderEvents, fetchOrderAfterEvent } = require('@/services/orderEvents');
+    const { updateOrder: updateOrderInStore } = useOrderStore.getState();
+    
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderUpdated: async (orderId) => {
+        // Se o pedido sendo visualizado foi atualizado, recarregar dados
+        if (orderId === selectedOrder.id) {
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              // Atualizar no store
+              updateOrderInStore(updatedOrder);
+              // Recarregar histórico
+              try {
+                const entries = await api.getOrderHistory(orderId);
+                setHistory(entries);
+              } catch (error) {
+                console.error('Erro ao recarregar histórico:', error);
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido após evento:', error);
+          }
+        }
+      },
+      onOrderCanceled: async (orderId) => {
+        // Se o pedido sendo visualizado foi cancelado, atualizar status
+        if (orderId === selectedOrder.id) {
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              updateOrderInStore(updatedOrder);
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido cancelado:', error);
+          }
+        }
+      },
+    }, false); // Não mostrar toast automático na tela de detalhes
+    
+    return unsubscribe;
+  }, [open, selectedOrder?.id]);
+
   const getStatusVariant = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.Pendente:
