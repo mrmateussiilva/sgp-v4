@@ -114,9 +114,7 @@
       "pattern": {
         "use": "brownfield"
       },
-      "capabilities": [
-        "default"
-      ]
+      "capabilities": []
     },
     "windows": [
       {
