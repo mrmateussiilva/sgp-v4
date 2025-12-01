@@ -219,6 +219,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   return parsed.toFixed(2).replace('.', ',');
 }
 
+  function formatCurrencyBR(value: number): string {
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   function parseLocaleNumber(value?: string | number | null): number {
     if (value === null || value === undefined) {
       return 0;
@@ -231,14 +238,34 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return 0;
     }
     const compact = trimmed.replace(/\s+/g, '');
-    let normalized = compact;
-    if (compact.includes(',') && compact.includes('.')) {
-      normalized = compact.replace(/\./g, '').replace(',', '.');
-    } else if (compact.includes(',')) {
-      normalized = compact.replace(',', '.');
-    } else {
-      normalized = compact.replace(',', '.');
+    
+    // Remove caracteres não numéricos exceto vírgula e ponto
+    const cleaned = compact.replace(/[^\d,.-]/g, '');
+    
+    // Encontra a posição da última vírgula e do último ponto
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    
+    let normalized = cleaned;
+    
+    // Se tem vírgula e ponto, determinar qual é o separador decimal
+    if (lastComma > -1 && lastDot > -1) {
+      // O separador decimal é o que aparece por último
+      if (lastComma > lastDot) {
+        // Formato pt-BR: vírgula é decimal, ponto é milhar (ex: 70.000,00)
+        normalized = cleaned.replace(/\./g, '').replace(',', '.');
+      } else {
+        // Formato en-US: ponto é decimal, vírgula é milhar (ex: 70,000.00)
+        normalized = cleaned.replace(/,/g, '');
+      }
+    } else if (lastComma > -1) {
+      // Só tem vírgula: tratar como separador decimal
+      normalized = cleaned.replace(',', '.');
+    } else if (lastDot > -1) {
+      // Só tem ponto: tratar como separador decimal
+      normalized = cleaned;
     }
+    
     const parsed = Number.parseFloat(normalized);
     return Number.isNaN(parsed) ? 0 : parsed;
   }
@@ -912,7 +939,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
 
     // Calcular valor total do pedido
-    const valorTotal = parseLocaleNumber(calcularTotal());
+    const valorTotal = calcularTotal();
     if (valorTotal <= 0) {
       errors.valor_total = 'Valor total do pedido deve ser maior que zero';
     }
@@ -1340,10 +1367,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return totalBruto;
   };
 
-  const calcularTotal = () => {
+  const calcularTotal = (): number => {
     const valorItens = calcularValorItens();
     const frete = parseLocaleNumber(formData.valor_frete);
-    return (valorItens + frete).toFixed(2).replace('.', ',');
+    return valorItens + frete;
+  };
+
+  const calcularTotalFormatado = (): string => {
+    return formatCurrencyBR(calcularTotal());
   };
 
   const handleSalvar = () => {
@@ -2418,7 +2449,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             <div className="space-y-2">
               <Label className="text-base font-medium">Valor Total (R$)</Label>
               <Input
-                value={calcularTotal()}
+                value={calcularTotalFormatado()}
                 disabled
                 className={`bg-emerald-100 font-bold text-emerald-900 h-12 text-xl ${errors.valor_total ? 'border-red-500' : ''}`}
               />
@@ -2557,7 +2588,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0 ? 1 : quantidadeAdesivo);
                 }
                 
-                const valorFormatado = valorTotalItem.toFixed(2).replace('.', ',');
+                const valorFormatado = formatCurrencyBR(valorTotalItem);
                 
                 return (
                   <div key={tabId} className="text-sm mb-2">
@@ -2585,16 +2616,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>Valor Itens:</span>
-                  <span className="font-semibold">R$ {calcularValorItens().toFixed(2).replace('.', ',')}</span>
+                  <span className="font-semibold">R$ {formatCurrencyBR(calcularValorItens())}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Frete:</span>
-                  <span className="font-semibold">R$ {formData.valor_frete}</span>
+                  <span className="font-semibold">R$ {formatCurrencyBR(parseLocaleNumber(formData.valor_frete))}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg">
                   <span className="font-bold">Total:</span>
-                  <span className="font-bold text-emerald-700">R$ {calcularTotal()}</span>
+                  <span className="font-bold text-emerald-700">R$ {formatCurrencyBR(calcularTotal())}</span>
                 </div>
               </div>
             </div>

@@ -426,7 +426,11 @@ export type ReportTypeKey =
   | 'analitico_designer_painel'
   | 'analitico_entrega_painel'
   | 'sintetico_data'
+  | 'sintetico_data_entrada'
+  | 'sintetico_data_entrega'
   | 'sintetico_designer'
+  | 'sintetico_vendedor'
+  | 'sintetico_vendedor_designer'
   | 'sintetico_cliente'
   | 'sintetico_entrega';
 
@@ -435,6 +439,23 @@ export interface ReportRequestPayload {
   start_date?: string;
   end_date?: string;
   status?: string;
+  /**
+   * Define qual campo de data será usado como referência nos filtros e nos agrupamentos por data.
+   * - 'entrada': usa sempre `data_entrada`
+   * - 'entrega': usa sempre `data_entrega`
+   * - undefined: mantém o comportamento anterior (fallback entrega -> entrada -> created_at)
+   */
+  date_mode?: 'entrada' | 'entrega';
+  /**
+   * Filtro opcional por vendedor (parcial, case-insensitive).
+   * Usado para fechamento de comissão por vendedor.
+   */
+  vendedor?: string;
+  /**
+   * Filtro opcional por designer (parcial, case-insensitive).
+   * Usado para fechamento de comissão por designer.
+   */
+  designer?: string;
 }
 
 export interface ReportTotals {

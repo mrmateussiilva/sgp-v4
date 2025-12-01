@@ -42,8 +42,12 @@ const REPORT_OPTIONS: Record<
     { value: 'analitico_entrega_painel', label: 'Entrega × Tecido' },
   ],
   sintetico: [
-    { value: 'sintetico_data', label: 'Por Data' },
+    { value: 'sintetico_data', label: 'Por Data (automático)' },
+    { value: 'sintetico_data_entrada', label: 'Por Data de Entrada' },
+    { value: 'sintetico_data_entrega', label: 'Por Data de Entrega' },
+    { value: 'sintetico_vendedor', label: 'Por Vendedor' },
     { value: 'sintetico_designer', label: 'Por Designer' },
+    { value: 'sintetico_vendedor_designer', label: 'Por Vendedor/Designer' },
     { value: 'sintetico_cliente', label: 'Por Cliente' },
     { value: 'sintetico_entrega', label: 'Por Forma de Entrega' },
   ],
@@ -56,6 +60,9 @@ type FiltersState = {
   startDate: string;
   endDate: string;
   status: StatusOption;
+  dateMode: 'entrada' | 'entrega';
+  vendedor?: string;
+  designer?: string;
 };
 
 const QUICK_RANGES = [
@@ -109,6 +116,7 @@ export default function Fechamentos() {
     startDate: formatInputDate(firstDayOfMonth),
     endDate: formatInputDate(today),
     status: STATUS_OPTIONS[0],
+    dateMode: 'entrega',
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
@@ -150,6 +158,9 @@ export default function Fechamentos() {
       start_date: filters.startDate || undefined,
       end_date: filters.endDate || undefined,
       status: filters.status || undefined,
+      date_mode: filters.dateMode,
+      vendedor: filters.vendedor || undefined,
+      designer: filters.designer || undefined,
     };
 
     setLoading(true);
@@ -541,19 +552,19 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Filtro por Nome */}
+          {/* Filtro por Nome (cliente, vendedor, designer, etc.) */}
           {report && (
             <div className="space-y-2">
               <Label>Filtrar por nome</Label>
               <Input
                 type="text"
-                placeholder="Filtrar por nome..."
+                placeholder="Buscar por cliente, vendedor, designer ou descrição..."
                 value={nomeFilter}
                 onChange={(e) => setNomeFilter(e.target.value)}
                 className="bg-white"
               />
               <p className="text-sm text-muted-foreground">
-                Digite o nome da ficha ou descrição para filtrar os resultados
+                Digite um trecho do nome (cliente, vendedor, designer) ou da descrição para filtrar os resultados.
               </p>
             </div>
           )}
@@ -641,6 +652,24 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
+              <Label>Tipo de data</Label>
+              <Select
+                value={filters.dateMode}
+                onValueChange={(value) =>
+                  updateFilter('dateMode', value as FiltersState['dateMode'])
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrega">Data de entrega</SelectItem>
+                  <SelectItem value="entrada">Data de entrada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Status</Label>
               <Select
                 value={filters.status}
@@ -657,6 +686,34 @@ export default function Fechamentos() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Vendedor</Label>
+              <Input
+                type="text"
+                placeholder="Filtrar por vendedor..."
+                value={filters.vendedor ?? ''}
+                onChange={(event) => updateFilter('vendedor', event.target.value)}
+                className="bg-white"
+              />
+              <p className="text-sm text-muted-foreground">
+                Use para fechamento de comissão por vendedor (aceita parte do nome).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Designer</Label>
+              <Input
+                type="text"
+                placeholder="Filtrar por designer..."
+                value={filters.designer ?? ''}
+                onChange={(event) => updateFilter('designer', event.target.value)}
+                className="bg-white"
+              />
+              <p className="text-sm text-muted-foreground">
+                Combine com o vendedor para fechar comissão por par vendedor/designer.
+              </p>
             </div>
 
             <div className="flex flex-col gap-2 md:justify-end">
