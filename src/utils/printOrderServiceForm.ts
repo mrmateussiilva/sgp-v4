@@ -143,18 +143,29 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
 // ============================================================================
 
 const buildServiceFormHeader = (order: OrderWithItems): string => {
+  const orderId = (order.numero || order.id).toString();
   const customerName = order.customer_name || order.cliente || 'Não informado';
   const phone = order.telefone_cliente || '';
   const city = order.cidade_cliente || '';
   const state = order.estado_cliente || '';
   const location = [city, state].filter(Boolean).join('/') || 'Não informado';
-  
+
   const entradaDate = formatOrderDate(order.data_entrada || order.created_at);
   const entregaDate = formatOrderDate(order.data_entrega);
 
   return `
     <div class="service-form-header">
-      <div class="title">EMISSÃO FICHA DE SERVIÇO</div>
+      <div class="header-top">
+        <div class="header-title">
+          <div class="title">FICHA DE SERVIÇO</div>
+          <div class="subtitle">Uso interno de produção</div>
+        </div>
+        <div class="order-id-box">
+          <div class="order-id-label">Nº OS</div>
+          <div class="order-id-value">${escapeHtml(orderId)}</div>
+        </div>
+      </div>
+
       <div class="dates">
         <span class="date-label">Entrada:</span>
         <span class="date-value">${escapeHtml(entradaDate)}</span>
@@ -162,6 +173,7 @@ const buildServiceFormHeader = (order: OrderWithItems): string => {
         <span class="date-label">Entrega:</span>
         <span class="date-value">${escapeHtml(entregaDate)}</span>
       </div>
+
       <div class="customer-info">
         <span class="customer-name">${escapeHtml(customerName)}</span>
         <span class="customer-phone">${escapeHtml(phone)}</span>
@@ -172,7 +184,6 @@ const buildServiceFormHeader = (order: OrderWithItems): string => {
 };
 
 const buildServiceFormBody = (order: OrderWithItems, financials: OrderFinancials): string => {
-  const orderId = (order.numero || order.id).toString();
   const formaEnvio = order.forma_envio || '';
   const formaPagamento = order.forma_pagamento_id ? 'A definir' : '';
   
@@ -208,12 +219,9 @@ const buildServiceFormBody = (order: OrderWithItems, financials: OrderFinancials
 
   return `
     <div class="service-form-body">
+      <div class="section-header">Dados do Serviço</div>
       <table class="form-table">
         <tbody>
-          <tr>
-            <td class="field-label">Nro. OS:</td>
-            <td class="field-value">${escapeHtml(orderId)}</td>
-          </tr>
           <tr>
             <td class="field-label">Descrição:</td>
             <td class="field-value">${escapeHtml(descricao)}</td>
@@ -234,6 +242,12 @@ const buildServiceFormBody = (order: OrderWithItems, financials: OrderFinancials
             <td class="field-label">Tecido / Ilhós / Emendas / Overloque / Elástico:</td>
             <td class="field-value">${escapeHtml(tecido)} / ${escapeHtml(ilhos)} / ${escapeHtml(emendas)} / ${escapeHtml(overloque)} / ${escapeHtml(elastico)}</td>
           </tr>
+        </tbody>
+      </table>
+
+      <div class="section-header section-header-spaced">Valores</div>
+      <table class="form-table">
+        <tbody>
           <tr>
             <td class="field-label">Revisão / Expedição:</td>
             <td class="field-value">${escapeHtml(revisao)} / ${escapeHtml(expedicao)}</td>
@@ -331,9 +345,9 @@ const buildServiceFormStyles = (): string => `
   }
 
   body {
-    font-family: 'Courier New', 'Roboto Mono', monospace;
-    font-size: 11pt;
-    line-height: 1.2;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.3;
     color: #000;
     background: #fff;
     padding: 0;
@@ -345,6 +359,7 @@ const buildServiceFormStyles = (): string => `
     max-width: 190mm;
     margin: 0 auto;
     background: #fff;
+    padding: 0;
   }
 
   .service-form-single {
@@ -352,20 +367,58 @@ const buildServiceFormStyles = (): string => `
     border: 1px solid #999;
     margin-bottom: 8mm;
     background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
   }
 
   /* ========== CABEÇALHO ========== */
   .service-form-header {
     padding: 4mm 6mm 3mm 6mm;
     border-bottom: 1px solid #999;
+    background: #f8fafc;
   }
 
-  .title {
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8mm;
+    margin-bottom: 3mm;
+  }
+
+  .header-title .title {
     font-size: 14pt;
     font-weight: bold;
     margin-bottom: 3mm;
-    text-align: center;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .header-title .subtitle {
+    font-size: 8.5pt;
+    color: #64748b;
+  }
+
+  .order-id-box {
+    min-width: 28mm;
+    padding: 3mm 4mm;
+    border-radius: 4px;
+    border: 1px solid #0f172a;
+    background: #e2e8f0;
+    text-align: center;
+  }
+
+  .order-id-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #1e293b;
+  }
+
+  .order-id-value {
+    font-size: 13pt;
+    font-weight: 700;
+    margin-top: 1mm;
     letter-spacing: 0.5px;
   }
 
@@ -396,6 +449,7 @@ const buildServiceFormStyles = (): string => `
     align-items: center;
     font-size: 12pt;
     font-weight: bold;
+    margin-top: 1mm;
   }
 
   .customer-name {
@@ -404,6 +458,8 @@ const buildServiceFormStyles = (): string => `
 
   .customer-phone {
     margin: 0 8px;
+    font-size: 10pt;
+    font-weight: normal;
   }
 
   .customer-location {
@@ -413,7 +469,22 @@ const buildServiceFormStyles = (): string => `
 
   /* ========== CORPO DA FICHA ========== */
   .service-form-body {
-    padding: 3mm 6mm;
+    padding: 3mm 6mm 4mm 6mm;
+  }
+
+  .section-header {
+    font-size: 10pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #1e293b;
+    padding: 1mm 0;
+    margin-bottom: 2mm;
+    border-bottom: 1px solid #cbd5f5;
+  }
+
+  .section-header-spaced {
+    margin-top: 4mm;
   }
 
   .form-table {
@@ -422,21 +493,21 @@ const buildServiceFormStyles = (): string => `
   }
 
   .form-table td {
-    padding: 2mm;
+    padding: 1.8mm 2mm;
     border: 1px solid #999;
     vertical-align: top;
-    font-size: 10pt;
+    font-size: 9.5pt;
   }
 
   .field-label {
     font-weight: bold;
-    width: 45%;
-    background: #f8f8f8;
+    width: 38%;
+    background: #f9fafb;
     border-right: 1px solid #999;
   }
 
   .field-value {
-    width: 55%;
+    width: 62%;
   }
 
   .financial-row .field-value {
@@ -484,7 +555,7 @@ const buildServiceFormStyles = (): string => `
   }
 
   .observations .field-value {
-    min-height: 12mm;
+    min-height: 18mm;
     border: 1px solid #999;
     padding: 2mm;
     background: #fff;
