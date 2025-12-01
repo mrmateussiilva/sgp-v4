@@ -351,11 +351,14 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto p-6">
         <Routes>
           <Route path="/" element={<DashboardOverview />} />
-          <Route path="/orders" element={<OrderList />} />
-          <Route path="/orders/new" element={<PedidoCreateView />} />
-          <Route path="/orders/edit/:id" element={<PedidoEditView />} />
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/relatorios-envios" element={<RelatoriosEnvios />} />
+          <Route path="orders" element={<OrderList />} />
+          <Route path="orders/new" element={<PedidoCreateView />} />
+          <Route path="orders/edit/:id" element={<PedidoEditView />} />
+          {/* Novas rotas conforme solicitado */}
+          <Route path="pedido/novo" element={<PedidoCreateView />} />
+          <Route path="pedido/editar/:id" element={<PedidoEditView />} />
+            <Route path="clientes" element={<Clientes />} />
+            <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
             <Route
               path="painel-desempenho"
               element={

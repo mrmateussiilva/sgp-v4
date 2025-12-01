@@ -377,9 +377,9 @@ export default function OrderList() {
   }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, searchTerm, rowsPerPage]);
 
   const handleEdit = (order: OrderWithItems) => {
-    setEditOrderId(order.id);
-    setSelectedOrder(order);
-    setEditDialogOpen(true);
+    // Navegar para a página de edição completa usando a nova rota
+    // Como o Dashboard está em /dashboard/*, precisamos incluir o prefixo
+    navigate(`/dashboard/pedido/editar/${order.id}`);
   };
 
   const handleView = (order: OrderWithItems) => {
