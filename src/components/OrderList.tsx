@@ -921,41 +921,81 @@ export default function OrderList() {
         }
 
         .header-info {
-          font-size: 8pt;
-          color: #475569;
+          font-size: 8.5pt;
+          color: #0f172a;
           margin-bottom: 3mm;
           line-height: 1.3;
-          background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
-          color: white;
+          background: #e5e7eb;
           padding: 2mm 3mm;
           border-radius: 4px;
           font-weight: 600;
+          display: flex;
+          flex-direction: column;
+          gap: 1mm;
         }
 
-        .header-info strong {
-          color: #fbbf24;
-          font-weight: 700;
+        .header-main {
+          display: flex;
+          align-items: center;
+          gap: 4mm;
+        }
+
+        .header-os {
+          font-size: 10pt;
+          font-weight: 800;
+        }
+
+        .header-client {
+          font-size: 9pt;
+          font-weight: 600;
+        }
+
+        .header-secondary {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 3mm;
+          font-size: 8pt;
+          font-weight: 500;
+          color: #374151;
         }
 
         .section-title {
-          font-size: 11pt;
-          font-weight: 800;
+          font-size: 9.5pt;
+          font-weight: 700;
           margin-bottom: 2mm;
-          color: #1e40af;
-          border-bottom: 2px solid #3b82f6;
+          color: #111827;
+          border-bottom: 1px solid #9ca3af;
           padding-bottom: 1mm;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
 
+        .section-title-compact {
+          margin-top: 1mm;
+        }
+
         .item-details {
           font-size: 9pt;
-          line-height: 1.4;
-          color: #334155;
-          background: #f1f5f9;
-          padding: 2mm;
+          line-height: 1.3;
+          color: #111827;
+          background: #ffffff;
+          padding: 1.5mm 2mm;
           border-radius: 4px;
-          border-left: 3px solid #3b82f6;
+          border: 1px solid #d1d5db;
+        }
+
+        .item-line {
+          margin-bottom: 1mm;
+          white-space: pre-wrap;
+        }
+
+        .item-line:last-child {
+          margin-bottom: 0;
+        }
+
+        .item-line-empty {
+          font-style: italic;
+          color: #6b7280;
         }
 
         .item-image-container {
@@ -1044,13 +1084,13 @@ export default function OrderList() {
         // Coletar dados usando a mesma lógica do modal
         const orderData = collectOrderData(item);
 
-        const basicText = orderData.basic.length > 0
-          ? orderData.basic.join(' • ')
+        const basicHtml = orderData.basic.length > 0
+          ? orderData.basic.map((text) => `<div class="item-line">• ${text}</div>`).join('')
           : '';
 
-        const detailsText = orderData.details.length > 0
-          ? orderData.details.join(' • ')
-          : 'Nenhum detalhe técnico informado';
+        const detailsHtml = orderData.details.length > 0
+          ? orderData.details.map((text) => `<div class="item-line">• ${text}</div>`).join('')
+          : '<div class="item-line item-line-empty">Nenhum detalhe técnico informado</div>';
 
         const imageUrl = item.imagem?.trim();
 
@@ -1058,24 +1098,33 @@ export default function OrderList() {
           <div class="order-item">
             <div class="left-column">
               <div class="header-info">
-                <strong>#${order.numero || order.id}</strong> • ${order.cliente || order.customer_name || '-'} • ${order.telefone_cliente || '-'} • ${order.cidade_cliente || '-'} / ${order.estado_cliente || '-'} • ${order.forma_envio || '-'} • <span class="${order.prioridade === 'ALTA' ? 'priority-high' : 'priority-normal'}">${order.prioridade || 'NORMAL'}</span>
+                <div class="header-main">
+                  <span class="header-os">#${order.numero || order.id}</span>
+                  <span class="header-client">${order.cliente || order.customer_name || '-'}</span>
+                </div>
+                <div class="header-secondary">
+                  <span>${order.telefone_cliente || '-'}</span>
+                  <span>${order.cidade_cliente || '-'} / ${order.estado_cliente || '-'}</span>
+                  <span>${order.forma_envio || '-'}</span>
+                  <span><span class="${order.prioridade === 'ALTA' ? 'priority-high' : 'priority-normal'}">${order.prioridade || 'NORMAL'}</span></span>
+                </div>
               </div>
 
-              ${basicText ? `
-                <div class="section-title">📋 Informações do Item</div>
+              ${basicHtml ? `
+                <div class="section-title">Informações do item</div>
                 <div class="item-details">
-                  <strong>${basicText}</strong>
+                  ${basicHtml}
                 </div>
               ` : ''}
 
-              <div class="section-title">🔧 Especificações Técnicas</div>
+              <div class="section-title section-title-compact">Especificações técnicas</div>
               <div class="item-details">
-                <strong>${detailsText}</strong>
+                ${detailsHtml}
               </div>
             </div>
 
             <div class="right-column">
-              <div class="section-title" style="text-align: center; margin-bottom: 2mm;">🖼️ Visual do Item</div>
+              <div class="section-title" style="text-align: center; margin-bottom: 2mm;">Visual do item</div>
               <div class="item-image-container">
                 ${imageUrl
                   ? `<img src="${imageUrl}" alt="Imagem do item" />`
