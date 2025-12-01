@@ -14,7 +14,12 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "csp": null
+      "csp": null,
+      "capability": {
+        "network": {
+          "allowUnknownOrigins": true
+        }
+      }
     },
     "windows": [
       {
@@ -52,6 +57,12 @@
   },
 
   "plugins": {
+    "http": {
+      "request": true,
+      "scope": ["http://*", "https://*"],
+      "allowLocalhostAccess": true,
+      "dangerousAllowUnknownOrigins": true
+    },
     "updater": {
       "active": true,
       "dialog": true,

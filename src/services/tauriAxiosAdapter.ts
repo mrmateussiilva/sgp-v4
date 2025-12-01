@@ -67,8 +67,8 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     }
   }
 
-  // Adicionar Origin header (requerido pelo Tauri v2 e backend FastAPI com allow_credentials=True)
-  // Garantir que headers seja um objeto
+  // Adicionar Origin header (requerido pelo Tauri v2 e backend FastAPI)
+  // O plugin HTTP do Tauri 2 não envia Origin automaticamente, então injetamos manualmente
   const finalHeaders: Record<string, string> = {
     ...headers,
     'Origin': 'tauri://localhost',
@@ -103,12 +103,29 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
       url: response.url,
     });
   } catch (error) {
+    // Tratamento específico para erros do plugin HTTP do Tauri
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isPluginError = errorMessage.includes('plugin:http') || errorMessage.includes('ipc.localhost');
+    
     console.error(`❌ [Tauri Adapter] Erro na requisição:`, {
       url,
       method,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
+      isPluginError,
       stack: error instanceof Error ? error.stack : undefined,
     });
+    
+    // Se for erro do plugin, criar um erro Axios mais descritivo
+    if (isPluginError) {
+      throw new AxiosError(
+        `Erro no plugin HTTP do Tauri: ${errorMessage}`,
+        AxiosError.ERR_NETWORK,
+        config,
+        { url, method, headers: finalHeaders },
+        undefined
+      );
+    }
+    
     throw error;
   }
 
