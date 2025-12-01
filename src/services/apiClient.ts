@@ -20,8 +20,8 @@ applyTauriAdapter(apiClient);
 
 apiClient.interceptors.request.use((config) => {
   if (authToken) {
-    const headers = config.headers ?? {};
-    (headers as any).Authorization = `Bearer ${authToken}`;
+    const headers = config.headers ?? {} as Record<string, string>;
+    headers.Authorization = `Bearer ${authToken}`;
     config.headers = headers;
   }
   return config;
@@ -135,7 +135,8 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
       : lastError.message || 'Erro desconhecido ao conectar à API';
     
     const enhancedError = new Error(errorMessage);
-    (enhancedError as any).originalError = lastError;
+    // Adicionar erro original para debug
+    Object.assign(enhancedError, { originalError: lastError });
     throw enhancedError;
   }
 
