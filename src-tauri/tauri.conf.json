@@ -26,11 +26,7 @@
           "http://localhost:*",
           "http://127.0.0.1:*",
           "http://192.168.15.2:8000",
-          "http://192.168.15.3:8000",
-          "http://192.168.0.0:8000",
-          "http://192.168.1.0:8000",
-          "http://192.168.2.0:8000",
-          "http://192.168.3.0:8000"
+          "http://192.168.15.3:8000"
         ],
         "img-src": [
           "'self'",
@@ -67,11 +63,7 @@
           "http://localhost:*",
           "http://127.0.0.1:*",
           "http://192.168.15.2:8000",
-          "http://192.168.15.3:8000",
-          "http://192.168.0.0:8000",
-          "http://192.168.1.0:8000",
-          "http://192.168.2.0:8000",
-          "http://192.168.3.0:8000"
+          "http://192.168.15.3:8000"
         ],
         "img-src": [
           "'self'",
@@ -97,11 +89,12 @@
       "headers": {
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cross-Origin-Resource-Policy": "same-origin",
+        "Cross-Origin-Opener-Policy": "unsafe-none",
+        "Cross-Origin-Embedder-Policy": "unsafe-none",
+        "Cross-Origin-Resource-Policy": "cross-origin",
         "Timing-Allow-Origin": [
-          "https://com.sgp.desktop.localhost"
+          "https://com.sgp.desktop.localhost",
+          "*"
         ]
       },
       "assetProtocol": {
@@ -128,7 +121,7 @@
         "useHttpsScheme": true,
         
         "fullscreen": false,
-        "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.2:8000,http://192.168.15.3:8000,http://192.168.*:8000 --disable-features=BlockInsecurePrivateNetworkRequests --disable-web-security --allow-insecure-localhost"
+        "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.2:8000,http://192.168.15.3:8000,http://192.168.*.*:8000,http://10.*.*.*:8000,http://172.16.*.*:8000 --disable-features=BlockInsecurePrivateNetworkRequests --disable-web-security --allow-insecure-localhost"
       }
     ]
   },
