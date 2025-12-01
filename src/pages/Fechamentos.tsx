@@ -121,8 +121,38 @@ export default function Fechamentos() {
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [nomeFilter, setNomeFilter] = useState<string>('');
+  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
+  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
+
+  // Carregar listas de vendedores e designers ativos para os filtros
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPeople = async () => {
+      try {
+        const [vendedoresResponse, designersResponse] = await Promise.all([
+          api.getVendedoresAtivos(),
+          api.getDesignersAtivos(),
+        ]);
+
+        if (!isMounted) return;
+
+        setVendedores(vendedoresResponse);
+        setDesigners(designersResponse);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Erro ao carregar vendedores/designers para filtros de fechamento:', error);
+      }
+    };
+
+    void loadPeople();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!availableOptions.some((option) => option.value === filters.reportType)) {
@@ -690,27 +720,49 @@ export default function Fechamentos() {
 
             <div className="space-y-2">
               <Label>Vendedor</Label>
-              <Input
-                type="text"
-                placeholder="Filtrar por vendedor..."
-                value={filters.vendedor ?? ''}
-                onChange={(event) => updateFilter('vendedor', event.target.value)}
-                className="bg-white"
-              />
+              <Select
+                value={filters.vendedor && filters.vendedor.length > 0 ? filters.vendedor : 'all'}
+                onValueChange={(value) =>
+                  updateFilter('vendedor', value === 'all' ? '' : (value as string))
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione um vendedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {vendedores.map((vendedor) => (
+                    <SelectItem key={vendedor.id} value={vendedor.nome}>
+                      {vendedor.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-sm text-muted-foreground">
-                Use para fechamento de comissão por vendedor (aceita parte do nome).
+                Use para fechamento de comissão por vendedor. A lista vem automaticamente do cadastro.
               </p>
             </div>
 
             <div className="space-y-2">
               <Label>Designer</Label>
-              <Input
-                type="text"
-                placeholder="Filtrar por designer..."
-                value={filters.designer ?? ''}
-                onChange={(event) => updateFilter('designer', event.target.value)}
-                className="bg-white"
-              />
+              <Select
+                value={filters.designer && filters.designer.length > 0 ? filters.designer : 'all'}
+                onValueChange={(value) =>
+                  updateFilter('designer', value === 'all' ? '' : (value as string))
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione um designer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {designers.map((designer) => (
+                    <SelectItem key={designer.id} value={designer.nome}>
+                      {designer.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-sm text-muted-foreground">
                 Combine com o vendedor para fechar comissão por par vendedor/designer.
               </p>

@@ -380,6 +380,31 @@ const toCurrencyString = (value: string | number | null | undefined): string => 
   return parseDecimal(value).toFixed(2);
 };
 
+/**
+ * Normaliza valores monetários vindos da API que podem estar em centavos.
+ *
+ * Exemplos:
+ * - 90          -> "90.00"
+ * - "90.00"     -> "90.00"
+ * - 9000        -> "90.00"   (valor em centavos)
+ * - "9000"      -> "90.00"   (valor em centavos)
+ */
+const normalizeApiMoney = (value: string | number | null | undefined): string | undefined => {
+  const numeric = parseDecimal(value);
+  if (!numeric) {
+    return undefined;
+  }
+
+  // Heurística: se o valor for maior ou igual a 1000 e inteiro,
+  // consideramos que está em centavos e dividimos por 100.
+  const adjusted =
+    numeric >= 1000 && Number.isInteger(numeric)
+      ? numeric / 100
+      : numeric;
+
+  return adjusted.toFixed(2);
+};
+
 const safeString = (value: unknown, fallback = ''): string => {
   if (value === null || value === undefined) {
     return fallback;
@@ -519,29 +544,30 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
     imagem: item.imagem ?? undefined,
     legenda_imagem: item.legenda_imagem ?? undefined,
     quantidade_paineis: item.quantidade_paineis ?? undefined,
-    valor_painel: item.valor_painel ?? undefined,
-    valores_adicionais: item.valores_adicionais ?? undefined,
-    valor_unitario: item.valor_unitario ?? undefined,
+    // Normalizar campos monetários que historicamente podem vir em centavos da API
+    valor_painel: normalizeApiMoney(item.valor_painel) ?? undefined,
+    valores_adicionais: normalizeApiMoney(item.valores_adicionais) ?? undefined,
+    valor_unitario: normalizeApiMoney(item.valor_unitario) ?? undefined,
     emenda: item.emenda ?? undefined,
     emenda_qtd: item.emenda_qtd ?? undefined,
     terceirizado: Boolean(item.terceirizado),
     acabamento_lona: item.acabamento_lona ?? undefined,
-    valor_lona: item.valor_lona ?? undefined,
     quantidade_lona: item.quantidade_lona ?? undefined,
-    outros_valores_lona: item.outros_valores_lona ?? undefined,
+    valor_lona: normalizeApiMoney(item.valor_lona) ?? undefined,
+    outros_valores_lona: normalizeApiMoney(item.outros_valores_lona) ?? undefined,
     tipo_adesivo: item.tipo_adesivo ?? undefined,
-    valor_adesivo: item.valor_adesivo ?? undefined,
     quantidade_adesivo: item.quantidade_adesivo ?? undefined,
-    outros_valores_adesivo: item.outros_valores_adesivo ?? undefined,
+    valor_adesivo: normalizeApiMoney(item.valor_adesivo) ?? undefined,
+    outros_valores_adesivo: normalizeApiMoney(item.outros_valores_adesivo) ?? undefined,
     ziper: Boolean(item.ziper),
     cordinha_extra: Boolean(item.cordinha_extra),
     alcinha: Boolean(item.alcinha),
     toalha_pronta: Boolean(item.toalha_pronta),
     acabamento_totem: item.acabamento_totem ?? undefined,
     acabamento_totem_outro: item.acabamento_totem_outro ?? undefined,
-    valor_totem: item.valor_totem ?? undefined,
     quantidade_totem: item.quantidade_totem ?? undefined,
-    outros_valores_totem: item.outros_valores_totem ?? undefined,
+    valor_totem: normalizeApiMoney(item.valor_totem) ?? undefined,
+    outros_valores_totem: normalizeApiMoney(item.outros_valores_totem) ?? undefined,
   };
 };
 
