@@ -341,7 +341,7 @@ export default function Fechamentos() {
     doc.rect(14, cursorY - 6, 182, 8, 'F');
     doc.text('TOTAL GERAL', 18, cursorY - 1);
     doc.text(
-      `Frete: ${formatCurrency(report.total.valor_frete)}  |  Serviços: ${formatCurrency(report.total.valor_servico)}`,
+      `Total: ${formatCurrency(report.total.valor_frete + report.total.valor_servico)}`,
       196,
       cursorY - 1,
       { align: 'right' },
@@ -823,8 +823,7 @@ export default function Fechamentos() {
               <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100 px-6 py-3 text-base text-slate-700 md:flex-row md:items-center md:justify-between">
                 <span>Total do período</span>
                 <span className="font-semibold text-slate-900">
-                  Frete: {formatCurrency(filteredReport.total.valor_frete)} | Serviços:{' '}
-                  {formatCurrency(filteredReport.total.valor_servico)}
+                  Total: {formatCurrency(filteredReport.total.valor_frete + filteredReport.total.valor_servico)}
                 </span>
               </div>
               <div className="bg-slate-50 px-6 py-3 text-base text-slate-500">
