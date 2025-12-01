@@ -67,11 +67,19 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     }
   }
 
-  // Adicionar Origin header (requerido pelo Tauri v2 e backend FastAPI)
-  // O plugin HTTP do Tauri 2 não envia Origin automaticamente, então injetamos manualmente
+  // Construir Origin header baseado na URL de destino (protocol://host)
+  // O plugin HTTP rejeita requisições sem um Origin HTTP/HTTPS válido
+  const requestOrigin = (() => {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return 'tauri://localhost';
+    }
+  })();
+
   const finalHeaders: Record<string, string> = {
     ...headers,
-    'Origin': 'tauri://localhost',
+    'Origin': requestOrigin,
   };
 
   const fetchOptions: RequestInit & { timeout?: number } = {
