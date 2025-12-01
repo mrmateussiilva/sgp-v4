@@ -67,14 +67,11 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     }
   }
 
-  // Adicionar Origin header (requerido pelo Tauri v2)
-  const urlObj = new URL(url);
-  const origin = `${urlObj.protocol}//${urlObj.host}`;
-  
+  // Adicionar Origin header (requerido pelo Tauri v2 e backend FastAPI com allow_credentials=True)
   // Garantir que headers seja um objeto
   const finalHeaders: Record<string, string> = {
     ...headers,
-    'Origin': origin,
+    'Origin': 'tauri://localhost',
   };
 
   const fetchOptions: RequestInit & { timeout?: number } = {
