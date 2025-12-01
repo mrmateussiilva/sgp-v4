@@ -1332,6 +1332,18 @@ export const api = {
     return true;
   },
 
+  deleteAllOrders: async (): Promise<boolean> => {
+    requireSessionToken();
+    await apiClient.delete('/pedidos/all');
+    return true;
+  },
+
+  resetOrderIds: async (): Promise<boolean> => {
+    requireSessionToken();
+    await apiClient.post('/pedidos/reset-ids');
+    return true;
+  },
+
   getOrdersWithFilters: async (filters: OrderFilters): Promise<PaginatedOrders> => {
     const orders = await fetchOrders();
     const statusFilter = filters.status;
