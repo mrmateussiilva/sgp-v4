@@ -114,14 +114,23 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     // Tratamento específico para erros do plugin HTTP do Tauri
     const errorMessage = error instanceof Error ? error.message : String(error);
     const isPluginError = errorMessage.includes('plugin:http') || errorMessage.includes('ipc.localhost');
+    const missingOrigin = errorMessage.includes('missing Origin header');
     
     console.error(`❌ [Tauri Adapter] Erro na requisição:`, {
       url,
       method,
       error: errorMessage,
       isPluginError,
+      missingOrigin,
       stack: error instanceof Error ? error.stack : undefined,
     });
+
+    if (missingOrigin) {
+      console.error(
+        'ℹ️ O WebView não enviou o header Origin para o IPC do Tauri. ' +
+        'Verifique se o app foi instalado com useHttpsScheme=true, se o runtime WebView2 está atualizado e se window.location.origin retorna https://<app>.localhost.'
+      );
+    }
     
     // Se for erro do plugin, criar um erro Axios mais descritivo
     if (isPluginError) {
