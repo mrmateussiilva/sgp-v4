@@ -25,6 +25,7 @@ import {
   UpdateOrderMetadataRequest,
 } from '@/types';
 import { api } from '@/services/api';
+import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
 import { FormTotemProducao } from '@/components/FormTotemProducao';
@@ -496,8 +497,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return;
     }
 
-    const { subscribeToOrderEvents, fetchOrderAfterEvent } = require('@/services/orderEvents');
-    
     const unsubscribe = subscribeToOrderEvents({
       onOrderUpdated: async (orderId) => {
         // Se o pedido sendo editado foi atualizado, recarregar dados

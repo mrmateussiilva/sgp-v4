@@ -1280,6 +1280,16 @@ export const api = {
       delete payload.financeiroStatus;
     }
     
+    // Debug: log do payload final antes de enviar
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📤 Payload de atualização de status:', {
+        pedido_id: request.id,
+        isFinanceiroUpdate,
+        payload: { ...payload },
+        temFinanceiro: 'financeiro' in payload,
+      });
+    }
+    
     // Fazer PATCH para atualizar o status
     await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
     

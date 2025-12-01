@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { AutoRefreshStatus } from './AutoRefreshStatus';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
+import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
@@ -69,34 +70,6 @@ export default function OrderList() {
     setOrders,
     removeOrder,
   });
-  
-  // Adicionar notificações toast para eventos de pedidos
-  useEffect(() => {
-    const { subscribeToOrderEvents } = require('@/services/orderEvents');
-    
-    const unsubscribe = subscribeToOrderEvents({
-      onOrderCreated: async (orderId) => {
-        // useOrderAutoSync já atualiza a lista, apenas logar
-        console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
-      },
-      onOrderUpdated: async (orderId) => {
-        // useOrderAutoSync já atualiza a lista, apenas logar
-        console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
-      },
-      onOrderCanceled: async (orderId) => {
-        // useOrderAutoSync já remove o pedido, apenas logar
-        console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
-      },
-    }, true, toast); // showToast = true, passar função toast
-    
-    return unsubscribe;
-  }, [toast]);
   
   // Função para forçar sincronização manual (recarregar lista completa)
   const handleForceSync = async () => {
@@ -173,6 +146,33 @@ export default function OrderList() {
   const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Adicionar notificações toast para eventos de pedidos
+  // IMPORTANTE: Este useEffect deve vir DEPOIS da declaração de toast
+  useEffect(() => {
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderCreated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+      onOrderUpdated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+      onOrderCanceled: async (orderId) => {
+        // useOrderAutoSync já remove o pedido, apenas logar
+        console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
+        setSyncCount(prev => prev + 1);
+        setLastSync(new Date());
+      },
+    }, true, toast); // showToast = true, passar função toast
+    
+    return unsubscribe;
+  }, [toast]);
+
   // Carregar dados para filtros (vendedores + designers)
   useEffect(() => {
     let isMounted = true;
@@ -246,24 +246,28 @@ export default function OrderList() {
     // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
     // O campo financeiro só deve ser incluído quando está sendo explicitamente alterado
     
-    // Usar valor atual do pedido para cálculos internos, mas não incluir no payload se não está sendo alterado
+    // Usar valor atual do pedido para cálculos internos
     const financeiroAtual = order.financeiro === true;
     
-    // Construir payload - financeiro será incluído apenas se estiver sendo alterado
-    // Para cálculos internos, usar valor atual; para envio, só incluir se mudou
+    // Construir payload - NÃO incluir financeiro se não está sendo alterado
     const payload: UpdateOrderStatusRequest = {
       id: order.id,
-      // Incluir financeiro APENAS se o campo sendo alterado é 'financeiro'
-      // Caso contrário, usar valor atual para cálculos, mas buildStatusPayload vai remover do payload final
-      financeiro: campo === 'financeiro' ? novoValor : financeiroAtual,
       conferencia: campo === 'conferencia' ? novoValor : order.conferencia === true,
       sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
       costura: campo === 'costura' ? novoValor : order.costura === true,
       expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
     };
     
-    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir
-    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
+    // Incluir financeiro APENAS se está sendo explicitamente alterado
+    if (campo === 'financeiro') {
+      payload.financeiro = novoValor;
+      // Marcar flag para buildStatusPayload saber que pode incluir
+      (payload as any)._isFinanceiroUpdate = true;
+    } else {
+      // NÃO incluir financeiro no payload quando não está sendo alterado
+      // Usar valor atual apenas para cálculos internos
+      (payload as any)._isFinanceiroUpdate = false;
+    }
 
     const existingMachine = order.sublimacao_maquina ?? null;
     const existingDate = order.sublimacao_data_impressao ?? null;
@@ -283,8 +287,10 @@ export default function OrderList() {
       payload.sublimacao_data_impressao = existingDate;
     }
 
+    // Para cálculo de "pronto", usar valor atual do pedido se financeiro não está sendo alterado
+    const financeiroParaCalculo = campo === 'financeiro' ? novoValor : financeiroAtual;
     const allComplete =
-      payload.financeiro && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
+      financeiroParaCalculo && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
 
     payload.pronto = allComplete;
     if (allComplete) {
@@ -294,7 +300,8 @@ export default function OrderList() {
         order.status === OrderStatus.Concluido ? OrderStatus.EmProcessamento : order.status;
     }
 
-    if (!payload.financeiro) {
+    // Se financeiro está sendo desmarcado, resetar todos os outros status
+    if (campo === 'financeiro' && !novoValor) {
       payload.conferencia = false;
       payload.sublimacao = false;
       payload.costura = false;
@@ -306,10 +313,6 @@ export default function OrderList() {
         payload.status = OrderStatus.EmProcessamento;
       }
     }
-
-    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir no payload final
-    // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
-    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
 
     return payload;
   };
@@ -1249,6 +1252,11 @@ export default function OrderList() {
     }
 
     const payload = buildStatusUpdatePayload(targetOrder, campo, novoValor);
+
+    // Debug: verificar se financeiro está no payload quando não deveria
+    if (campo !== 'financeiro' && 'financeiro' in payload) {
+      console.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
+    }
 
     try {
       const updatedOrder = await api.updateOrderStatus(payload);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOrderStore } from '../store/orderStore';
 import { OrderAuditLogEntry, OrderItem, OrderStatus } from '../types';
 import { api } from '@/services/api';
+import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
 import {
   Dialog,
   DialogContent,
@@ -87,7 +88,6 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
       return;
     }
 
-    const { subscribeToOrderEvents, fetchOrderAfterEvent } = require('@/services/orderEvents');
     const { updateOrder: updateOrderInStore } = useOrderStore.getState();
     
     const unsubscribe = subscribeToOrderEvents({
