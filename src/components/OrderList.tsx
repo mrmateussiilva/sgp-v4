@@ -1145,6 +1145,19 @@ export default function OrderList() {
 
   const handleConfirmStatusChange = async () => {
     const { pedidoId, campo, novoValor } = statusConfirmModal;
+    
+    // PROTEÇÃO CRÍTICA: Verificar se é tentativa de alterar financeiro sem permissão de admin
+    // Esta é uma camada extra de segurança além da verificação no handleStatusClick
+    if (campo === 'financeiro' && !isAdmin) {
+      toast({
+        title: "Acesso negado",
+        description: "Somente administradores podem alterar o status financeiro.",
+        variant: "destructive",
+      });
+      setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
+      return;
+    }
+    
     const targetOrder = orders.find((order) => order.id === pedidoId);
 
     if (!targetOrder) {
