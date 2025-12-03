@@ -124,7 +124,7 @@ export default function Dashboard() {
         <div className={cn("p-6 flex items-center", !sidebarExpanded && "justify-center p-4")}>
           {sidebarExpanded ? (
     <div>
-              <h1 className="text-2xl font-bold text-primary">SGP v4</h1>
+              <h1 className="text-4xl font-bold text-primary">SGP</h1>
               <p className="text-sm text-muted-foreground mt-1">Sistema de Gerenciamento</p>
             </div>
           ) : (

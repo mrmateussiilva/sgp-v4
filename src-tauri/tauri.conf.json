@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "com.sgp.desktop",
   "productName": "SGP - Sistema de Gerenciamento de Pedidos",
-  "version": "1.0.0",
+  "version": "1.0.1",
 
   "build": {
     "beforeDevCommand": "npm run dev",
