@@ -551,12 +551,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+      <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
         <div className="space-y-2">
           {entries.map((entry, index) => (
             <div
               key={`${entry.label}-${index}`}
-              className="flex flex-wrap items-baseline gap-2 text-sm"
+              className="flex flex-wrap items-baseline gap-2 text-xs sm:text-sm"
             >
               <span className={`font-semibold ${getVariantClasses(entry.variant)}`}>
                 {entry.label}:
@@ -745,10 +745,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className={`space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
+      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
+        <div className={`space-y-3 sm:space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
           {infoRows.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-4 py-3">
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
               {infoRows.map((row, index) => (
                 <div key={index}>{row}</div>
               ))}
@@ -758,16 +758,16 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           {renderDetailLines(detailEntries)}
 
           {filteredFallback.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
               {filteredFallback.map((entry) => (
                 <div
                   key={entry.key}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
                 >
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {entry.label}
                   </div>
-                  <div className="text-sm text-slate-900">{entry.value}</div>
+                  <div className="text-xs sm:text-sm text-slate-900">{entry.value}</div>
                 </div>
               ))}
             </div>
@@ -831,35 +831,33 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] h-[90vh] max-w-none max-h-none overflow-y-auto">
+      <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Pedido #{order.numero || order.id}</span>
-            <div className="flex gap-2">
-              <Button onClick={handlePrint} variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir
+          <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handlePrint} variant="outline" size="sm" className="text-xs sm:text-sm">
+                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Imprimir</span>
+                <span className="sm:hidden">Impr.</span>
               </Button>
-              <Button onClick={handlePrintServiceForm} variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Ficha de Serviço
+              <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
+                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Ficha de Serviço</span>
+                <span className="sm:hidden">Ficha</span>
               </Button>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Cabeçalho do Pedido */}
-          <div className="text-center border-b pb-4">
-            <h2 className="text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
+          <div className="text-center border-b pb-3">
+            <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
           </div>
 
           {/* Informações Principais */}
-          <div className="grid grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
             <div>
               <span className="font-semibold">Nome do Cliente:</span><br />
               {order.customer_name || order.cliente || 'Não informado'}
@@ -881,7 +879,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </div>
 
           {/* Datas e Forma de Envio */}
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
             <div>
               <span className="font-semibold">Data de Entrada:</span><br />
               {formatDate(order.data_entrada)}
@@ -900,7 +898,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
           {/* Itens */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Itens do Pedido</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-3">Itens do Pedido</h3>
 
             {order.items && order.items.length > 0 ? (
               <div className="space-y-3">
@@ -918,13 +916,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       <button
                         type="button"
                         onClick={toggleOpen}
-                        className="w-full bg-slate-50/60 px-4 py-3 text-left transition hover:bg-slate-100/80"
+                        className="w-full bg-slate-50/60 px-3 sm:px-4 py-2 sm:py-3 text-left transition hover:bg-slate-100/80"
                       >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <span className="text-sm font-semibold text-slate-500">#{index + 1}</span>
-                            <div>
-                              <div className="font-semibold text-slate-900">{item.item_name}</div>
+                        <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-2 sm:gap-3">
+                            <span className="text-xs sm:text-sm font-semibold text-slate-500">#{index + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm sm:text-base text-slate-900 truncate">{item.item_name}</div>
                               {hasDetailedData(item) ? (
                                 <div className="text-xs text-emerald-600">
                                   Clique para ver os detalhes completos
@@ -937,7 +935,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
                             <div className="font-medium">Qtd: {item.quantity}</div>
                             <ChevronDown
                               className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
@@ -949,7 +947,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </button>
 
                       {isOpen && (
-                        <div className="space-y-4 border-t border-slate-200 bg-white px-4 py-4">
+                        <div className="space-y-3 sm:space-y-4 border-t border-slate-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
                           {renderItemDetailsContent(item)}
                         </div>
                       )}
@@ -968,13 +966,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
           {/* Forma de Pagamento e Valores */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Forma de Pagamento - Valores</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <h3 className="text-base sm:text-lg font-semibold mb-3">Forma de Pagamento - Valores</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-semibold">Forma de Pagamento:</span><br />
                 {getFormaPagamentoNome(order.forma_pagamento_id)}
               </div>
-              <div className="text-right space-y-1">
+              <div className="text-left sm:text-right space-y-1">
                 <div>
                   <span className="font-semibold">Itens:</span>
                   <span className="ml-2 text-base font-medium text-slate-700">

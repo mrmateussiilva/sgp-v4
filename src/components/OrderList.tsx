@@ -1615,7 +1615,7 @@ export default function OrderList() {
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <SmoothTableWrapper>
-              <Table className="w-full">
+              <Table className="w-full min-w-[1050px]">
               <TableHeader>
             <TableRow>
                   <TableHead className="min-w-[40px] w-[40px] sticky left-0 z-10 bg-background border-r">
@@ -1631,57 +1631,57 @@ export default function OrderList() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="min-w-[60px] w-[60px] sticky left-[40px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[55px] sm:min-w-[60px] w-[55px] sm:w-[60px] sticky left-[40px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('id')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-xs sm:text-sm">
                       ID
                       {getSortIcon('id')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('cliente')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-xs sm:text-sm">
                       Nome Cliente
                       {getSortIcon('cliente')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[100px] w-[100px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[75px] sm:min-w-[90px] lg:min-w-[100px] w-[75px] sm:w-[90px] lg:w-[100px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('data_entrega')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-xs sm:text-sm">
                       Data Entrega
                       {getSortIcon('data_entrega')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[80px] w-[80px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] w-[60px] sm:w-[70px] lg:w-[80px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('prioridade')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-xs sm:text-sm">
                       Prioridade
                       {getSortIcon('prioridade')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[120px] w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] w-[80px] sm:w-[100px] lg:w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => handleSort('cidade')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-xs sm:text-sm">
                       Cidade/UF
                       {getSortIcon('cidade')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Fin.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Conf.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Subl.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Cost.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[50px] w-[50px]">Exp.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[80px] w-[80px]">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] w-[140px]">Ações</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Fin.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Conf.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Subl.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Cost.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Exp.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] w-[60px] sm:w-[70px] lg:w-[80px] text-xs sm:text-sm">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] sm:min-w-[120px] lg:min-w-[140px] w-[110px] sm:w-[120px] lg:w-[140px] text-xs sm:text-sm">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
@@ -1760,16 +1760,16 @@ export default function OrderList() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[40px] z-10 bg-background border-r">
+                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[40px] z-10 bg-background border-r text-xs sm:text-sm">
                           #{order.numero || order.id}
                         </TableCell>
-                        <TableCell className="font-medium min-w-[120px] truncate">
+                        <TableCell className="font-medium min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] truncate text-xs sm:text-sm">
                           {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[100px]">
+                        <TableCell className="whitespace-nowrap min-w-[75px] sm:min-w-[90px] lg:min-w-[100px] text-xs sm:text-sm">
                           {formatDateForDisplay(order.data_entrega, '-')}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[80px]">
+                        <TableCell className="whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px]">
                           <Badge 
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
                             className="text-xs"
@@ -1777,7 +1777,7 @@ export default function OrderList() {
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="min-w-[120px] truncate">
+                        <TableCell className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] truncate text-xs sm:text-sm">
                           {order.cidade_cliente && order.estado_cliente 
                             ? `${order.cidade_cliente}/${order.estado_cliente}`
                             : order.cidade_cliente || '-'}
@@ -1785,7 +1785,7 @@ export default function OrderList() {
                         
                         {/* Checkboxes de Status */}
                         {/* Financeiro - Apenas admins podem alterar */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1808,7 +1808,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
                           <Checkbox
                             checked={order.conferencia === true}
                             disabled={!order.financeiro}
@@ -1817,15 +1817,15 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
                           <Checkbox
                             checked={order.sublimacao === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
                           />
                           {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
-                            <div className="mt-1 text-[10px] text-muted-foreground leading-tight text-center">
-                              {order.sublimacao_maquina && <div>{order.sublimacao_maquina}</div>}
+                            <div className="mt-1 text-[9px] sm:text-[10px] text-muted-foreground leading-tight text-center">
+                              {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
                               {order.sublimacao_data_impressao && (
                                 <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
                               )}
@@ -1834,7 +1834,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
                           <Checkbox
                             checked={order.costura === true}
                             disabled={!order.financeiro}
@@ -1843,7 +1843,7 @@ export default function OrderList() {
                   </TableCell>
                         
                         {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
                           <Checkbox
                             checked={order.expedicao === true}
                             disabled={!order.financeiro}
@@ -1852,7 +1852,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[80px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px]">
                           <Badge 
                             variant={order.pronto ? 'success' : 'secondary'}
                             className="text-xs"
@@ -1860,7 +1860,7 @@ export default function OrderList() {
                             {order.pronto ? 'Pronto' : 'Em Andamento'}
                           </Badge>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px]">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] sm:min-w-[120px] lg:min-w-[140px]">
                         <div className="flex justify-end gap-1">
                           <Button
                             size="icon"
