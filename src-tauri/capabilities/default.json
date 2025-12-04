@@ -12,7 +12,15 @@
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-remove",
+    "fs:allow-write-file",
     "fs:scope-appconfig-recursive",
+    "fs:scope-appdata-recursive",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    },
     "http:default",
     "http:allow-fetch-cancel",
     "http:allow-fetch-read-body",
