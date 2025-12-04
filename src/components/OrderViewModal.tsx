@@ -844,9 +844,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 <Printer className="h-4 w-4 mr-2" />
                 Ficha de Serviço
               </Button>
-              <Button onClick={onClose} variant="outline" size="sm">
-                <X className="h-4 w-4" />
-              </Button>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
           </DialogTitle>
         </DialogHeader>
