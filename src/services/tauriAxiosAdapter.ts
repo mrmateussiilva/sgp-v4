@@ -1,6 +1,6 @@
 import type { AxiosAdapter, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AxiosError } from 'axios';
-import { Body, ResponseType, fetch, type HttpVerb } from '@tauri-apps/api/http';
+import { fetch } from '@tauri-apps/plugin-http';
 import { isTauri } from '@/utils/isTauri';
 
 function resolveUrl(config: AxiosRequestConfig): string {
@@ -23,68 +23,77 @@ function resolveUrl(config: AxiosRequestConfig): string {
   return url;
 }
 
-function mapResponseType(responseType?: AxiosRequestConfig['responseType']): ResponseType {
+async function getResponseData(response: Response, responseType?: AxiosRequestConfig['responseType']): Promise<any> {
   switch (responseType) {
     case 'arraybuffer':
+      return await response.arrayBuffer();
     case 'blob':
-      return ResponseType.Binary;
-    case 'document':
+      return await response.blob();
     case 'text':
-      return ResponseType.Text;
+      return await response.text();
     case 'json':
     default:
-      return ResponseType.JSON;
+      return await response.json();
   }
-}
-
-function buildBody(data: unknown) {
-  if (data === undefined || data === null) {
-    return undefined;
-  }
-
-  if (typeof data === 'string') {
-    return Body.text(data);
-  }
-
-  if (data instanceof ArrayBuffer) {
-    return Body.bytes(new Uint8Array(data));
-  }
-
-  if (data instanceof Uint8Array) {
-    return Body.bytes(data);
-  }
-
-  return Body.json(data as any);
-}
-
-function toHttpVerb(method?: string): HttpVerb {
-  const normalized = (method ?? 'GET').toUpperCase() as HttpVerb;
-  return normalized;
 }
 
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
-  const method = toHttpVerb(config.method);
+  const method = (config.method ?? 'GET').toUpperCase();
 
-  const headers = (config.headers && typeof (config.headers as any).toJSON === 'function')
-    ? (config.headers as any).toJSON()
-    : { ...(config.headers as Record<string, string> | undefined) };
+  const headers = new Headers();
+  if (config.headers) {
+    const headerObj = (config.headers && typeof (config.headers as any).toJSON === 'function')
+      ? (config.headers as any).toJSON()
+      : { ...(config.headers as Record<string, string> | undefined) };
+    
+    Object.entries(headerObj).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        headers.set(key, String(value));
+      }
+    });
+  }
 
-  const response = await fetch(url, {
+  const fetchOptions: RequestInit = {
     method,
     headers,
-    timeout: config.timeout,
-    responseType: mapResponseType(config.responseType),
-    body: buildBody(config.data),
+  };
+
+  if (config.data !== undefined && config.data !== null) {
+    if (typeof config.data === 'string') {
+      fetchOptions.body = config.data;
+    } else if (config.data instanceof ArrayBuffer) {
+      fetchOptions.body = config.data;
+    } else if (config.data instanceof Uint8Array) {
+      // Converter Uint8Array para ArrayBuffer para compatibilidade
+      fetchOptions.body = config.data.buffer.slice(
+        config.data.byteOffset,
+        config.data.byteOffset + config.data.byteLength
+      ) as ArrayBuffer;
+    } else if (config.data instanceof FormData || config.data instanceof Blob) {
+      fetchOptions.body = config.data;
+    } else {
+      fetchOptions.body = JSON.stringify(config.data);
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+    }
+  }
+
+  const response = await fetch(url, {
+    ...fetchOptions,
+    connectTimeout: config.timeout,
   });
 
-  const requestInfo = { url, method, headers };
+  const requestInfo = { url, method, headers: Object.fromEntries(headers.entries()) };
+
+  const data = await getResponseData(response, config.responseType);
 
   const axiosResponse: AxiosResponse = {
-    data: response.data,
+    data,
     status: response.status,
-    statusText: response.ok ? 'OK' : '',
-    headers: response.headers ?? {},
+    statusText: response.statusText,
+    headers: Object.fromEntries(response.headers.entries()),
     config,
     request: requestInfo,
   };

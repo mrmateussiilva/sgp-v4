@@ -361,8 +361,8 @@ export default function Fechamentos() {
       // Se estiver no Tauri, tentar usar shell.open
       if (isTauri()) {
         try {
-          const { save } = await import('@tauri-apps/api/dialog');
-          const { writeBinaryFile } = await import('@tauri-apps/api/fs');
+          const { save } = await import('@tauri-apps/plugin-dialog');
+          const { writeFile } = await import('@tauri-apps/plugin-fs');
           const { appDataDir } = await import('@tauri-apps/api/path');
 
           await appDataDir();
@@ -375,11 +375,11 @@ export default function Fechamentos() {
             // Converter blob para array de bytes
             const arrayBuffer = await blob.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
-            await writeBinaryFile(filePath, uint8Array);
+            await writeFile(filePath, uint8Array);
 
             // Tentar abrir o arquivo
             try {
-              const { open } = await import('@tauri-apps/api/shell');
+              const { open } = await import('@tauri-apps/plugin-shell');
               await open(filePath);
               toast({
                 title: 'Relatório exportado',

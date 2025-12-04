@@ -24,7 +24,7 @@ fn main() {
             test_devtools_system
         ])
         .setup(|app| {
-            info!("Janela principal pronta: {:?}", app.get_window("main").is_some());
+            info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
             info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");
             Ok(())
         })

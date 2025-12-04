@@ -7,7 +7,7 @@ pub async fn open_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Tentando abrir DevTools...");
     
     // Obter a janela principal
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.open_devtools();
         info!("DevTools aberto com sucesso!");
         Ok(())
@@ -23,7 +23,7 @@ pub async fn close_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Tentando fechar DevTools...");
     
     // Obter a janela principal
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.close_devtools();
         info!("DevTools fechado com sucesso!");
         Ok(())
@@ -39,7 +39,7 @@ pub async fn toggle_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Alternando estado do DevTools...");
     
     // Obter a janela principal
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         // Como não há toggle_devtools, vamos implementar uma lógica simples
         // Primeiro tenta abrir, se já estiver aberto, fecha
         window.open_devtools();
@@ -55,7 +55,7 @@ pub async fn toggle_devtools(app_handle: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn is_devtools_open(app_handle: AppHandle) -> Result<bool, String> {
     // Obter a janela principal
-    if let Some(_window) = app_handle.get_window("main") {
+    if let Some(_window) = app_handle.get_webview_window("main") {
         // Nota: O Tauri não tem um método direto para verificar se DevTools está aberto
         // Esta é uma implementação básica que sempre retorna false
         // Em uma implementação real, você poderia usar eventos ou outras técnicas
@@ -71,7 +71,7 @@ pub async fn test_devtools_system(app_handle: AppHandle) -> Result<String, Strin
     info!("Testando sistema DevTools...");
     
     // Obter a janela principal
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         // Testa abrir DevTools
         window.open_devtools();
         info!("✅ DevTools aberto com sucesso no teste");
