@@ -90,35 +90,71 @@ export const useRealtimeNotifications = () => {
       return;
     }
 
-    // Mostrar toast baseado no tipo de notificação
+    // Extrair informações adicionais do pedido
+    const clienteName = orderPayload?.cliente || orderPayload?.customer_name || 'Cliente';
+    const statusInfo = orderPayload?.status ? `Status: ${orderPayload.status}` : '';
+    
+    // Mostrar toast baseado no tipo de notificação com mais detalhes
     switch (notification.notification_type) {
       case NotificationType.OrderCreated:
         toast({
-          title: "Novo Pedido",
-          description: `Pedido #${notification.order_numero || notification.order_id} foi criado`,
+          title: "✨ Novo Pedido Criado",
+          description: (
+            <div className="space-y-1">
+              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
+              <p className="text-sm text-muted-foreground">{clienteName}</p>
+              {statusInfo && <p className="text-xs text-muted-foreground">{statusInfo}</p>}
+            </div>
+          ),
+          variant: "success",
         });
         break;
 
       case NotificationType.OrderUpdated:
         toast({
-          title: "Pedido Atualizado",
-          description: `Pedido #${notification.order_numero || notification.order_id} foi atualizado`,
+          title: "📝 Pedido Atualizado",
+          description: (
+            <div className="space-y-1">
+              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
+              <p className="text-sm text-muted-foreground">{clienteName}</p>
+            </div>
+          ),
+          variant: "info",
         });
         break;
 
       case NotificationType.OrderDeleted:
         toast({
-          title: "Pedido Excluído",
-          description: `Pedido #${notification.order_numero || notification.order_id} foi excluído`,
+          title: "🗑️ Pedido Excluído",
+          description: (
+            <div className="space-y-1">
+              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
+              <p className="text-sm text-muted-foreground">{clienteName}</p>
+            </div>
+          ),
+          variant: "destructive",
         });
         // Remover pedido da lista local
         removeOrder(notification.order_id);
         break;
 
       case NotificationType.OrderStatusChanged:
+        // Extrair detalhes da mudança de status
+        const statusDetails = extractStatusDetails(orderPayload);
         toast({
-          title: "Status Atualizado",
-          description: `Status do pedido #${notification.order_numero || notification.order_id} foi alterado`,
+          title: "🔄 Status Atualizado",
+          description: (
+            <div className="space-y-1">
+              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
+              <p className="text-sm text-muted-foreground">{clienteName}</p>
+              {statusDetails && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {statusDetails}
+                </div>
+              )}
+            </div>
+          ),
+          variant: "warning",
         });
         break;
     }
@@ -229,4 +265,31 @@ const normalizeEventType = (eventType: string): NotificationType => {
     default:
       return NotificationType.OrderUpdated;
   }
+};
+
+// Função para extrair detalhes de mudanças de status
+const extractStatusDetails = (orderPayload: any): string | null => {
+  if (!orderPayload) return null;
+  
+  const changes: string[] = [];
+  
+  if (orderPayload.financeiro) changes.push('Financeiro ✓');
+  if (orderPayload.conferencia) changes.push('Conferência ✓');
+  if (orderPayload.sublimacao) changes.push('Sublimação ✓');
+  if (orderPayload.costura) changes.push('Costura ✓');
+  if (orderPayload.expedicao) changes.push('Expedição ✓');
+  if (orderPayload.pronto) changes.push('Pronto ✓');
+  
+  if (orderPayload.status) {
+    const statusMap: Record<string, string> = {
+      'pendente': 'Pendente',
+      'em_producao': 'Em Produção',
+      'pronto': 'Pronto',
+      'entregue': 'Entregue',
+      'cancelado': 'Cancelado',
+    };
+    changes.push(`Status: ${statusMap[orderPayload.status] || orderPayload.status}`);
+  }
+  
+  return changes.length > 0 ? changes.join(' • ') : null;
 };

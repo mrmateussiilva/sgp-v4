@@ -13,6 +13,7 @@ import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
+import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { formatDateForDisplay, ensureDateInputValue } from '@/utils/date';
 import { Button } from '@/components/ui/button';
@@ -1761,7 +1762,10 @@ export default function OrderList() {
                           />
                         </TableCell>
                         <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[40px] z-10 bg-background border-r text-xs sm:text-sm">
-                          #{order.numero || order.id}
+                          <div className="flex items-center gap-2">
+                            #{order.numero || order.id}
+                            <EditingIndicator orderId={order.id} />
+                          </div>
                         </TableCell>
                         <TableCell className="font-medium min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] truncate text-xs sm:text-sm">
                           {order.cliente || order.customer_name}
