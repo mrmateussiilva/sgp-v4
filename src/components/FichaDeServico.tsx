@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
+import { normalizeImagePath, isValidImagePath } from '@/utils/path';
 
 interface FichaDeServicoProps {
   orderId: number;
@@ -243,6 +244,35 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
               </table>
             </div>
 
+            {/* Seção de Imagem */}
+            {item.imagem && isValidImagePath(item.imagem) && (
+              <div className="ficha-image-section">
+                <div className="ficha-image-container">
+                  <img
+                    src={normalizeImagePath(item.imagem)}
+                    alt={`Imagem do item ${item.item_name}`}
+                    className="ficha-image"
+                    onError={(event) => {
+                      const target = event.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
+                      if (placeholder) {
+                        (placeholder as HTMLElement).style.display = 'flex';
+                      }
+                    }}
+                  />
+                  <div className="ficha-image-placeholder" style={{ display: 'none' }}>
+                    <span>Imagem não disponível</span>
+                  </div>
+                </div>
+                {item.legenda_imagem && (
+                  <div className="ficha-image-caption">
+                    {item.legenda_imagem}
+                  </div>
+                )}
+              </div>
+            )}
+
             {detailEntries.length > 0 && (
               <div className="ficha-details">
                 <h4 className="ficha-details-title">Detalhes informados no cadastro do item</h4>
@@ -399,6 +429,51 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           border: 2px solid #999;
         }
 
+        .ficha-image-section {
+          padding: 3mm 6mm;
+          border-top: 1px solid #999;
+          background: #fff;
+        }
+
+        .ficha-image-container {
+          position: relative;
+          width: 100%;
+          max-width: 100%;
+          height: 80mm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #999;
+          background: #fafafa;
+          margin-bottom: 2mm;
+        }
+
+        .ficha-image {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+        }
+
+        .ficha-image-placeholder {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f0f0f0;
+          color: #999;
+          font-size: 10pt;
+        }
+
+        .ficha-image-caption {
+          text-align: center;
+          font-size: 10pt;
+          color: #333;
+          padding: 2mm;
+          background: #f8f8f8;
+          border: 1px solid #ddd;
+        }
+
         .ficha-details {
           padding: 3mm 6mm 1mm 6mm;
           background: #f6f8fb;
@@ -509,6 +584,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
           .ficha-header,
           .ficha-body,
+          .ficha-image-section,
           .ficha-footer {
             page-break-inside: avoid;
           }
