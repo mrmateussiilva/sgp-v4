@@ -4,7 +4,7 @@ import { OrderWithItems } from '../types';
 interface OrderState {
   orders: OrderWithItems[];
   selectedOrder: OrderWithItems | null;
-  setOrders: (orders: OrderWithItems[]) => void;
+  setOrders: (orders: OrderWithItems[] | ((prev: OrderWithItems[]) => OrderWithItems[])) => void;
   setSelectedOrder: (order: OrderWithItems | null) => void;
   addOrder: (order: OrderWithItems) => void;
   updateOrder: (order: OrderWithItems) => void;
