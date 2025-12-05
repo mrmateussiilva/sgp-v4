@@ -1243,12 +1243,12 @@ export const api = {
     const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
     const order = mapPedidoFromApi(response.data);
     
-    // Salvar pedido em JSON após criação
+    // Salvar pedido em JSON na API após criação
     try {
-      const { saveOrderToJson } = await import('../utils/saveOrderJson');
-      await saveOrderToJson(order);
+      await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+      console.log(`[api.createOrder] ✅ JSON do pedido ${order.id} salvo na API`);
     } catch (error) {
-      console.warn('[api.createOrder] Erro ao salvar JSON do pedido:', error);
+      console.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
     }
     
     return order;
@@ -1260,12 +1260,12 @@ export const api = {
     const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
     const order = mapPedidoFromApi(response.data);
     
-    // Salvar pedido em JSON após atualização
+    // Salvar pedido em JSON na API após atualização
     try {
-      const { saveOrderToJson } = await import('../utils/saveOrderJson');
-      await saveOrderToJson(order);
+      await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+      console.log(`[api.updateOrder] ✅ JSON do pedido ${order.id} salvo na API`);
     } catch (error) {
-      console.warn('[api.updateOrder] Erro ao salvar JSON do pedido:', error);
+      console.warn('[api.updateOrder] Erro ao salvar JSON do pedido na API:', error);
     }
     
     return order;
