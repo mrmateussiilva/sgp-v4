@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Package, Palette, Users, Truck, CreditCard, Settings, Trash2, RotateCcw } from 'lucide-react';
+import { Package, Palette, Users, Truck, CreditCard, Settings, Trash2, RotateCcw, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -110,6 +110,14 @@ export default function Admin() {
       path: '/dashboard/admin/usuarios',
       color: 'text-gray-500',
       bgColor: 'bg-gray-50 hover:bg-gray-100',
+    },
+    {
+      title: 'Template de Ficha',
+      description: 'Configure o template global da ficha de serviço',
+      icon: FileText,
+      path: '/dashboard/admin/template-ficha',
+      color: 'text-indigo-500',
+      bgColor: 'bg-indigo-50 hover:bg-indigo-100',
     },
   ];
 

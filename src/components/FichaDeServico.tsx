@@ -7,29 +7,20 @@ interface FichaDeServicoProps {
   orderId: number;
   sessionToken: string;
   onClose?: () => void;
-  editedFichaData?: OrderFicha | null;
 }
 
 const FichaDeServico: React.FC<FichaDeServicoProps> = ({ 
   orderId, 
   sessionToken, 
-  onClose,
-  editedFichaData 
+  onClose
 }) => {
   const [orderData, setOrderData] = useState<OrderFicha | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editedFichaData) {
-      // Se há dados editados, usar diretamente
-      setOrderData(editedFichaData);
-      setLoading(false);
-    } else {
-      // Caso contrário, carregar do servidor
-      loadOrderData();
-    }
-  }, [orderId, sessionToken, editedFichaData]);
+    loadOrderData();
+  }, [orderId, sessionToken]);
 
   const loadOrderData = async () => {
     try {
