@@ -10,6 +10,8 @@ import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { normalizeImagePath, isValidImagePath } from '@/utils/path';
+import FichaDeServicoButton from './FichaDeServicoButton';
+import { useAuthStore } from '../store/authStore';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 }) => {
   if (!order) return null;
 
+  const sessionToken = useAuthStore((state) => state.sessionToken) || '';
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
@@ -841,11 +844,19 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">Impr.</span>
               </Button>
-              <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
-                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Ficha de Serviço</span>
-                <span className="sm:hidden">Ficha</span>
-              </Button>
+              {sessionToken && (
+                <FichaDeServicoButton 
+                  order={order} 
+                  sessionToken={sessionToken} 
+                />
+              )}
+              {!sessionToken && (
+                <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
+                  <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Ficha de Serviço</span>
+                  <span className="sm:hidden">Ficha</span>
+                </Button>
+              )}
             </div>
           </DialogTitle>
         </DialogHeader>
