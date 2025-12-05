@@ -175,6 +175,7 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
                 onChange={handleChange}
                 className="mt-2"
                 disabled={isLoading}
+                noUppercase
               />
               <p className="text-sm text-gray-500 mt-1">
                 Exemplo: http://192.168.0.10:8000 ou http://seu-servidor:8000

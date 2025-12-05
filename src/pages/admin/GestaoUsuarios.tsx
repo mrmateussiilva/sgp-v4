@@ -356,6 +356,7 @@ export default function GestaoUsuarios() {
                 value={form.username}
                 onChange={(e) => handleChange('username', e.target.value)}
                 placeholder="Ex: joao.silva"
+                noUppercase
               />
             </div>
 

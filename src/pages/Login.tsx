@@ -85,6 +85,7 @@ export default function Login() {
                 autoFocus
                 autoComplete="username"
                 disabled={loading}
+                noUppercase
               />
             </div>
 

@@ -3,14 +3,16 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+  extends React.InputHTMLAttributes<HTMLInputElement> {
+  noUppercase?: boolean;
+}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, onChange, value, ...props }, ref) => {
+  ({ className, type, onChange, value, noUppercase, ...props }, ref) => {
     // Tipos que não devem ser convertidos para maiúsculas
     const excludedTypes = ['password', 'number', 'email', 'tel', 'url', 'date', 'time', 'datetime-local', 'month', 'week', 'file', 'hidden'];
     const inputType = type || 'text';
-    const shouldUppercase = !excludedTypes.includes(inputType);
+    const shouldUppercase = !noUppercase && !excludedTypes.includes(inputType);
 
     // Converte o value para maiúsculas se necessário
     const processedValue = React.useMemo(() => {

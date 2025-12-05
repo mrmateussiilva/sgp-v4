@@ -233,6 +233,7 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
                 value={form.user}
                 onChange={handleChange}
                 className="mt-1"
+                noUppercase
               />
             </div>
             
