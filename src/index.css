@@ -107,3 +107,28 @@
   width: 100%;
   height: 100vh;
 }
+
+/* Esconder modais durante a impressão */
+@media print {
+  /* Esconder todos os overlays e portais de modais (Radix UI) */
+  [data-radix-portal],
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-content],
+  /* Esconder elementos fixos que são claramente overlays de modais */
+  .fixed.inset-0.z-50[class*="backdrop"],
+  .fixed.inset-0.z-50.bg-black,
+  /* Esconder elementos com role="dialog" que são modais */
+  [role="dialog"][class*="fixed"],
+  /* Esconder portais do Radix UI e seus filhos */
+  [data-radix-portal],
+  [data-radix-portal] > * {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+  
+  /* Garantir que apenas o conteúdo principal seja impresso */
+  body {
+    overflow: visible !important;
+  }
+}
