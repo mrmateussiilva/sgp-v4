@@ -57,7 +57,13 @@ export const useRealtimeNotifications = () => {
   }, []);
 
   const handleNotification = useCallback((message: OrderEventMessage) => {
-    console.log('📨 Mensagem de notificação recebida:', message);
+    console.log('📨 Mensagem de notificação recebida:', {
+      type: message.type,
+      message_user_id: (message as Record<string, unknown>).user_id,
+      message_username: (message as Record<string, unknown>).username,
+      order: (message as Record<string, unknown>).order,
+    });
+    
     if (!message || !message.type) {
       return;
     }
@@ -76,6 +82,13 @@ export const useRealtimeNotifications = () => {
       ? (orderPayload.user_id as number)
       : undefined;
     const extractedUserId: number | undefined = messageUserId ?? orderUserId;
+
+    console.log('🔍 Extração de user_id:', {
+      messageUserId,
+      orderUserId,
+      extractedUserId,
+      currentUserId: userId,
+    });
 
     const notification: OrderNotification = {
       notification_type: normalizeEventType(message.type),
@@ -107,7 +120,7 @@ export const useRealtimeNotifications = () => {
       order_id: notification.order_id,
       notification_user_id: notification.user_id,
       current_user_id: userId,
-      will_show: notification.user_id !== userId,
+      will_show: !(notification.user_id && userId && notification.user_id === userId),
     });
 
     // Extrair informações adicionais do pedido
