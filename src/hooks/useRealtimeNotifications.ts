@@ -62,7 +62,7 @@ export const useRealtimeNotifications = () => {
       return;
     }
 
-    const orderPayload = (message as any).order;
+    const orderPayload = (message as OrderEventMessage & { order?: Record<string, unknown> }).order;
     const orderId =
       parseOrderId(message.order_id) ??
       parseOrderId(orderPayload?.id) ??
@@ -93,19 +93,14 @@ export const useRealtimeNotifications = () => {
     // Extrair informações adicionais do pedido
     const clienteName = orderPayload?.cliente || orderPayload?.customer_name || 'Cliente';
     const statusInfo = orderPayload?.status ? `Status: ${orderPayload.status}` : '';
+    const orderNum = notification.order_numero || notification.order_id;
     
     // Mostrar toast baseado no tipo de notificação com mais detalhes
     switch (notification.notification_type) {
       case NotificationType.OrderCreated:
         toast({
           title: "✨ Novo Pedido Criado",
-          description: (
-            <div className="space-y-1">
-              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
-              <p className="text-sm text-muted-foreground">{clienteName}</p>
-              {statusInfo && <p className="text-xs text-muted-foreground">{statusInfo}</p>}
-            </div>
-          ),
+          description: `Pedido #${orderNum}\n${clienteName}${statusInfo ? `\n${statusInfo}` : ''}`,
           variant: "success",
         });
         break;
@@ -113,12 +108,7 @@ export const useRealtimeNotifications = () => {
       case NotificationType.OrderUpdated:
         toast({
           title: "📝 Pedido Atualizado",
-          description: (
-            <div className="space-y-1">
-              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
-              <p className="text-sm text-muted-foreground">{clienteName}</p>
-            </div>
-          ),
+          description: `Pedido #${orderNum}\n${clienteName}`,
           variant: "info",
         });
         break;
@@ -126,37 +116,23 @@ export const useRealtimeNotifications = () => {
       case NotificationType.OrderDeleted:
         toast({
           title: "🗑️ Pedido Excluído",
-          description: (
-            <div className="space-y-1">
-              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
-              <p className="text-sm text-muted-foreground">{clienteName}</p>
-            </div>
-          ),
+          description: `Pedido #${orderNum}\n${clienteName}`,
           variant: "destructive",
         });
         // Remover pedido da lista local
         removeOrder(notification.order_id);
         break;
 
-      case NotificationType.OrderStatusChanged:
+      case NotificationType.OrderStatusChanged: {
         // Extrair detalhes da mudança de status
         const statusDetails = extractStatusDetails(orderPayload);
         toast({
           title: "🔄 Status Atualizado",
-          description: (
-            <div className="space-y-1">
-              <p className="font-medium">Pedido #{notification.order_numero || notification.order_id}</p>
-              <p className="text-sm text-muted-foreground">{clienteName}</p>
-              {statusDetails && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {statusDetails}
-                </div>
-              )}
-            </div>
-          ),
+          description: `Pedido #${orderNum}\n${clienteName}${statusDetails ? `\n${statusDetails}` : ''}`,
           variant: "warning",
         });
         break;
+      }
     }
 
     // Sempre recarregar lista de pedidos para qualquer notificação (exceto delete)

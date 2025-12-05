@@ -17,7 +17,7 @@ interface EditingState {
  * Hook para rastrear quais usuários estão editando quais pedidos em tempo real
  */
 export const useEditingTracker = () => {
-  const { userId: currentUserId, username: currentUsername } = useAuthStore();
+  const { userId: currentUserId } = useAuthStore();
   const [editingUsers, setEditingUsers] = useState<EditingState>({});
   const editingTimeoutRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const lastActivityRef = useRef<Map<number, number>>(new Map());

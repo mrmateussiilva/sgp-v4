@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { api } from '@/services/api';
+import React, { useEffect, useState } from 'react';
 import { OrderWithItems } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+
 // ScrollArea simples inline
 const ScrollArea = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`overflow-y-auto ${className}`}>{children}</div>
 );
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, User, FileText, AlertCircle } from 'lucide-react';
 // Função simples para formatar tempo relativo
@@ -50,7 +50,7 @@ interface OrderHistoryProps {
   onClose?: () => void;
 }
 
-export function OrderHistory({ order, onClose }: OrderHistoryProps) {
+export function OrderHistory({ order }: OrderHistoryProps) {
   const [history, setHistory] = useState<OrderHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
