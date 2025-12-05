@@ -1241,14 +1241,34 @@ export const api = {
     requireSessionToken();
     const payload = buildPedidoCreatePayload(request);
     const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
-    return mapPedidoFromApi(response.data);
+    const order = mapPedidoFromApi(response.data);
+    
+    // Salvar pedido em JSON após criação
+    try {
+      const { saveOrderToJson } = await import('../utils/saveOrderJson');
+      await saveOrderToJson(order);
+    } catch (error) {
+      console.warn('[api.createOrder] Erro ao salvar JSON do pedido:', error);
+    }
+    
+    return order;
   },
 
   updateOrder: async (request: UpdateOrderRequest): Promise<OrderWithItems> => {
     requireSessionToken();
     const payload = buildPedidoUpdatePayload(request);
     const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-    return mapPedidoFromApi(response.data);
+    const order = mapPedidoFromApi(response.data);
+    
+    // Salvar pedido em JSON após atualização
+    try {
+      const { saveOrderToJson } = await import('../utils/saveOrderJson');
+      await saveOrderToJson(order);
+    } catch (error) {
+      console.warn('[api.updateOrder] Erro ao salvar JSON do pedido:', error);
+    }
+    
+    return order;
   },
 
   updateOrderMetadata: async (request: UpdateOrderMetadataRequest): Promise<OrderWithItems> => {
