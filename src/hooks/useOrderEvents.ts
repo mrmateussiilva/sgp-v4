@@ -51,9 +51,16 @@ export const useOrderEvents = ({
     };
 
     const handleMessage = (message: OrderEventMessage) => {
-      console.log('📡 Evento WebSocket recebido:', message);
+      console.log('📡 [useOrderEvents] Evento WebSocket recebido:', {
+        type: message.type,
+        order_id: message.order_id,
+        has_order: !!(message as any).order,
+        full_message: message,
+      });
+      
       const type = message.type;
       if (!type) {
+        console.warn('⚠️ [useOrderEvents] Evento sem tipo:', message);
         return;
       }
 
@@ -63,11 +70,25 @@ export const useOrderEvents = ({
         parseOrderId(orderPayload?.id) ??
         parseOrderId(orderPayload?.order_id);
 
+      console.log('🔍 [useOrderEvents] OrderId extraído:', {
+        from_message: message.order_id,
+        from_order_payload: orderPayload?.id,
+        final_orderId: orderId,
+      });
+
       const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
 
       if (!orderId) {
-        console.warn('⚠️ Evento recebido sem order_id rastreável:', message);
+        console.warn('⚠️ [useOrderEvents] Evento recebido sem order_id rastreável:', message);
+        return; // Não processar se não tiver orderId
       }
+      
+      console.log('✅ [useOrderEvents] Handlers disponíveis:', {
+        onOrderCreated: !!onOrderCreated,
+        onOrderUpdated: !!onOrderUpdated,
+        onOrderDeleted: !!onOrderDeleted,
+        onOrderStatusUpdated: !!onOrderStatusUpdated,
+      });
 
       // Processar eventos na ordem correta para evitar conflitos
       if (type === 'order_created' && orderId) {

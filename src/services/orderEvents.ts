@@ -36,11 +36,12 @@ export interface ToastFunction {
  */
 const mapEventType = (type: string): OrderEventType | null => {
   // Backend pode enviar: pedido_criado, pedido_atualizado, pedido_cancelado
-  // Frontend também pode receber: order_created, order_updated, order_deleted (legado)
+  // Frontend também pode receber: order_created, order_updated, order_deleted, order_status_updated (legado)
   if (type === 'pedido_criado' || type === 'order_created') {
     return 'pedido_criado';
   }
-  if (type === 'pedido_atualizado' || type === 'order_updated') {
+  // order_status_updated também deve ser tratado como pedido_atualizado
+  if (type === 'pedido_atualizado' || type === 'order_updated' || type === 'order_status_updated') {
     return 'pedido_atualizado';
   }
   if (type === 'pedido_cancelado' || type === 'order_deleted' || type === 'order_canceled') {
