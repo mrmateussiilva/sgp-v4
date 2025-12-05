@@ -68,14 +68,21 @@ export const useRealtimeNotifications = () => {
       parseOrderId(orderPayload?.id) ??
       parseOrderId(orderPayload?.order_id);
 
+    // Extrair user_id da mensagem (pode estar na raiz ou no order)
+    const messageUserId = typeof (message as Record<string, unknown>).user_id === 'number'
+      ? (message as Record<string, unknown>).user_id as number
+      : undefined;
+    const orderUserId = typeof orderPayload?.user_id === 'number'
+      ? (orderPayload.user_id as number)
+      : undefined;
+    const extractedUserId: number | undefined = messageUserId ?? orderUserId;
+
     const notification: OrderNotification = {
       notification_type: normalizeEventType(message.type),
       order_id: orderId ?? 0,
       order_numero: typeof orderPayload?.numero === 'string' ? orderPayload.numero : undefined,
       timestamp: new Date().toISOString(),
-      user_id: typeof orderPayload?.user_id === 'number'
-        ? orderPayload.user_id
-        : undefined,
+      user_id: extractedUserId,
       details: typeof message.message === 'string' ? message.message : undefined,
     };
 
@@ -85,10 +92,23 @@ export const useRealtimeNotifications = () => {
     }
 
     // Não mostrar notificação para ações do próprio usuário
-    if (notification.user_id === userId) {
-      console.log('🚫 Notificação ignorada (próprio usuário)');
+    // Só filtrar se tivermos user_id na notificação E userId no store
+    if (notification.user_id && userId && notification.user_id === userId) {
+      console.log('🚫 Notificação ignorada (próprio usuário):', {
+        notification_user_id: notification.user_id,
+        current_user_id: userId,
+      });
       return;
     }
+
+    // Log para debug
+    console.log('✅ Notificação será exibida:', {
+      type: notification.notification_type,
+      order_id: notification.order_id,
+      notification_user_id: notification.user_id,
+      current_user_id: userId,
+      will_show: notification.user_id !== userId,
+    });
 
     // Extrair informações adicionais do pedido
     const clienteName = orderPayload?.cliente || orderPayload?.customer_name || 'Cliente';
