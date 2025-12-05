@@ -105,11 +105,16 @@ export const useRealtimeNotifications = () => {
     }
 
     // Não mostrar notificação para ações do próprio usuário
-    // Só filtrar se tivermos user_id na notificação E userId no store
-    if (notification.user_id && userId && notification.user_id === userId) {
+    // Só filtrar se tivermos user_id na notificação E userId no store E forem iguais
+    const isOwnAction = notification.user_id !== undefined 
+      && userId !== null 
+      && notification.user_id === userId;
+    
+    if (isOwnAction) {
       console.log('🚫 Notificação ignorada (próprio usuário):', {
         notification_user_id: notification.user_id,
         current_user_id: userId,
+        isOwnAction: true,
       });
       return;
     }
@@ -120,7 +125,8 @@ export const useRealtimeNotifications = () => {
       order_id: notification.order_id,
       notification_user_id: notification.user_id,
       current_user_id: userId,
-      will_show: !(notification.user_id && userId && notification.user_id === userId),
+      isOwnAction: false,
+      will_show: true,
     });
 
     // Extrair informações adicionais do pedido
