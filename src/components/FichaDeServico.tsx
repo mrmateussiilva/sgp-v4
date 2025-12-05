@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { normalizeImagePath, isValidImagePath } from '@/utils/path';
+import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
 
 interface FichaDeServicoProps {
   orderId: number;
@@ -18,10 +19,20 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
   const [orderData, setOrderData] = useState<OrderFicha | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     loadOrderData();
   }, [orderId, sessionToken]);
+
+  // Cleanup: revogar blob URLs quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      imageUrls.forEach((blobUrl, imagePath) => {
+        revokeImageUrl(imagePath);
+      });
+    };
+  }, [imageUrls]);
 
   const loadOrderData = async () => {
     try {
@@ -31,6 +42,21 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
       const data = await api.getOrderFicha(orderId);
       
       setOrderData(data);
+      
+      // Carregar imagens autenticadas
+      const imageUrlMap = new Map<string, string>();
+      for (const item of data.items) {
+        if (item.imagem && isValidImagePath(item.imagem)) {
+          try {
+            const blobUrl = await loadAuthenticatedImage(item.imagem);
+            imageUrlMap.set(item.imagem, blobUrl);
+          } catch (err) {
+            console.error(`Erro ao carregar imagem do item ${item.id}:`, err);
+            // Continuar mesmo se uma imagem falhar
+          }
+        }
+      }
+      setImageUrls(imageUrlMap);
     } catch (err) {
       console.error('Erro ao carregar dados da ficha:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -241,16 +267,28 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
               <div className="ficha-image-section">
                 <div className="ficha-image-container">
                   <img
-                    src={normalizeImagePath(item.imagem)}
+                    src={imageUrls.get(item.imagem) || normalizeImagePath(item.imagem)}
                     alt={`Imagem do item ${item.item_name}`}
                     className="ficha-image"
                     onError={(event) => {
+                      console.error('[FichaDeServico] Erro ao carregar imagem:', {
+                        originalPath: item.imagem,
+                        blobUrl: imageUrls.get(item.imagem),
+                        normalizedPath: normalizeImagePath(item.imagem),
+                        error: event
+                      });
                       const target = event.currentTarget as HTMLImageElement;
                       target.style.display = 'none';
                       const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
                       if (placeholder) {
                         (placeholder as HTMLElement).style.display = 'flex';
                       }
+                    }}
+                    onLoad={() => {
+                      console.log('[FichaDeServico] ✅ Imagem carregada com sucesso:', {
+                        originalPath: item.imagem,
+                        blobUrl: imageUrls.get(item.imagem)
+                      });
                     }}
                   />
                   <div className="ficha-image-placeholder" style={{ display: 'none' }}>

@@ -18,7 +18,7 @@ export function normalizeImagePath(path: string): string {
     return path;
   }
 
-  // Se for URL relativa que começa com "/" (ex: /pedidos/imagens/1), construir URL completa
+  // Se for URL relativa que começa com "/" (ex: /pedidos/imagens/1, /api/v1/pedidos/imagens/1), construir URL completa
   const normalized = path.replace(/\\/g, '/').trim();
   if (normalized.startsWith('/')) {
     try {
@@ -45,7 +45,8 @@ export function normalizeImagePath(path: string): string {
           const hostname = window.location.hostname;
           const port = window.location.port;
           // Tentar detectar a porta padrão da API (8000 ou 8001)
-          const apiPort = port || (protocol === 'https:' ? '443' : '8000');
+          // Se estiver em localhost:1420 (dev do Tauri), usar 8000 como padrão
+          const apiPort = port === '1420' ? '8000' : (port || (protocol === 'https:' ? '443' : '8000'));
           const fallbackUrl = `${protocol}//${hostname}:${apiPort}`;
           const fullUrl = `${fallbackUrl}${normalized}`;
           console.warn('[normalizeImagePath] ⚠️ Base URL não configurada, usando fallback:', {
