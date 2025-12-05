@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, ArrowLeft, GripVertical, X, Plus, Eye, Type, Calendar, User, DollarSign, Package, Edit2, ZoomIn, ZoomOut, Maximize2, RotateCcw } from 'lucide-react';
+import { FileText, Save, ArrowLeft, GripVertical, X, Plus, Eye, Type, Calendar, User, DollarSign, Package, Edit2, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,31 +11,32 @@ import { cn } from '@/lib/utils';
 
 interface TemplateField {
   id: string;
-  type: 'text' | 'date' | 'number' | 'currency' | 'table' | 'custom';
+  type: 'text' | 'date' | 'number' | 'currency' | 'table' | 'custom' | 'image';
   label: string;
   key: string; // Chave do dado
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number; // em mm
+  y: number; // em mm
+  width: number; // em mm
+  height: number; // em mm
   fontSize?: number;
   bold?: boolean;
   visible: boolean;
   editable: boolean;
+  imageUrl?: string; // Para campos de imagem
 }
 
 interface FichaTemplate {
   title: string;
   fields: TemplateField[];
-  width: number;
-  height: number;
+  width: number; // em mm
+  height: number; // em mm
   marginTop: number;
   marginBottom: number;
   marginLeft: number;
   marginRight: number;
 }
 
-const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'visible'>[] = [
+const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'visible' | 'editable'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
   { id: 'cliente', type: 'text', label: 'Cliente', key: 'cliente' },
   { id: 'telefone', type: 'text', label: 'Telefone', key: 'telefone_cliente' },
@@ -52,6 +53,7 @@ const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'vi
   { id: 'valor_frete', type: 'currency', label: 'Valor Frete', key: 'valor_frete' },
   { id: 'total', type: 'currency', label: 'Total', key: 'total_value' },
   { id: 'observacao', type: 'text', label: 'Observações', key: 'observacao' },
+  { id: 'imagem', type: 'image', label: 'Imagem', key: 'imagem' },
 ];
 
 const TEMPLATE_DEFAULT: FichaTemplate = {
@@ -63,16 +65,14 @@ const TEMPLATE_DEFAULT: FichaTemplate = {
   marginLeft: 15,
   marginRight: 15,
   fields: [
-    { id: 'title', type: 'text', label: 'Título', key: 'title', x: 50, y: 10, width: 90, height: 10, fontSize: 14, bold: true, visible: true, editable: true },
-    { id: 'numero_os', type: 'text', label: 'Nro. OS:', key: 'numero', x: 10, y: 25, width: 30, height: 5, visible: true, editable: true },
-    { id: 'cliente', type: 'text', label: 'Cliente:', key: 'cliente', x: 50, y: 25, width: 60, height: 5, visible: true, editable: true },
-    { id: 'data_entrada', type: 'date', label: 'Data Entrada:', key: 'data_entrada', x: 10, y: 35, width: 30, height: 5, visible: true, editable: true },
-    { id: 'data_entrega', type: 'date', label: 'Data Entrega:', key: 'data_entrega', x: 50, y: 35, width: 30, height: 5, visible: true, editable: true },
-    { id: 'descricao', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 45, width: 80, height: 10, visible: true, editable: true },
+    { id: 'title_field', type: 'text', label: 'EMISSÃO FICHA DE SERVIÇO', key: 'title', x: 50, y: 5, width: 90, height: 8, fontSize: 14, bold: true, visible: true, editable: true },
   ],
 };
 
 const STORAGE_KEY = 'ficha_template_visual_config';
+
+const mmToPx = (mm: number) => mm * 3.779527559; // 1mm = 3.779527559px
+const pxToMm = (px: number) => px / 3.779527559;
 
 export default function GestaoTemplateFicha() {
   const { toast } = useToast();
@@ -84,8 +84,8 @@ export default function GestaoTemplateFicha() {
   const [draggedField, setDraggedField] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.5); // Escala para visualização
   const [zoomLevel, setZoomLevel] = useState(50); // Porcentagem de zoom (50% = 0.5)
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   useEffect(() => {
     loadTemplate();
@@ -143,30 +143,58 @@ export default function GestaoTemplateFicha() {
   const handleDragStart = (e: React.DragEvent, fieldType: string) => {
     setDraggedField(fieldType);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', fieldType);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!draggedField || !canvasRef.current) return;
+    e.stopPropagation();
+    
+    const fieldId = e.dataTransfer.getData('text/plain');
+    if (!fieldId || !canvasRef.current) {
+      setDraggedField(null);
+      return;
+    }
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - canvasRect.left) / scale;
-    const y = (e.clientY - canvasRect.top) / scale;
+    const currentScale = zoomLevel / 100;
+    
+    // Calcular posição em pixels relativos ao canvas
+    const xPx = e.clientX - canvasRect.left;
+    const yPx = e.clientY - canvasRect.top;
+    
+    // Converter pixels para mm, considerando o scale
+    const xMm = pxToMm(xPx / currentScale);
+    const yMm = pxToMm(yPx / currentScale);
 
-    const fieldTemplate = AVAILABLE_FIELDS.find((f) => f.id === draggedField);
-    if (!fieldTemplate) return;
+    const fieldTemplate = AVAILABLE_FIELDS.find((f) => f.id === fieldId);
+    if (!fieldTemplate) {
+      setDraggedField(null);
+      return;
+    }
+
+    // Gerar ID único para o campo
+    const timestamp = Date.now();
+    const uniqueId = `${fieldId}_${timestamp}`;
 
     const newField: TemplateField = {
       ...fieldTemplate,
-      x: Math.max(0, x),
-      y: Math.max(0, y),
-      width: 40,
-      height: 5,
+      id: uniqueId,
+      x: Math.max(0, xMm),
+      y: Math.max(0, yMm),
+      width: fieldTemplate.type === 'image' ? 40 : 40,
+      height: fieldTemplate.type === 'image' ? 30 : 5,
       visible: true,
       editable: true,
     };
@@ -177,6 +205,13 @@ export default function GestaoTemplateFicha() {
     });
     setHasChanges(true);
     setDraggedField(null);
+    setSelectedField(uniqueId);
+    setIsDraggingOver(false);
+    
+    toast({
+      title: 'Campo Adicionado',
+      description: `${fieldTemplate.label} foi adicionado à ficha.`,
+    });
   };
 
   const handleFieldClick = (fieldId: string) => {
@@ -187,7 +222,7 @@ export default function GestaoTemplateFicha() {
     setTemplate({
       ...template,
       fields: template.fields.map((f) =>
-        f.id === fieldId ? { ...f, x: newX, y: newY } : f
+        f.id === fieldId ? { ...f, x: Math.max(0, newX), y: Math.max(0, newY) } : f
       ),
     });
     setHasChanges(true);
@@ -197,7 +232,7 @@ export default function GestaoTemplateFicha() {
     setTemplate({
       ...template,
       fields: template.fields.map((f) =>
-        f.id === fieldId ? { ...f, width: newWidth, height: newHeight } : f
+        f.id === fieldId ? { ...f, width: Math.max(5, newWidth), height: Math.max(5, newHeight) } : f
       ),
     });
     setHasChanges(true);
@@ -235,18 +270,17 @@ export default function GestaoTemplateFicha() {
   };
 
   const handleZoomFit = () => {
-    // Ajusta o zoom para caber na tela
     if (canvasRef.current) {
       const container = canvasRef.current.parentElement;
       if (container) {
-        const containerWidth = container.clientWidth - 64; // Margem
+        const containerWidth = container.clientWidth - 64;
         const containerHeight = container.clientHeight - 64;
         const pageWidth = mmToPx(template.width);
         const pageHeight = mmToPx(template.height);
         
         const scaleX = containerWidth / pageWidth;
         const scaleY = containerHeight / pageHeight;
-        const fitScale = Math.min(scaleX, scaleY, 1) * 100; // Não ultrapassar 100%
+        const fitScale = Math.min(scaleX, scaleY, 1) * 100;
         
         setZoomLevel(Math.max(25, Math.min(100, fitScale)));
       }
@@ -261,7 +295,19 @@ export default function GestaoTemplateFicha() {
     }
   };
 
-  const mmToPx = (mm: number) => mm * 3.779527559; // 1mm = 3.779527559px
+  const handleImageUpload = (fieldId: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageUrl = e.target?.result as string;
+      updateFieldProperty(fieldId, 'imageUrl', imageUrl);
+      toast({
+        title: 'Sucesso',
+        description: 'Imagem adicionada com sucesso!',
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const currentScale = zoomLevel / 100;
 
   return (
@@ -401,7 +447,10 @@ export default function GestaoTemplateFicha() {
         >
           <div
             ref={canvasRef}
-            className="bg-white shadow-2xl relative transition-transform"
+            className={cn(
+              "bg-white shadow-2xl relative transition-all",
+              isDraggingOver && "ring-2 ring-blue-500 ring-offset-2"
+            )}
             style={{
               width: `${mmToPx(template.width) * currentScale}px`,
               height: `${mmToPx(template.height) * currentScale}px`,
@@ -409,24 +458,9 @@ export default function GestaoTemplateFicha() {
               minHeight: `${mmToPx(template.height) * currentScale}px`,
             }}
             onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            {/* Título */}
-            {template.title && (
-              <div
-                className="absolute text-center font-bold"
-                style={{
-                  left: '50%',
-                  top: `${mmToPx(5) * currentScale}px`,
-                  transform: 'translateX(-50%)',
-                  fontSize: `${14 * currentScale}px`,
-                  width: '90%',
-                }}
-              >
-                {template.title}
-              </div>
-            )}
-
             {/* Campos */}
             {template.fields
               .filter((f) => f.visible)
@@ -444,6 +478,7 @@ export default function GestaoTemplateFicha() {
                   onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
                   onStartEdit={() => setEditingField(field.id)}
                   onEndEdit={() => setEditingField(null)}
+                  onImageUpload={(file) => handleImageUpload(field.id, file)}
                 />
               ))}
           </div>
@@ -455,6 +490,7 @@ export default function GestaoTemplateFicha() {
             <FieldPropertiesPanel
               field={template.fields.find((f) => f.id === selectedField)!}
               onUpdate={(prop, value) => updateFieldProperty(selectedField, prop, value)}
+              onImageUpload={(file) => handleImageUpload(selectedField, file)}
             />
           </div>
         )}
@@ -475,6 +511,7 @@ interface FieldEditorProps {
   onUpdate: (property: keyof TemplateField, value: any) => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
+  onImageUpload?: (file: File) => void;
 }
 
 function FieldEditor({
@@ -489,23 +526,22 @@ function FieldEditor({
   onUpdate,
   onStartEdit,
   onEndEdit,
+  onImageUpload,
 }: FieldEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0, fieldX: 0, fieldY: 0 });
   const fieldRef = useRef<HTMLDivElement>(null);
-
-  const mmToPx = (mm: number) => mm * 3.779527559;
-  const pxToMm = (px: number) => px / 3.779527559;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const currentScale = scale;
-      const deltaX = pxToMm((e.clientX - dragStart.x) / currentScale);
-      const deltaY = pxToMm((e.clientY - dragStart.y) / currentScale);
-      onMove(Math.max(0, field.x + deltaX), Math.max(0, field.y + deltaY));
-      setDragStart({ x: e.clientX, y: e.clientY });
+      const deltaX = pxToMm((e.clientX - dragStart.x) / scale);
+      const deltaY = pxToMm((e.clientY - dragStart.y) / scale);
+      const newX = Math.max(0, dragStart.fieldX + deltaX);
+      const newY = Math.max(0, dragStart.fieldY + deltaY);
+      onMove(newX, newY);
     };
 
     const handleMouseUp = () => {
@@ -519,79 +555,165 @@ function FieldEditor({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, scale, field.x, field.y, onMove]);
+  }, [isDragging, dragStart, scale, onMove]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isEditing) return;
+    // Não permitir drag se estiver editando ou clicando em input/button
+    const target = e.target as HTMLElement;
+    if (
+      isEditing || 
+      target.tagName === 'INPUT' || 
+      target.tagName === 'BUTTON' ||
+      target.closest('button') ||
+      target.closest('input')
+    ) {
+      return;
+    }
+    
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
+    setDragStart({ 
+      x: e.clientX, 
+      y: e.clientY,
+      fieldX: field.x,
+      fieldY: field.y,
+    });
     onSelect();
   };
 
+  const handleImageClick = () => {
+    if (field.type === 'image' && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImageUpload) {
+      onImageUpload(file);
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "absolute border-2 cursor-move transition-all",
-        isSelected ? "border-blue-500 bg-blue-50/50" : "border-transparent hover:border-gray-300",
-        !field.visible && "opacity-50"
-      )}
-      style={{
-        left: `${mmToPx(field.x) * scale}px`,
-        top: `${mmToPx(field.y) * scale}px`,
-        width: `${mmToPx(field.width) * scale}px`,
-        height: `${mmToPx(field.height) * scale}px`,
-      }}
-      ref={fieldRef}
-      onMouseDown={handleMouseDown}
-      onClick={onSelect}
-    >
-      {isSelected && (
-        <div className="absolute -top-6 left-0 flex gap-1">
-          <Button
-            size="icon"
-            variant="destructive"
-            className="h-6 w-6"
+    <>
+      <div
+        className={cn(
+          "absolute border-2 cursor-move transition-all",
+          isSelected 
+            ? "border-blue-500 bg-blue-50/50 z-10 shadow-md" 
+            : "border-gray-300 hover:border-blue-400 z-0",
+          !field.visible && "opacity-50"
+        )}
+        style={{
+          left: `${mmToPx(field.x) * scale}px`,
+          top: `${mmToPx(field.y) * scale}px`,
+          width: `${mmToPx(field.width) * scale}px`,
+          height: `${mmToPx(field.height) * scale}px`,
+          minWidth: `${mmToPx(10) * scale}px`,
+          minHeight: `${mmToPx(5) * scale}px`,
+        }}
+        ref={fieldRef}
+        onMouseDown={handleMouseDown}
+        onClick={onSelect}
+      >
+        {isSelected && (
+          <div className="absolute -top-8 left-0 flex gap-1 z-20">
+            <Button
+              size="icon"
+              variant="destructive"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        
+        {field.type === 'image' ? (
+          <div 
+            className="w-full h-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete();
+              handleImageClick();
             }}
           >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-      <div
-        className="w-full h-full p-1 flex items-center text-xs"
-        style={{
-          fontSize: `${(field.fontSize || 11) * scale}px`,
-          fontWeight: field.bold ? 'bold' : 'normal',
-        }}
-        onDoubleClick={onStartEdit}
-      >
-        {isEditing ? (
-          <Input
-            value={field.label}
-            onChange={(e) => onUpdate('label', e.target.value)}
-            onBlur={onEndEdit}
-            autoFocus
-            className="h-full text-xs"
-          />
+            {field.imageUrl ? (
+              <img 
+                src={field.imageUrl} 
+                alt="Preview" 
+                className="max-w-full max-h-full object-contain"
+              />
+            ) : (
+              <div className="text-center p-2">
+                <ImageIcon className="h-6 w-6 mx-auto text-gray-400 mb-1" />
+                <div className="text-xs text-gray-500">Clique para adicionar imagem</div>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
         ) : (
-          <span>{field.label}</span>
+          <div
+            className="w-full h-full p-1 flex items-center text-xs overflow-hidden bg-white/80"
+            style={{
+              fontSize: `${(field.fontSize || 11) * scale}px`,
+              fontWeight: field.bold ? 'bold' : 'normal',
+              minHeight: '20px',
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onStartEdit();
+            }}
+          >
+            {isEditing ? (
+              <Input
+                value={field.label}
+                onChange={(e) => onUpdate('label', e.target.value)}
+                onBlur={onEndEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onEndEdit();
+                  }
+                }}
+                autoFocus
+                className="h-full text-xs p-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className="whitespace-nowrap select-none">{field.label}</span>
+            )}
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
 interface FieldPropertiesPanelProps {
   field: TemplateField;
   onUpdate: (property: keyof TemplateField, value: any) => void;
+  onImageUpload?: (file: File) => void;
 }
 
-function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
+function FieldPropertiesPanel({ field, onUpdate, onImageUpload }: FieldPropertiesPanelProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImageUpload) {
+      onImageUpload(file);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -615,6 +737,7 @@ function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
             <Input
               id="field-x"
               type="number"
+              step="0.1"
               value={field.x.toFixed(1)}
               onChange={(e) => onUpdate('x', Number(e.target.value))}
               className="h-8"
@@ -625,6 +748,7 @@ function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
             <Input
               id="field-y"
               type="number"
+              step="0.1"
               value={field.y.toFixed(1)}
               onChange={(e) => onUpdate('y', Number(e.target.value))}
               className="h-8"
@@ -638,6 +762,7 @@ function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
             <Input
               id="field-width"
               type="number"
+              step="0.1"
               value={field.width.toFixed(1)}
               onChange={(e) => onUpdate('width', Number(e.target.value))}
               className="h-8"
@@ -648,6 +773,7 @@ function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
             <Input
               id="field-height"
               type="number"
+              step="0.1"
               value={field.height.toFixed(1)}
               onChange={(e) => onUpdate('height', Number(e.target.value))}
               className="h-8"
@@ -655,16 +781,49 @@ function FieldPropertiesPanel({ field, onUpdate }: FieldPropertiesPanelProps) {
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="field-font-size" className="text-xs">Tamanho da Fonte (pt)</Label>
-          <Input
-            id="field-font-size"
-            type="number"
-            value={field.fontSize || 11}
-            onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
-            className="h-8"
-          />
-        </div>
+        {field.type !== 'image' && (
+          <div>
+            <Label htmlFor="field-font-size" className="text-xs">Tamanho da Fonte (pt)</Label>
+            <Input
+              id="field-font-size"
+              type="number"
+              value={field.fontSize || 11}
+              onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
+              className="h-8"
+            />
+          </div>
+        )}
+
+        {field.type === 'image' && (
+          <div>
+            <Label className="text-xs">Imagem</Label>
+            <div className="mt-2">
+              {field.imageUrl && (
+                <img 
+                  src={field.imageUrl} 
+                  alt="Preview" 
+                  className="max-w-full max-h-32 object-contain border rounded mb-2"
+                />
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                <ImageIcon className="h-4 w-4 mr-2" />
+                {field.imageUrl ? 'Alterar Imagem' : 'Adicionar Imagem'}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
