@@ -244,7 +244,7 @@ const normalizeEventType = (eventType: string): NotificationType => {
 };
 
 // Função para extrair detalhes de mudanças de status
-const extractStatusDetails = (orderPayload: any): string | null => {
+const extractStatusDetails = (orderPayload: Record<string, unknown> | undefined): string | null => {
   if (!orderPayload) return null;
   
   const changes: string[] = [];
