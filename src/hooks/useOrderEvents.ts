@@ -119,20 +119,25 @@ interface UseOrderAutoSyncProps {
 }
 
 export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAutoSyncProps) => {
+  // Usar ref para sempre ter acesso ao estado mais recente (evita closure stale)
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
+
   const handleOrderCreated = useCallback(
     async (orderId: number) => {
       try {
         const newOrder = await api.getOrderById(orderId);
-        const exists = orders.some((order) => order.id === newOrder.id);
+        const currentOrders = ordersRef.current;
+        const exists = currentOrders.some((order) => order.id === newOrder.id);
         if (exists) {
           return;
         }
-        setOrders([newOrder, ...orders]);
+        setOrders([newOrder, ...currentOrders]);
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido criado:', error);
       }
     },
-    [orders, setOrders],
+    [setOrders],
   );
 
   const handleOrderUpdated = useCallback(
@@ -140,13 +145,19 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
       try {
         console.log('🔄 handleOrderUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        const updated = orders.map((order) => (order.id === orderId ? updatedOrder : order));
+        const currentOrders = ordersRef.current;
+        const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
+        console.log('✅ Atualizando pedido na lista:', {
+          orderId,
+          oldStatus: currentOrders.find(o => o.id === orderId)?.status,
+          newStatus: updatedOrder.status,
+        });
         setOrders(updated);
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido atualizado:', error);
       }
     },
-    [orders, setOrders],
+    [setOrders],
   );
 
   const handleOrderDeleted = useCallback(
@@ -159,14 +170,31 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   const handleOrderStatusUpdated = useCallback(
     async (orderId: number) => {
       try {
+        console.log('🔄 handleOrderStatusUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        const updated = orders.map((order) => (order.id === orderId ? updatedOrder : order));
+        const currentOrders = ordersRef.current;
+        console.log('📦 Pedido atualizado recebido:', {
+          id: updatedOrder.id,
+          status: updatedOrder.status,
+          financeiro: updatedOrder.financeiro,
+          conferencia: updatedOrder.conferencia,
+          sublimacao: updatedOrder.sublimacao,
+          costura: updatedOrder.costura,
+          expedicao: updatedOrder.expedicao,
+        });
+        const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
+        console.log('✅ Atualizando lista de pedidos:', {
+          orderId,
+          totalOrders: updated.length,
+          oldStatus: currentOrders.find(o => o.id === orderId)?.status,
+          newStatus: updatedOrder.status,
+        });
         setOrders(updated);
       } catch (error) {
         console.error('❌ Erro ao sincronizar status do pedido:', error);
       }
     },
-    [orders, setOrders],
+    [setOrders],
   );
 
   useOrderEvents({
