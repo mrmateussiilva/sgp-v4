@@ -834,8 +834,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b">
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
             <div className="flex flex-wrap gap-2">
@@ -861,7 +861,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
           {/* Cabeçalho do Pedido */}
           <div className="text-center border-b pb-3">
             <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
@@ -1013,16 +1013,16 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       {/* Modal de Imagem */}
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={(open) => closeImageModal(open)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0" onInteractOutside={(e) => e.preventDefault()}>
-            <DialogHeader className="p-6 pb-0">
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0" size="lg" onInteractOutside={(e) => e.preventDefault()}>
+            <DialogHeader className="p-6 pb-0 flex-shrink-0">
               <DialogTitle className="flex items-center justify-between">
                 <span>Visualização da Imagem</span>
-                <Button onClick={() => closeImageModal(false)} variant="ghost" size="sm">
+                <Button onClick={() => closeImageModal(false)} variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <X className="h-4 w-4" />
                 </Button>
               </DialogTitle>
             </DialogHeader>
-            <div className="p-6 pt-0">
+            <div className="p-6 pt-4 overflow-y-auto">
               <div className="flex flex-col items-center gap-4">
                 {!imageError ? (
                   <img

@@ -660,6 +660,11 @@ export const printOrderServiceForm = (order: OrderWithItems) => {
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = '0';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.visibility = 'hidden';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
 
   document.body.appendChild(iframe);
 

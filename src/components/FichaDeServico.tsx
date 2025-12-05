@@ -116,7 +116,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="bg-gray-50 p-4">
       {/* Controles */}
       <div className="max-w-4xl mx-auto mb-6 print:hidden">
         <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
@@ -130,14 +130,6 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
             >
               🖨️ Imprimir Ficha
             </button>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Fechar
-              </button>
-            )}
           </div>
         </div>
       </div>
