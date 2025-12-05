@@ -271,8 +271,11 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                   <Label htmlFor="valor_frete">Valor do Frete</Label>
                   <CurrencyInput
                     id="valor_frete"
-                    value={fichaData.valor_frete || 0}
-                    onValueChange={(value) => updateOrderField('valor_frete', value)}
+                    value={fichaData.valor_frete ? String(fichaData.valor_frete) : '0,00'}
+                    onValueChange={(value) => {
+                      const numValue = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+                      updateOrderField('valor_frete', isNaN(numValue) ? 0 : numValue);
+                    }}
                   />
                 </div>
               </CardContent>
@@ -327,11 +330,13 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                         <Label htmlFor={`unit_price_${itemIndex}`}>Valor Unitário</Label>
                         <CurrencyInput
                           id={`unit_price_${itemIndex}`}
-                          value={item.unit_price || 0}
+                          value={item.unit_price ? String(item.unit_price) : '0,00'}
                           onValueChange={(value) => {
-                            updateItemField(itemIndex, 'unit_price', value);
+                            const numValue = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+                            const finalValue = isNaN(numValue) ? 0 : numValue;
+                            updateItemField(itemIndex, 'unit_price', finalValue);
                             // Recalcular subtotal
-                            const newSubtotal = value * (item.quantity || 1);
+                            const newSubtotal = finalValue * (item.quantity || 1);
                             updateItemField(itemIndex, 'subtotal', newSubtotal);
                           }}
                         />

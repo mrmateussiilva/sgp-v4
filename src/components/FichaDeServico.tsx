@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
@@ -12,29 +12,14 @@ interface FichaDeServicoProps {
 }
 
 const FichaDeServico: React.FC<FichaDeServicoProps> = ({ 
-  orderId, 
-  sessionToken, 
-  onClose
+  orderId
 }) => {
   const [orderData, setOrderData] = useState<OrderFicha | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
 
-  useEffect(() => {
-    loadOrderData();
-  }, [orderId, sessionToken]);
-
-  // Cleanup: revogar blob URLs quando o componente for desmontado
-  useEffect(() => {
-    return () => {
-      imageUrls.forEach((blobUrl, imagePath) => {
-        revokeImageUrl(imagePath);
-      });
-    };
-  }, [imageUrls]);
-
-  const loadOrderData = async () => {
+  const loadOrderData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -77,7 +62,20 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    loadOrderData();
+  }, [loadOrderData]);
+
+  // Cleanup: revogar blob URLs quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      imageUrls.forEach((_blobUrl, imagePath) => {
+        revokeImageUrl(imagePath);
+      });
+    };
+  }, [imageUrls]);
 
   const formatCurrency = (value: number | string): string => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -177,7 +175,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
       {/* Fichas de Serviço - Uma por item */}
       <div className="max-w-4xl mx-auto space-y-6">
         {orderData.items.map((item) => {
-          const detailEntries = getItemDisplayEntries(item as any, {
+          const detailEntries = getItemDisplayEntries(item as unknown as Record<string, unknown>, {
             omitKeys: ['observacao', 'subtotal'],
           });
 
@@ -302,8 +300,8 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                           console.error('[FichaDeServico] ❌ Erro ao exibir imagem:', {
                             itemId: item.id,
                             originalPath: item.imagem,
-                            blobUrl: imageUrls.get(item.imagem),
-                            normalizedPath: normalizeImagePath(item.imagem),
+                            blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
+                            normalizedPath: item.imagem ? normalizeImagePath(item.imagem) : undefined,
                             finalSrc: imageSrc,
                             error: event
                           });
@@ -318,7 +316,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                           console.log('[FichaDeServico] ✅ Imagem exibida com sucesso:', {
                             itemId: item.id,
                             originalPath: item.imagem,
-                            blobUrl: imageUrls.get(item.imagem),
+                            blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
                             finalSrc: imageSrc
                           });
                         }}

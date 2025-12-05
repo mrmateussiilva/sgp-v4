@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, ArrowLeft, GripVertical, X, Plus, Eye, Type, Calendar, User, DollarSign, Package, Edit2, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon } from 'lucide-react';
+import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -81,7 +80,6 @@ export default function GestaoTemplateFicha() {
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [draggedField, setDraggedField] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(50); // Porcentagem de zoom (50% = 0.5)
@@ -141,7 +139,6 @@ export default function GestaoTemplateFicha() {
   };
 
   const handleDragStart = (e: React.DragEvent, fieldType: string) => {
-    setDraggedField(fieldType);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', fieldType);
   };
@@ -163,7 +160,6 @@ export default function GestaoTemplateFicha() {
     
     const fieldId = e.dataTransfer.getData('text/plain');
     if (!fieldId || !canvasRef.current) {
-      setDraggedField(null);
       return;
     }
 
@@ -180,7 +176,6 @@ export default function GestaoTemplateFicha() {
 
     const fieldTemplate = AVAILABLE_FIELDS.find((f) => f.id === fieldId);
     if (!fieldTemplate) {
-      setDraggedField(null);
       return;
     }
 
@@ -204,7 +199,6 @@ export default function GestaoTemplateFicha() {
       fields: [...template.fields, newField],
     });
     setHasChanges(true);
-    setDraggedField(null);
     setSelectedField(uniqueId);
     setIsDraggingOver(false);
     
@@ -223,16 +217,6 @@ export default function GestaoTemplateFicha() {
       ...template,
       fields: template.fields.map((f) =>
         f.id === fieldId ? { ...f, x: Math.max(0, newX), y: Math.max(0, newY) } : f
-      ),
-    });
-    setHasChanges(true);
-  };
-
-  const handleFieldResize = (fieldId: string, newWidth: number, newHeight: number) => {
-    setTemplate({
-      ...template,
-      fields: template.fields.map((f) =>
-        f.id === fieldId ? { ...f, width: Math.max(5, newWidth), height: Math.max(5, newHeight) } : f
       ),
     });
     setHasChanges(true);
@@ -473,7 +457,6 @@ export default function GestaoTemplateFicha() {
                   isEditing={editingField === field.id}
                   onSelect={() => handleFieldClick(field.id)}
                   onMove={(x, y) => handleFieldMove(field.id, x, y)}
-                  onResize={(w, h) => handleFieldResize(field.id, w, h)}
                   onDelete={() => handleDeleteField(field.id)}
                   onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
                   onStartEdit={() => setEditingField(field.id)}
@@ -506,7 +489,6 @@ interface FieldEditorProps {
   isEditing: boolean;
   onSelect: () => void;
   onMove: (x: number, y: number) => void;
-  onResize: (width: number, height: number) => void;
   onDelete: () => void;
   onUpdate: (property: keyof TemplateField, value: any) => void;
   onStartEdit: () => void;
@@ -521,7 +503,6 @@ function FieldEditor({
   isEditing,
   onSelect,
   onMove,
-  onResize,
   onDelete,
   onUpdate,
   onStartEdit,
