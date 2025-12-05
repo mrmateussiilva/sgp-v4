@@ -69,20 +69,33 @@ export const useOrderEvents = ({
         console.warn('⚠️ Evento recebido sem order_id rastreável:', message);
       }
 
-      if ((type === 'order_created' || type === 'order_updated') && orderId && onOrderUpdated) {
+      // Processar eventos na ordem correta para evitar conflitos
+      if (type === 'order_created' && orderId) {
+        if (onOrderCreated) {
+          onOrderCreated(orderId);
+        }
+        // order_created também dispara onOrderUpdated
+        if (onOrderUpdated) {
+          onOrderUpdated(orderId);
+        }
+      } else if (type === 'order_status_updated' && orderId) {
+        // order_status_updated tem prioridade e dispara ambos os handlers
+        if (onOrderStatusUpdated) {
+          console.log('🔄 Chamando onOrderStatusUpdated para pedido:', orderId);
+          onOrderStatusUpdated(orderId);
+        }
+        // Também disparar onOrderUpdated para garantir atualização
+        if (onOrderUpdated) {
+          console.log('🔄 Chamando onOrderUpdated para pedido:', orderId);
+          onOrderUpdated(orderId);
+        }
+      } else if (type === 'order_updated' && orderId && onOrderUpdated) {
+        console.log('🔄 Chamando onOrderUpdated para pedido:', orderId);
         onOrderUpdated(orderId);
-      }
-
-      if (type === 'order_created' && orderId && onOrderCreated) {
-        onOrderCreated(orderId);
       }
 
       if (type === 'order_deleted' && orderId && onOrderDeleted) {
         onOrderDeleted(orderId);
-      }
-
-      if (type === 'order_status_updated' && orderId && onOrderStatusUpdated) {
-        onOrderStatusUpdated(orderId);
       }
     };
 
@@ -125,6 +138,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   const handleOrderUpdated = useCallback(
     async (orderId: number) => {
       try {
+        console.log('🔄 handleOrderUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
         const updated = orders.map((order) => (order.id === orderId ? updatedOrder : order));
         setOrders(updated);
