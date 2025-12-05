@@ -135,7 +135,7 @@ export const useOrderEvents = ({
 
 interface UseOrderAutoSyncProps {
   orders: OrderWithItems[];
-  setOrders: (orders: OrderWithItems[]) => void;
+  setOrders: (orders: OrderWithItems[] | ((prev: OrderWithItems[]) => OrderWithItems[])) => void;
   removeOrder: (orderId: number) => void;
 }
 
@@ -147,13 +147,18 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   const handleOrderCreated = useCallback(
     async (orderId: number) => {
       try {
+        console.log('🆕 [useOrderAutoSync] Pedido criado, buscando dados:', orderId);
         const newOrder = await api.getOrderById(orderId);
-        const currentOrders = ordersRef.current;
-        const exists = currentOrders.some((order) => order.id === newOrder.id);
-        if (exists) {
-          return;
-        }
-        setOrders([newOrder, ...currentOrders]);
+        // Usar função de atualização do Zustand para garantir que pega o estado mais recente
+        setOrders((currentOrders) => {
+          const exists = currentOrders.some((order) => order.id === newOrder.id);
+          if (exists) {
+            console.log('⚠️ [useOrderAutoSync] Pedido já existe na lista, ignorando');
+            return currentOrders;
+          }
+          console.log('✅ [useOrderAutoSync] Adicionando novo pedido à lista');
+          return [newOrder, ...currentOrders];
+        });
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido criado:', error);
       }
@@ -164,16 +169,28 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   const handleOrderUpdated = useCallback(
     async (orderId: number) => {
       try {
-        console.log('🔄 handleOrderUpdated chamado para pedido:', orderId);
+        console.log('🔄 [useOrderAutoSync] handleOrderUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        const currentOrders = ordersRef.current;
-        const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
-        console.log('✅ Atualizando pedido na lista:', {
-          orderId,
-          oldStatus: currentOrders.find(o => o.id === orderId)?.status,
-          newStatus: updatedOrder.status,
+        // Usar função de atualização do Zustand para garantir que pega o estado mais recente
+        setOrders((currentOrders) => {
+          const oldOrder = currentOrders.find(o => o.id === orderId);
+          console.log('📦 [useOrderAutoSync] Comparando pedidos:', {
+            orderId,
+            oldStatus: oldOrder?.status,
+            newStatus: updatedOrder.status,
+            oldFinanceiro: oldOrder?.financeiro,
+            newFinanceiro: updatedOrder.financeiro,
+            oldConferencia: oldOrder?.conferencia,
+            newConferencia: updatedOrder.conferencia,
+          });
+          const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
+          console.log('✅ [useOrderAutoSync] Lista atualizada:', {
+            orderId,
+            totalOrders: updated.length,
+            updated: updated.find(o => o.id === orderId),
+          });
+          return updated;
         });
-        setOrders(updated);
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido atualizado:', error);
       }
@@ -183,6 +200,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
 
   const handleOrderDeleted = useCallback(
     (orderId: number) => {
+      console.log('🗑️ [useOrderAutoSync] Removendo pedido:', orderId);
       removeOrder(orderId);
     },
     [removeOrder],
@@ -191,26 +209,33 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder }: UseOrderAut
   const handleOrderStatusUpdated = useCallback(
     async (orderId: number) => {
       try {
-        console.log('🔄 handleOrderStatusUpdated chamado para pedido:', orderId);
+        console.log('🔄 [useOrderAutoSync] handleOrderStatusUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        const currentOrders = ordersRef.current;
-        console.log('📦 Pedido atualizado recebido:', {
-          id: updatedOrder.id,
-          status: updatedOrder.status,
-          financeiro: updatedOrder.financeiro,
-          conferencia: updatedOrder.conferencia,
-          sublimacao: updatedOrder.sublimacao,
-          costura: updatedOrder.costura,
-          expedicao: updatedOrder.expedicao,
+        // Usar função de atualização do Zustand para garantir que pega o estado mais recente
+        setOrders((currentOrders) => {
+          const oldOrder = currentOrders.find(o => o.id === orderId);
+          console.log('📦 [useOrderAutoSync] Pedido atualizado recebido:', {
+            id: updatedOrder.id,
+            status: updatedOrder.status,
+            financeiro: updatedOrder.financeiro,
+            conferencia: updatedOrder.conferencia,
+            sublimacao: updatedOrder.sublimacao,
+            costura: updatedOrder.costura,
+            expedicao: updatedOrder.expedicao,
+            oldStatus: oldOrder?.status,
+            oldFinanceiro: oldOrder?.financeiro,
+            oldConferencia: oldOrder?.conferencia,
+          });
+          const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
+          console.log('✅ [useOrderAutoSync] Atualizando lista de pedidos:', {
+            orderId,
+            totalOrders: updated.length,
+            oldStatus: oldOrder?.status,
+            newStatus: updatedOrder.status,
+            willUpdate: oldOrder?.id === orderId,
+          });
+          return updated;
         });
-        const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
-        console.log('✅ Atualizando lista de pedidos:', {
-          orderId,
-          totalOrders: updated.length,
-          oldStatus: currentOrders.find(o => o.id === orderId)?.status,
-          newStatus: updatedOrder.status,
-        });
-        setOrders(updated);
       } catch (error) {
         console.error('❌ Erro ao sincronizar status do pedido:', error);
       }
