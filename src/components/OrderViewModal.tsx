@@ -24,14 +24,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   onClose,
   order,
 }) => {
-  if (!order) return null;
-
   const sessionToken = useAuthStore((state) => state.sessionToken) || '';
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [imageError, setImageError] = useState<boolean>(false);
+  const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
+
+  if (!order) return null;
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -795,43 +796,72 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   const imagePath = item.imagem;
                   const isValid = isValidImagePath(imagePath || '');
                   const normalizedPath = imagePath ? normalizeImagePath(imagePath) : '';
+                  const itemKey = String(item.id ?? item.item_name);
+                  const hasError = itemImageErrors[itemKey] || false;
                   
                   // Debug log
                   if (imagePath) {
                     console.log('[OrderViewModal] Processando imagem:', {
                       original: imagePath,
                       isValid,
-                      normalized: normalizedPath
+                      normalized: normalizedPath,
+                      hasError
                     });
                   }
                   
-                  return isValid ? (
-                    <img
-                      src={normalizedPath}
-                      alt={`Imagem do item ${item.item_name}`}
-                      className="h-full w-full object-contain"
-                      onLoad={() => {
-                        console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', normalizedPath);
-                      }}
-                      onError={(event) => {
-                        const target = event.currentTarget as HTMLImageElement;
-                        const imageSrc = target.src;
-                        console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
-                          originalPath: imagePath,
-                          normalizedPath,
-                          finalSrc: imageSrc,
-                          status: target.complete ? 'complete' : 'incomplete'
-                        });
-                        target.style.display = 'none';
-                        const placeholder = target.parentElement?.querySelector('.image-placeholder');
-                        if (placeholder) {
-                          (placeholder as HTMLElement).style.display = 'flex';
-                        }
-                      }}
-                    />
-                  ) : null;
+                  if (!isValid) {
+                    return null;
+                  }
+                  
+                  return (
+                    <>
+                      {!hasError && (
+                        <img
+                          src={normalizedPath}
+                          alt={`Imagem do item ${item.item_name}`}
+                          className="h-full w-full object-contain"
+                          onLoad={() => {
+                            console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', normalizedPath);
+                            // Garantir que o erro seja removido se a imagem carregar
+                            setItemImageErrors(prev => {
+                              const updated = { ...prev };
+                              delete updated[itemKey];
+                              return updated;
+                            });
+                          }}
+                          onError={(event) => {
+                            const target = event.currentTarget as HTMLImageElement;
+                            const imageSrc = target.src;
+                            console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
+                              originalPath: imagePath,
+                              normalizedPath,
+                              finalSrc: imageSrc,
+                              status: target.complete ? 'complete' : 'incomplete'
+                            });
+                            // Marcar erro no estado ao invés de esconder diretamente
+                            setItemImageErrors(prev => ({
+                              ...prev,
+                              [itemKey]: true
+                            }));
+                          }}
+                        />
+                      )}
+                    </>
+                  );
                 })()}
-                <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" style={{ display: isValidImagePath(item.imagem!) ? 'none' : 'flex' }}>
+                <div 
+                  className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" 
+                  style={{ 
+                    display: (() => {
+                      const imagePath = item.imagem;
+                      const isValid = isValidImagePath(imagePath || '');
+                      if (!isValid) return 'flex';
+                      const itemKey = String(item.id ?? item.item_name);
+                      const hasError = itemImageErrors[itemKey] || false;
+                      return hasError ? 'flex' : 'none';
+                    })()
+                  }}
+                >
                   <span className="text-sm">Imagem não disponível</span>
                 </div>
               </div>
@@ -941,8 +971,19 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 {order.items.map((item, index) => {
                   const key = String(item.id ?? `order-${index}`);
                   const isOpen = openItemKey === key;
-                  const toggleOpen = () =>
+                  const toggleOpen = () => {
+                    const willOpen = openItemKey !== key;
                     setOpenItemKey((current) => (current === key ? null : key));
+                    // Resetar erro de imagem quando o item é expandido para tentar carregar novamente
+                    if (willOpen && item.imagem) {
+                      const itemKey = String(item.id ?? item.item_name);
+                      setItemImageErrors(prev => {
+                        const updated = { ...prev };
+                        delete updated[itemKey];
+                        return updated;
+                      });
+                    }
+                  };
 
                   return (
                     <div
