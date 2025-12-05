@@ -791,21 +791,46 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </span>
             <div className="flex w-full flex-col items-center gap-3">
               <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
-                {isValidImagePath(item.imagem!) ? (
-                  <img
-                    src={normalizeImagePath(item.imagem!)}
-                    alt={`Imagem do item ${item.item_name}`}
-                    className="h-full w-full object-contain"
-                    onError={(event) => {
-                      const target = event.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      const placeholder = target.parentElement?.querySelector('.image-placeholder');
-                      if (placeholder) {
-                        (placeholder as HTMLElement).style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
+                {(() => {
+                  const imagePath = item.imagem;
+                  const isValid = isValidImagePath(imagePath || '');
+                  const normalizedPath = imagePath ? normalizeImagePath(imagePath) : '';
+                  
+                  // Debug log
+                  if (imagePath) {
+                    console.log('[OrderViewModal] Processando imagem:', {
+                      original: imagePath,
+                      isValid,
+                      normalized: normalizedPath
+                    });
+                  }
+                  
+                  return isValid ? (
+                    <img
+                      src={normalizedPath}
+                      alt={`Imagem do item ${item.item_name}`}
+                      className="h-full w-full object-contain"
+                      onLoad={() => {
+                        console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', normalizedPath);
+                      }}
+                      onError={(event) => {
+                        const target = event.currentTarget as HTMLImageElement;
+                        const imageSrc = target.src;
+                        console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
+                          originalPath: imagePath,
+                          normalizedPath,
+                          finalSrc: imageSrc,
+                          status: target.complete ? 'complete' : 'incomplete'
+                        });
+                        target.style.display = 'none';
+                        const placeholder = target.parentElement?.querySelector('.image-placeholder');
+                        if (placeholder) {
+                          (placeholder as HTMLElement).style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null;
+                })()}
                 <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" style={{ display: isValidImagePath(item.imagem!) ? 'none' : 'flex' }}>
                   <span className="text-sm">Imagem não disponível</span>
                 </div>
