@@ -264,7 +264,8 @@ const extractStatusDetails = (orderPayload: Record<string, unknown> | undefined)
       'entregue': 'Entregue',
       'cancelado': 'Cancelado',
     };
-    changes.push(`Status: ${statusMap[orderPayload.status] || orderPayload.status}`);
+    const statusStr = String(orderPayload.status);
+    changes.push(`Status: ${statusMap[statusStr] || statusStr}`);
   }
   
   return changes.length > 0 ? changes.join(' • ') : null;
