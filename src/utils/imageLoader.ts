@@ -25,25 +25,43 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       return imagePath;
     }
 
-    // Se já for URL completa, usar diretamente
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      url = imagePath;
-    } else {
-      // Construir URL completa
-      const baseUrl = getApiUrl();
-      if (!baseUrl) {
-        throw new Error('API base URL não configurada');
-      }
-      
-      const normalized = imagePath.replace(/\\/g, '/').trim();
-      const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
-      url = normalized.startsWith('/') 
-        ? `${cleanBaseUrl}${normalized}`
-        : `${cleanBaseUrl}/${normalized}`;
+    // Normalizar o caminho
+    const normalized = imagePath.replace(/\\/g, '/').trim();
+    
+    // Se for base64, retornar diretamente
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
     }
 
-    // Carregar imagem com autenticação usando apiClient
-    const response = await apiClient.get(url, {
+    // Se já for URL completa (http/https), usar diretamente sem baseURL
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      console.log('[loadAuthenticatedImage] 📥 Carregando imagem de URL completa:', normalized);
+      const response = await apiClient.get(normalized, {
+        responseType: 'blob',
+        baseURL: '', // Não usar baseURL para URLs completas
+      });
+      
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+      blobUrlCache.set(imagePath, blobUrl);
+      return blobUrl;
+    }
+
+    // Para caminhos relativos, usar o apiClient com baseURL configurado
+    // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
+    const relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    
+    console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {
+      originalPath: imagePath,
+      normalized,
+      relativePath,
+      baseURL: getApiUrl()
+    });
+
+    console.log('[loadAuthenticatedImage] 📥 Carregando imagem de:', relativePath);
+
+    // Carregar imagem com autenticação usando apiClient (que já tem baseURL configurado)
+    const response = await apiClient.get(relativePath, {
       responseType: 'blob',
     });
 

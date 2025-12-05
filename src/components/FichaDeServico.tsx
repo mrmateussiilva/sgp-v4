@@ -45,17 +45,31 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
       
       // Carregar imagens autenticadas
       const imageUrlMap = new Map<string, string>();
+      console.log('[FichaDeServico] 📸 Carregando imagens dos itens:', data.items.map(item => ({
+        itemId: item.id,
+        itemName: item.item_name,
+        imagem: item.imagem
+      })));
+      
       for (const item of data.items) {
         if (item.imagem && isValidImagePath(item.imagem)) {
           try {
+            console.log(`[FichaDeServico] 🔄 Carregando imagem do item ${item.id}:`, item.imagem);
             const blobUrl = await loadAuthenticatedImage(item.imagem);
             imageUrlMap.set(item.imagem, blobUrl);
+            console.log(`[FichaDeServico] ✅ Imagem do item ${item.id} carregada com sucesso`);
           } catch (err) {
-            console.error(`Erro ao carregar imagem do item ${item.id}:`, err);
+            console.error(`[FichaDeServico] ❌ Erro ao carregar imagem do item ${item.id}:`, {
+              imagem: item.imagem,
+              error: err
+            });
             // Continuar mesmo se uma imagem falhar
           }
+        } else {
+          console.log(`[FichaDeServico] ⚠️ Item ${item.id} não tem imagem válida:`, item.imagem);
         }
       }
+      console.log('[FichaDeServico] 📊 Total de imagens carregadas:', imageUrlMap.size);
       setImageUrls(imageUrlMap);
     } catch (err) {
       console.error('Erro ao carregar dados da ficha:', err);
@@ -266,31 +280,51 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
             {item.imagem && isValidImagePath(item.imagem) && (
               <div className="ficha-image-section">
                 <div className="ficha-image-container">
-                  <img
-                    src={imageUrls.get(item.imagem) || normalizeImagePath(item.imagem)}
-                    alt={`Imagem do item ${item.item_name}`}
-                    className="ficha-image"
-                    onError={(event) => {
-                      console.error('[FichaDeServico] Erro ao carregar imagem:', {
-                        originalPath: item.imagem,
-                        blobUrl: imageUrls.get(item.imagem),
-                        normalizedPath: normalizeImagePath(item.imagem),
-                        error: event
-                      });
-                      const target = event.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
-                      if (placeholder) {
-                        (placeholder as HTMLElement).style.display = 'flex';
-                      }
-                    }}
-                    onLoad={() => {
-                      console.log('[FichaDeServico] ✅ Imagem carregada com sucesso:', {
-                        originalPath: item.imagem,
-                        blobUrl: imageUrls.get(item.imagem)
-                      });
-                    }}
-                  />
+                  {(() => {
+                    const blobUrl = imageUrls.get(item.imagem);
+                    const fallbackUrl = normalizeImagePath(item.imagem);
+                    const imageSrc = blobUrl || fallbackUrl;
+                    
+                    console.log('[FichaDeServico] 🖼️ Renderizando imagem:', {
+                      itemId: item.id,
+                      originalPath: item.imagem,
+                      blobUrl,
+                      fallbackUrl,
+                      finalSrc: imageSrc
+                    });
+                    
+                    return (
+                      <img
+                        src={imageSrc}
+                        alt={`Imagem do item ${item.item_name}`}
+                        className="ficha-image"
+                        onError={(event) => {
+                          console.error('[FichaDeServico] ❌ Erro ao exibir imagem:', {
+                            itemId: item.id,
+                            originalPath: item.imagem,
+                            blobUrl: imageUrls.get(item.imagem),
+                            normalizedPath: normalizeImagePath(item.imagem),
+                            finalSrc: imageSrc,
+                            error: event
+                          });
+                          const target = event.currentTarget as HTMLImageElement;
+                          target.style.display = 'none';
+                          const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
+                          if (placeholder) {
+                            (placeholder as HTMLElement).style.display = 'flex';
+                          }
+                        }}
+                        onLoad={() => {
+                          console.log('[FichaDeServico] ✅ Imagem exibida com sucesso:', {
+                            itemId: item.id,
+                            originalPath: item.imagem,
+                            blobUrl: imageUrls.get(item.imagem),
+                            finalSrc: imageSrc
+                          });
+                        }}
+                      />
+                    );
+                  })()}
                   <div className="ficha-image-placeholder" style={{ display: 'none' }}>
                     <span>Imagem não disponível</span>
                   </div>
