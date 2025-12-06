@@ -32,8 +32,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [imageError, setImageError] = useState<boolean>(false);
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
 
-  if (!order) return null;
-
   // Buscar formas de pagamento
   useEffect(() => {
     const fetchFormasPagamento = async () => {
@@ -46,6 +44,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     };
     fetchFormasPagamento();
   }, []);
+
+  if (!order) return null;
 
   // Função para obter o nome da forma de pagamento
   const getFormaPagamentoNome = (id?: number) => {
