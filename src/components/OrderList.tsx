@@ -637,7 +637,7 @@ export default function OrderList() {
     }
   }, [filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
 
-  const handlePrintSelected = () => {
+  const handlePrintSelected = async () => {
     if (selectedOrderIdsForPrint.length === 0) {
       return;
     }
@@ -656,16 +656,17 @@ export default function OrderList() {
       return;
     }
 
-    printSelectedOrders(ordersToPrint);
-    toast({
-      title: "Impressão",
-      description: `Abrindo visualização de impressão de ${ordersToPrint.length} pedido(s).`,
-      variant: "info",
-    });
+    await printSelectedOrders(ordersToPrint);
   };
 
-  const printSelectedOrders = (orders: OrderWithItems[]) => {
-    const printContent = generatePrintList(orders);
+  const printSelectedOrders = async (orders: OrderWithItems[]) => {
+    // Mostrar loading enquanto converte imagens
+    toast({
+      title: "Preparando impressão",
+      description: "Convertendo imagens...",
+    });
+
+    const printContent = await generatePrintList(orders);
     
     // Criar iframe para impressão
     const iframe = document.createElement('iframe');
@@ -687,78 +688,16 @@ export default function OrderList() {
     iframeDoc.write(printContent);
     iframeDoc.close();
 
-    // Aguardar carregamento de todas as imagens antes de imprimir
+    // Como as imagens já estão em base64, não precisamos aguardar carregamento
     iframe.contentWindow?.focus();
     
-    const waitForImages = () => {
-      const images = iframeDoc.querySelectorAll('img');
-      if (images.length === 0) {
-        // Não há imagens, pode imprimir imediatamente
-        setTimeout(() => {
-          iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }, 100);
-        return;
-      }
-
-      let loadedCount = 0;
-      let errorCount = 0;
-      const totalImages = images.length;
-      let hasPrinted = false;
-
-      const checkAndPrint = () => {
-        if (hasPrinted) return;
-        
-        if (loadedCount + errorCount >= totalImages) {
-          hasPrinted = true;
-          // Todas as imagens foram carregadas ou falharam, pode imprimir
-          setTimeout(() => {
-            iframe.contentWindow?.print();
-            setTimeout(() => {
-              document.body.removeChild(iframe);
-            }, 1000);
-          }, 200);
-        }
-      };
-
-      // Adicionar listeners para cada imagem
-      images.forEach((img) => {
-        const imageElement = img as HTMLImageElement;
-        
-        // Se a imagem já está carregada
-        if (imageElement.complete && imageElement.naturalHeight !== 0) {
-          loadedCount++;
-          checkAndPrint();
-        } else {
-          // Aguardar carregamento
-          imageElement.onload = () => {
-            loadedCount++;
-            checkAndPrint();
-          };
-          
-          imageElement.onerror = () => {
-            errorCount++;
-            checkAndPrint();
-          };
-        }
-      });
-
-      // Timeout de segurança: imprimir após 5 segundos mesmo que algumas imagens não carreguem
+    // Aguardar um pouco para o DOM estar pronto e então imprimir
+    setTimeout(() => {
+      iframe.contentWindow?.print();
       setTimeout(() => {
-        if (!hasPrinted) {
-          hasPrinted = true;
-          iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }
-      }, 5000);
-    };
-
-    // Aguardar um pouco para o DOM estar pronto
-    setTimeout(waitForImages, 100);
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 300);
   };
 
   const collectOrderData = (item: OrderItem): { basic: string[], details: string[] } => {
@@ -962,7 +901,38 @@ export default function OrderList() {
     return { basic, details };
   };
 
-  const generatePrintList = (orders: OrderWithItems[]): string => {
+  // Função para converter imagem URL para base64
+  const imageToBase64 = async (url: string): Promise<string> => {
+    // Se já é base64, retornar como está
+    if (url.startsWith('data:image')) {
+      return url;
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          resolve(base64String);
+        };
+        reader.onerror = () => {
+          console.error('Erro ao ler blob:', url);
+          reject(new Error('Erro ao ler imagem'));
+        };
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Erro ao converter imagem para base64:', error, url);
+      return url; // Retorna URL original em caso de erro
+    }
+  };
+
+  const generatePrintList = async (orders: OrderWithItems[]): Promise<string> => {
     const styles = `
       <style>
         * {
@@ -1172,6 +1142,27 @@ export default function OrderList() {
       </style>
     `;
 
+    // Coletar todas as URLs de imagens únicas
+    const imageUrls = new Set<string>();
+    orders.forEach(order => {
+      const items = Array.isArray(order.items) ? order.items : [];
+      items.forEach(item => {
+        const imageUrl = item.imagem?.trim();
+        if (imageUrl) {
+          imageUrls.add(imageUrl);
+        }
+      });
+    });
+
+    // Converter todas as imagens para base64
+    const imageBase64Map = new Map<string, string>();
+    await Promise.all(
+      Array.from(imageUrls).map(async (url) => {
+        const base64 = await imageToBase64(url);
+        imageBase64Map.set(url, base64);
+      })
+    );
+
     const ordersHtml = orders.map(order => {
       const items = Array.isArray(order.items) ? order.items : [];
       
@@ -1192,6 +1183,9 @@ export default function OrderList() {
           : '<div class="item-line item-line-empty">Nenhum detalhe técnico informado</div>';
 
         const imageUrl = item.imagem?.trim();
+        const imageSrc = imageUrl && imageBase64Map.has(imageUrl) 
+          ? imageBase64Map.get(imageUrl)! 
+          : imageUrl;
 
         return `
           <div class="order-item">
@@ -1225,8 +1219,8 @@ export default function OrderList() {
             <div class="right-column">
               <div class="section-title" style="text-align: center; margin-bottom: 2mm;">Visual do item</div>
               <div class="item-image-container">
-                ${imageUrl
-                  ? `<img src="${imageUrl}" alt="Imagem do item" />`
+                ${imageSrc
+                  ? `<img src="${imageSrc}" alt="Imagem do item" />`
                   : '<span class="no-image">Imagem não disponível</span>'
                 }
               </div>
