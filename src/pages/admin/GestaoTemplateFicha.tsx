@@ -133,6 +133,68 @@ export default function GestaoTemplateFicha() {
 
   const template = templates[currentTemplateType];
 
+  const loadTemplates = () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as TemplatesConfig;
+        if (parsed.geral && parsed.resumo) {
+          setTemplates(parsed);
+        } else {
+          setTemplates({
+            geral: parsed.geral || TEMPLATE_GERAL_DEFAULT,
+            resumo: parsed.resumo || TEMPLATE_RESUMO_DEFAULT,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar templates:', error);
+      toast({
+        title: 'Aviso',
+        description: 'Usando templates padrão. Erro ao carregar configurações salvas.',
+        variant: 'default',
+      });
+    }
+  };
+
+  const saveTemplates = useCallback(async () => {
+    setLoading(true);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+      setHasChanges(false);
+      toast({
+        title: 'Sucesso',
+        description: 'Templates salvos com sucesso!',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar templates:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar os templates.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [templates, toast]);
+
+  const handleDeleteField = useCallback((fieldId: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      [currentTemplateType]: {
+        ...prev[currentTemplateType],
+        fields: prev[currentTemplateType].fields.filter((f) => f.id !== fieldId),
+      },
+    }));
+    setSelectedField(null);
+    setHasChanges(true);
+    toast({
+      title: 'Campo removido',
+      description: 'O campo foi removido do template.',
+    });
+  }, [currentTemplateType, toast]);
+
   useEffect(() => {
     loadTemplates();
   }, []);
@@ -231,53 +293,7 @@ export default function GestaoTemplateFicha() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedField, copiedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates]);
-
-  const loadTemplates = () => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as TemplatesConfig;
-        if (parsed.geral && parsed.resumo) {
-          setTemplates(parsed);
-        } else {
-          setTemplates({
-            geral: parsed.geral || TEMPLATE_GERAL_DEFAULT,
-            resumo: parsed.resumo || TEMPLATE_RESUMO_DEFAULT,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao carregar templates:', error);
-      toast({
-        title: 'Aviso',
-        description: 'Usando templates padrão. Erro ao carregar configurações salvas.',
-        variant: 'default',
-      });
-    }
-  };
-
-  const saveTemplates = useCallback(async () => {
-    setLoading(true);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-      setHasChanges(false);
-      toast({
-        title: 'Sucesso',
-        description: 'Templates salvos com sucesso!',
-        variant: 'default',
-      });
-    } catch (error) {
-      console.error('Erro ao salvar templates:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar os templates.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [templates, toast]);
+  }, [selectedField, copiedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField]);
 
   const resetCurrentTemplate = () => {
     const defaultTemplate = currentTemplateType === 'geral' 
@@ -503,22 +519,6 @@ export default function GestaoTemplateFicha() {
     }));
     setHasChanges(true);
   }, [currentTemplateType, template.fields, snapToGridEnabled]);
-
-  const handleDeleteField = (fieldId: string) => {
-    setTemplates({
-      ...templates,
-      [currentTemplateType]: {
-        ...template,
-        fields: template.fields.filter((f) => f.id !== fieldId),
-      },
-    });
-    setSelectedField(null);
-    setHasChanges(true);
-    toast({
-      title: 'Campo removido',
-      description: 'O campo foi removido do template.',
-    });
-  };
 
   const updateFieldProperty = (fieldId: string, property: keyof TemplateField, value: any) => {
     setTemplates({
