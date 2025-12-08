@@ -1,35 +1,36 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon } from 'lucide-react';
+import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon, Grid, Copy, Trash2, Move, Layers, Eye, EyeOff, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 interface TemplateField {
   id: string;
   type: 'text' | 'date' | 'number' | 'currency' | 'table' | 'custom' | 'image';
   label: string;
-  key: string; // Chave do dado
-  x: number; // em mm
-  y: number; // em mm
-  width: number; // em mm
-  height: number; // em mm
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   fontSize?: number;
   bold?: boolean;
   visible: boolean;
   editable: boolean;
-  imageUrl?: string; // Para campos de imagem
+  imageUrl?: string;
 }
 
 interface FichaTemplate {
   title: string;
   fields: TemplateField[];
-  width: number; // em mm
-  height: number; // em mm
+  width: number;
+  height: number;
   marginTop: number;
   marginBottom: number;
   marginLeft: number;
@@ -37,8 +38,8 @@ interface FichaTemplate {
 }
 
 interface TemplatesConfig {
-  geral: FichaTemplate; // Template A4 completo
-  resumo: FichaTemplate; // Template 1/3 A4 para produção
+  geral: FichaTemplate;
+  resumo: FichaTemplate;
 }
 
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'visible' | 'editable'>[] = [
@@ -61,11 +62,10 @@ const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'vi
   { id: 'imagem', type: 'image', label: 'Imagem', key: 'imagem' },
 ];
 
-// Template Geral - A4 completo (210mm x 297mm)
 const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
   title: 'FICHA DE SERVIÇO - GERAL',
-  width: 210, // A4 width em mm
-  height: 297, // A4 height em mm
+  width: 210,
+  height: 297,
   marginTop: 10,
   marginBottom: 10,
   marginLeft: 15,
@@ -78,11 +78,10 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
   ],
 };
 
-// Template Resumo - 1/3 de A4 (70mm x 99mm) - Focado em produção
 const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   title: 'FICHA DE SERVIÇO - RESUMO PRODUÇÃO',
-  width: 70, // 1/3 de A4 width (210/3 = 70mm)
-  height: 99, // 1/3 de A4 height (297/3 = 99mm)
+  width: 70,
+  height: 99,
   marginTop: 3,
   marginBottom: 3,
   marginLeft: 5,
@@ -102,11 +101,18 @@ const TEMPLATES_DEFAULT: TemplatesConfig = {
 };
 
 const STORAGE_KEY = 'ficha_templates_config';
+const GRID_SIZE = 5; // mm
+const SNAP_THRESHOLD = 2; // mm
 
-const mmToPx = (mm: number) => mm * 3.779527559; // 1mm = 3.779527559px
+const mmToPx = (mm: number) => mm * 3.779527559;
 const pxToMm = (px: number) => px / 3.779527559;
 
+const snapToGrid = (value: number, gridSize: number = GRID_SIZE): number => {
+  return Math.round(value / gridSize) * gridSize;
+};
+
 type TemplateType = 'geral' | 'resumo';
+type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | null;
 
 export default function GestaoTemplateFicha() {
   const { toast } = useToast();
@@ -118,26 +124,123 @@ export default function GestaoTemplateFicha() {
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [zoomLevel, setZoomLevel] = useState(50); // Porcentagem de zoom (50% = 0.5)
+  const [zoomLevel, setZoomLevel] = useState(50);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGridEnabled, setSnapToGridEnabled] = useState(true);
+  const [copiedField, setCopiedField] = useState<TemplateField | null>(null);
 
-  // Template atual baseado no tipo selecionado
   const template = templates[currentTemplateType];
 
   useEffect(() => {
     loadTemplates();
   }, []);
 
+  // Listener global para melhorar o drag and drop
+  useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('text/plain') || e.dataTransfer?.types.includes('application/x-field-type')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      // Se o drop aconteceu fora do canvas, limpar o estado
+      if (!canvasRef.current?.contains(e.target as Node)) {
+        setIsDraggingOver(false);
+        setDragPosition(null);
+      }
+    };
+
+    document.addEventListener('dragover', handleGlobalDragOver);
+    document.addEventListener('drop', handleGlobalDrop);
+
+    return () => {
+      document.removeEventListener('dragover', handleGlobalDragOver);
+      document.removeEventListener('drop', handleGlobalDrop);
+    };
+  }, []);
+
+  // Atalhos de teclado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Delete - remover campo selecionado
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedField) {
+        handleDeleteField(selectedField);
+        return;
+      }
+
+      // Ctrl+C - copiar campo
+      if (e.ctrlKey && e.key === 'c' && selectedField) {
+        const field = template.fields.find(f => f.id === selectedField);
+        if (field) {
+          setCopiedField(field);
+          toast({
+            title: 'Campo copiado',
+            description: `${field.label} copiado para área de transferência.`,
+          });
+        }
+        return;
+      }
+
+      // Ctrl+V - colar campo
+      if (e.ctrlKey && e.key === 'v' && copiedField) {
+        const newField: TemplateField = {
+          ...copiedField,
+          id: `${copiedField.id}_${Date.now()}`,
+          x: copiedField.x + 10,
+          y: copiedField.y + 10,
+        };
+        setTemplates({
+          ...templates,
+          [currentTemplateType]: {
+            ...template,
+            fields: [...template.fields, newField],
+          },
+        });
+        setSelectedField(newField.id);
+        setHasChanges(true);
+        toast({
+          title: 'Campo colado',
+          description: `${newField.label} colado.`,
+        });
+        return;
+      }
+
+      // Esc - deselecionar
+      if (e.key === 'Escape') {
+        setSelectedField(null);
+        setEditingField(null);
+      }
+
+      // Ctrl+S - salvar
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        if (hasChanges) {
+          saveTemplates();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedField, copiedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates]);
+
   const loadTemplates = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as TemplatesConfig;
-        // Validar se tem ambos os templates
         if (parsed.geral && parsed.resumo) {
           setTemplates(parsed);
         } else {
-          // Se não tiver completo, mesclar com padrões
           setTemplates({
             geral: parsed.geral || TEMPLATE_GERAL_DEFAULT,
             resumo: parsed.resumo || TEMPLATE_RESUMO_DEFAULT,
@@ -154,14 +257,14 @@ export default function GestaoTemplateFicha() {
     }
   };
 
-  const saveTemplates = async () => {
+  const saveTemplates = useCallback(async () => {
     setLoading(true);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
       setHasChanges(false);
       toast({
         title: 'Sucesso',
-        description: 'Templates salvos com sucesso! As alterações serão aplicadas em todas as fichas geradas.',
+        description: 'Templates salvos com sucesso!',
         variant: 'default',
       });
     } catch (error) {
@@ -174,7 +277,7 @@ export default function GestaoTemplateFicha() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [templates, toast]);
 
   const resetCurrentTemplate = () => {
     const defaultTemplate = currentTemplateType === 'geral' 
@@ -189,13 +292,12 @@ export default function GestaoTemplateFicha() {
     setSelectedField(null);
     toast({
       title: 'Template Resetado',
-      description: `Template ${currentTemplateType === 'geral' ? 'Geral' : 'Resumo'} restaurado para os valores padrão. Clique em Salvar para aplicar.`,
+      description: `Template ${currentTemplateType === 'geral' ? 'Geral' : 'Resumo'} restaurado para os valores padrão.`,
       variant: 'default',
     });
   };
 
   const handleTemplateTypeChange = (type: TemplateType) => {
-    // Salvar mudanças antes de trocar
     if (hasChanges) {
       const confirmChange = window.confirm(
         'Você tem alterações não salvas. Deseja descartá-las e trocar de template?'
@@ -210,55 +312,101 @@ export default function GestaoTemplateFicha() {
   };
 
   const handleDragStart = (e: React.DragEvent, fieldType: string) => {
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('text/plain', fieldType);
+    e.dataTransfer.setData('application/x-field-type', fieldType);
+    
+    // Criar uma imagem de preview personalizada
+    const fieldLabel = AVAILABLE_FIELDS.find(f => f.id === fieldType)?.label || 'Campo';
+    const dragImage = document.createElement('div');
+    dragImage.style.position = 'absolute';
+    dragImage.style.top = '-1000px';
+    dragImage.style.padding = '6px 10px';
+    dragImage.style.background = 'rgba(59, 130, 246, 0.95)';
+    dragImage.style.color = 'white';
+    dragImage.style.borderRadius = '4px';
+    dragImage.style.fontSize = '11px';
+    dragImage.style.fontWeight = '500';
+    dragImage.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    dragImage.textContent = fieldLabel;
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, dragImage.offsetWidth / 2, dragImage.offsetHeight / 2);
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage);
+      }
+    }, 0);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
     setIsDraggingOver(true);
+    
+    if (canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      setDragPosition({ x, y });
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDraggingOver(false);
+    const relatedTarget = e.relatedTarget as Node;
+    // Só desativar se realmente saiu do canvas
+    if (!canvasRef.current?.contains(relatedTarget)) {
+      setIsDraggingOver(false);
+      setDragPosition(null);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const fieldId = e.dataTransfer.getData('text/plain');
+    // Tentar obter o dado de múltiplas formas para garantir compatibilidade
+    const fieldId = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('application/x-field-type');
     if (!fieldId || !canvasRef.current) {
+      setIsDraggingOver(false);
+      setDragPosition(null);
       return;
     }
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const currentScale = zoomLevel / 100;
     
-    // Calcular posição em pixels relativos ao canvas
     const xPx = e.clientX - canvasRect.left;
     const yPx = e.clientY - canvasRect.top;
     
-    // Converter pixels para mm, considerando o scale
-    const xMm = pxToMm(xPx / currentScale);
-    const yMm = pxToMm(yPx / currentScale);
+    let xMm = pxToMm(xPx / currentScale);
+    let yMm = pxToMm(yPx / currentScale);
+
+    // Garantir que está dentro dos limites da página
+    xMm = Math.max(0, Math.min(xMm, template.width - 10));
+    yMm = Math.max(0, Math.min(yMm, template.height - 5));
+
+    if (snapToGridEnabled) {
+      xMm = snapToGrid(xMm);
+      yMm = snapToGrid(yMm);
+    }
 
     const fieldTemplate = AVAILABLE_FIELDS.find((f) => f.id === fieldId);
     if (!fieldTemplate) {
+      setIsDraggingOver(false);
+      setDragPosition(null);
       return;
     }
 
-    // Gerar ID único para o campo
     const timestamp = Date.now();
     const uniqueId = `${fieldId}_${timestamp}`;
 
     const newField: TemplateField = {
       ...fieldTemplate,
       id: uniqueId,
-      x: Math.max(0, xMm),
-      y: Math.max(0, yMm),
+      x: xMm,
+      y: yMm,
       width: fieldTemplate.type === 'image' ? 40 : 40,
       height: fieldTemplate.type === 'image' ? 30 : 5,
       visible: true,
@@ -275,6 +423,7 @@ export default function GestaoTemplateFicha() {
     setHasChanges(true);
     setSelectedField(uniqueId);
     setIsDraggingOver(false);
+    setDragPosition(null);
     
     toast({
       title: 'Campo Adicionado',
@@ -282,22 +431,78 @@ export default function GestaoTemplateFicha() {
     });
   };
 
-  const handleFieldClick = (fieldId: string) => {
+  const handleFieldClick = (fieldId: string, e?: React.MouseEvent) => {
+    if (e?.target instanceof HTMLElement && (e.target.closest('button') || e.target.closest('input'))) {
+      return;
+    }
     setSelectedField(fieldId);
   };
 
-  const handleFieldMove = (fieldId: string, newX: number, newY: number) => {
-    setTemplates({
-      ...templates,
+  const handleFieldMove = useCallback((fieldId: string, newX: number, newY: number) => {
+    let finalX = Math.max(0, newX);
+    let finalY = Math.max(0, newY);
+
+    if (snapToGridEnabled) {
+      finalX = snapToGrid(finalX);
+      finalY = snapToGrid(finalY);
+    }
+
+    setTemplates(prev => ({
+      ...prev,
       [currentTemplateType]: {
-        ...template,
-        fields: template.fields.map((f) =>
-          f.id === fieldId ? { ...f, x: Math.max(0, newX), y: Math.max(0, newY) } : f
+        ...prev[currentTemplateType],
+        fields: prev[currentTemplateType].fields.map((f) =>
+          f.id === fieldId ? { ...f, x: finalX, y: finalY } : f
         ),
       },
-    });
+    }));
     setHasChanges(true);
-  };
+  }, [currentTemplateType, snapToGridEnabled]);
+
+  const handleFieldResize = useCallback((
+    fieldId: string,
+    handle: ResizeHandle,
+    newWidth: number,
+    newHeight: number,
+    deltaX: number,
+    deltaY: number
+  ) => {
+    const field = template.fields.find(f => f.id === fieldId);
+    if (!field) return;
+
+    let finalWidth = Math.max(10, newWidth);
+    let finalHeight = Math.max(5, newHeight);
+    let finalX = field.x;
+    let finalY = field.y;
+
+    // Ajustar posição para handles que movem a origem
+    if (handle === 'nw' || handle === 'w') {
+      finalX = field.x + deltaX;
+    }
+    if (handle === 'nw' || handle === 'n') {
+      finalY = field.y + deltaY;
+    }
+
+    if (snapToGridEnabled) {
+      finalWidth = snapToGrid(finalWidth);
+      finalHeight = snapToGrid(finalHeight);
+      finalX = snapToGrid(finalX);
+      finalY = snapToGrid(finalY);
+    }
+
+    setTemplates(prev => ({
+      ...prev,
+      [currentTemplateType]: {
+        ...prev[currentTemplateType],
+        fields: prev[currentTemplateType].fields.map((f) =>
+          f.id === fieldId 
+            ? { ...f, width: finalWidth, height: finalHeight, x: Math.max(0, finalX), y: Math.max(0, finalY) }
+            : f
+        ),
+      },
+    }));
+    setHasChanges(true);
+  }, [currentTemplateType, template.fields, snapToGridEnabled]);
 
   const handleDeleteField = (fieldId: string) => {
     setTemplates({
@@ -309,6 +514,10 @@ export default function GestaoTemplateFicha() {
     });
     setSelectedField(null);
     setHasChanges(true);
+    toast({
+      title: 'Campo removido',
+      description: 'O campo foi removido do template.',
+    });
   };
 
   const updateFieldProperty = (fieldId: string, property: keyof TemplateField, value: any) => {
@@ -335,32 +544,24 @@ export default function GestaoTemplateFicha() {
     setHasChanges(true);
   };
 
-  const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 10, 200)); // Máximo 200%
-  };
-
-  const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 10, 25)); // Mínimo 25%
-  };
-
-  const handleZoomReset = () => {
-    setZoomLevel(50); // Reset para 50%
-  };
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 10, 200));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 10, 25));
+  const handleZoomReset = () => setZoomLevel(50);
 
   const handleZoomFit = () => {
     if (canvasRef.current) {
       const container = canvasRef.current.parentElement;
       if (container) {
-        const containerWidth = container.clientWidth - 64;
-        const containerHeight = container.clientHeight - 64;
+        const containerWidth = container.clientWidth - 32;
+        const containerHeight = container.clientHeight - 32;
         const pageWidth = mmToPx(template.width);
         const pageHeight = mmToPx(template.height);
         
         const scaleX = containerWidth / pageWidth;
         const scaleY = containerHeight / pageHeight;
-        const fitScale = Math.min(scaleX, scaleY, 1) * 100;
+        const fitScale = Math.min(scaleX, scaleY, 0.95) * 100; // 95% para dar um pouco de margem
         
-        setZoomLevel(Math.max(25, Math.min(100, fitScale)));
+        setZoomLevel(Math.max(25, Math.min(200, fitScale)));
       }
     }
   };
@@ -389,173 +590,277 @@ export default function GestaoTemplateFicha() {
   const currentScale = zoomLevel / 100;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Paleta Lateral */}
-      <div className="w-64 border-r bg-muted/50 p-4 overflow-y-auto">
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Selecionar Template</h3>
-          <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)} className="mb-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="geral">Geral (A4)</TabsTrigger>
-              <TabsTrigger value="resumo">Resumo (1/3)</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <p className="text-xs text-muted-foreground mt-2">
-            {currentTemplateType === 'geral' 
-              ? 'Template completo A4 para lista de fichas detalhadas'
-              : 'Template resumo 1/3 A4 focado em produção'}
-          </p>
+    <div className="flex h-screen bg-[#1e1e1e] text-gray-100">
+      {/* Paleta Lateral Esquerda - Ferramentas */}
+      <div className="w-14 border-r border-gray-700 bg-[#2d2d2d] flex flex-col items-center py-2 flex-shrink-0">
+        <div className="space-y-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+            onClick={() => navigate('/dashboard/admin')}
+            title="Voltar"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+            onClick={saveTemplates}
+            disabled={loading || !hasChanges}
+            title="Salvar (Ctrl+S)"
+          >
+            <Save className="h-4 w-4" />
+          </Button>
         </div>
+        <Separator className="my-2 bg-gray-700" />
+        <div className="space-y-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white",
+              showGrid && "bg-[#3d3d3d] text-blue-400"
+            )}
+            onClick={() => setShowGrid(!showGrid)}
+            title="Mostrar/Ocultar Grid"
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white",
+              snapToGridEnabled && "bg-[#3d3d3d] text-blue-400"
+            )}
+            onClick={() => setSnapToGridEnabled(!snapToGridEnabled)}
+            title="Snap to Grid"
+          >
+            <Move className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-        <Separator className="my-4" />
-
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Campos Disponíveis</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Arraste os campos para a área de edição
-          </p>
+      {/* Paleta Lateral - Campos e Propriedades */}
+      <div className="w-64 border-r border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
+        {/* Header do Painel */}
+        <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
+          <h3 className="text-sm font-semibold text-gray-200">Painel de Campos</h3>
         </div>
         
-        <div className="space-y-2">
-          {AVAILABLE_FIELDS.map((field) => (
-            <div
-              key={field.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, field.id)}
-              className={cn(
-                "p-3 bg-background border rounded-lg cursor-move hover:bg-accent transition-colors",
-                "flex items-center gap-2"
-              )}
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1">
-                <div className="font-medium text-sm">{field.label}</div>
-                <div className="text-xs text-muted-foreground">{field.type}</div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          {/* Seleção de Template */}
+          <div>
+            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Template</Label>
+            <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)}>
+              <TabsList className="grid w-full grid-cols-2 h-8 bg-[#2d2d2d] border border-gray-700">
+                <TabsTrigger 
+                  value="geral" 
+                  className="text-xs data-[state=active]:bg-[#3d3d3d] data-[state=active]:text-white text-gray-400"
+                >
+                  Geral
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="resumo" 
+                  className="text-xs data-[state=active]:bg-[#3d3d3d] data-[state=active]:text-white text-gray-400"
+                >
+                  Resumo
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Campos Disponíveis */}
+          <div>
+            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Campos Disponíveis</Label>
+            <p className="text-xs text-gray-500 mb-2">
+              Arraste para adicionar ao canvas
+            </p>
+            <div className="space-y-1.5">
+              {AVAILABLE_FIELDS.map((field) => (
+                <div
+                  key={field.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, field.id)}
+                  className={cn(
+                    "p-2 bg-[#2d2d2d] border border-gray-700 rounded cursor-grab active:cursor-grabbing",
+                    "hover:bg-[#3d3d3d] hover:border-blue-500/50 transition-all",
+                    "flex items-center gap-2 text-xs group"
+                  )}
+                >
+                  <GripVertical className="h-3.5 w-3.5 text-gray-500 group-hover:text-gray-300 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate text-gray-200 text-xs">{field.label}</div>
+                    <div className="text-[10px] text-gray-500">{field.type}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Propriedades da Página */}
+          <div>
+            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Dimensões da Página</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="page-width" className="text-xs text-gray-500">Largura (mm)</Label>
+                <Input
+                  id="page-width"
+                  type="number"
+                  value={template.width}
+                  onChange={(e) => updateTemplateProperty('width', Number(e.target.value))}
+                  className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                />
               </div>
-            </div>
-          ))}
-        </div>
-
-        <Separator className="my-4" />
-
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">Propriedades da Página</Label>
-          <div className="space-y-2">
-            <div>
-              <Label htmlFor="page-width" className="text-xs">Largura (mm)</Label>
-              <Input
-                id="page-width"
-                type="number"
-                value={template.width}
-                onChange={(e) => updateTemplateProperty('width', Number(e.target.value))}
-                className="h-8"
-              />
-            </div>
-            <div>
-              <Label htmlFor="page-height" className="text-xs">Altura (mm)</Label>
-              <Input
-                id="page-height"
-                type="number"
-                value={template.height}
-                onChange={(e) => updateTemplateProperty('height', Number(e.target.value))}
-                className="h-8"
-              />
+              <div>
+                <Label htmlFor="page-height" className="text-xs text-gray-500">Altura (mm)</Label>
+                <Input
+                  id="page-height"
+                  type="number"
+                  value={template.height}
+                  onChange={(e) => updateTemplateProperty('height', Number(e.target.value))}
+                  className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Área Principal */}
-      <div className="flex-1 flex flex-col">
-        {/* Barra de Ferramentas */}
-        <div className="border-b p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/admin')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <FileText className="h-5 w-5 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold">Editor de Templates da Ficha</h1>
-              <p className="text-sm text-muted-foreground">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+        {/* Barra Superior - Menu e Controles */}
+        <div className="border-b border-gray-700 bg-[#2d2d2d] flex items-center justify-between px-3 py-1.5 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-semibold text-gray-200">
                 {currentTemplateType === 'geral' ? 'Template Geral (A4)' : 'Template Resumo (1/3 A4)'}
-              </p>
+              </span>
             </div>
+            {hasChanges && (
+              <span className="text-xs text-yellow-400">● Não salvo</span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          
+          <div className="flex items-center gap-1">
             {/* Controles de Zoom */}
-            <div className="flex items-center gap-1 border-r pr-2 mr-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleZoomOut}
+            <div className="flex items-center gap-1 border-r border-gray-700 pr-2 mr-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                onClick={handleZoomOut} 
                 title="Diminuir zoom (Ctrl + Scroll)"
               >
-                <ZoomOut className="h-4 w-4" />
+                <ZoomOut className="h-3.5 w-3.5" />
               </Button>
-              <div className="min-w-[60px] text-center text-sm font-medium">
+              <div className="min-w-[50px] text-center text-xs font-medium text-gray-300">
                 {zoomLevel}%
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleZoomIn}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                onClick={handleZoomIn} 
                 title="Aumentar zoom (Ctrl + Scroll)"
               >
-                <ZoomIn className="h-4 w-4" />
+                <ZoomIn className="h-3.5 w-3.5" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleZoomReset}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                onClick={handleZoomReset} 
                 title="Resetar zoom (50%)"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3.5 w-3.5" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleZoomFit}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                onClick={handleZoomFit} 
                 title="Ajustar à tela"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <Button variant="outline" onClick={resetCurrentTemplate}>
-              Restaurar Padrão
-            </Button>
-            <Button onClick={saveTemplates} disabled={loading || !hasChanges}>
-              <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Salvando...' : 'Salvar Templates'}
+            
+            <Button 
+              variant="ghost" 
+              onClick={resetCurrentTemplate} 
+              size="sm" 
+              className="h-7 text-xs text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+            >
+              Restaurar
             </Button>
           </div>
         </div>
 
-        {/* Área de Edição Visual */}
+        {/* Área de Edição Visual - Canvas */}
         <div 
-          className="flex-1 overflow-auto p-8 bg-gray-100 flex items-center justify-center"
+          className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center"
           onWheel={handleWheelZoom}
         >
           <div
             ref={canvasRef}
             className={cn(
-              "bg-white shadow-2xl relative transition-all",
-              isDraggingOver && "ring-2 ring-blue-500 ring-offset-2"
+              "bg-white shadow-[0_0_30px_rgba(0,0,0,0.5)] relative transition-all",
+              isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-[#1a1a1a] ring-opacity-75"
             )}
             style={{
               width: `${mmToPx(template.width) * currentScale}px`,
               height: `${mmToPx(template.height) * currentScale}px`,
               minWidth: `${mmToPx(template.width) * currentScale}px`,
               minHeight: `${mmToPx(template.height) * currentScale}px`,
+              backgroundImage: showGrid 
+                ? `linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)` 
+                : 'none',
+              backgroundSize: `${mmToPx(GRID_SIZE) * currentScale}px ${mmToPx(GRID_SIZE) * currentScale}px`,
             }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setIsDraggingOver(true);
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedField(null);
+              }
+            }}
           >
-            {/* Campos */}
+            {/* Indicador de posição durante drag - Estilo Photoshop */}
+            {isDraggingOver && dragPosition && (
+              <div
+                className="absolute pointer-events-none z-50"
+                style={{
+                  left: `${dragPosition.x}px`,
+                  top: `${dragPosition.y}px`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                <div className="relative">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full ring-2 ring-white shadow-lg" />
+                  {snapToGridEnabled && (
+                    <div
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                      style={{
+                        width: `${mmToPx(GRID_SIZE) * currentScale}px`,
+                        height: `${mmToPx(GRID_SIZE) * currentScale}px`,
+                        border: '1px dashed rgba(59, 130, 246, 0.4)',
+                        borderRadius: '2px',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
             {template.fields
               .filter((f) => f.visible)
               .map((field) => (
@@ -565,8 +870,9 @@ export default function GestaoTemplateFicha() {
                   scale={currentScale}
                   isSelected={selectedField === field.id}
                   isEditing={editingField === field.id}
-                  onSelect={() => handleFieldClick(field.id)}
+                  onSelect={(e) => handleFieldClick(field.id, e)}
                   onMove={(x, y) => handleFieldMove(field.id, x, y)}
+                  onResize={(handle, w, h, dx, dy) => handleFieldResize(field.id, handle, w, h, dx, dy)}
                   onDelete={() => handleDeleteField(field.id)}
                   onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
                   onStartEdit={() => setEditingField(field.id)}
@@ -577,14 +883,79 @@ export default function GestaoTemplateFicha() {
           </div>
         </div>
 
-        {/* Painel de Propriedades */}
+        {/* Painel de Propriedades - Estilo Photoshop */}
         {selectedField && (
-          <div className="w-80 border-l bg-background p-4 overflow-y-auto">
-            <FieldPropertiesPanel
-              field={template.fields.find((f) => f.id === selectedField)!}
-              onUpdate={(prop, value) => updateFieldProperty(selectedField, prop, value)}
-              onImageUpload={(file) => handleImageUpload(selectedField, file)}
-            />
+          <div className="w-72 border-l border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
+            <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
+              <h3 className="text-sm font-semibold text-gray-200">Propriedades</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {template.fields.find((f) => f.id === selectedField)?.label}
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <FieldPropertiesPanel
+                field={template.fields.find((f) => f.id === selectedField)!}
+                onUpdate={(prop, value) => updateFieldProperty(selectedField, prop, value)}
+                onImageUpload={(file) => handleImageUpload(selectedField, file)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Painel de Camadas - Estilo Photoshop */}
+        {!selectedField && (
+          <div className="w-64 border-l border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
+            <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-200">Camadas</h3>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {template.fields.length} campos
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-1">
+                {template.fields
+                  .map((field) => (
+                    <div
+                      key={field.id}
+                      className={cn(
+                        "p-2 rounded cursor-pointer transition-colors flex items-center gap-2 group",
+                        selectedField === field.id
+                          ? "bg-blue-500/20 border border-blue-500/50"
+                          : "bg-[#2d2d2d] border border-transparent hover:bg-[#3d3d3d]"
+                      )}
+                      onClick={() => handleFieldClick(field.id)}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateFieldProperty(field.id, 'visible', !field.visible);
+                        }}
+                        className="text-gray-400 hover:text-gray-200"
+                      >
+                        {field.visible ? (
+                          <Eye className="h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-gray-200 truncate">
+                          {field.label}
+                        </div>
+                        <div className="text-[10px] text-gray-500">
+                          {field.type} • {field.x.toFixed(1)}, {field.y.toFixed(1)}
+                        </div>
+                      </div>
+                      {selectedField === field.id && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -597,8 +968,9 @@ interface FieldEditorProps {
   scale: number;
   isSelected: boolean;
   isEditing: boolean;
-  onSelect: () => void;
+  onSelect: (e?: React.MouseEvent) => void;
   onMove: (x: number, y: number) => void;
+  onResize: (handle: ResizeHandle, width: number, height: number, deltaX: number, deltaY: number) => void;
   onDelete: () => void;
   onUpdate: (property: keyof TemplateField, value: any) => void;
   onStartEdit: () => void;
@@ -613,6 +985,7 @@ function FieldEditor({
   isEditing,
   onSelect,
   onMove,
+  onResize,
   onDelete,
   onUpdate,
   onStartEdit,
@@ -620,23 +993,55 @@ function FieldEditor({
   onImageUpload,
 }: FieldEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState<ResizeHandle>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, fieldX: 0, fieldY: 0 });
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, fieldX: 0, fieldY: 0 });
   const fieldRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging && !isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = pxToMm((e.clientX - dragStart.x) / scale);
-      const deltaY = pxToMm((e.clientY - dragStart.y) / scale);
-      const newX = Math.max(0, dragStart.fieldX + deltaX);
-      const newY = Math.max(0, dragStart.fieldY + deltaY);
-      onMove(newX, newY);
+      if (isDragging) {
+        const deltaX = pxToMm((e.clientX - dragStart.x) / scale);
+        const deltaY = pxToMm((e.clientY - dragStart.y) / scale);
+        const newX = Math.max(0, dragStart.fieldX + deltaX);
+        const newY = Math.max(0, dragStart.fieldY + deltaY);
+        onMove(newX, newY);
+      } else if (isResizing) {
+        const deltaX = pxToMm((e.clientX - resizeStart.x) / scale);
+        const deltaY = pxToMm((e.clientY - resizeStart.y) / scale);
+        
+        let newWidth = resizeStart.width;
+        let newHeight = resizeStart.height;
+        let deltaWidth = 0;
+        let deltaHeight = 0;
+
+        if (isResizing === 'e' || isResizing === 'ne' || isResizing === 'se') {
+          newWidth = resizeStart.width + deltaX;
+          deltaWidth = deltaX;
+        }
+        if (isResizing === 'w' || isResizing === 'nw' || isResizing === 'sw') {
+          newWidth = resizeStart.width - deltaX;
+          deltaWidth = -deltaX;
+        }
+        if (isResizing === 's' || isResizing === 'se' || isResizing === 'sw') {
+          newHeight = resizeStart.height + deltaY;
+          deltaHeight = deltaY;
+        }
+        if (isResizing === 'n' || isResizing === 'ne' || isResizing === 'nw') {
+          newHeight = resizeStart.height - deltaY;
+          deltaHeight = -deltaY;
+        }
+
+        onResize(isResizing, newWidth, newHeight, deltaWidth, deltaHeight);
+      }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setIsResizing(null);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -646,17 +1051,17 @@ function FieldEditor({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, scale, onMove]);
+  }, [isDragging, isResizing, dragStart, resizeStart, scale, onMove, onResize]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Não permitir drag se estiver editando ou clicando em input/button
     const target = e.target as HTMLElement;
     if (
       isEditing || 
       target.tagName === 'INPUT' || 
       target.tagName === 'BUTTON' ||
       target.closest('button') ||
-      target.closest('input')
+      target.closest('input') ||
+      target.classList.contains('resize-handle')
     ) {
       return;
     }
@@ -673,6 +1078,20 @@ function FieldEditor({
     onSelect();
   };
 
+  const handleResizeStart = (e: React.MouseEvent, handle: ResizeHandle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(handle);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: field.width,
+      height: field.height,
+      fieldX: field.x,
+      fieldY: field.y,
+    });
+  };
+
   const handleImageClick = () => {
     if (field.type === 'image' && fileInputRef.current) {
       fileInputRef.current.click();
@@ -686,106 +1105,132 @@ function FieldEditor({
     }
   };
 
+  const resizeHandles: ResizeHandle[] = ['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'];
+
   return (
-    <>
-      <div
-        className={cn(
-          "absolute border-2 cursor-move transition-all",
-          isSelected 
-            ? "border-blue-500 bg-blue-50/50 z-10 shadow-md" 
-            : "border-gray-300 hover:border-blue-400 z-0",
-          !field.visible && "opacity-50"
-        )}
-        style={{
-          left: `${mmToPx(field.x) * scale}px`,
-          top: `${mmToPx(field.y) * scale}px`,
-          width: `${mmToPx(field.width) * scale}px`,
-          height: `${mmToPx(field.height) * scale}px`,
-          minWidth: `${mmToPx(10) * scale}px`,
-          minHeight: `${mmToPx(5) * scale}px`,
-        }}
-        ref={fieldRef}
-        onMouseDown={handleMouseDown}
-        onClick={onSelect}
-      >
-        {isSelected && (
-          <div className="absolute -top-8 left-0 flex gap-1 z-20">
+    <div
+      className={cn(
+        "absolute border-2 cursor-move transition-all group",
+        isSelected 
+          ? "border-blue-500 bg-blue-500/10 z-10 shadow-[0_0_0_1px_rgba(59,130,246,0.3),0_4px_12px_rgba(0,0,0,0.3)]" 
+          : "border-gray-400/50 hover:border-blue-400/70 z-0",
+        !field.visible && "opacity-30"
+      )}
+      style={{
+        left: `${mmToPx(field.x) * scale}px`,
+        top: `${mmToPx(field.y) * scale}px`,
+        width: `${mmToPx(field.width) * scale}px`,
+        height: `${mmToPx(field.height) * scale}px`,
+        minWidth: `${mmToPx(10) * scale}px`,
+        minHeight: `${mmToPx(5) * scale}px`,
+      }}
+      ref={fieldRef}
+      onMouseDown={handleMouseDown}
+      onClick={onSelect}
+    >
+      {isSelected && (
+        <>
+          <div className="absolute -top-7 left-0 flex gap-1 z-20">
             <Button
               size="icon"
-              variant="destructive"
-              className="h-7 w-7"
+              variant="ghost"
+              className="h-6 w-6 bg-red-500/90 hover:bg-red-600 text-white border-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
+              title="Deletar (Delete)"
             >
-              <X className="h-3 w-3" />
+              <Trash2 className="h-3 w-3" />
             </Button>
           </div>
-        )}
-        
-        {field.type === 'image' ? (
-          <div 
-            className="w-full h-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleImageClick();
-            }}
-          >
-            {field.imageUrl ? (
-              <img 
-                src={field.imageUrl} 
-                alt="Preview" 
-                className="max-w-full max-h-full object-contain"
-              />
-            ) : (
-              <div className="text-center p-2">
-                <ImageIcon className="h-6 w-6 mx-auto text-gray-400 mb-1" />
-                <div className="text-xs text-gray-500">Clique para adicionar imagem</div>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
+          
+          {/* Resize handles - Estilo Photoshop */}
+          {resizeHandles.map((handle) => (
+            <div
+              key={handle}
+              className={cn(
+                "absolute resize-handle bg-blue-500 border-2 border-white rounded-sm shadow-lg",
+                "opacity-0 group-hover:opacity-100 transition-opacity",
+                handle === 'nw' && 'top-0 left-0 w-2.5 h-2.5 cursor-nw-resize -translate-x-1/2 -translate-y-1/2',
+                handle === 'ne' && 'top-0 right-0 w-2.5 h-2.5 cursor-ne-resize translate-x-1/2 -translate-y-1/2',
+                handle === 'sw' && 'bottom-0 left-0 w-2.5 h-2.5 cursor-sw-resize -translate-x-1/2 translate-y-1/2',
+                handle === 'se' && 'bottom-0 right-0 w-2.5 h-2.5 cursor-se-resize translate-x-1/2 translate-y-1/2',
+                handle === 'n' && 'top-0 left-1/2 w-2.5 h-2.5 cursor-n-resize -translate-x-1/2 -translate-y-1/2',
+                handle === 's' && 'bottom-0 left-1/2 w-2.5 h-2.5 cursor-s-resize -translate-x-1/2 translate-y-1/2',
+                handle === 'e' && 'right-0 top-1/2 w-2.5 h-2.5 cursor-e-resize translate-x-1/2 -translate-y-1/2',
+                handle === 'w' && 'left-0 top-1/2 w-2.5 h-2.5 cursor-w-resize -translate-x-1/2 -translate-y-1/2',
+              )}
+              onMouseDown={(e) => handleResizeStart(e, handle)}
             />
-          </div>
-        ) : (
-          <div
-            className="w-full h-full p-1 flex items-center text-xs overflow-hidden bg-white/80"
-            style={{
-              fontSize: `${(field.fontSize || 11) * scale}px`,
-              fontWeight: field.bold ? 'bold' : 'normal',
-              minHeight: '20px',
-            }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onStartEdit();
-            }}
-          >
-            {isEditing ? (
-              <Input
-                value={field.label}
-                onChange={(e) => onUpdate('label', e.target.value)}
-                onBlur={onEndEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    onEndEdit();
-                  }
-                }}
-                autoFocus
-                className="h-full text-xs p-1"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span className="whitespace-nowrap select-none">{field.label}</span>
-            )}
-          </div>
-        )}
-      </div>
-    </>
+          ))}
+        </>
+      )}
+      
+      {field.type === 'image' ? (
+        <div 
+          className="w-full h-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleImageClick();
+          }}
+        >
+          {field.imageUrl ? (
+            <img 
+              src={field.imageUrl} 
+              alt="Preview" 
+              className="max-w-full max-h-full object-contain"
+            />
+          ) : (
+            <div className="text-center p-2">
+              <ImageIcon className="h-6 w-6 mx-auto text-gray-400 mb-1" />
+              <div className="text-xs text-gray-500">Clique para adicionar</div>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+      ) : (
+        <div
+          className="w-full h-full p-1 flex items-center text-xs overflow-hidden bg-white"
+          style={{
+            fontSize: `${(field.fontSize || 11) * scale}px`,
+            fontWeight: field.bold ? 'bold' : 'normal',
+            minHeight: '20px',
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onStartEdit();
+          }}
+        >
+          {isEditing ? (
+            <Input
+              value={field.label}
+              onChange={(e) => onUpdate('label', e.target.value)}
+              onBlur={onEndEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  onEndEdit();
+                }
+                if (e.key === 'Escape') {
+                  onEndEdit();
+                }
+              }}
+              autoFocus
+              className="h-full text-xs p-1 border-2 border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="whitespace-nowrap select-none text-gray-900">{field.label}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -806,101 +1251,116 @@ function FieldPropertiesPanel({ field, onUpdate, onImageUpload }: FieldPropertie
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold mb-4">Propriedades do Campo</h3>
-      </div>
-
+    <div className="p-3 space-y-4">
       <div className="space-y-3">
         <div>
-          <Label htmlFor="field-label" className="text-xs">Rótulo</Label>
+          <Label htmlFor="field-label" className="text-xs text-gray-400 mb-1.5 block">Rótulo</Label>
           <Input
             id="field-label"
             value={field.label}
             onChange={(e) => onUpdate('label', e.target.value)}
-            className="h-8"
+            className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="field-x" className="text-xs">X (mm)</Label>
-            <Input
-              id="field-x"
-              type="number"
-              step="0.1"
-              value={field.x.toFixed(1)}
-              onChange={(e) => onUpdate('x', Number(e.target.value))}
-              className="h-8"
-            />
-          </div>
-          <div>
-            <Label htmlFor="field-y" className="text-xs">Y (mm)</Label>
-            <Input
-              id="field-y"
-              type="number"
-              step="0.1"
-              value={field.y.toFixed(1)}
-              onChange={(e) => onUpdate('y', Number(e.target.value))}
-              className="h-8"
-            />
+        <div>
+          <Label className="text-xs text-gray-400 mb-1.5 block">Posição</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="field-x" className="text-[10px] text-gray-500">X (mm)</Label>
+              <Input
+                id="field-x"
+                type="number"
+                step="0.1"
+                value={field.x.toFixed(1)}
+                onChange={(e) => onUpdate('x', Number(e.target.value))}
+                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <Label htmlFor="field-y" className="text-[10px] text-gray-500">Y (mm)</Label>
+              <Input
+                id="field-y"
+                type="number"
+                step="0.1"
+                value={field.y.toFixed(1)}
+                onChange={(e) => onUpdate('y', Number(e.target.value))}
+                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="field-width" className="text-xs">Largura (mm)</Label>
-            <Input
-              id="field-width"
-              type="number"
-              step="0.1"
-              value={field.width.toFixed(1)}
-              onChange={(e) => onUpdate('width', Number(e.target.value))}
-              className="h-8"
-            />
-          </div>
-          <div>
-            <Label htmlFor="field-height" className="text-xs">Altura (mm)</Label>
-            <Input
-              id="field-height"
-              type="number"
-              step="0.1"
-              value={field.height.toFixed(1)}
-              onChange={(e) => onUpdate('height', Number(e.target.value))}
-              className="h-8"
-            />
+        <div>
+          <Label className="text-xs text-gray-400 mb-1.5 block">Tamanho</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="field-width" className="text-[10px] text-gray-500">Largura (mm)</Label>
+              <Input
+                id="field-width"
+                type="number"
+                step="0.1"
+                value={field.width.toFixed(1)}
+                onChange={(e) => onUpdate('width', Number(e.target.value))}
+                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <Label htmlFor="field-height" className="text-[10px] text-gray-500">Altura (mm)</Label>
+              <Input
+                id="field-height"
+                type="number"
+                step="0.1"
+                value={field.height.toFixed(1)}
+                onChange={(e) => onUpdate('height', Number(e.target.value))}
+                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+              />
+            </div>
           </div>
         </div>
 
         {field.type !== 'image' && (
-          <div>
-            <Label htmlFor="field-font-size" className="text-xs">Tamanho da Fonte (pt)</Label>
-            <Input
-              id="field-font-size"
-              type="number"
-              value={field.fontSize || 11}
-              onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
-              className="h-8"
-            />
-          </div>
+          <>
+            <div>
+              <Label htmlFor="field-font-size" className="text-xs text-gray-400 mb-1.5 block">Tamanho da Fonte (pt)</Label>
+              <Input
+                id="field-font-size"
+                type="number"
+                value={field.fontSize || 11}
+                onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
+                className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex items-center space-x-2 p-2 bg-[#2d2d2d] rounded border border-gray-700">
+              <Checkbox
+                id="field-bold"
+                checked={field.bold || false}
+                onCheckedChange={(checked) => onUpdate('bold', checked === true)}
+                className="border-gray-600 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+              />
+              <Label htmlFor="field-bold" className="text-xs text-gray-300 cursor-pointer">Negrito</Label>
+            </div>
+          </>
         )}
 
         {field.type === 'image' && (
           <div>
-            <Label className="text-xs">Imagem</Label>
-            <div className="mt-2">
+            <Label className="text-xs text-gray-400 mb-1.5 block">Imagem</Label>
+            <div className="space-y-2">
               {field.imageUrl && (
-                <img 
-                  src={field.imageUrl} 
-                  alt="Preview" 
-                  className="max-w-full max-h-32 object-contain border rounded mb-2"
-                />
+                <div className="bg-[#2d2d2d] border border-gray-700 rounded p-2">
+                  <img 
+                    src={field.imageUrl} 
+                    alt="Preview" 
+                    className="max-w-full max-h-32 object-contain mx-auto"
+                  />
+                </div>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full"
+                className="w-full bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-300 border border-gray-700"
               >
                 <ImageIcon className="h-4 w-4 mr-2" />
                 {field.imageUrl ? 'Alterar Imagem' : 'Adicionar Imagem'}
