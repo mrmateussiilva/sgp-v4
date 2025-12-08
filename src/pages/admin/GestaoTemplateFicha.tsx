@@ -590,14 +590,14 @@ export default function GestaoTemplateFicha() {
   const currentScale = zoomLevel / 100;
 
   return (
-    <div className="flex h-screen bg-[#1e1e1e] text-gray-100">
+    <div className="flex h-screen bg-gray-50 text-gray-900">
       {/* Paleta Lateral Esquerda - Ferramentas */}
-      <div className="w-14 border-r border-gray-700 bg-[#2d2d2d] flex flex-col items-center py-2 flex-shrink-0">
+      <div className="w-14 border-r border-gray-200 bg-white flex flex-col items-center py-2 flex-shrink-0 shadow-sm">
         <div className="space-y-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+            className="h-10 w-10 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             onClick={() => navigate('/dashboard/admin')}
             title="Voltar"
           >
@@ -606,7 +606,7 @@ export default function GestaoTemplateFicha() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+            className="h-10 w-10 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             onClick={saveTemplates}
             disabled={loading || !hasChanges}
             title="Salvar (Ctrl+S)"
@@ -614,14 +614,14 @@ export default function GestaoTemplateFicha() {
             <Save className="h-4 w-4" />
           </Button>
         </div>
-        <Separator className="my-2 bg-gray-700" />
+        <Separator className="my-2 bg-gray-200" />
         <div className="space-y-1">
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              "h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white",
-              showGrid && "bg-[#3d3d3d] text-blue-400"
+              "h-10 w-10 text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+              showGrid && "bg-blue-50 text-blue-600"
             )}
             onClick={() => setShowGrid(!showGrid)}
             title="Mostrar/Ocultar Grid"
@@ -632,8 +632,8 @@ export default function GestaoTemplateFicha() {
             variant="ghost"
             size="icon"
             className={cn(
-              "h-10 w-10 text-gray-300 hover:bg-[#3d3d3d] hover:text-white",
-              snapToGridEnabled && "bg-[#3d3d3d] text-blue-400"
+              "h-10 w-10 text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+              snapToGridEnabled && "bg-blue-50 text-blue-600"
             )}
             onClick={() => setSnapToGridEnabled(!snapToGridEnabled)}
             title="Snap to Grid"
@@ -644,27 +644,27 @@ export default function GestaoTemplateFicha() {
       </div>
 
       {/* Paleta Lateral - Campos e Propriedades */}
-      <div className="w-64 border-r border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
+      <div className="w-64 border-r border-gray-200 bg-white flex flex-col flex-shrink-0 shadow-sm">
         {/* Header do Painel */}
-        <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
-          <h3 className="text-sm font-semibold text-gray-200">Painel de Campos</h3>
+        <div className="p-3 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-900">Painel de Campos</h3>
         </div>
         
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {/* Seleção de Template */}
           <div>
-            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Template</Label>
+            <Label className="text-xs font-semibold text-gray-700 mb-2 block">Template</Label>
             <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)}>
-              <TabsList className="grid w-full grid-cols-2 h-8 bg-[#2d2d2d] border border-gray-700">
+              <TabsList className="grid w-full grid-cols-2 h-8 bg-gray-100 border border-gray-200">
                 <TabsTrigger 
                   value="geral" 
-                  className="text-xs data-[state=active]:bg-[#3d3d3d] data-[state=active]:text-white text-gray-400"
+                  className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-gray-600"
                 >
                   Geral
                 </TabsTrigger>
                 <TabsTrigger 
                   value="resumo" 
-                  className="text-xs data-[state=active]:bg-[#3d3d3d] data-[state=active]:text-white text-gray-400"
+                  className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-gray-600"
                 >
                   Resumo
                 </TabsTrigger>
@@ -674,7 +674,7 @@ export default function GestaoTemplateFicha() {
 
           {/* Campos Disponíveis */}
           <div>
-            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Campos Disponíveis</Label>
+            <Label className="text-xs font-semibold text-gray-700 mb-2 block">Campos Disponíveis</Label>
             <p className="text-xs text-gray-500 mb-2">
               Arraste para adicionar ao canvas
             </p>
@@ -685,14 +685,14 @@ export default function GestaoTemplateFicha() {
                   draggable
                   onDragStart={(e) => handleDragStart(e, field.id)}
                   className={cn(
-                    "p-2 bg-[#2d2d2d] border border-gray-700 rounded cursor-grab active:cursor-grabbing",
-                    "hover:bg-[#3d3d3d] hover:border-blue-500/50 transition-all",
+                    "p-2 bg-white border border-gray-200 rounded cursor-grab active:cursor-grabbing",
+                    "hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm transition-all",
                     "flex items-center gap-2 text-xs group"
                   )}
                 >
-                  <GripVertical className="h-3.5 w-3.5 text-gray-500 group-hover:text-gray-300 flex-shrink-0" />
+                  <GripVertical className="h-3.5 w-3.5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-gray-200 text-xs">{field.label}</div>
+                    <div className="font-medium truncate text-gray-900 text-xs">{field.label}</div>
                     <div className="text-[10px] text-gray-500">{field.type}</div>
                   </div>
                 </div>
@@ -702,26 +702,26 @@ export default function GestaoTemplateFicha() {
 
           {/* Propriedades da Página */}
           <div>
-            <Label className="text-xs font-semibold text-gray-400 mb-2 block">Dimensões da Página</Label>
+            <Label className="text-xs font-semibold text-gray-700 mb-2 block">Dimensões da Página</Label>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="page-width" className="text-xs text-gray-500">Largura (mm)</Label>
+                <Label htmlFor="page-width" className="text-xs text-gray-600">Largura (mm)</Label>
                 <Input
                   id="page-width"
                   type="number"
                   value={template.width}
                   onChange={(e) => updateTemplateProperty('width', Number(e.target.value))}
-                  className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                  className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <Label htmlFor="page-height" className="text-xs text-gray-500">Altura (mm)</Label>
+                <Label htmlFor="page-height" className="text-xs text-gray-600">Altura (mm)</Label>
                 <Input
                   id="page-height"
                   type="number"
                   value={template.height}
                   onChange={(e) => updateTemplateProperty('height', Number(e.target.value))}
-                  className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                  className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -730,40 +730,40 @@ export default function GestaoTemplateFicha() {
       </div>
 
       {/* Área Principal */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+      <div className="flex-1 flex flex-col min-w-0 bg-gray-100">
         {/* Barra Superior - Menu e Controles */}
-        <div className="border-b border-gray-700 bg-[#2d2d2d] flex items-center justify-between px-3 py-1.5 flex-shrink-0">
+        <div className="border-b border-gray-200 bg-white flex items-center justify-between px-3 py-1.5 flex-shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-400" />
-              <span className="text-sm font-semibold text-gray-200">
+              <FileText className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-semibold text-gray-900">
                 {currentTemplateType === 'geral' ? 'Template Geral (A4)' : 'Template Resumo (1/3 A4)'}
               </span>
             </div>
             {hasChanges && (
-              <span className="text-xs text-yellow-400">● Não salvo</span>
+              <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
             )}
           </div>
           
           <div className="flex items-center gap-1">
             {/* Controles de Zoom */}
-            <div className="flex items-center gap-1 border-r border-gray-700 pr-2 mr-2">
+            <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
                 onClick={handleZoomOut} 
                 title="Diminuir zoom (Ctrl + Scroll)"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
-              <div className="min-w-[50px] text-center text-xs font-medium text-gray-300">
+              <div className="min-w-[50px] text-center text-xs font-medium text-gray-700">
                 {zoomLevel}%
               </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
                 onClick={handleZoomIn} 
                 title="Aumentar zoom (Ctrl + Scroll)"
               >
@@ -772,7 +772,7 @@ export default function GestaoTemplateFicha() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
                 onClick={handleZoomReset} 
                 title="Resetar zoom (50%)"
               >
@@ -781,7 +781,7 @@ export default function GestaoTemplateFicha() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-7 w-7 text-gray-300 hover:bg-[#3d3d3d] hover:text-white" 
+                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
                 onClick={handleZoomFit} 
                 title="Ajustar à tela"
               >
@@ -793,7 +793,7 @@ export default function GestaoTemplateFicha() {
               variant="ghost" 
               onClick={resetCurrentTemplate} 
               size="sm" 
-              className="h-7 text-xs text-gray-300 hover:bg-[#3d3d3d] hover:text-white"
+              className="h-7 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             >
               Restaurar
             </Button>
@@ -802,14 +802,14 @@ export default function GestaoTemplateFicha() {
 
         {/* Área de Edição Visual - Canvas */}
         <div 
-          className="flex-1 overflow-auto p-4 bg-[#1a1a1a] flex items-center justify-center"
+          className="flex-1 overflow-auto p-4 bg-gray-200 flex items-center justify-center"
           onWheel={handleWheelZoom}
         >
           <div
             ref={canvasRef}
             className={cn(
-              "bg-white shadow-[0_0_30px_rgba(0,0,0,0.5)] relative transition-all",
-              isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-[#1a1a1a] ring-opacity-75"
+              "bg-white shadow-2xl relative transition-all",
+              isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-gray-200 ring-opacity-75"
             )}
             style={{
               width: `${mmToPx(template.width) * currentScale}px`,
@@ -817,7 +817,7 @@ export default function GestaoTemplateFicha() {
               minWidth: `${mmToPx(template.width) * currentScale}px`,
               minHeight: `${mmToPx(template.height) * currentScale}px`,
               backgroundImage: showGrid 
-                ? `linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)` 
+                ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)` 
                 : 'none',
               backgroundSize: `${mmToPx(GRID_SIZE) * currentScale}px ${mmToPx(GRID_SIZE) * currentScale}px`,
             }}
@@ -845,16 +845,16 @@ export default function GestaoTemplateFicha() {
                 }}
               >
                 <div className="relative">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full ring-2 ring-white shadow-lg" />
+                  <div className="w-4 h-4 bg-blue-500 rounded-full ring-2 ring-white shadow-lg animate-pulse" />
                   {snapToGridEnabled && (
                     <div
                       className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                       style={{
                         width: `${mmToPx(GRID_SIZE) * currentScale}px`,
                         height: `${mmToPx(GRID_SIZE) * currentScale}px`,
-                        border: '1px dashed rgba(59, 130, 246, 0.4)',
+                        border: '1px dashed rgba(59, 130, 246, 0.5)',
                         borderRadius: '2px',
-                        background: 'rgba(59, 130, 246, 0.1)',
+                        background: 'rgba(59, 130, 246, 0.15)',
                       }}
                     />
                   )}
@@ -885,10 +885,10 @@ export default function GestaoTemplateFicha() {
 
         {/* Painel de Propriedades - Estilo Photoshop */}
         {selectedField && (
-          <div className="w-72 border-l border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
-            <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
-              <h3 className="text-sm font-semibold text-gray-200">Propriedades</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+          <div className="w-72 border-l border-gray-200 bg-white flex flex-col flex-shrink-0 shadow-lg">
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <h3 className="text-sm font-semibold text-gray-900">Propriedades</h3>
+              <p className="text-xs text-gray-600 mt-0.5">
                 {template.fields.find((f) => f.id === selectedField)?.label}
               </p>
             </div>
@@ -904,13 +904,13 @@ export default function GestaoTemplateFicha() {
 
         {/* Painel de Camadas - Estilo Photoshop */}
         {!selectedField && (
-          <div className="w-64 border-l border-gray-700 bg-[#252525] flex flex-col flex-shrink-0">
-            <div className="p-3 border-b border-gray-700 bg-[#2d2d2d]">
+          <div className="w-64 border-l border-gray-200 bg-white flex flex-col flex-shrink-0 shadow-lg">
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-200">Camadas</h3>
+                <Layers className="h-4 w-4 text-gray-600" />
+                <h3 className="text-sm font-semibold text-gray-900">Camadas</h3>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-600 mt-0.5">
                 {template.fields.length} campos
               </p>
             </div>
@@ -923,8 +923,8 @@ export default function GestaoTemplateFicha() {
                       className={cn(
                         "p-2 rounded cursor-pointer transition-colors flex items-center gap-2 group",
                         selectedField === field.id
-                          ? "bg-blue-500/20 border border-blue-500/50"
-                          : "bg-[#2d2d2d] border border-transparent hover:bg-[#3d3d3d]"
+                          ? "bg-blue-50 border border-blue-300 shadow-sm"
+                          : "bg-white border border-transparent hover:bg-gray-50 hover:border-gray-200"
                       )}
                       onClick={() => handleFieldClick(field.id)}
                     >
@@ -933,7 +933,7 @@ export default function GestaoTemplateFicha() {
                           e.stopPropagation();
                           updateFieldProperty(field.id, 'visible', !field.visible);
                         }}
-                        className="text-gray-400 hover:text-gray-200"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
                       >
                         {field.visible ? (
                           <Eye className="h-3.5 w-3.5" />
@@ -942,7 +942,7 @@ export default function GestaoTemplateFicha() {
                         )}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-200 truncate">
+                        <div className="text-xs font-medium text-gray-900 truncate">
                           {field.label}
                         </div>
                         <div className="text-[10px] text-gray-500">
@@ -950,7 +950,7 @@ export default function GestaoTemplateFicha() {
                         </div>
                       </div>
                       {selectedField === field.id && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
                       )}
                     </div>
                   ))}
@@ -998,58 +998,84 @@ function FieldEditor({
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, fieldX: 0, fieldY: 0 });
   const fieldRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastUpdateTime = useRef<number>(0);
 
   useEffect(() => {
-    if (!isDragging && !isResizing) return;
+    if (!isDragging && !isResizing) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        const deltaX = pxToMm((e.clientX - dragStart.x) / scale);
-        const deltaY = pxToMm((e.clientY - dragStart.y) / scale);
-        const newX = Math.max(0, dragStart.fieldX + deltaX);
-        const newY = Math.max(0, dragStart.fieldY + deltaY);
-        onMove(newX, newY);
-      } else if (isResizing) {
-        const deltaX = pxToMm((e.clientX - resizeStart.x) / scale);
-        const deltaY = pxToMm((e.clientY - resizeStart.y) / scale);
-        
-        let newWidth = resizeStart.width;
-        let newHeight = resizeStart.height;
-        let deltaWidth = 0;
-        let deltaHeight = 0;
+      const now = performance.now();
+      // Throttle updates to ~60fps for smooth animation
+      if (now - lastUpdateTime.current < 16) return;
+      lastUpdateTime.current = now;
 
-        if (isResizing === 'e' || isResizing === 'ne' || isResizing === 'se') {
-          newWidth = resizeStart.width + deltaX;
-          deltaWidth = deltaX;
-        }
-        if (isResizing === 'w' || isResizing === 'nw' || isResizing === 'sw') {
-          newWidth = resizeStart.width - deltaX;
-          deltaWidth = -deltaX;
-        }
-        if (isResizing === 's' || isResizing === 'se' || isResizing === 'sw') {
-          newHeight = resizeStart.height + deltaY;
-          deltaHeight = deltaY;
-        }
-        if (isResizing === 'n' || isResizing === 'ne' || isResizing === 'nw') {
-          newHeight = resizeStart.height - deltaY;
-          deltaHeight = -deltaY;
-        }
-
-        onResize(isResizing, newWidth, newHeight, deltaWidth, deltaHeight);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
+
+      animationFrameRef.current = requestAnimationFrame(() => {
+        if (isDragging) {
+          const deltaX = pxToMm((e.clientX - dragStart.x) / scale);
+          const deltaY = pxToMm((e.clientY - dragStart.y) / scale);
+          const newX = Math.max(0, dragStart.fieldX + deltaX);
+          const newY = Math.max(0, dragStart.fieldY + deltaY);
+          onMove(newX, newY);
+        } else if (isResizing) {
+          const deltaX = pxToMm((e.clientX - resizeStart.x) / scale);
+          const deltaY = pxToMm((e.clientY - resizeStart.y) / scale);
+          
+          let newWidth = resizeStart.width;
+          let newHeight = resizeStart.height;
+          let deltaWidth = 0;
+          let deltaHeight = 0;
+
+          if (isResizing === 'e' || isResizing === 'ne' || isResizing === 'se') {
+            newWidth = resizeStart.width + deltaX;
+            deltaWidth = deltaX;
+          }
+          if (isResizing === 'w' || isResizing === 'nw' || isResizing === 'sw') {
+            newWidth = resizeStart.width - deltaX;
+            deltaWidth = -deltaX;
+          }
+          if (isResizing === 's' || isResizing === 'se' || isResizing === 'sw') {
+            newHeight = resizeStart.height + deltaY;
+            deltaHeight = deltaY;
+          }
+          if (isResizing === 'n' || isResizing === 'ne' || isResizing === 'nw') {
+            newHeight = resizeStart.height - deltaY;
+            deltaHeight = -deltaY;
+          }
+
+          onResize(isResizing, newWidth, newHeight, deltaWidth, deltaHeight);
+        }
+      });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
       setIsResizing(null);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, [isDragging, isResizing, dragStart, resizeStart, scale, onMove, onResize]);
 
@@ -1112,9 +1138,10 @@ function FieldEditor({
       className={cn(
         "absolute border-2 cursor-move transition-all group",
         isSelected 
-          ? "border-blue-500 bg-blue-500/10 z-10 shadow-[0_0_0_1px_rgba(59,130,246,0.3),0_4px_12px_rgba(0,0,0,0.3)]" 
-          : "border-gray-400/50 hover:border-blue-400/70 z-0",
-        !field.visible && "opacity-30"
+          ? "border-blue-500 bg-blue-50/50 z-10 shadow-lg shadow-blue-500/20" 
+          : "border-gray-300 hover:border-blue-400/70 z-0",
+        !field.visible && "opacity-30",
+        isDragging && "shadow-xl shadow-blue-500/30 scale-[1.02]"
       )}
       style={{
         left: `${mmToPx(field.x) * scale}px`,
@@ -1123,6 +1150,7 @@ function FieldEditor({
         height: `${mmToPx(field.height) * scale}px`,
         minWidth: `${mmToPx(10) * scale}px`,
         minHeight: `${mmToPx(5) * scale}px`,
+        transition: isDragging || isResizing ? 'none' : 'all 0.15s ease-out',
       }}
       ref={fieldRef}
       onMouseDown={handleMouseDown}
@@ -1130,18 +1158,18 @@ function FieldEditor({
     >
       {isSelected && (
         <>
-          <div className="absolute -top-7 left-0 flex gap-1 z-20">
+          <div className="absolute -top-8 left-0 flex gap-1 z-20">
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 bg-red-500/90 hover:bg-red-600 text-white border-0"
+              className="h-7 w-7 bg-red-500 hover:bg-red-600 text-white border-0 shadow-md hover:shadow-lg transition-all"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
               title="Deletar (Delete)"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
           
@@ -1150,16 +1178,16 @@ function FieldEditor({
             <div
               key={handle}
               className={cn(
-                "absolute resize-handle bg-blue-500 border-2 border-white rounded-sm shadow-lg",
-                "opacity-0 group-hover:opacity-100 transition-opacity",
-                handle === 'nw' && 'top-0 left-0 w-2.5 h-2.5 cursor-nw-resize -translate-x-1/2 -translate-y-1/2',
-                handle === 'ne' && 'top-0 right-0 w-2.5 h-2.5 cursor-ne-resize translate-x-1/2 -translate-y-1/2',
-                handle === 'sw' && 'bottom-0 left-0 w-2.5 h-2.5 cursor-sw-resize -translate-x-1/2 translate-y-1/2',
-                handle === 'se' && 'bottom-0 right-0 w-2.5 h-2.5 cursor-se-resize translate-x-1/2 translate-y-1/2',
-                handle === 'n' && 'top-0 left-1/2 w-2.5 h-2.5 cursor-n-resize -translate-x-1/2 -translate-y-1/2',
-                handle === 's' && 'bottom-0 left-1/2 w-2.5 h-2.5 cursor-s-resize -translate-x-1/2 translate-y-1/2',
-                handle === 'e' && 'right-0 top-1/2 w-2.5 h-2.5 cursor-e-resize translate-x-1/2 -translate-y-1/2',
-                handle === 'w' && 'left-0 top-1/2 w-2.5 h-2.5 cursor-w-resize -translate-x-1/2 -translate-y-1/2',
+                "absolute resize-handle bg-blue-500 border-2 border-white rounded-sm shadow-md",
+                "opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110",
+                handle === 'nw' && 'top-0 left-0 w-3 h-3 cursor-nw-resize -translate-x-1/2 -translate-y-1/2',
+                handle === 'ne' && 'top-0 right-0 w-3 h-3 cursor-ne-resize translate-x-1/2 -translate-y-1/2',
+                handle === 'sw' && 'bottom-0 left-0 w-3 h-3 cursor-sw-resize -translate-x-1/2 translate-y-1/2',
+                handle === 'se' && 'bottom-0 right-0 w-3 h-3 cursor-se-resize translate-x-1/2 translate-y-1/2',
+                handle === 'n' && 'top-0 left-1/2 w-3 h-3 cursor-n-resize -translate-x-1/2 -translate-y-1/2',
+                handle === 's' && 'bottom-0 left-1/2 w-3 h-3 cursor-s-resize -translate-x-1/2 translate-y-1/2',
+                handle === 'e' && 'right-0 top-1/2 w-3 h-3 cursor-e-resize translate-x-1/2 -translate-y-1/2',
+                handle === 'w' && 'left-0 top-1/2 w-3 h-3 cursor-w-resize -translate-x-1/2 -translate-y-1/2',
               )}
               onMouseDown={(e) => handleResizeStart(e, handle)}
             />
@@ -1199,8 +1227,6 @@ function FieldEditor({
         <div
           className="w-full h-full p-1 flex items-center text-xs overflow-hidden bg-white"
           style={{
-            fontSize: `${(field.fontSize || 11) * scale}px`,
-            fontWeight: field.bold ? 'bold' : 'normal',
             minHeight: '20px',
           }}
           onDoubleClick={(e) => {
@@ -1215,18 +1241,32 @@ function FieldEditor({
               onBlur={onEndEdit}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  e.preventDefault();
                   onEndEdit();
                 }
                 if (e.key === 'Escape') {
+                  e.preventDefault();
                   onEndEdit();
                 }
               }}
               autoFocus
-              className="h-full text-xs p-1 border-2 border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              className="h-full text-xs p-1.5 border-2 border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 bg-white shadow-sm rounded-sm"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                fontSize: `${(field.fontSize || 11) * scale}px`,
+                fontWeight: field.bold ? 'bold' : 'normal',
+              }}
             />
           ) : (
-            <span className="whitespace-nowrap select-none text-gray-900">{field.label}</span>
+            <span 
+              className="whitespace-nowrap select-none text-gray-900"
+              style={{
+                fontSize: `${(field.fontSize || 11) * scale}px`,
+                fontWeight: field.bold ? 'bold' : 'normal',
+              }}
+            >
+              {field.label}
+            </span>
           )}
         </div>
       )}
@@ -1251,69 +1291,69 @@ function FieldPropertiesPanel({ field, onUpdate, onImageUpload }: FieldPropertie
   };
 
   return (
-    <div className="p-3 space-y-4">
-      <div className="space-y-3">
+    <div className="p-4 space-y-4">
+      <div className="space-y-4">
         <div>
-          <Label htmlFor="field-label" className="text-xs text-gray-400 mb-1.5 block">Rótulo</Label>
+          <Label htmlFor="field-label" className="text-xs font-medium text-gray-700 mb-2 block">Rótulo</Label>
           <Input
             id="field-label"
             value={field.label}
             onChange={(e) => onUpdate('label', e.target.value)}
-            className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+            className="h-9 text-sm bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
         <div>
-          <Label className="text-xs text-gray-400 mb-1.5 block">Posição</Label>
+          <Label className="text-xs font-medium text-gray-700 mb-2 block">Posição</Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="field-x" className="text-[10px] text-gray-500">X (mm)</Label>
+              <Label htmlFor="field-x" className="text-[11px] text-gray-600 mb-1 block">X (mm)</Label>
               <Input
                 id="field-x"
                 type="number"
                 step="0.1"
                 value={field.x.toFixed(1)}
                 onChange={(e) => onUpdate('x', Number(e.target.value))}
-                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <Label htmlFor="field-y" className="text-[10px] text-gray-500">Y (mm)</Label>
+              <Label htmlFor="field-y" className="text-[11px] text-gray-600 mb-1 block">Y (mm)</Label>
               <Input
                 id="field-y"
                 type="number"
                 step="0.1"
                 value={field.y.toFixed(1)}
                 onChange={(e) => onUpdate('y', Number(e.target.value))}
-                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
         </div>
 
         <div>
-          <Label className="text-xs text-gray-400 mb-1.5 block">Tamanho</Label>
+          <Label className="text-xs font-medium text-gray-700 mb-2 block">Tamanho</Label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label htmlFor="field-width" className="text-[10px] text-gray-500">Largura (mm)</Label>
+              <Label htmlFor="field-width" className="text-[11px] text-gray-600 mb-1 block">Largura (mm)</Label>
               <Input
                 id="field-width"
                 type="number"
                 step="0.1"
                 value={field.width.toFixed(1)}
                 onChange={(e) => onUpdate('width', Number(e.target.value))}
-                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <Label htmlFor="field-height" className="text-[10px] text-gray-500">Altura (mm)</Label>
+              <Label htmlFor="field-height" className="text-[11px] text-gray-600 mb-1 block">Altura (mm)</Label>
               <Input
                 id="field-height"
                 type="number"
                 step="0.1"
                 value={field.height.toFixed(1)}
                 onChange={(e) => onUpdate('height', Number(e.target.value))}
-                className="h-7 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -1322,45 +1362,45 @@ function FieldPropertiesPanel({ field, onUpdate, onImageUpload }: FieldPropertie
         {field.type !== 'image' && (
           <>
             <div>
-              <Label htmlFor="field-font-size" className="text-xs text-gray-400 mb-1.5 block">Tamanho da Fonte (pt)</Label>
+              <Label htmlFor="field-font-size" className="text-xs font-medium text-gray-700 mb-2 block">Tamanho da Fonte (pt)</Label>
               <Input
                 id="field-font-size"
                 type="number"
                 value={field.fontSize || 11}
                 onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
-                className="h-8 text-xs bg-[#2d2d2d] border-gray-700 text-gray-200 focus:border-blue-500"
+                className="h-9 text-sm bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div className="flex items-center space-x-2 p-2 bg-[#2d2d2d] rounded border border-gray-700">
+            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md border border-gray-200">
               <Checkbox
                 id="field-bold"
                 checked={field.bold || false}
                 onCheckedChange={(checked) => onUpdate('bold', checked === true)}
-                className="border-gray-600 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                className="border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="field-bold" className="text-xs text-gray-300 cursor-pointer">Negrito</Label>
+              <Label htmlFor="field-bold" className="text-sm text-gray-700 cursor-pointer font-medium">Negrito</Label>
             </div>
           </>
         )}
 
         {field.type === 'image' && (
           <div>
-            <Label className="text-xs text-gray-400 mb-1.5 block">Imagem</Label>
+            <Label className="text-xs font-medium text-gray-700 mb-2 block">Imagem</Label>
             <div className="space-y-2">
               {field.imageUrl && (
-                <div className="bg-[#2d2d2d] border border-gray-700 rounded p-2">
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
                   <img 
                     src={field.imageUrl} 
                     alt="Preview" 
-                    className="max-w-full max-h-32 object-contain mx-auto"
+                    className="max-w-full max-h-32 object-contain mx-auto rounded"
                   />
                 </div>
               )}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-300 border border-gray-700"
+                className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 hover:border-gray-400"
               >
                 <ImageIcon className="h-4 w-4 mr-2" />
                 {field.imageUrl ? 'Alterar Imagem' : 'Adicionar Imagem'}
