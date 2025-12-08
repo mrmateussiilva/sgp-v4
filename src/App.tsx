@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { useNotifications } from './hooks/useNotifications';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
+import { AlertProvider } from './contexts/AlertContext';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -119,37 +120,39 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <Suspense fallback={<LoadingFallback />}>
-        {showFallback || !apiUrl ? (
-          <div className="bg-background text-foreground min-h-screen">
-            <ConfigApi
-              onConfigured={(url) => {
-                const normalizedUrl = normalizeApiUrl(url);
-                applyApiUrl(normalizedUrl);
-                setApiUrl(normalizedUrl);
-                setShowFallback(false);
-              }}
-            />
-            <Toaster />
-          </div>
-        ) : (
-          <HashRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/dashboard/*"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
+      <AlertProvider>
+        <Suspense fallback={<LoadingFallback />}>
+          {showFallback || !apiUrl ? (
+            <div className="bg-background text-foreground min-h-screen">
+              <ConfigApi
+                onConfigured={(url) => {
+                  const normalizedUrl = normalizeApiUrl(url);
+                  applyApiUrl(normalizedUrl);
+                  setApiUrl(normalizedUrl);
+                  setShowFallback(false);
+                }}
               />
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-            </Routes>
-            <Toaster />
-          </HashRouter>
-        )}
-      </Suspense>
+              <Toaster />
+            </div>
+          ) : (
+            <HashRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/dashboard/*"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+              </Routes>
+              <Toaster />
+            </HashRouter>
+          )}
+        </Suspense>
+      </AlertProvider>
     </ThemeProvider>
   );
 }

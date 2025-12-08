@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
+import { alert } from '../src/utils/alert';
 
 // Interface para informações de atualização
 interface UpdateInfo {
@@ -51,7 +52,7 @@ export function useUpdater() {
       // A aplicação será reiniciada automaticamente
     } catch (error) {
       console.error('❌ Erro ao instalar atualização:', error);
-      alert('Erro ao instalar atualização: ' + error);
+      await alert('Erro ao instalar atualização: ' + error, 'Erro');
     } finally {
       setIsInstalling(false);
     }
