@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon, Grid, Copy, Trash2, Move, Layers, Eye, EyeOff, AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
+import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon, Grid, Trash2, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,8 +21,6 @@ interface TemplateField {
   height: number;
   fontSize?: number;
   bold?: boolean;
-  visible: boolean;
-  editable: boolean;
   imageUrl?: string;
 }
 
@@ -42,7 +40,7 @@ interface TemplatesConfig {
   resumo: FichaTemplate;
 }
 
-const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'visible' | 'editable'>[] = [
+const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
   { id: 'cliente', type: 'text', label: 'Cliente', key: 'cliente' },
   { id: 'telefone', type: 'text', label: 'Telefone', key: 'telefone_cliente' },
@@ -71,10 +69,10 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
   marginLeft: 15,
   marginRight: 15,
   fields: [
-    { id: 'title_field', type: 'text', label: 'FICHA DE SERVIÇO', key: 'title', x: 70, y: 10, width: 70, height: 10, fontSize: 16, bold: true, visible: true, editable: true },
-    { id: 'numero_os_field', type: 'text', label: 'OS:', key: 'numero', x: 10, y: 25, width: 30, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
-    { id: 'cliente_field', type: 'text', label: 'Cliente:', key: 'cliente', x: 10, y: 35, width: 80, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
-    { id: 'descricao_field', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 50, width: 90, height: 8, fontSize: 11, bold: false, visible: true, editable: true },
+    { id: 'title_field', type: 'text', label: 'FICHA DE SERVIÇO', key: 'title', x: 70, y: 10, width: 70, height: 10, fontSize: 16, bold: true },
+    { id: 'numero_os_field', type: 'text', label: 'OS:', key: 'numero', x: 10, y: 25, width: 30, height: 6, fontSize: 11, bold: false },
+    { id: 'cliente_field', type: 'text', label: 'Cliente:', key: 'cliente', x: 10, y: 35, width: 80, height: 6, fontSize: 11, bold: false },
+    { id: 'descricao_field', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 50, width: 90, height: 8, fontSize: 11, bold: false },
   ],
 };
 
@@ -87,11 +85,11 @@ const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   marginLeft: 5,
   marginRight: 5,
   fields: [
-    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true, visible: true, editable: true },
-    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false, visible: true, editable: true },
-    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
-    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false, visible: true, editable: true },
-    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true },
+    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false },
+    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false },
+    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false },
+    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false },
   ],
 };
 
@@ -122,14 +120,12 @@ export default function GestaoTemplateFicha() {
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [selectedField, setSelectedField] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(50);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGridEnabled, setSnapToGridEnabled] = useState(true);
-  const [copiedField, setCopiedField] = useState<TemplateField | null>(null);
 
   const template = templates[currentTemplateType];
 
@@ -238,47 +234,9 @@ export default function GestaoTemplateFicha() {
         return;
       }
 
-      // Ctrl+C - copiar campo
-      if (e.ctrlKey && e.key === 'c' && selectedField) {
-        const field = template.fields.find(f => f.id === selectedField);
-        if (field) {
-          setCopiedField(field);
-          toast({
-            title: 'Campo copiado',
-            description: `${field.label} copiado para área de transferência.`,
-          });
-        }
-        return;
-      }
-
-      // Ctrl+V - colar campo
-      if (e.ctrlKey && e.key === 'v' && copiedField) {
-        const newField: TemplateField = {
-          ...copiedField,
-          id: `${copiedField.id}_${Date.now()}`,
-          x: copiedField.x + 10,
-          y: copiedField.y + 10,
-        };
-        setTemplates({
-          ...templates,
-          [currentTemplateType]: {
-            ...template,
-            fields: [...template.fields, newField],
-          },
-        });
-        setSelectedField(newField.id);
-        setHasChanges(true);
-        toast({
-          title: 'Campo colado',
-          description: `${newField.label} colado.`,
-        });
-        return;
-      }
-
       // Esc - deselecionar
       if (e.key === 'Escape') {
         setSelectedField(null);
-        setEditingField(null);
       }
 
       // Ctrl+S - salvar
@@ -293,7 +251,7 @@ export default function GestaoTemplateFicha() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedField, copiedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField]);
+  }, [selectedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField]);
 
   const resetCurrentTemplate = () => {
     const defaultTemplate = currentTemplateType === 'geral' 
@@ -425,8 +383,6 @@ export default function GestaoTemplateFicha() {
       y: yMm,
       width: fieldTemplate.type === 'image' ? 40 : 40,
       height: fieldTemplate.type === 'image' ? 30 : 5,
-      visible: true,
-      editable: true,
     };
 
     setTemplates({
@@ -861,103 +817,110 @@ export default function GestaoTemplateFicha() {
                 </div>
               </div>
             )}
-            {template.fields
-              .filter((f) => f.visible)
-              .map((field) => (
+            {template.fields.map((field) => (
                 <FieldEditor
                   key={field.id}
                   field={field}
                   scale={currentScale}
                   isSelected={selectedField === field.id}
-                  isEditing={editingField === field.id}
                   onSelect={(e) => handleFieldClick(field.id, e)}
                   onMove={(x, y) => handleFieldMove(field.id, x, y)}
                   onResize={(handle, w, h, dx, dy) => handleFieldResize(field.id, handle, w, h, dx, dy)}
                   onDelete={() => handleDeleteField(field.id)}
-                  onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
-                  onStartEdit={() => setEditingField(field.id)}
-                  onEndEdit={() => setEditingField(null)}
                   onImageUpload={(file) => handleImageUpload(field.id, file)}
+                  onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
                 />
               ))}
+            
+            {/* Popup de Propriedades Flutuante */}
+            {selectedField && (() => {
+              const selectedFieldData = template.fields.find((f) => f.id === selectedField);
+              if (!selectedFieldData) return null;
+              
+              const fieldX = mmToPx(selectedFieldData.x) * currentScale;
+              const fieldY = mmToPx(selectedFieldData.y) * currentScale;
+              const fieldWidth = mmToPx(selectedFieldData.width) * currentScale;
+              const fieldHeight = mmToPx(selectedFieldData.height) * currentScale;
+              
+              // Posicionar popup acima do campo se houver espaço, senão abaixo
+              const popupX = fieldX + fieldWidth / 2;
+              const spaceAbove = fieldY;
+              const spaceBelow = (mmToPx(template.height) * currentScale) - (fieldY + fieldHeight);
+              const showAbove = spaceAbove > 80 || spaceAbove > spaceBelow;
+              const popupY = showAbove ? fieldY - 8 : fieldY + fieldHeight + 8;
+              
+              return (
+                <div
+                  className="absolute z-50 bg-white border border-gray-300 rounded-md shadow-2xl p-2 pointer-events-auto"
+                  style={{
+                    left: `${popupX}px`,
+                    top: `${popupY}px`,
+                    transform: showAbove ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+                    width: '160px',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-semibold text-gray-700 mb-1 pb-1 border-b border-gray-200 truncate">
+                      {selectedFieldData.label}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-1">
+                      <div>
+                        <Label htmlFor="popup-x" className="text-[9px] text-gray-600 mb-0.5 block">X</Label>
+                        <Input
+                          id="popup-x"
+                          type="number"
+                          step="0.1"
+                          value={selectedFieldData.x.toFixed(1)}
+                          onChange={(e) => updateFieldProperty(selectedField, 'x', Number(e.target.value))}
+                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="popup-y" className="text-[9px] text-gray-600 mb-0.5 block">Y</Label>
+                        <Input
+                          id="popup-y"
+                          type="number"
+                          step="0.1"
+                          value={selectedFieldData.y.toFixed(1)}
+                          onChange={(e) => updateFieldProperty(selectedField, 'y', Number(e.target.value))}
+                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-1">
+                      <div>
+                        <Label htmlFor="popup-w" className="text-[9px] text-gray-600 mb-0.5 block">Larg</Label>
+                        <Input
+                          id="popup-w"
+                          type="number"
+                          step="0.1"
+                          value={selectedFieldData.width.toFixed(1)}
+                          onChange={(e) => updateFieldProperty(selectedField, 'width', Number(e.target.value))}
+                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="popup-h" className="text-[9px] text-gray-600 mb-0.5 block">Alt</Label>
+                        <Input
+                          id="popup-h"
+                          type="number"
+                          step="0.1"
+                          value={selectedFieldData.height.toFixed(1)}
+                          onChange={(e) => updateFieldProperty(selectedField, 'height', Number(e.target.value))}
+                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Painel de Propriedades - Estilo Photoshop */}
-        {selectedField && (
-          <div className="w-72 border-l border-gray-200 bg-white flex flex-col flex-shrink-0 shadow-lg">
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
-              <h3 className="text-sm font-semibold text-gray-900">Propriedades</h3>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {template.fields.find((f) => f.id === selectedField)?.label}
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <FieldPropertiesPanel
-                field={template.fields.find((f) => f.id === selectedField)!}
-                onUpdate={(prop, value) => updateFieldProperty(selectedField, prop, value)}
-                onImageUpload={(file) => handleImageUpload(selectedField, file)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Painel de Camadas - Estilo Photoshop */}
-        {!selectedField && (
-          <div className="w-64 border-l border-gray-200 bg-white flex flex-col flex-shrink-0 shadow-lg">
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Camadas</h3>
-              </div>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {template.fields.length} campos
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              <div className="space-y-1">
-                {template.fields
-                  .map((field) => (
-                    <div
-                      key={field.id}
-                      className={cn(
-                        "p-2 rounded cursor-pointer transition-colors flex items-center gap-2 group",
-                        selectedField === field.id
-                          ? "bg-blue-50 border border-blue-300 shadow-sm"
-                          : "bg-white border border-transparent hover:bg-gray-50 hover:border-gray-200"
-                      )}
-                      onClick={() => handleFieldClick(field.id)}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateFieldProperty(field.id, 'visible', !field.visible);
-                        }}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        {field.visible ? (
-                          <Eye className="h-3.5 w-3.5" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-900 truncate">
-                          {field.label}
-                        </div>
-                        <div className="text-[10px] text-gray-500">
-                          {field.type} • {field.x.toFixed(1)}, {field.y.toFixed(1)}
-                        </div>
-                      </div>
-                      {selectedField === field.id && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -967,29 +930,22 @@ interface FieldEditorProps {
   field: TemplateField;
   scale: number;
   isSelected: boolean;
-  isEditing: boolean;
   onSelect: (e?: React.MouseEvent) => void;
   onMove: (x: number, y: number) => void;
   onResize: (handle: ResizeHandle, width: number, height: number, deltaX: number, deltaY: number) => void;
   onDelete: () => void;
-  onUpdate: (property: keyof TemplateField, value: any) => void;
-  onStartEdit: () => void;
-  onEndEdit: () => void;
   onImageUpload?: (file: File) => void;
+  onUpdate?: (property: keyof TemplateField, value: any) => void;
 }
 
 function FieldEditor({
   field,
   scale,
   isSelected,
-  isEditing,
   onSelect,
   onMove,
   onResize,
   onDelete,
-  onUpdate,
-  onStartEdit,
-  onEndEdit,
   onImageUpload,
 }: FieldEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -1082,11 +1038,8 @@ function FieldEditor({
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
-      isEditing || 
-      target.tagName === 'INPUT' || 
       target.tagName === 'BUTTON' ||
       target.closest('button') ||
-      target.closest('input') ||
       target.classList.contains('resize-handle')
     ) {
       return;
@@ -1140,7 +1093,6 @@ function FieldEditor({
         isSelected 
           ? "border-blue-500 bg-blue-50/50 z-10 shadow-lg shadow-blue-500/20" 
           : "border-gray-300 hover:border-blue-400/70 z-0",
-        !field.visible && "opacity-30",
         isDragging && "shadow-xl shadow-blue-500/30 scale-[1.02]"
       )}
       style={{
@@ -1229,193 +1181,19 @@ function FieldEditor({
           style={{
             minHeight: '20px',
           }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onStartEdit();
-          }}
         >
-          {isEditing ? (
-            <Input
-              value={field.label}
-              onChange={(e) => onUpdate('label', e.target.value)}
-              onBlur={onEndEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  onEndEdit();
-                }
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  onEndEdit();
-                }
-              }}
-              autoFocus
-              className="h-full text-xs p-1.5 border-2 border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-600 bg-white shadow-sm rounded-sm"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                fontSize: `${(field.fontSize || 11) * scale}px`,
-                fontWeight: field.bold ? 'bold' : 'normal',
-              }}
-            />
-          ) : (
-            <span 
-              className="whitespace-nowrap select-none text-gray-900"
-              style={{
-                fontSize: `${(field.fontSize || 11) * scale}px`,
-                fontWeight: field.bold ? 'bold' : 'normal',
-              }}
-            >
-              {field.label}
-            </span>
-          )}
+          <span 
+            className="whitespace-nowrap select-none text-gray-900"
+            style={{
+              fontSize: `${(field.fontSize || 11) * scale}px`,
+              fontWeight: field.bold ? 'bold' : 'normal',
+            }}
+          >
+            {field.label}
+          </span>
         </div>
       )}
     </div>
   );
 }
 
-interface FieldPropertiesPanelProps {
-  field: TemplateField;
-  onUpdate: (property: keyof TemplateField, value: any) => void;
-  onImageUpload?: (file: File) => void;
-}
-
-function FieldPropertiesPanel({ field, onUpdate, onImageUpload }: FieldPropertiesPanelProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onImageUpload) {
-      onImageUpload(file);
-    }
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="field-label" className="text-xs font-medium text-gray-700 mb-2 block">Rótulo</Label>
-          <Input
-            id="field-label"
-            value={field.label}
-            onChange={(e) => onUpdate('label', e.target.value)}
-            className="h-9 text-sm bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-gray-700 mb-2 block">Posição</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="field-x" className="text-[11px] text-gray-600 mb-1 block">X (mm)</Label>
-              <Input
-                id="field-x"
-                type="number"
-                step="0.1"
-                value={field.x.toFixed(1)}
-                onChange={(e) => onUpdate('x', Number(e.target.value))}
-                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <Label htmlFor="field-y" className="text-[11px] text-gray-600 mb-1 block">Y (mm)</Label>
-              <Input
-                id="field-y"
-                type="number"
-                step="0.1"
-                value={field.y.toFixed(1)}
-                onChange={(e) => onUpdate('y', Number(e.target.value))}
-                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-gray-700 mb-2 block">Tamanho</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="field-width" className="text-[11px] text-gray-600 mb-1 block">Largura (mm)</Label>
-              <Input
-                id="field-width"
-                type="number"
-                step="0.1"
-                value={field.width.toFixed(1)}
-                onChange={(e) => onUpdate('width', Number(e.target.value))}
-                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <Label htmlFor="field-height" className="text-[11px] text-gray-600 mb-1 block">Altura (mm)</Label>
-              <Input
-                id="field-height"
-                type="number"
-                step="0.1"
-                value={field.height.toFixed(1)}
-                onChange={(e) => onUpdate('height', Number(e.target.value))}
-                className="h-8 text-xs bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {field.type !== 'image' && (
-          <>
-            <div>
-              <Label htmlFor="field-font-size" className="text-xs font-medium text-gray-700 mb-2 block">Tamanho da Fonte (pt)</Label>
-              <Input
-                id="field-font-size"
-                type="number"
-                value={field.fontSize || 11}
-                onChange={(e) => onUpdate('fontSize', Number(e.target.value))}
-                className="h-9 text-sm bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-              <Checkbox
-                id="field-bold"
-                checked={field.bold || false}
-                onCheckedChange={(checked) => onUpdate('bold', checked === true)}
-                className="border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-              />
-              <Label htmlFor="field-bold" className="text-sm text-gray-700 cursor-pointer font-medium">Negrito</Label>
-            </div>
-          </>
-        )}
-
-        {field.type === 'image' && (
-          <div>
-            <Label className="text-xs font-medium text-gray-700 mb-2 block">Imagem</Label>
-            <div className="space-y-2">
-              {field.imageUrl && (
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                  <img 
-                    src={field.imageUrl} 
-                    alt="Preview" 
-                    className="max-w-full max-h-32 object-contain mx-auto rounded"
-                  />
-                </div>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 hover:border-gray-400"
-              >
-                <ImageIcon className="h-4 w-4 mr-2" />
-                {field.imageUrl ? 'Alterar Imagem' : 'Adicionar Imagem'}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
