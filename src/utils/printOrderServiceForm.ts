@@ -1,4 +1,5 @@
 import { OrderWithItems } from '../types';
+import { generateTemplatePrintContent } from './templateProcessor';
 
 // ============================================================================
 // TYPES
@@ -651,9 +652,42 @@ const buildServiceFormStyles = (): string => `
   }
 `;
 
-export const printOrderServiceForm = (order: OrderWithItems) => {
-  const content = generateServiceFormContent(order);
-  const styles = buildServiceFormStyles();
+/**
+ * Imprime ficha de serviço usando template configurado ou fallback
+ * @param order - Pedido a ser impresso
+ * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
+ */
+export const printOrderServiceForm = (order: OrderWithItems, templateType: 'geral' | 'resumo' = 'geral') => {
+  // Tentar usar template configurado primeiro
+  const templateContent = generateTemplatePrintContent(templateType, order);
+  
+  let content: string;
+  let styles: string;
+  
+  if (templateContent) {
+    // Usar template configurado
+    content = `<div class="template-document">${templateContent.html}</div>`;
+    styles = `
+      ${templateContent.css}
+      .template-document {
+        width: 100%;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: white;
+      }
+    `;
+  } else {
+    // Fallback para template hardcoded
+    content = generateServiceFormContent(order);
+    styles = buildServiceFormStyles();
+  }
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';

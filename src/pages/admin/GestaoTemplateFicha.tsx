@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 interface TemplateField {
@@ -35,6 +36,11 @@ interface FichaTemplate {
   marginRight: number;
 }
 
+interface TemplatesConfig {
+  geral: FichaTemplate; // Template A4 completo
+  resumo: FichaTemplate; // Template 1/3 A4 para produção
+}
+
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'visible' | 'editable'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
   { id: 'cliente', type: 'text', label: 'Cliente', key: 'cliente' },
@@ -55,28 +61,58 @@ const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height' | 'vi
   { id: 'imagem', type: 'image', label: 'Imagem', key: 'imagem' },
 ];
 
-const TEMPLATE_DEFAULT: FichaTemplate = {
-  title: 'EMISSÃO FICHA DE SERVIÇO',
-  width: 190, // mm
-  height: 130, // mm
+// Template Geral - A4 completo (210mm x 297mm)
+const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
+  title: 'FICHA DE SERVIÇO - GERAL',
+  width: 210, // A4 width em mm
+  height: 297, // A4 height em mm
   marginTop: 10,
   marginBottom: 10,
   marginLeft: 15,
   marginRight: 15,
   fields: [
-    { id: 'title_field', type: 'text', label: 'EMISSÃO FICHA DE SERVIÇO', key: 'title', x: 50, y: 5, width: 90, height: 8, fontSize: 14, bold: true, visible: true, editable: true },
+    { id: 'title_field', type: 'text', label: 'FICHA DE SERVIÇO', key: 'title', x: 70, y: 10, width: 70, height: 10, fontSize: 16, bold: true, visible: true, editable: true },
+    { id: 'numero_os_field', type: 'text', label: 'OS:', key: 'numero', x: 10, y: 25, width: 30, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
+    { id: 'cliente_field', type: 'text', label: 'Cliente:', key: 'cliente', x: 10, y: 35, width: 80, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
+    { id: 'descricao_field', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 50, width: 90, height: 8, fontSize: 11, bold: false, visible: true, editable: true },
   ],
 };
 
-const STORAGE_KEY = 'ficha_template_visual_config';
+// Template Resumo - 1/3 de A4 (70mm x 99mm) - Focado em produção
+const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
+  title: 'FICHA DE SERVIÇO - RESUMO PRODUÇÃO',
+  width: 70, // 1/3 de A4 width (210/3 = 70mm)
+  height: 99, // 1/3 de A4 height (297/3 = 99mm)
+  marginTop: 3,
+  marginBottom: 3,
+  marginLeft: 5,
+  marginRight: 5,
+  fields: [
+    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true, visible: true, editable: true },
+    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false, visible: true, editable: true },
+    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false, visible: true, editable: true },
+    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+  ],
+};
+
+const TEMPLATES_DEFAULT: TemplatesConfig = {
+  geral: TEMPLATE_GERAL_DEFAULT,
+  resumo: TEMPLATE_RESUMO_DEFAULT,
+};
+
+const STORAGE_KEY = 'ficha_templates_config';
 
 const mmToPx = (mm: number) => mm * 3.779527559; // 1mm = 3.779527559px
 const pxToMm = (px: number) => px / 3.779527559;
 
+type TemplateType = 'geral' | 'resumo';
+
 export default function GestaoTemplateFicha() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [template, setTemplate] = useState<FichaTemplate>(TEMPLATE_DEFAULT);
+  const [currentTemplateType, setCurrentTemplateType] = useState<TemplateType>('geral');
+  const [templates, setTemplates] = useState<TemplatesConfig>(TEMPLATES_DEFAULT);
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [selectedField, setSelectedField] = useState<string | null>(null);
@@ -85,42 +121,54 @@ export default function GestaoTemplateFicha() {
   const [zoomLevel, setZoomLevel] = useState(50); // Porcentagem de zoom (50% = 0.5)
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+  // Template atual baseado no tipo selecionado
+  const template = templates[currentTemplateType];
+
   useEffect(() => {
-    loadTemplate();
+    loadTemplates();
   }, []);
 
-  const loadTemplate = () => {
+  const loadTemplates = () => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setTemplate(parsed);
+        const parsed = JSON.parse(saved) as TemplatesConfig;
+        // Validar se tem ambos os templates
+        if (parsed.geral && parsed.resumo) {
+          setTemplates(parsed);
+        } else {
+          // Se não tiver completo, mesclar com padrões
+          setTemplates({
+            geral: parsed.geral || TEMPLATE_GERAL_DEFAULT,
+            resumo: parsed.resumo || TEMPLATE_RESUMO_DEFAULT,
+          });
+        }
       }
     } catch (error) {
-      console.error('Erro ao carregar template:', error);
+      console.error('Erro ao carregar templates:', error);
       toast({
         title: 'Aviso',
-        description: 'Usando template padrão. Erro ao carregar configurações salvas.',
+        description: 'Usando templates padrão. Erro ao carregar configurações salvas.',
         variant: 'default',
       });
     }
   };
 
-  const saveTemplate = async () => {
+  const saveTemplates = async () => {
     setLoading(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(template));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
       setHasChanges(false);
       toast({
         title: 'Sucesso',
-        description: 'Template da ficha salvo com sucesso! As alterações serão aplicadas em todas as fichas geradas.',
+        description: 'Templates salvos com sucesso! As alterações serão aplicadas em todas as fichas geradas.',
         variant: 'default',
       });
     } catch (error) {
-      console.error('Erro ao salvar template:', error);
+      console.error('Erro ao salvar templates:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível salvar o template.',
+        description: 'Não foi possível salvar os templates.',
         variant: 'destructive',
       });
     } finally {
@@ -128,14 +176,37 @@ export default function GestaoTemplateFicha() {
     }
   };
 
-  const resetTemplate = () => {
-    setTemplate(TEMPLATE_DEFAULT);
+  const resetCurrentTemplate = () => {
+    const defaultTemplate = currentTemplateType === 'geral' 
+      ? TEMPLATE_GERAL_DEFAULT 
+      : TEMPLATE_RESUMO_DEFAULT;
+    
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: defaultTemplate,
+    });
     setHasChanges(true);
+    setSelectedField(null);
     toast({
       title: 'Template Resetado',
-      description: 'Template restaurado para os valores padrão. Clique em Salvar para aplicar.',
+      description: `Template ${currentTemplateType === 'geral' ? 'Geral' : 'Resumo'} restaurado para os valores padrão. Clique em Salvar para aplicar.`,
       variant: 'default',
     });
+  };
+
+  const handleTemplateTypeChange = (type: TemplateType) => {
+    // Salvar mudanças antes de trocar
+    if (hasChanges) {
+      const confirmChange = window.confirm(
+        'Você tem alterações não salvas. Deseja descartá-las e trocar de template?'
+      );
+      if (!confirmChange) {
+        return;
+      }
+    }
+    setCurrentTemplateType(type);
+    setSelectedField(null);
+    setHasChanges(false);
   };
 
   const handleDragStart = (e: React.DragEvent, fieldType: string) => {
@@ -194,9 +265,12 @@ export default function GestaoTemplateFicha() {
       editable: true,
     };
 
-    setTemplate({
-      ...template,
-      fields: [...template.fields, newField],
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: {
+        ...template,
+        fields: [...template.fields, newField],
+      },
     });
     setHasChanges(true);
     setSelectedField(uniqueId);
@@ -213,30 +287,50 @@ export default function GestaoTemplateFicha() {
   };
 
   const handleFieldMove = (fieldId: string, newX: number, newY: number) => {
-    setTemplate({
-      ...template,
-      fields: template.fields.map((f) =>
-        f.id === fieldId ? { ...f, x: Math.max(0, newX), y: Math.max(0, newY) } : f
-      ),
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: {
+        ...template,
+        fields: template.fields.map((f) =>
+          f.id === fieldId ? { ...f, x: Math.max(0, newX), y: Math.max(0, newY) } : f
+        ),
+      },
     });
     setHasChanges(true);
   };
 
   const handleDeleteField = (fieldId: string) => {
-    setTemplate({
-      ...template,
-      fields: template.fields.filter((f) => f.id !== fieldId),
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: {
+        ...template,
+        fields: template.fields.filter((f) => f.id !== fieldId),
+      },
     });
     setSelectedField(null);
     setHasChanges(true);
   };
 
   const updateFieldProperty = (fieldId: string, property: keyof TemplateField, value: any) => {
-    setTemplate({
-      ...template,
-      fields: template.fields.map((f) =>
-        f.id === fieldId ? { ...f, [property]: value } : f
-      ),
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: {
+        ...template,
+        fields: template.fields.map((f) =>
+          f.id === fieldId ? { ...f, [property]: value } : f
+        ),
+      },
+    });
+    setHasChanges(true);
+  };
+
+  const updateTemplateProperty = (property: keyof FichaTemplate, value: any) => {
+    setTemplates({
+      ...templates,
+      [currentTemplateType]: {
+        ...template,
+        [property]: value,
+      },
     });
     setHasChanges(true);
   };
@@ -299,6 +393,23 @@ export default function GestaoTemplateFicha() {
       {/* Paleta Lateral */}
       <div className="w-64 border-r bg-muted/50 p-4 overflow-y-auto">
         <div className="mb-4">
+          <h3 className="font-semibold mb-2">Selecionar Template</h3>
+          <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)} className="mb-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="geral">Geral (A4)</TabsTrigger>
+              <TabsTrigger value="resumo">Resumo (1/3)</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <p className="text-xs text-muted-foreground mt-2">
+            {currentTemplateType === 'geral' 
+              ? 'Template completo A4 para lista de fichas detalhadas'
+              : 'Template resumo 1/3 A4 focado em produção'}
+          </p>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="mb-4">
           <h3 className="font-semibold mb-2">Campos Disponíveis</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Arraste os campos para a área de edição
@@ -336,10 +447,7 @@ export default function GestaoTemplateFicha() {
                 id="page-width"
                 type="number"
                 value={template.width}
-                onChange={(e) => {
-                  setTemplate({ ...template, width: Number(e.target.value) });
-                  setHasChanges(true);
-                }}
+                onChange={(e) => updateTemplateProperty('width', Number(e.target.value))}
                 className="h-8"
               />
             </div>
@@ -349,10 +457,7 @@ export default function GestaoTemplateFicha() {
                 id="page-height"
                 type="number"
                 value={template.height}
-                onChange={(e) => {
-                  setTemplate({ ...template, height: Number(e.target.value) });
-                  setHasChanges(true);
-                }}
+                onChange={(e) => updateTemplateProperty('height', Number(e.target.value))}
                 className="h-8"
               />
             </div>
@@ -373,7 +478,12 @@ export default function GestaoTemplateFicha() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <FileText className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold">Editor de Template da Ficha</h1>
+            <div>
+              <h1 className="text-xl font-bold">Editor de Templates da Ficha</h1>
+              <p className="text-sm text-muted-foreground">
+                {currentTemplateType === 'geral' ? 'Template Geral (A4)' : 'Template Resumo (1/3 A4)'}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Controles de Zoom */}
@@ -414,12 +524,12 @@ export default function GestaoTemplateFicha() {
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </div>
-            <Button variant="outline" onClick={resetTemplate}>
+            <Button variant="outline" onClick={resetCurrentTemplate}>
               Restaurar Padrão
             </Button>
-            <Button onClick={saveTemplate} disabled={loading || !hasChanges}>
+            <Button onClick={saveTemplates} disabled={loading || !hasChanges}>
               <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Salvando...' : 'Salvar Template'}
+              {loading ? 'Salvando...' : 'Salvar Templates'}
             </Button>
           </div>
         </div>
