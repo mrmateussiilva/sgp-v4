@@ -30,7 +30,7 @@ const handlePrintServiceForm = () => {
         ? formaPagamentoNome
         : undefined,
   };
-  printOrderServiceForm(enrichedOrder);
+  await printOrderServiceForm(enrichedOrder);
 };
 */
 

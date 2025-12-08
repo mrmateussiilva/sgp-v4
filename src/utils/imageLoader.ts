@@ -109,3 +109,45 @@ export function revokeImageUrl(imagePath: string): void {
   }
 }
 
+/**
+ * Converte uma imagem para base64 (útil para impressão)
+ * @param imagePath - Caminho da imagem (pode ser relativo ou absoluto)
+ * @returns Promise com a string base64 da imagem
+ */
+export async function imageToBase64(imagePath: string): Promise<string> {
+  try {
+    // Se já for base64, retornar diretamente
+    if (imagePath.startsWith('data:image/')) {
+      return imagePath;
+    }
+
+    // Carregar a imagem autenticada (retorna blob URL)
+    const blobUrl = await loadAuthenticatedImage(imagePath);
+    
+    // Se for base64, retornar diretamente
+    if (blobUrl.startsWith('data:image/')) {
+      return blobUrl;
+    }
+
+    // Converter blob URL para base64
+    const response = await fetch(blobUrl);
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('[imageToBase64] ❌ Erro ao converter imagem para base64:', {
+      imagePath,
+      error
+    });
+    throw error;
+  }
+}
+

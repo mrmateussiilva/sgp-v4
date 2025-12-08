@@ -657,9 +657,9 @@ const buildServiceFormStyles = (): string => `
  * @param order - Pedido a ser impresso
  * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
  */
-export const printOrderServiceForm = (order: OrderWithItems, templateType: 'geral' | 'resumo' = 'geral') => {
+export const printOrderServiceForm = async (order: OrderWithItems, templateType: 'geral' | 'resumo' = 'geral') => {
   // Tentar usar template configurado primeiro
-  const templateContent = generateTemplatePrintContent(templateType, order);
+  const templateContent = await generateTemplatePrintContent(templateType, order);
   
   let content: string;
   let styles: string;

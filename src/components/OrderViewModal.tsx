@@ -210,7 +210,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
     const enrichedOrder = {
       ...order,
@@ -219,10 +219,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ? formaPagamentoNome
           : undefined,
     };
-    printOrder(enrichedOrder);
+    await printOrder(enrichedOrder);
   };
 
-  const handlePrintServiceForm = () => {
+  const handlePrintServiceForm = async () => {
     const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
     const enrichedOrder = {
       ...order,
@@ -231,7 +231,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ? formaPagamentoNome
           : undefined,
     };
-    printOrderServiceForm(enrichedOrder);
+    await printOrderServiceForm(enrichedOrder);
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -1075,7 +1075,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     <span className="sm:hidden">Geral</span>
                   </Button>
                   <Button 
-                    onClick={() => printTemplateResumo(order)} 
+                    onClick={async () => await printTemplateResumo(order)} 
                     variant="outline" 
                     size="sm" 
                     className="text-xs sm:text-sm"

@@ -12,8 +12,8 @@ const escapeHtml = (value: string): string =>
 /**
  * Imprime ficha usando template geral (A4 completo)
  */
-export const printTemplateGeral = (order: OrderWithItems, items?: OrderItem[]) => {
-  const templateContent = generateTemplatePrintContent('geral', order, items);
+export const printTemplateGeral = async (order: OrderWithItems, items?: OrderItem[]) => {
+  const templateContent = await generateTemplatePrintContent('geral', order, items);
   
   if (!templateContent) {
     console.error('Template geral não encontrado');
@@ -26,8 +26,8 @@ export const printTemplateGeral = (order: OrderWithItems, items?: OrderItem[]) =
 /**
  * Imprime ficha usando template resumo (1/3 A4)
  */
-export const printTemplateResumo = (order: OrderWithItems, items?: OrderItem[]) => {
-  const templateContent = generateTemplatePrintContent('resumo', order, items);
+export const printTemplateResumo = async (order: OrderWithItems, items?: OrderItem[]) => {
+  const templateContent = await generateTemplatePrintContent('resumo', order, items);
   
   if (!templateContent) {
     console.error('Template resumo não encontrado');

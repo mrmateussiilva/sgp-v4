@@ -1,4 +1,6 @@
 import { OrderWithItems, OrderItem } from '../types';
+import { imageToBase64 } from './imageLoader';
+import { isValidImagePath } from './path';
 
 // ============================================================================
 // TYPES - Tipos do Template
@@ -220,7 +222,8 @@ const mmToPx = (mm: number): number => mm * 3.779527559;
 const renderField = (
   field: TemplateField,
   dataMap: OrderDataMap,
-  scale: number = 1
+  scale: number = 1,
+  imageBase64Map?: Map<string, string>
 ): string => {
   if (!field.visible) return '';
 
@@ -240,8 +243,13 @@ const renderField = (
   `;
 
   if (field.type === 'image') {
-    const imageUrl = field.imageUrl || dataMap.imagem || '';
-    if (!imageUrl) return '';
+    const imagePath = field.imageUrl || dataMap.imagem || '';
+    if (!imagePath) return '';
+    
+    // Usar base64 se disponível, senão usar o caminho original
+    const imageUrl = imageBase64Map?.has(imagePath) 
+      ? imageBase64Map.get(imagePath)! 
+      : imagePath;
     
     return `
       <div class="template-field template-field-image" style="${style}">
@@ -314,12 +322,13 @@ const generateTemplateStyles = (template: FichaTemplate): string => {
 export const renderTemplate = (
   template: FichaTemplate,
   order: OrderWithItems,
-  item?: OrderItem
+  item?: OrderItem,
+  imageBase64Map?: Map<string, string>
 ): string => {
   const dataMap = createOrderDataMap(order, item);
   const fieldsHtml = template.fields
     .filter(f => f.visible)
-    .map(field => renderField(field, dataMap))
+    .map(field => renderField(field, dataMap, 1, imageBase64Map))
     .join('\n');
 
   return `
@@ -332,11 +341,11 @@ export const renderTemplate = (
 /**
  * Gera o HTML completo com estilos para impressão
  */
-export const generateTemplatePrintContent = (
+export const generateTemplatePrintContent = async (
   templateType: TemplateType,
   order: OrderWithItems,
   items?: OrderItem[]
-): { html: string; css: string } | null => {
+): Promise<{ html: string; css: string } | null> => {
   const templates = loadTemplates();
   if (!templates) {
     console.warn('Templates não encontrados no localStorage');
@@ -352,16 +361,41 @@ export const generateTemplatePrintContent = (
   // Se não houver itens especificados, usar todos os itens do pedido
   const itemsToRender = items || order.items || [];
   
+  // Carregar todas as imagens para base64 antes de renderizar
+  const imageBase64Map = new Map<string, string>();
+  
+  const allItems = itemsToRender.length > 0 ? itemsToRender : (order.items || []);
+  const imagePromises = allItems
+    .filter(item => item.imagem && isValidImagePath(item.imagem))
+    .map(async (item) => {
+      try {
+        const imagePath = item.imagem!.trim();
+        console.log('[templateProcessor] 🔄 Carregando imagem para template:', imagePath);
+        const base64 = await imageToBase64(imagePath);
+        imageBase64Map.set(imagePath, base64);
+        console.log('[templateProcessor] ✅ Imagem carregada para template:', imagePath);
+      } catch (error) {
+        console.error('[templateProcessor] ❌ Erro ao carregar imagem para template:', {
+          imagem: item.imagem,
+          error
+        });
+        // Continuar mesmo se uma imagem falhar
+      }
+    });
+  
+  await Promise.all(imagePromises);
+  console.log('[templateProcessor] 📊 Total de imagens carregadas:', imageBase64Map.size);
+  
   if (itemsToRender.length === 0) {
     // Renderizar apenas com dados do pedido
-    const html = renderTemplate(template, order);
+    const html = renderTemplate(template, order, undefined, imageBase64Map);
     const css = generateTemplateStyles(template);
     return { html, css };
   }
 
   // Renderizar uma ficha por item
   const pagesHtml = itemsToRender
-    .map(item => renderTemplate(template, order, item))
+    .map(item => renderTemplate(template, order, item, imageBase64Map))
     .join('\n');
 
   const css = generateTemplateStyles(template);

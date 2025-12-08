@@ -1,4 +1,6 @@
 import { OrderItem, OrderWithItems } from '../types';
+import { imageToBase64 } from './imageLoader';
+import { isValidImagePath } from './path';
 
 // ============================================================================
 // TYPES
@@ -241,12 +243,18 @@ const buildItemCard = (
   itemIndex: number,
   totalQuantity: number,
   isLastItem: boolean, 
-  financials: OrderFinancials
+  financials: OrderFinancials,
+  imageBase64Map?: Map<string, string>
 ): string => {
   const itemRecord = item as unknown as Record<string, unknown>;
   const details = collectItemDetails(item);
-  const imageUrl = item.imagem?.trim();
+  const imagePath = item.imagem?.trim();
   const imageCaption = getFieldValue(itemRecord, 'legenda_imagem');
+  
+  // Usar base64 se disponível, senão usar o caminho original
+  const imageUrl = imagePath && imageBase64Map?.has(imagePath) 
+    ? imageBase64Map.get(imagePath)! 
+    : imagePath;
 
   // Calcular valores financeiros do item
   const subtotal = parseCurrencyValue(item.subtotal);
@@ -414,7 +422,7 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
 // CONTENT GENERATION - Geração de Conteúdo
 // ============================================================================
 
-const generatePrintContent = (order: OrderWithItems): string => {
+const generatePrintContent = (order: OrderWithItems, imageBase64Map?: Map<string, string>): string => {
   const financials = computeOrderFinancials(order);
   const headerHtml = buildOrderHeader(order);
 
@@ -452,7 +460,7 @@ const generatePrintContent = (order: OrderWithItems): string => {
       return `
         <div class="page">
           ${headerHtml}
-          ${buildItemCard(expanded.item, expanded.itemIndex, expanded.totalQuantity, isLastPage, financials)}
+          ${buildItemCard(expanded.item, expanded.itemIndex, expanded.totalQuantity, isLastPage, financials, imageBase64Map)}
         </div>
       `;
     })
@@ -873,8 +881,34 @@ const buildStyles = (): string => `
   }
 `;
 
-export const printOrder = (order: OrderWithItems) => {
-  const content = generatePrintContent(order);
+export const printOrder = async (order: OrderWithItems) => {
+  // Carregar todas as imagens para base64 antes de gerar o conteúdo
+  const imageBase64Map = new Map<string, string>();
+  
+  if (Array.isArray(order.items)) {
+    const imagePromises = order.items
+      .filter(item => item.imagem && isValidImagePath(item.imagem))
+      .map(async (item) => {
+        try {
+          const imagePath = item.imagem!.trim();
+          console.log('[printOrder] 🔄 Carregando imagem para impressão:', imagePath);
+          const base64 = await imageToBase64(imagePath);
+          imageBase64Map.set(imagePath, base64);
+          console.log('[printOrder] ✅ Imagem carregada para impressão:', imagePath);
+        } catch (error) {
+          console.error('[printOrder] ❌ Erro ao carregar imagem para impressão:', {
+            imagem: item.imagem,
+            error
+          });
+          // Continuar mesmo se uma imagem falhar
+        }
+      });
+    
+    await Promise.all(imagePromises);
+    console.log('[printOrder] 📊 Total de imagens carregadas:', imageBase64Map.size);
+  }
+  
+  const content = generatePrintContent(order, imageBase64Map);
   const styles = buildStyles();
 
   const iframe = document.createElement('iframe');
