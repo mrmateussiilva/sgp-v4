@@ -687,17 +687,78 @@ export default function OrderList() {
     iframeDoc.write(printContent);
     iframeDoc.close();
 
-    // Aguardar carregamento das imagens antes de imprimir
+    // Aguardar carregamento de todas as imagens antes de imprimir
     iframe.contentWindow?.focus();
     
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      
-      // Remover iframe após impressão
+    const waitForImages = () => {
+      const images = iframeDoc.querySelectorAll('img');
+      if (images.length === 0) {
+        // Não há imagens, pode imprimir imediatamente
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 100);
+        return;
+      }
+
+      let loadedCount = 0;
+      let errorCount = 0;
+      const totalImages = images.length;
+      let hasPrinted = false;
+
+      const checkAndPrint = () => {
+        if (hasPrinted) return;
+        
+        if (loadedCount + errorCount >= totalImages) {
+          hasPrinted = true;
+          // Todas as imagens foram carregadas ou falharam, pode imprimir
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 200);
+        }
+      };
+
+      // Adicionar listeners para cada imagem
+      images.forEach((img) => {
+        const imageElement = img as HTMLImageElement;
+        
+        // Se a imagem já está carregada
+        if (imageElement.complete && imageElement.naturalHeight !== 0) {
+          loadedCount++;
+          checkAndPrint();
+        } else {
+          // Aguardar carregamento
+          imageElement.onload = () => {
+            loadedCount++;
+            checkAndPrint();
+          };
+          
+          imageElement.onerror = () => {
+            errorCount++;
+            checkAndPrint();
+          };
+        }
+      });
+
+      // Timeout de segurança: imprimir após 5 segundos mesmo que algumas imagens não carreguem
       setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 500);
+        if (!hasPrinted) {
+          hasPrinted = true;
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }
+      }, 5000);
+    };
+
+    // Aguardar um pouco para o DOM estar pronto
+    setTimeout(waitForImages, 100);
   };
 
   const collectOrderData = (item: OrderItem): { basic: string[], details: string[] } => {
