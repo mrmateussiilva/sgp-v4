@@ -121,15 +121,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   // Cleanup: revogar blob URLs quando o componente for desmontado ou modal fechar
   useEffect(() => {
     return () => {
-      itemImageUrls.forEach((_blobUrl, itemKey) => {
-        // Encontrar o caminho original da imagem para revogar
-        const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
-        if (item?.imagem) {
-          revokeImageUrl(item.imagem);
-        }
-      });
+      // Só revogar URLs se o modal principal estiver fechado
+      if (!isOpen) {
+        itemImageUrls.forEach((_blobUrl, itemKey) => {
+          // Encontrar o caminho original da imagem para revogar
+          const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+          if (item?.imagem) {
+            revokeImageUrl(item.imagem);
+          }
+        });
+      }
     };
-  }, [itemImageUrls, order?.items]);
+  }, [itemImageUrls, order?.items, isOpen]);
 
   if (!order) return null;
 
@@ -141,18 +144,36 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   // Função para lidar com clique na imagem
-  const handleImageClick = async (imageUrl: string, caption?: string) => {
+  const handleImageClick = async (imageUrl: string, caption?: string, itemId?: string | number) => {
     if (!imageUrl || !isValidImagePath(imageUrl)) {
       return;
     }
     try {
+      // Resetar erro antes de tentar carregar
+      setImageError(false);
+      setSelectedImage(null);
+      
       // Tentar encontrar a blob URL nos itens já carregados
       let blobUrl: string | undefined;
-      for (const [itemKey, url] of itemImageUrls.entries()) {
-        const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
-        if (item?.imagem === imageUrl) {
-          blobUrl = url;
-          break;
+      
+      // Se temos o itemId, tentar buscar diretamente pelo itemKey
+      if (itemId !== undefined) {
+        const itemKey = String(itemId);
+        blobUrl = itemImageUrls.get(itemKey);
+        if (blobUrl) {
+          console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por itemId):', { itemKey, imageUrl });
+        }
+      }
+      
+      // Se não encontrou pelo itemId, procurar pelo caminho da imagem
+      if (!blobUrl) {
+        for (const [itemKey, url] of itemImageUrls.entries()) {
+          const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+          if (item?.imagem === imageUrl) {
+            blobUrl = url;
+            console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por caminho):', { itemKey, imageUrl });
+            break;
+          }
         }
       }
       
@@ -160,6 +181,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       if (!blobUrl) {
         console.log('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
         blobUrl = await loadAuthenticatedImage(imageUrl);
+        console.log('[OrderViewModal] ✅ Imagem carregada para modal:', blobUrl);
+      }
+      
+      // Verificar se a blob URL é válida
+      if (!blobUrl) {
+        throw new Error('Blob URL não foi criada');
       }
       
       setSelectedImage(blobUrl);
@@ -168,6 +195,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     } catch (error) {
       console.error('[OrderViewModal] ❌ Erro ao carregar imagem para modal:', error);
       setImageError(true);
+      setSelectedImage(null);
     }
   };
 
@@ -1000,7 +1028,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleImageClick(item.imagem!, legendaImagem)}
+                  onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
                   className="w-full"
                   disabled={loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
                 >
@@ -1237,12 +1265,20 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </DialogHeader>
             <div className="p-6 pt-4 overflow-y-auto">
               <div className="flex flex-col items-center gap-4">
-                {!imageError ? (
+                {!imageError && selectedImage ? (
                   <img
                     src={selectedImage}
                     alt="Imagem do item"
                     className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                    onError={() => {
+                    onLoad={() => {
+                      console.log('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
+                      setImageError(false);
+                    }}
+                    onError={(e) => {
+                      console.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
+                        src: selectedImage,
+                        error: e
+                      });
                       setImageError(true);
                     }}
                   />
@@ -1251,10 +1287,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     <div className="text-center">
                       <p className="text-slate-500 mb-2">Imagem não encontrada</p>
                       <p className="text-sm text-slate-400">O arquivo pode ter sido movido ou excluído</p>
+                      {selectedImage && (
+                        <p className="text-xs text-slate-400 mt-2">URL: {selectedImage.substring(0, 50)}...</p>
+                      )}
                     </div>
                   </div>
                 )}
-                {selectedImageCaption && !imageError && (
+                {selectedImageCaption && !imageError && selectedImage && (
                   <p className="max-w-3xl text-center text-sm text-slate-600">
                     {selectedImageCaption}
                   </p>
