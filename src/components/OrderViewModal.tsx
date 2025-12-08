@@ -10,7 +10,8 @@ import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { printTemplateResumo } from '../utils/printTemplate';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
-import { normalizeImagePath, isValidImagePath } from '@/utils/path';
+import { isValidImagePath } from '@/utils/path';
+import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
 import FichaDeServicoButton from './FichaDeServicoButton';
 import { useAuthStore } from '../store/authStore';
 
@@ -32,6 +33,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [imageError, setImageError] = useState<boolean>(false);
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
+  const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -46,6 +49,88 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     fetchFormasPagamento();
   }, []);
 
+  // Carregar imagens dos itens quando o modal abrir ou quando itens forem expandidos
+  useEffect(() => {
+    if (!isOpen || !order?.items) return;
+
+    const loadItemImages = async () => {
+      const imageUrlMap = new Map<string, string>();
+      const itemsToLoad: Array<{ itemKey: string; imagePath: string }> = [];
+
+      // Coletar todas as imagens que precisam ser carregadas
+      for (const item of order.items) {
+        if (item.imagem && isValidImagePath(item.imagem)) {
+          const itemKey = String(item.id ?? item.item_name);
+          // Se já está carregada, usar do cache
+          if (itemImageUrls.has(itemKey)) {
+            imageUrlMap.set(itemKey, itemImageUrls.get(itemKey)!);
+          } else if (!loadingImages.has(item.imagem)) {
+            itemsToLoad.push({ itemKey, imagePath: item.imagem });
+          }
+        }
+      }
+
+      // Carregar imagens que ainda não foram carregadas
+      if (itemsToLoad.length > 0) {
+        setLoadingImages(prev => {
+          const newSet = new Set(prev);
+          itemsToLoad.forEach(({ imagePath }) => newSet.add(imagePath));
+          return newSet;
+        });
+
+        for (const { itemKey, imagePath } of itemsToLoad) {
+          try {
+            console.log(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
+            const blobUrl = await loadAuthenticatedImage(imagePath);
+            imageUrlMap.set(itemKey, blobUrl);
+            console.log(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
+          } catch (err) {
+            console.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
+              imagem: imagePath,
+              error: err
+            });
+            // Marcar erro no estado
+            setItemImageErrors(prev => ({
+              ...prev,
+              [itemKey]: true
+            }));
+          }
+        }
+
+        setLoadingImages(prev => {
+          const newSet = new Set(prev);
+          itemsToLoad.forEach(({ imagePath }) => newSet.delete(imagePath));
+          return newSet;
+        });
+      }
+
+      // Atualizar o estado com todas as URLs (incluindo as já carregadas)
+      if (imageUrlMap.size > 0 || itemsToLoad.length > 0) {
+        setItemImageUrls(prev => {
+          const updated = new Map(prev);
+          imageUrlMap.forEach((url, key) => updated.set(key, url));
+          return updated;
+        });
+      }
+    };
+
+    loadItemImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, order?.items, openItemKey]);
+
+  // Cleanup: revogar blob URLs quando o componente for desmontado ou modal fechar
+  useEffect(() => {
+    return () => {
+      itemImageUrls.forEach((_blobUrl, itemKey) => {
+        // Encontrar o caminho original da imagem para revogar
+        const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+        if (item?.imagem) {
+          revokeImageUrl(item.imagem);
+        }
+      });
+    };
+  }, [itemImageUrls, order?.items]);
+
   if (!order) return null;
 
   // Função para obter o nome da forma de pagamento
@@ -56,14 +141,34 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   // Função para lidar com clique na imagem
-  const handleImageClick = (imageUrl: string, caption?: string) => {
+  const handleImageClick = async (imageUrl: string, caption?: string) => {
     if (!imageUrl || !isValidImagePath(imageUrl)) {
       return;
     }
-    const normalizedPath = normalizeImagePath(imageUrl);
-    setSelectedImage(normalizedPath);
-    setSelectedImageCaption(caption?.trim() ?? '');
-    setImageError(false);
+    try {
+      // Tentar encontrar a blob URL nos itens já carregados
+      let blobUrl: string | undefined;
+      for (const [itemKey, url] of itemImageUrls.entries()) {
+        const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+        if (item?.imagem === imageUrl) {
+          blobUrl = url;
+          break;
+        }
+      }
+      
+      // Se não encontrou, carregar a imagem
+      if (!blobUrl) {
+        console.log('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
+        blobUrl = await loadAuthenticatedImage(imageUrl);
+      }
+      
+      setSelectedImage(blobUrl);
+      setSelectedImageCaption(caption?.trim() ?? '');
+      setImageError(false);
+    } catch (error) {
+      console.error('[OrderViewModal] ❌ Erro ao carregar imagem para modal:', error);
+      setImageError(true);
+    }
   };
 
   // Função para fechar o modal de imagem
@@ -796,26 +901,37 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 {(() => {
                   const imagePath = item.imagem;
                   const isValid = isValidImagePath(imagePath || '');
-                  const normalizedPath = imagePath ? normalizeImagePath(imagePath) : '';
                   const itemKey = String(item.id ?? item.item_name);
                   const hasError = itemImageErrors[itemKey] || false;
+                  const isLoading = loadingImages.has(imagePath || '');
+                  const blobUrl = itemImageUrls.get(itemKey);
                   
                   // Debug log
                   if (imagePath) {
                     console.log('[OrderViewModal] Processando imagem:', {
                       original: imagePath,
                       isValid,
-                      normalized: normalizedPath,
+                      itemKey,
                       hasError,
-                      itemKey
+                      isLoading,
+                      hasBlobUrl: !!blobUrl
                     });
                   }
                   
                   // Se não for válido, mostrar placeholder
-                  if (!isValid || !normalizedPath) {
+                  if (!isValid || !imagePath) {
                     return (
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
                         <span className="text-sm">Imagem não disponível</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Se estiver carregando, mostrar indicador
+                  if (isLoading && !blobUrl) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Carregando imagem...</span>
                       </div>
                     );
                   }
@@ -829,18 +945,27 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     );
                   }
                   
+                  // Se não tiver blob URL ainda, mostrar placeholder
+                  if (!blobUrl) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Carregando imagem...</span>
+                      </div>
+                    );
+                  }
+                  
                   // Renderizar imagem
                   return (
                     <img
-                      key={`img-${itemKey}-${normalizedPath}`}
-                      src={normalizedPath}
+                      key={`img-${itemKey}-${blobUrl}`}
+                      src={blobUrl}
                       alt={`Imagem do item ${item.item_name}`}
                       className="h-full w-full object-contain"
                       style={{ display: 'block' }}
                       onLoad={() => {
                         console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
-                          normalizedPath,
-                          itemKey
+                          itemKey,
+                          blobUrl
                         });
                         // Garantir que o erro seja removido se a imagem carregar
                         setItemImageErrors(prev => {
@@ -854,7 +979,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                         const imageSrc = target.src;
                         console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
                           originalPath: imagePath,
-                          normalizedPath,
+                          blobUrl,
                           finalSrc: imageSrc,
                           itemKey,
                           status: target.complete ? 'complete' : 'incomplete',
@@ -877,8 +1002,11 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   size="sm"
                   onClick={() => handleImageClick(item.imagem!, legendaImagem)}
                   className="w-full"
+                  disabled={loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
                 >
-                  Abrir imagem em destaque
+                  {loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
+                    ? 'Carregando...'
+                    : 'Abrir imagem em destaque'}
                 </Button>
               )}
               {legendaImagem && (
