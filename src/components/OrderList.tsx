@@ -1614,12 +1614,12 @@ export default function OrderList() {
 
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden">
             <SmoothTableWrapper>
-              <Table className="w-full min-w-[1050px]">
+              <Table className="w-full">
               <TableHeader>
             <TableRow>
-                  <TableHead className="min-w-[40px] w-[40px] sticky left-0 z-10 bg-background border-r">
+                  <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                     <Checkbox
                       checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
                       onCheckedChange={(checked) => {
@@ -1632,57 +1632,57 @@ export default function OrderList() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="min-w-[55px] sm:min-w-[60px] w-[55px] sm:w-[60px] sticky left-[40px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
                     onClick={() => handleSort('id')}
                   >
-                    <div className="flex items-center text-xs sm:text-sm">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       ID
                       {getSortIcon('id')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4"
                     onClick={() => handleSort('cliente')}
                   >
-                    <div className="flex items-center text-xs sm:text-sm">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Nome Cliente
                       {getSortIcon('cliente')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[75px] sm:min-w-[90px] lg:min-w-[100px] w-[75px] sm:w-[90px] lg:w-[100px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('data_entrega')}
                   >
-                    <div className="flex items-center text-xs sm:text-sm">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Data Entrega
                       {getSortIcon('data_entrega')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] w-[60px] sm:w-[70px] lg:w-[80px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('prioridade')}
                   >
-                    <div className="flex items-center text-xs sm:text-sm">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Prioridade
                       {getSortIcon('prioridade')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] w-[80px] sm:w-[100px] lg:w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('cidade')}
                   >
-                    <div className="flex items-center text-xs sm:text-sm">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Cidade/UF
                       {getSortIcon('cidade')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Fin.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Conf.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Subl.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Cost.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px] w-[40px] sm:w-[45px] lg:w-[50px] text-xs sm:text-sm">Exp.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px] w-[60px] sm:w-[70px] lg:w-[80px] text-xs sm:text-sm">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] sm:min-w-[120px] lg:min-w-[140px] w-[110px] sm:w-[120px] lg:w-[140px] text-xs sm:text-sm">Ações</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Fin.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Conf.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
@@ -1690,14 +1690,14 @@ export default function OrderList() {
               <>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
-                    <TableCell className="sticky left-0 z-10 bg-background border-r">
+                    <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                       <Skeleton className="h-4 w-4" />
                     </TableCell>
-                    <TableCell className="sticky left-[40px] z-10 bg-background border-r">
-                      <Skeleton className="h-4 w-16" />
+                    <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2">
+                      <Skeleton className="h-4 w-12 lg:w-16" />
                     </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-32" />
+                    <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
+                      <Skeleton className="h-4 w-24 lg:w-32" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-4 w-24" />
@@ -1749,7 +1749,7 @@ export default function OrderList() {
                   paginatedOrders.map((order: OrderWithItems) => {
                     return (
                       <TableRow key={order.id} className="hover:bg-muted/50">
-                        <TableCell className="text-center sticky left-0 z-10 bg-background border-r">
+                        <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                           <Checkbox
                             checked={selectedOrderIdsForPrint.includes(order.id)}
                             onCheckedChange={(checked) => {
@@ -1761,27 +1761,27 @@ export default function OrderList() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[40px] z-10 bg-background border-r text-xs sm:text-sm">
-                          <div className="flex items-center gap-2">
+                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                          <div className="flex items-center gap-1 lg:gap-2">
                             #{order.numero || order.id}
                             <EditingIndicator orderId={order.id} />
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] truncate text-xs sm:text-sm">
+                        <TableCell className="font-medium min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] truncate px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[75px] sm:min-w-[90px] lg:min-w-[100px] text-xs sm:text-sm">
+                        <TableCell className="whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           {formatDateForDisplay(order.data_entrega, '-')}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px]">
+                        <TableCell className="whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
                           <Badge 
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
-                            className="text-xs"
+                            className="text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5"
                           >
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="min-w-[80px] sm:min-w-[100px] lg:min-w-[120px] truncate text-xs sm:text-sm">
+                        <TableCell className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           {order.cidade_cliente && order.estado_cliente 
                             ? `${order.cidade_cliente}/${order.estado_cliente}`
                             : order.cidade_cliente || '-'}
@@ -1789,7 +1789,7 @@ export default function OrderList() {
                         
                         {/* Checkboxes de Status */}
                         {/* Financeiro - Apenas admins podem alterar */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1812,7 +1812,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.conferencia === true}
                             disabled={!order.financeiro}
@@ -1821,14 +1821,14 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.sublimacao === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
                           />
                           {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
-                            <div className="mt-1 text-[9px] sm:text-[10px] text-muted-foreground leading-tight text-center">
+                            <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
                               {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
                               {order.sublimacao_data_impressao && (
                                 <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
@@ -1838,7 +1838,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.costura === true}
                             disabled={!order.financeiro}
@@ -1847,7 +1847,7 @@ export default function OrderList() {
                   </TableCell>
                         
                         {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[40px] sm:min-w-[45px] lg:min-w-[50px]">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.expedicao === true}
                             disabled={!order.financeiro}
@@ -1856,50 +1856,50 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[60px] sm:min-w-[70px] lg:min-w-[80px]">
+                        <TableCell className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
                           <Badge 
                             variant={order.pronto ? 'success' : 'secondary'}
-                            className="text-xs"
+                            className="text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5"
                           >
                             {order.pronto ? 'Pronto' : 'Em Andamento'}
                           </Badge>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] sm:min-w-[120px] lg:min-w-[140px]">
-                        <div className="flex justify-end gap-1">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] px-1 lg:px-2 xl:px-3">
+                        <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleViewOrder(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                             title="Visualizar Pedido"
                           >
-                            <FileText className="h-4 w-4" />
+                            <FileText className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleView(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                             title="Detalhes"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleEdit(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           {isAdmin && (
                             <Button
                               size="icon"
                               variant="ghost"
                               onClick={() => handleDeleteClick(order.id)}
-                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                             </Button>
                           )}
                         </div>
