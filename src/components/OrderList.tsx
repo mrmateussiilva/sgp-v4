@@ -53,6 +53,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { imageToBase64 } from '@/utils/imageLoader';
 
 export default function OrderList() {
   const navigate = useNavigate();
@@ -901,37 +902,6 @@ export default function OrderList() {
     return { basic, details };
   };
 
-  // Função para converter imagem URL para base64
-  const imageToBase64 = async (url: string): Promise<string> => {
-    // Se já é base64, retornar como está
-    if (url.startsWith('data:image')) {
-      return url;
-    }
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = reader.result as string;
-          resolve(base64String);
-        };
-        reader.onerror = () => {
-          console.error('Erro ao ler blob:', url);
-          reject(new Error('Erro ao ler imagem'));
-        };
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error('Erro ao converter imagem para base64:', error, url);
-      return url; // Retorna URL original em caso de erro
-    }
-  };
-
   const generatePrintList = async (orders: OrderWithItems[]): Promise<string> => {
     const styles = `
       <style>
@@ -1158,8 +1128,12 @@ export default function OrderList() {
     const imageBase64Map = new Map<string, string>();
     await Promise.all(
       Array.from(imageUrls).map(async (url) => {
-        const base64 = await imageToBase64(url);
-        imageBase64Map.set(url, base64);
+        try {
+          const base64 = await imageToBase64(url);
+          imageBase64Map.set(url, base64);
+        } catch (error) {
+          console.error('Erro ao converter imagem para impressão em lote:', { url, error });
+        }
       })
     );
 
