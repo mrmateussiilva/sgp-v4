@@ -8,6 +8,7 @@ import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
+import { printTemplateResumo } from '../utils/printTemplate';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { normalizeImagePath, isValidImagePath } from '@/utils/path';
 import FichaDeServicoButton from './FichaDeServicoButton';
@@ -805,65 +806,70 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       original: imagePath,
                       isValid,
                       normalized: normalizedPath,
-                      hasError
+                      hasError,
+                      itemKey
                     });
                   }
                   
-                  if (!isValid) {
-                    return null;
+                  // Se não for válido, mostrar placeholder
+                  if (!isValid || !normalizedPath) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Imagem não disponível</span>
+                      </div>
+                    );
                   }
                   
+                  // Se houver erro, mostrar placeholder
+                  if (hasError) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Erro ao carregar imagem</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Renderizar imagem
                   return (
-                    <>
-                      {!hasError && (
-                        <img
-                          src={normalizedPath}
-                          alt={`Imagem do item ${item.item_name}`}
-                          className="h-full w-full object-contain"
-                          onLoad={() => {
-                            console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', normalizedPath);
-                            // Garantir que o erro seja removido se a imagem carregar
-                            setItemImageErrors(prev => {
-                              const updated = { ...prev };
-                              delete updated[itemKey];
-                              return updated;
-                            });
-                          }}
-                          onError={(event) => {
-                            const target = event.currentTarget as HTMLImageElement;
-                            const imageSrc = target.src;
-                            console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
-                              originalPath: imagePath,
-                              normalizedPath,
-                              finalSrc: imageSrc,
-                              status: target.complete ? 'complete' : 'incomplete'
-                            });
-                            // Marcar erro no estado ao invés de esconder diretamente
-                            setItemImageErrors(prev => ({
-                              ...prev,
-                              [itemKey]: true
-                            }));
-                          }}
-                        />
-                      )}
-                    </>
+                    <img
+                      key={`img-${itemKey}-${normalizedPath}`}
+                      src={normalizedPath}
+                      alt={`Imagem do item ${item.item_name}`}
+                      className="h-full w-full object-contain"
+                      style={{ display: 'block' }}
+                      onLoad={() => {
+                        console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
+                          normalizedPath,
+                          itemKey
+                        });
+                        // Garantir que o erro seja removido se a imagem carregar
+                        setItemImageErrors(prev => {
+                          const updated = { ...prev };
+                          delete updated[itemKey];
+                          return updated;
+                        });
+                      }}
+                      onError={(event) => {
+                        const target = event.currentTarget as HTMLImageElement;
+                        const imageSrc = target.src;
+                        console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
+                          originalPath: imagePath,
+                          normalizedPath,
+                          finalSrc: imageSrc,
+                          itemKey,
+                          status: target.complete ? 'complete' : 'incomplete',
+                          naturalWidth: target.naturalWidth,
+                          naturalHeight: target.naturalHeight
+                        });
+                        // Marcar erro no estado
+                        setItemImageErrors(prev => ({
+                          ...prev,
+                          [itemKey]: true
+                        }));
+                      }}
+                    />
                   );
                 })()}
-                <div 
-                  className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" 
-                  style={{ 
-                    display: (() => {
-                      const imagePath = item.imagem;
-                      const isValid = isValidImagePath(imagePath || '');
-                      if (!isValid) return 'flex';
-                      const itemKey = String(item.id ?? item.item_name);
-                      const hasError = itemImageErrors[itemKey] || false;
-                      return hasError ? 'flex' : 'none';
-                    })()
-                  }}
-                >
-                  <span className="text-sm">Imagem não disponível</span>
-                </div>
               </div>
               {isValidImagePath(item.imagem!) && (
                 <Button
@@ -906,11 +912,24 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 />
               )}
               {!sessionToken && (
-                <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
-                  <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Ficha de Serviço</span>
-                  <span className="sm:hidden">Ficha</span>
-                </Button>
+                <>
+                  <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
+                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Ficha Geral</span>
+                    <span className="sm:hidden">Geral</span>
+                  </Button>
+                  <Button 
+                    onClick={() => printTemplateResumo(order)} 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs sm:text-sm"
+                    title="Imprimir ficha resumo (1/3 A4) para produção"
+                  >
+                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Ficha Resumo</span>
+                    <span className="sm:hidden">Resumo</span>
+                  </Button>
+                </>
               )}
             </div>
           </DialogTitle>

@@ -56,10 +56,15 @@ export function normalizeImagePath(path: string): string {
           });
           return fullUrl;
         }
+        // Se não conseguir construir URL completa, retornar o path normalizado
+        // Isso permite que o navegador tente carregar como URL relativa
         console.warn('[normalizeImagePath] ⚠️ Base URL não configurada e window não disponível, retornando path relativo:', normalized);
+        return normalized;
       }
     } catch (error) {
       console.error('[normalizeImagePath] ❌ Erro ao construir URL de imagem:', error, 'path:', normalized);
+      // Em caso de erro, retornar o path normalizado ao invés de string vazia
+      return normalized;
     }
   }
 
