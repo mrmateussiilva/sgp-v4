@@ -1,4 +1,3 @@
-import * as React from "react"
 import {
   Dialog,
   DialogContent,
@@ -91,4 +90,3 @@ export function AlertModal({
     </Dialog>
   )
 }
-

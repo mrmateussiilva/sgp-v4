@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Save, ArrowLeft, GripVertical, X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon, Grid, Trash2, Move } from 'lucide-react';
+import { FileText, Save, ArrowLeft, GripVertical, ZoomIn, ZoomOut, Maximize2, RotateCcw, Image as ImageIcon, Grid, Trash2, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 interface TemplateField {
@@ -100,7 +99,6 @@ const TEMPLATES_DEFAULT: TemplatesConfig = {
 
 const STORAGE_KEY = 'ficha_templates_config';
 const GRID_SIZE = 5; // mm
-const SNAP_THRESHOLD = 2; // mm
 
 const mmToPx = (mm: number) => mm * 3.779527559;
 const pxToMm = (px: number) => px / 3.779527559;
@@ -1196,4 +1194,3 @@ function FieldEditor({
     </div>
   );
 }
-

@@ -111,28 +111,8 @@ export const createOrderDataMap = (
   order: OrderWithItems,
   item?: OrderItem
 ): OrderDataMap => {
-  const orderRecord = order as unknown as Record<string, unknown>;
   const itemRecord = item as unknown as Record<string, unknown> || {};
   
-  const getValue = (key: string): string | number | undefined => {
-    // Primeiro tenta no item, depois no pedido
-    if (itemRecord[key] !== undefined) {
-      const value = itemRecord[key];
-      if (value === null || value === undefined) return undefined;
-      if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-      return String(value).trim() || undefined;
-    }
-    
-    if (orderRecord[key] !== undefined) {
-      const value = orderRecord[key];
-      if (value === null || value === undefined) return undefined;
-      if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-      return String(value).trim() || undefined;
-    }
-    
-    return undefined;
-  };
-
   // Campos específicos com formatação
   const dimensoes = item ? formatDimensions(item) : '';
   const cidadeEstado = [
@@ -243,7 +223,8 @@ const renderField = (
   `;
 
   if (field.type === 'image') {
-    const imagePath = field.imageUrl || dataMap.imagem || '';
+    const resolvedImagePath = field.imageUrl ?? dataMap.imagem ?? '';
+    const imagePath = typeof resolvedImagePath === 'number' ? String(resolvedImagePath) : resolvedImagePath;
     if (!imagePath) return '';
     
     // Usar base64 se disponível, senão usar o caminho original
@@ -405,4 +386,3 @@ export const generateTemplatePrintContent = async (
     css,
   };
 };
-

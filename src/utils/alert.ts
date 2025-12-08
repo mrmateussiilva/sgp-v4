@@ -26,10 +26,12 @@ const processPendingAlerts = async () => {
 
   isProcessingQueue = true
 
-  while (globalShowAlert && pendingAlerts.length > 0) {
+  const showAlertHandler = globalShowAlert
+
+  while (pendingAlerts.length > 0) {
     const { message, options, resolve } = pendingAlerts.shift()!
     try {
-      await globalShowAlert(message, options)
+      await showAlertHandler(message, options)
     } finally {
       resolve()
     }
