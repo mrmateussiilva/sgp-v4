@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 
 interface UpdateResponse {
   version: string;
@@ -21,6 +22,7 @@ export default function UpdateStatus() {
   const [updateNotes, setUpdateNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   const checkForUpdates = async () => {
     setIsChecking(true);
@@ -117,10 +119,34 @@ export default function UpdateStatus() {
     checkForUpdates();
   }, []);
 
-  const handleUpdate = () => {
-    // TODO: Implementar lógica de atualização
-    // Por enquanto, apenas mostra uma mensagem
-    alert('Funcionalidade de atualização será implementada em breve.');
+  const handleUpdate = async () => {
+    if (!latestVersion || !currentVersion) {
+      return;
+    }
+
+    setIsInstalling(true);
+    try {
+      const result = await invoke<string>('install_update');
+      
+      // Se chegou aqui, a atualização foi instalada e o app será reiniciado
+      // Mostrar mensagem de sucesso
+      toast({
+        title: '✅ Atualização instalada!',
+        description: 'A aplicação será reiniciada em instantes...',
+        variant: 'success',
+      });
+    } catch (error) {
+      console.error('Erro ao instalar atualização:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao instalar atualização';
+      
+      toast({
+        title: '❌ Erro ao instalar atualização',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsInstalling(false);
+    }
   };
 
   return (
@@ -208,11 +234,21 @@ export default function UpdateStatus() {
 
               <Button
                 onClick={handleUpdate}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isInstalling}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 size="lg"
               >
-                <Download className="mr-2 h-5 w-5" />
-                Atualizar Agora
+                {isInstalling ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Instalando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-5 w-5" />
+                    Atualizar Agora
+                  </>
+                )}
               </Button>
             </div>
           )}

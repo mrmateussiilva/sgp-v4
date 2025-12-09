@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod updater;
 
 use tauri::Manager;
 use tracing::info;
@@ -12,6 +13,7 @@ use commands::devtools::{
     toggle_devtools,
 };
 use commands::update::get_app_version;
+use updater::install_update;
 
 fn main() {
     setup_tracing();
@@ -27,7 +29,8 @@ fn main() {
             toggle_devtools,
             is_devtools_open,
             test_devtools_system,
-            get_app_version
+            get_app_version,
+            install_update
         ])
         .setup(|app| {
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
