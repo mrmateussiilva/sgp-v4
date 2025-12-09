@@ -1,122 +1,138 @@
 import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import { listen } from '@tauri-apps/api/event';
 import { alert } from '../src/utils/alert';
 
-// Interface para informações de atualização
-interface UpdateInfo {
-  current_version: string;
-  latest_version: string;
-  body: string;
-  date: string;
+const FALLBACK_MANIFEST_URL = 'https://sgp.finderbit.com.br/update';
+
+function resolveManifestUrl() {
+  const viteEnv = (import.meta as any)?.env?.VITE_SGP_MANIFEST_URL;
+  if (viteEnv) {
+    return viteEnv as string;
+  }
+  if (typeof window !== 'undefined') {
+    const globalUrl = (window as any).__SGP_MANIFEST_URL__;
+    if (globalUrl) {
+      return globalUrl;
+    }
+    const metaTag = document.querySelector('meta[name="sgp-manifest-url"]') as HTMLMetaElement | null;
+    if (metaTag?.content) {
+      return metaTag.content;
+    }
+  }
+  return FALLBACK_MANIFEST_URL;
 }
 
-// Hook para gerenciar atualizações
-export function useUpdater() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+const DEFAULT_MANIFEST_URL = resolveManifestUrl();
+
+interface ManualUpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string;
+  url?: string;
+  notes?: string;
+  date?: string;
+  signature?: string;
+}
+
+export function useManualUpdater(manifestUrl: string = DEFAULT_MANIFEST_URL) {
+  const [updateInfo, setUpdateInfo] = useState<ManualUpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [latestVersion, setLatestVersion] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
-  // Verificar atualizações manualmente
-  const checkForUpdates = async () => {
-    setIsChecking(true);
+  const loadCurrentVersion = async () => {
     try {
-      console.log('🔍 Verificando atualizações...');
-      const update = await invoke('check_for_updates');
-      console.log('✅ Atualização encontrada:', update);
-      
-      if (update) {
-        setUpdateAvailable(true);
-        setUpdateInfo(update as UpdateInfo);
-        setLatestVersion((update as any).latest_version);
-      }
-    } catch (error) {
-      console.log('ℹ️ Nenhuma atualização disponível:', error);
-      setUpdateAvailable(false);
-    } finally {
-      setIsChecking(false);
-    }
-  };
-
-  // Instalar atualização
-  const installUpdate = async () => {
-    setIsInstalling(true);
-    try {
-      console.log('📥 Instalando atualização...');
-      const result = await invoke('install_update');
-      console.log('✅ Atualização instalada:', result);
-      
-      // A aplicação será reiniciada automaticamente
-    } catch (error) {
-      console.error('❌ Erro ao instalar atualização:', error);
-      await alert('Erro ao instalar atualização: ' + error, 'Erro');
-    } finally {
-      setIsInstalling(false);
-    }
-  };
-
-  // Obter versão atual
-  const getCurrentVersion = async () => {
-    try {
-      const version = await invoke('get_app_version');
-      setCurrentVersion(version as string);
+      const version = await invoke<string>('get_app_version');
+      setCurrentVersion(version);
+      setLatestVersion(version);
     } catch (error) {
       console.error('Erro ao obter versão atual:', error);
     }
   };
 
-  // Obter versão mais recente
-  const getLatestVersion = async () => {
+  useEffect(() => {
+    loadCurrentVersion();
+  }, []);
+
+  const checkForUpdates = async () => {
+    setIsChecking(true);
     try {
-      const version = await invoke('get_latest_version');
-      setLatestVersion(version as string);
+      const result = await invoke<ManualUpdateInfo>('check_update_manual', {
+        manifestUrl
+      });
+
+      setLatestVersion(result.latest_version);
+
+      if (result.available) {
+        setUpdateInfo(result);
+      } else {
+        setUpdateInfo(null);
+        await alert('Você já está usando a versão mais recente.', 'Atualizações');
+      }
     } catch (error) {
-      console.error('Erro ao obter versão mais recente:', error);
+      console.error('Erro ao verificar atualizações:', error);
+      await alert(`Erro ao verificar atualizações: ${error}`, 'Erro');
+    } finally {
+      setIsChecking(false);
     }
   };
 
-  useEffect(() => {
-    // Obter versão atual na inicialização
-    getCurrentVersion();
+  const downloadAndInstall = async () => {
+    if (!updateInfo?.url) {
+      await alert('Nenhuma atualização disponível para baixar.', 'Atualizações');
+      return;
+    }
 
-    // Escutar eventos de atualização disponível
-    const unlisten = listen('update_available', (event) => {
-      console.log('📢 Atualização disponível:', event.payload);
-      const update = event.payload as UpdateInfo;
-      setUpdateAvailable(true);
-      setUpdateInfo(update);
-      setLatestVersion(update.latest_version);
-    });
+    try {
+      setIsDownloading(true);
+      const filePath = await invoke<string>('download_update_manual', {
+        updateUrl: updateInfo.url
+      });
 
-    return () => {
-      unlisten.then(f => f());
-    };
-  }, []);
+      setIsDownloading(false);
+      setIsInstalling(true);
+
+      await invoke('install_update_manual', { filePath });
+      await alert('Atualização instalada! O aplicativo será reiniciado automaticamente.', 'Atualizações');
+    } catch (error) {
+      console.error('Erro ao aplicar atualização manual:', error);
+      await alert(`Erro ao aplicar atualização: ${error}`, 'Erro');
+    } finally {
+      setIsDownloading(false);
+      setIsInstalling(false);
+    }
+  };
 
   return {
-    updateAvailable,
+    updateAvailable: Boolean(updateInfo),
     updateInfo,
     currentVersion,
     latestVersion,
     isChecking,
+    isDownloading,
     isInstalling,
     checkForUpdates,
-    installUpdate,
-    getCurrentVersion,
-    getLatestVersion
+    downloadAndInstall
   };
 }
 
-// Componente de notificação de atualização
-export function UpdateNotification() {
-  const { updateAvailable, updateInfo, installUpdate, isInstalling } = useUpdater();
+type ManualUpdaterState = ReturnType<typeof useManualUpdater>;
+
+export function UpdateNotification({
+  updateAvailable,
+  updateInfo,
+  downloadAndInstall,
+  isDownloading,
+  isInstalling
+}: ManualUpdaterState) {
 
   if (!updateAvailable || !updateInfo) {
     return null;
   }
+
+  const isBusy = isDownloading || isInstalling;
 
   return (
     <div className="fixed top-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg z-50 max-w-md">
@@ -126,16 +142,18 @@ export function UpdateNotification() {
           <p className="text-sm mb-2">
             Nova versão: <strong>{updateInfo.latest_version}</strong>
           </p>
-          {updateInfo.body && (
-            <p className="text-sm mb-3 opacity-90">{updateInfo.body}</p>
+          {updateInfo.notes && (
+            <p className="text-sm mb-3 opacity-90">{updateInfo.notes}</p>
           )}
           <div className="flex gap-2">
             <button
-              onClick={installUpdate}
-              disabled={isInstalling}
+              onClick={downloadAndInstall}
+              disabled={isBusy}
               className="bg-green-600 hover:bg-green-700 disabled:bg-gray-500 px-4 py-2 rounded text-sm font-medium"
             >
-              {isInstalling ? 'Instalando...' : 'Instalar Agora'}
+              {isDownloading && 'Baixando...'}
+              {isInstalling && 'Instalando...'}
+              {!isBusy && 'Baixar e Instalar'}
             </button>
             <button
               onClick={() => window.location.reload()}
@@ -150,19 +168,22 @@ export function UpdateNotification() {
   );
 }
 
-// Componente de informações de versão
-export function VersionInfo() {
-  const { currentVersion, latestVersion, checkForUpdates, isChecking } = useUpdater();
+export function VersionInfo({
+  currentVersion,
+  latestVersion,
+  checkForUpdates,
+  isChecking
+}: ManualUpdaterState) {
 
   return (
     <div className="bg-gray-100 p-4 rounded-lg">
       <h3 className="font-bold mb-2">📋 Informações de Versão</h3>
       <div className="space-y-2 text-sm">
         <div>
-          <span className="font-medium">Versão Atual:</span> {currentVersion}
+          <span className="font-medium">Versão Atual:</span> {currentVersion || '...'}
         </div>
         <div>
-          <span className="font-medium">Versão Mais Recente:</span> {latestVersion}
+          <span className="font-medium">Versão Mais Recente:</span> {latestVersion || '...'}
         </div>
         <div className="pt-2">
           <button
@@ -178,26 +199,28 @@ export function VersionInfo() {
   );
 }
 
-// Componente principal de atualizações
-export function UpdateManager() {
-  const { 
-    updateAvailable, 
-    updateInfo, 
-    currentVersion, 
-    latestVersion, 
-    isChecking, 
+export function UpdateManager(props: ManualUpdaterState) {
+  const {
+    updateAvailable,
+    updateInfo,
+    currentVersion,
+    latestVersion,
+    isChecking,
+    isDownloading,
     isInstalling,
-    checkForUpdates, 
-    installUpdate 
-  } = useUpdater();
+    checkForUpdates,
+    downloadAndInstall
+  } = props;
+
+  const isBusy = isDownloading || isInstalling;
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">🔄 Gerenciador de Atualizações</h2>
-      
-      <VersionInfo />
-      
-      {updateAvailable && updateInfo && (
+
+      <VersionInfo {...props} />
+
+      {updateAvailable && updateInfo ? (
         <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
           <h3 className="font-bold text-yellow-800 mb-2">⚠️ Atualização Disponível</h3>
           <div className="space-y-2 text-sm text-yellow-700">
@@ -207,9 +230,9 @@ export function UpdateManager() {
             <div>
               <strong>Nova Versão:</strong> {updateInfo.latest_version}
             </div>
-            {updateInfo.body && (
+            {updateInfo.notes && (
               <div>
-                <strong>Descrição:</strong> {updateInfo.body}
+                <strong>Notas:</strong> {updateInfo.notes}
               </div>
             )}
             {updateInfo.date && (
@@ -218,14 +241,16 @@ export function UpdateManager() {
               </div>
             )}
           </div>
-          
+
           <div className="flex gap-2 mt-4">
             <button
-              onClick={installUpdate}
-              disabled={isInstalling}
+              onClick={downloadAndInstall}
+              disabled={isBusy}
               className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded font-medium"
             >
-              {isInstalling ? 'Instalando...' : 'Instalar Atualização'}
+              {isDownloading && 'Baixando...'}
+              {isInstalling && 'Instalando...'}
+              {!isBusy && 'Baixar e Instalar'}
             </button>
             <button
               onClick={checkForUpdates}
@@ -236,13 +261,11 @@ export function UpdateManager() {
             </button>
           </div>
         </div>
-      )}
-      
-      {!updateAvailable && (
+      ) : (
         <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
           <h3 className="font-bold text-green-800 mb-2">✅ Aplicação Atualizada</h3>
           <p className="text-sm text-green-700">
-            Você está usando a versão mais recente ({currentVersion}).
+            Você está usando a versão mais recente ({currentVersion || latestVersion || '...'}).
           </p>
           <button
             onClick={checkForUpdates}
@@ -257,30 +280,23 @@ export function UpdateManager() {
   );
 }
 
-// Exemplo de uso em um componente principal
 export function App() {
+  const updater = useManualUpdater();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Notificação de atualização no topo */}
-      <UpdateNotification />
-      
-      {/* Conteúdo principal da aplicação */}
+      <UpdateNotification {...updater} />
+
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">SGP v4</h1>
-        
-        {/* Seu conteúdo principal aqui */}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>{/* Conteúdo principal */}</div>
           <div>
-            {/* Conteúdo da aplicação */}
-          </div>
-          
-          <div>
-            {/* Gerenciador de atualizações */}
-            <UpdateManager />
+            <UpdateManager {...updater} />
           </div>
         </div>
       </div>
     </div>
   );
 }
-

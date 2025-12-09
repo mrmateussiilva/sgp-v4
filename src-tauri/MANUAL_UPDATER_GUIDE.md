@@ -20,16 +20,23 @@ O sistema manual funciona em 3 etapas:
 
 ### 1. Configurar Servidor de Atualizações
 
-Crie um arquivo JSON no seu servidor (ex: `https://sgp.finderbit.com.br/update/manifest.json`):
+Garanta que o endpoint `https://sgp.finderbit.com.br/update` retorne o manifesto abaixo (formato compatível com o Tauri Updater, mas também aceito pelo modo manual):
 
 ```json
 {
   "version": "1.0.1",
-  "url": "https://sgp.finderbit.com.br/update/sgp-v4_1.0.1_x64_en-US.msi",
-  "notes": "Correções de bugs e melhorias",
-  "date": "2024-01-15T10:00:00Z"
+  "notes": "Correções gerais.",
+  "pub_date": "2025-01-01T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5...",
+      "url": "https://sgp.finderbit.com.br/update/releases/windows/SGP_1.0.1_x64.msi"
+    }
+  }
 }
 ```
+
+> Ainda suportamos o manifesto simples (`version`, `url`, `notes`, `date`), mas o formato acima é o oficial em produção.
 
 ### 2. No Frontend (React/TypeScript)
 
@@ -40,7 +47,7 @@ import { invoke } from '@tauri-apps/api/core';
 async function checkForUpdates() {
   try {
     const result = await invoke('check_update_manual', {
-      manifestUrl: 'https://sgp.finderbit.com.br/update/manifest.json'
+      manifestUrl: 'https://sgp.finderbit.com.br/update'
     });
     
     if (result.available) {
@@ -84,7 +91,7 @@ export function ManualUpdater() {
     setIsChecking(true);
     try {
       const result = await invoke('check_update_manual', {
-        manifestUrl: 'https://sgp.finderbit.com.br/update/manifest.json'
+      manifestUrl: 'https://sgp.finderbit.com.br/update'
       });
       
       if (result.available) {
@@ -168,7 +175,8 @@ Verifica se há atualizações disponíveis.
   "latest_version": "1.0.1",
   "url": "https://...",
   "notes": "...",
-  "date": "..."
+  "date": "...",
+  "signature": "..." 
 }
 ```
 
@@ -211,16 +219,26 @@ https://seu-servidor.com/update/
     └── sgp-v4_1.0.1_x64.app.tar.gz
 ```
 
-### Exemplo de manifest.json
+### Exemplo de manifesto (compatível com Tauri)
 
 ```json
 {
   "version": "1.0.1",
-  "url": "https://seu-servidor.com/update/windows-x86_64/sgp-v4_1.0.1_x64_en-US.msi",
-  "notes": "Correções importantes:\n- Bug fix 1\n- Melhoria 2",
-  "date": "2024-01-15T10:00:00Z"
+  "notes": "Correções importantes",
+  "pub_date": "2024-01-15T10:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "url": "https://seu-servidor.com/update/releases/windows/SGP_1.0.1_x64.msi",
+      "signature": "..."
+    },
+    "linux-x86_64": {
+      "url": "https://seu-servidor.com/update/releases/linux/sgp-v4_1.0.1_amd64.deb"
+    }
+  }
 }
 ```
+
+> Caso você prefira o formato simples (`version`, `url`, `notes`, `date`), ele ainda funciona, mas priorize o formato acima para compartilhar a mesma API do updater oficial.
 
 ## 🔒 Considerações de Segurança
 
@@ -260,4 +278,3 @@ https://seu-servidor.com/update/
 2. Adicionar progresso de download
 3. Implementar rollback em caso de falha
 4. Adicionar notificações visuais
-

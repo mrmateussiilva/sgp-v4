@@ -1,16 +1,116 @@
 use tauri::{AppHandle, Manager};
 use tauri::async_runtime;
+use std::collections::HashMap;
 use std::process::Command;
 use std::path::PathBuf;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-struct UpdateManifest {
+struct SimpleUpdateManifest {
+    version: String,
+    url: Option<String>,
+    notes: Option<String>,
+    date: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PlatformEntry {
+    url: String,
+    signature: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PlatformManifest {
+    version: String,
+    notes: Option<String>,
+    #[serde(rename = "pub_date")]
+    pub_date: Option<String>,
+    platforms: HashMap<String, PlatformEntry>,
+}
+
+#[derive(Debug)]
+struct ResolvedManifest {
     version: String,
     url: String,
     notes: Option<String>,
     date: Option<String>,
+    signature: Option<String>,
+}
+
+fn platform_candidates() -> Vec<String> {
+    let mut candidates = Vec::new();
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+
+    candidates.push(format!("{}-{}", os, arch));
+
+    match os {
+        "macos" => {
+            candidates.push(format!("darwin-{}", arch));
+            candidates.push("darwin-x86_64".to_string());
+            candidates.push("darwin-aarch64".to_string());
+        }
+        "linux" => {
+            candidates.push(format!("linux-{}", arch));
+            candidates.push("linux-x86_64".to_string());
+            candidates.push("linux-aarch64".to_string());
+        }
+        "windows" => {
+            candidates.push(format!("windows-{}", arch));
+            candidates.push("windows-x86_64".to_string());
+            candidates.push("windows-aarch64".to_string());
+        }
+        _ => {}
+    }
+
+    // Fallback genérico apenas com o nome do SO
+    candidates.push(os.to_string());
+    candidates
+}
+
+fn resolve_manifest(body: &str) -> Result<ResolvedManifest, String> {
+    if let Ok(simple) = serde_json::from_str::<SimpleUpdateManifest>(body) {
+        let url = simple
+            .url
+            .ok_or_else(|| "Manifesto simples não possui campo 'url'".to_string())?;
+
+        return Ok(ResolvedManifest {
+            version: simple.version,
+            url,
+            notes: simple.notes,
+            date: simple.date,
+            signature: None,
+        });
+    }
+
+    if let Ok(platform_manifest) = serde_json::from_str::<PlatformManifest>(body) {
+        for key in platform_candidates() {
+            if let Some(entry) = platform_manifest.platforms.get(&key) {
+                return Ok(ResolvedManifest {
+                    version: platform_manifest.version.clone(),
+                    url: entry.url.clone(),
+                    notes: platform_manifest.notes.clone(),
+                    date: platform_manifest.pub_date.clone(),
+                    signature: entry.signature.clone(),
+                });
+            }
+        }
+
+        let available = platform_manifest
+            .platforms
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        return Err(format!(
+            "Manifesto não possui artefato para esta plataforma. Plataformas disponíveis: {}",
+            available
+        ));
+    }
+
+    Err("Formato de manifesto de atualização inválido".to_string())
 }
 
 /// Comando para baixar atualização manualmente (sem verificação de assinatura)
@@ -229,13 +329,15 @@ pub async fn check_update_manual(
         return Err(format!("Erro HTTP: {}", response.status()));
     }
 
-    let manifest: UpdateManifest = response
-        .json()
+    let body = response
+        .text()
         .await
-        .map_err(|e| format!("Erro ao parsear JSON: {}", e))?;
+        .map_err(|e| format!("Erro ao ler manifest: {}", e))?;
+
+    let manifest = resolve_manifest(&body)?;
 
     let current_version = env!("CARGO_PKG_VERSION");
-    
+
     // Comparar versões (simples)
     if manifest.version != current_version {
         Ok(serde_json::json!({
@@ -244,7 +346,8 @@ pub async fn check_update_manual(
             "latest_version": manifest.version,
             "url": manifest.url,
             "notes": manifest.notes,
-            "date": manifest.date
+            "date": manifest.date,
+            "signature": manifest.signature
         }))
     } else {
         Ok(serde_json::json!({
@@ -254,4 +357,3 @@ pub async fn check_update_manual(
         }))
     }
 }
-

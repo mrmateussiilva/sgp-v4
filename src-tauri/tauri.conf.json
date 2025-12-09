@@ -64,15 +64,5 @@
                 "type": "embedBootstrapper"
             }
         }
-    },
-    "plugins": {
-        "updater": {
-            "active": false,
-            "dialog": true,
-            "endpoints": [
-                "https://sgp.finderbit.com.br/update"
-            ],
-            "pubkey": ""
-        }
     }
 }

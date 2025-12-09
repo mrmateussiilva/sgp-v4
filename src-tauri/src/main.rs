@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
-mod updater;
 
 use tauri::Manager;
 use tracing::info;
@@ -18,7 +17,6 @@ use commands::manual_updater::{
     download_update_manual,
     install_update_manual,
 };
-use updater::install_update;
 
 fn main() {
     setup_tracing();
@@ -28,7 +26,6 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             open_devtools,
             close_devtools,
@@ -36,7 +33,6 @@ fn main() {
             is_devtools_open,
             test_devtools_system,
             get_app_version,
-            install_update,
             check_update_manual,
             download_update_manual,
             install_update_manual
