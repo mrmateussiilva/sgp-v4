@@ -13,6 +13,11 @@ use commands::devtools::{
     toggle_devtools,
 };
 use commands::update::get_app_version;
+use commands::manual_updater::{
+    check_update_manual,
+    download_update_manual,
+    install_update_manual,
+};
 use updater::install_update;
 
 fn main() {
@@ -31,7 +36,10 @@ fn main() {
             is_devtools_open,
             test_devtools_system,
             get_app_version,
-            install_update
+            install_update,
+            check_update_manual,
+            download_update_manual,
+            install_update_manual
         ])
         .setup(|app| {
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
