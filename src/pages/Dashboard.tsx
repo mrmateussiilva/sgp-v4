@@ -12,7 +12,8 @@ import {
   FileText,
   BarChart,
   Settings,
-  Truck
+  Truck,
+  RefreshCw
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
@@ -99,6 +100,12 @@ export default function Dashboard() {
       label: 'Admin', 
       path: '/dashboard/admin',
       adminOnly: true
+    },
+    { 
+      icon: RefreshCw, 
+      label: 'Verificar Atualização', 
+      path: '/update-status',
+      adminOnly: false
     },
   ];
 

@@ -11,6 +11,7 @@ use commands::devtools::{
     test_devtools_system,
     toggle_devtools,
 };
+use commands::update::get_app_version;
 
 fn main() {
     setup_tracing();
@@ -25,7 +26,8 @@ fn main() {
             close_devtools,
             toggle_devtools,
             is_devtools_open,
-            test_devtools_system
+            test_devtools_system,
+            get_app_version
         ])
         .setup(|app| {
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
