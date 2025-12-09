@@ -12,7 +12,7 @@
     "app": {
         "withGlobalTauri": false,
         "security": {
-            "csp": "default-src 'self' blob: data: filesystem: ws: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* https://* http://*; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' tauri://localhost http://192.168.15.3:8000 http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* https://* http://* ws://* wss://*;",
+            "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; img-src 'self' asset: https://asset.localhost http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' tauri://localhost http://192.168.15.3:8000 http://192.168.0.10:8000 http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:* ws://*:* wss://*:*;",
             "capabilities": [
                 "default"
             ]
@@ -27,7 +27,7 @@
                 "minWidth": 800,
                 "minHeight": 600,
                 "label": "main",
-                "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.3:8000 --disable-features=BlockInsecurePrivateNetworkRequests"
+                "additionalBrowserArgs": "--allow-running-insecure-content --unsafely-treat-insecure-origin-as-secure=http://192.168.15.3:8000,http://192.168.0.10:8000 --disable-features=BlockInsecurePrivateNetworkRequests --allow-insecure-localhost"
             }
         ]
     },
