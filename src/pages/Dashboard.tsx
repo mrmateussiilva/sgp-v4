@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
 import {
   LayoutDashboard, 
   ShoppingCart,
@@ -42,9 +43,23 @@ import { cn } from '@/lib/utils';
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [appVersion, setAppVersion] = useState<string>('');
   const navigate = useNavigate();
   const location = useLocation();
   const { username, isAdmin } = useAuthStore();
+
+  // Obter versão do app
+  useEffect(() => {
+    const fetchVersion = async () => {
+      try {
+        const version = await invoke<string>('get_app_version');
+        setAppVersion(version);
+      } catch (error) {
+        console.error('Erro ao obter versão:', error);
+      }
+    };
+    fetchVersion();
+  }, []);
 
   const handleLogout = async () => {
     await api.logout();
@@ -212,6 +227,31 @@ export default function Dashboard() {
             );
           })}
         </nav>
+
+        <Separator />
+
+        {/* Versão do App */}
+        {appVersion && (
+          <div className={cn("px-4 py-2", !sidebarExpanded && "flex justify-center")}>
+            {sidebarExpanded ? (
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Versão</p>
+                <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+              </div>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Versão {appVersion}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
 
         <Separator />
 
