@@ -126,7 +126,7 @@ export default function UpdateStatus() {
 
     setIsInstalling(true);
     try {
-      const result = await invoke<string>('install_update');
+      await invoke<string>('install_update');
       
       // Se chegou aqui, a atualização foi instalada e o app será reiniciado
       // Mostrar mensagem de sucesso
