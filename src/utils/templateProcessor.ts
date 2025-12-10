@@ -1,64 +1,97 @@
-import { OrderWithItems, OrderItem } from '../types';
+import { OrderWithItems, OrderItem, TemplateFieldConfig as TemplateField, FichaTemplateConfig as FichaTemplate, FichaTemplatesConfig as TemplatesConfig, TemplateType } from '../types';
 import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
-
-// ============================================================================
-// TYPES - Tipos do Template
-// ============================================================================
-
-export interface TemplateField {
-  id: string;
-  type: 'text' | 'date' | 'number' | 'currency' | 'table' | 'custom' | 'image';
-  label: string;
-  key: string; // Chave do dado
-  x: number; // em mm
-  y: number; // em mm
-  width: number; // em mm
-  height: number; // em mm
-  fontSize?: number;
-  bold?: boolean;
-  visible: boolean;
-  editable: boolean;
-  imageUrl?: string;
-}
-
-export interface FichaTemplate {
-  title: string;
-  fields: TemplateField[];
-  width: number; // em mm
-  height: number; // em mm
-  marginTop: number;
-  marginBottom: number;
-  marginLeft: number;
-  marginRight: number;
-}
-
-export interface TemplatesConfig {
-  geral: FichaTemplate;
-  resumo: FichaTemplate;
-}
-
-type TemplateType = 'geral' | 'resumo';
+import { apiClient } from '../services/apiClient';
 
 // ============================================================================
 // STORAGE - Leitura e Escrita de Templates
 // ============================================================================
 
 const STORAGE_KEY = 'ficha_templates_config';
+let templatesCache: TemplatesConfig | null = null;
+let fetchPromise: Promise<TemplatesConfig | null> | null = null;
 
-export const loadTemplates = (): TemplatesConfig | null => {
+const ensureFieldDefaults = (field: TemplateField): TemplateField => ({
+  ...field,
+  fontSize: field.fontSize ?? 11,
+  visible: field.visible !== false,
+  editable: field.editable !== false,
+});
+
+const normalizeTemplate = (template?: FichaTemplate, templateType?: TemplateType): FichaTemplate => ({
+  title: template?.title ?? '',
+  width: template?.width ?? 210,
+  height: template?.height ?? 297,
+  marginTop: template?.marginTop ?? 0,
+  marginBottom: template?.marginBottom ?? 0,
+  marginLeft: template?.marginLeft ?? 0,
+  marginRight: template?.marginRight ?? 0,
+  fields: (template?.fields ?? []).map(ensureFieldDefaults),
+  templateType: templateType ?? template?.templateType,
+  updatedAt: template?.updatedAt,
+});
+
+const normalizeTemplates = (templates: TemplatesConfig): TemplatesConfig => ({
+  geral: normalizeTemplate(templates.geral, 'geral'),
+  resumo: normalizeTemplate(templates.resumo, 'resumo'),
+});
+
+const saveTemplatesToStorage = (templates: TemplatesConfig) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  } catch (error) {
+    console.warn('[templateProcessor] Não foi possível salvar templates localmente:', error);
+  }
+};
+
+const getLocalTemplates = (): TemplatesConfig | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved) as TemplatesConfig;
-      if (parsed.geral && parsed.resumo) {
-        return parsed;
-      }
+    if (!saved) {
+      return null;
+    }
+    const parsed = JSON.parse(saved) as TemplatesConfig;
+    if (parsed.geral && parsed.resumo) {
+      return normalizeTemplates(parsed);
     }
   } catch (error) {
-    console.error('Erro ao carregar templates:', error);
+    console.error('[templateProcessor] Erro ao carregar templates locais:', error);
   }
   return null;
+};
+
+const fetchTemplatesFromServer = async (): Promise<TemplatesConfig | null> => {
+  try {
+    const response = await apiClient.get<TemplatesConfig>('/fichas/templates');
+    const normalized = normalizeTemplates(response.data);
+    saveTemplatesToStorage(response.data);
+    return normalized;
+  } catch (error) {
+    console.warn('[templateProcessor] Falha ao buscar templates no servidor:', error);
+    return null;
+  }
+};
+
+export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
+  if (templatesCache) {
+    return templatesCache;
+  }
+
+  if (!fetchPromise) {
+    fetchPromise = fetchTemplatesFromServer().finally(() => {
+      fetchPromise = null;
+    });
+  }
+
+  const remote = await fetchPromise;
+  if (remote) {
+    templatesCache = remote;
+    return templatesCache;
+  }
+
+  const local = getLocalTemplates();
+  templatesCache = local;
+  return templatesCache;
 };
 
 // ============================================================================
@@ -205,7 +238,7 @@ const renderField = (
   scale: number = 1,
   imageBase64Map?: Map<string, string>
 ): string => {
-  if (!field.visible) return '';
+  if (field.visible === false) return '';
 
   const value = dataMap[field.key] || '';
   const displayValue = value ? escapeHtml(String(value)) : '';
@@ -308,7 +341,7 @@ export const renderTemplate = (
 ): string => {
   const dataMap = createOrderDataMap(order, item);
   const fieldsHtml = template.fields
-    .filter(f => f.visible)
+    .filter(f => f.visible !== false)
     .map(field => renderField(field, dataMap, 1, imageBase64Map))
     .join('\n');
 
@@ -327,7 +360,7 @@ export const generateTemplatePrintContent = async (
   order: OrderWithItems,
   items?: OrderItem[]
 ): Promise<{ html: string; css: string } | null> => {
-  const templates = loadTemplates();
+  const templates = await loadTemplates();
   if (!templates) {
     console.warn('Templates não encontrados no localStorage');
     return null;

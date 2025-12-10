@@ -561,3 +561,48 @@ export interface OrderItemFicha {
   quantidade_totem?: string;
   outros_valores_totem?: string;
 }
+
+export type TemplateFieldType =
+  | 'text'
+  | 'date'
+  | 'number'
+  | 'currency'
+  | 'table'
+  | 'custom'
+  | 'image';
+
+export interface TemplateFieldConfig {
+  id: string;
+  type: TemplateFieldType;
+  label: string;
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize?: number;
+  bold?: boolean;
+  visible?: boolean;
+  editable?: boolean;
+  imageUrl?: string;
+}
+
+export type TemplateType = 'geral' | 'resumo';
+
+export interface FichaTemplateConfig {
+  title: string;
+  width: number;
+  height: number;
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  fields: TemplateFieldConfig[];
+  templateType?: TemplateType;
+  updatedAt?: string;
+}
+
+export interface FichaTemplatesConfig {
+  geral: FichaTemplateConfig;
+  resumo: FichaTemplateConfig;
+}

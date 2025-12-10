@@ -28,6 +28,7 @@ import {
   OrderStatus,
   OrderItem,
   OrderFicha,
+  FichaTemplatesConfig,
 } from '../types';
 import { generateFechamentoReport } from '../utils/fechamentoReport';
 
@@ -1190,6 +1191,20 @@ export async function getFichas(): Promise<any> {
   return response.data;
 }
 
+const fetchFichaTemplates = async (): Promise<FichaTemplatesConfig> => {
+  requireSessionToken();
+  const response = await apiClient.get<FichaTemplatesConfig>('/fichas/templates');
+  return response.data;
+};
+
+const saveFichaTemplatesRequest = async (
+  payload: FichaTemplatesConfig
+): Promise<FichaTemplatesConfig> => {
+  requireSessionToken();
+  const response = await apiClient.put<FichaTemplatesConfig>('/fichas/templates', payload);
+  return response.data;
+};
+
 export const api = {
   login: async (request: LoginRequest): Promise<LoginResponse> => {
     const response = await apiClient.post<LoginResponse>('/auth/login', request);
@@ -1198,6 +1213,10 @@ export const api = {
     }
     return response.data;
   },
+
+  getFichaTemplates: fetchFichaTemplates,
+
+  saveFichaTemplates: saveFichaTemplatesRequest,
 
   logout: async (): Promise<void> => {
     try {

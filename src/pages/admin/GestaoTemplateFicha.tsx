@@ -8,36 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-
-interface TemplateField {
-  id: string;
-  type: 'text' | 'date' | 'number' | 'currency' | 'table' | 'custom' | 'image';
-  label: string;
-  key: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fontSize?: number;
-  bold?: boolean;
-  imageUrl?: string;
-}
-
-interface FichaTemplate {
-  title: string;
-  fields: TemplateField[];
-  width: number;
-  height: number;
-  marginTop: number;
-  marginBottom: number;
-  marginLeft: number;
-  marginRight: number;
-}
-
-interface TemplatesConfig {
-  geral: FichaTemplate;
-  resumo: FichaTemplate;
-}
+import { api } from '@/services/api';
+import {
+  TemplateFieldConfig as TemplateField,
+  FichaTemplateConfig as FichaTemplate,
+  FichaTemplatesConfig as TemplatesConfig,
+  TemplateType,
+} from '@/types';
 
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
@@ -68,10 +45,10 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
   marginLeft: 15,
   marginRight: 15,
   fields: [
-    { id: 'title_field', type: 'text', label: 'FICHA DE SERVIÇO', key: 'title', x: 70, y: 10, width: 70, height: 10, fontSize: 16, bold: true },
-    { id: 'numero_os_field', type: 'text', label: 'OS:', key: 'numero', x: 10, y: 25, width: 30, height: 6, fontSize: 11, bold: false },
-    { id: 'cliente_field', type: 'text', label: 'Cliente:', key: 'cliente', x: 10, y: 35, width: 80, height: 6, fontSize: 11, bold: false },
-    { id: 'descricao_field', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 50, width: 90, height: 8, fontSize: 11, bold: false },
+    { id: 'title_field', type: 'text', label: 'FICHA DE SERVIÇO', key: 'title', x: 70, y: 10, width: 70, height: 10, fontSize: 16, bold: true, visible: true, editable: true },
+    { id: 'numero_os_field', type: 'text', label: 'OS:', key: 'numero', x: 10, y: 25, width: 30, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
+    { id: 'cliente_field', type: 'text', label: 'Cliente:', key: 'cliente', x: 10, y: 35, width: 80, height: 6, fontSize: 11, bold: false, visible: true, editable: true },
+    { id: 'descricao_field', type: 'text', label: 'Descrição:', key: 'item_name', x: 10, y: 50, width: 90, height: 8, fontSize: 11, bold: false, visible: true, editable: true },
   ],
 };
 
@@ -84,17 +61,42 @@ const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   marginLeft: 5,
   marginRight: 5,
   fields: [
-    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true },
-    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false },
-    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false },
-    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false },
-    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false },
+    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true, visible: true, editable: true },
+    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false, visible: true, editable: true },
+    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false, visible: true, editable: true },
+    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
   ],
 };
 
+const applyFieldDefaults = (field: TemplateField): TemplateField => ({
+  ...field,
+  fontSize: field.fontSize ?? 11,
+  visible: field.visible !== false,
+  editable: field.editable !== false,
+});
+
+const applyTemplateDefaults = (
+  template: Partial<FichaTemplate> | undefined,
+  fallback: FichaTemplate
+): FichaTemplate => {
+  const merged = {
+    ...fallback,
+    ...(template || {}),
+  };
+
+  const fieldsSource =
+    template?.fields && template.fields.length > 0 ? template.fields : fallback.fields;
+
+  return {
+    ...merged,
+    fields: fieldsSource.map((field) => applyFieldDefaults({ ...field })),
+  };
+};
+
 const TEMPLATES_DEFAULT: TemplatesConfig = {
-  geral: TEMPLATE_GERAL_DEFAULT,
-  resumo: TEMPLATE_RESUMO_DEFAULT,
+  geral: applyTemplateDefaults(TEMPLATE_GERAL_DEFAULT, TEMPLATE_GERAL_DEFAULT),
+  resumo: applyTemplateDefaults(TEMPLATE_RESUMO_DEFAULT, TEMPLATE_RESUMO_DEFAULT),
 };
 
 const STORAGE_KEY = 'ficha_templates_config';
@@ -106,8 +108,6 @@ const pxToMm = (px: number) => px / 3.779527559;
 const snapToGrid = (value: number, gridSize: number = GRID_SIZE): number => {
   return Math.round(value / gridSize) * gridSize;
 };
-
-type TemplateType = 'geral' | 'resumo';
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | null;
 
 export default function GestaoTemplateFicha() {
@@ -127,34 +127,67 @@ export default function GestaoTemplateFicha() {
 
   const template = templates[currentTemplateType];
 
-  const loadTemplates = () => {
+  const loadTemplates = useCallback(async () => {
+    setLoading(true);
+    let loadedFromServer = false;
+    try {
+      const remote = await api.getFichaTemplates();
+      const normalized = {
+        geral: applyTemplateDefaults(remote.geral, TEMPLATE_GERAL_DEFAULT),
+        resumo: applyTemplateDefaults(remote.resumo, TEMPLATE_RESUMO_DEFAULT),
+      };
+      setTemplates(normalized);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+      setHasChanges(false);
+      loadedFromServer = true;
+    } catch (error) {
+      console.error('Erro ao carregar templates do servidor:', error);
+      toast({
+        title: 'Aviso',
+        description: 'Não foi possível carregar os templates do servidor. Tentando versão local.',
+        variant: 'default',
+      });
+    } finally {
+      setLoading(false);
+    }
+
+    if (loadedFromServer) {
+      return;
+    }
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as TemplatesConfig;
-        if (parsed.geral && parsed.resumo) {
-          setTemplates(parsed);
-        } else {
-          setTemplates({
-            geral: parsed.geral || TEMPLATE_GERAL_DEFAULT,
-            resumo: parsed.resumo || TEMPLATE_RESUMO_DEFAULT,
-          });
-        }
+        setTemplates({
+          geral: applyTemplateDefaults(parsed?.geral, TEMPLATE_GERAL_DEFAULT),
+          resumo: applyTemplateDefaults(parsed?.resumo, TEMPLATE_RESUMO_DEFAULT),
+        });
+        return;
       }
     } catch (error) {
-      console.error('Erro ao carregar templates:', error);
-      toast({
-        title: 'Aviso',
-        description: 'Usando templates padrão. Erro ao carregar configurações salvas.',
-        variant: 'default',
-      });
+      console.error('Erro ao carregar templates locais:', error);
     }
-  };
+
+    setTemplates({
+      geral: applyTemplateDefaults(TEMPLATE_GERAL_DEFAULT, TEMPLATE_GERAL_DEFAULT),
+      resumo: applyTemplateDefaults(TEMPLATE_RESUMO_DEFAULT, TEMPLATE_RESUMO_DEFAULT),
+    });
+  }, [toast]);
 
   const saveTemplates = useCallback(async () => {
+    if (loading) {
+      return;
+    }
     setLoading(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+      const response = await api.saveFichaTemplates(templates);
+      const normalized = {
+        geral: applyTemplateDefaults(response.geral, TEMPLATE_GERAL_DEFAULT),
+        resumo: applyTemplateDefaults(response.resumo, TEMPLATE_RESUMO_DEFAULT),
+      };
+      setTemplates(normalized);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
       setHasChanges(false);
       toast({
         title: 'Sucesso',
@@ -171,7 +204,7 @@ export default function GestaoTemplateFicha() {
     } finally {
       setLoading(false);
     }
-  }, [templates, toast]);
+  }, [templates, toast, loading]);
 
   const handleDeleteField = useCallback((fieldId: string) => {
     setTemplates(prev => ({
@@ -190,8 +223,8 @@ export default function GestaoTemplateFicha() {
   }, [currentTemplateType, toast]);
 
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    void loadTemplates();
+  }, [loadTemplates]);
 
   // Listener global para melhorar o drag and drop
   useEffect(() => {
@@ -258,7 +291,7 @@ export default function GestaoTemplateFicha() {
     
     setTemplates({
       ...templates,
-      [currentTemplateType]: defaultTemplate,
+      [currentTemplateType]: applyTemplateDefaults(defaultTemplate, defaultTemplate),
     });
     setHasChanges(true);
     setSelectedField(null);
@@ -381,13 +414,17 @@ export default function GestaoTemplateFicha() {
       y: yMm,
       width: fieldTemplate.type === 'image' ? 40 : 40,
       height: fieldTemplate.type === 'image' ? 30 : 5,
+      visible: true,
+      editable: true,
     };
+
+    const normalizedField = applyFieldDefaults(newField);
 
     setTemplates({
       ...templates,
       [currentTemplateType]: {
         ...template,
-        fields: [...template.fields, newField],
+        fields: [...template.fields, normalizedField],
       },
     });
     setHasChanges(true);
