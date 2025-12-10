@@ -888,6 +888,7 @@ export const printOrder = async (order: OrderWithItems) => {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9-_]+/g, '-');
   const printTitle = `Pedido-${sanitizedIdentifier}`;
+  const previousTitle = document.title;
 
   // Carregar todas as imagens para base64 antes de gerar o conteúdo
   const imageBase64Map = new Map<string, string>();
@@ -958,12 +959,14 @@ export const printOrder = async (order: OrderWithItems) => {
     setTimeout(() => {
       window.removeEventListener('afterprint', handleAfterPrint);
       document.body.removeChild(iframe);
+      document.title = previousTitle;
     }, 200);
   };
 
   window.addEventListener('afterprint', handleAfterPrint);
 
   setTimeout(() => {
+    document.title = printTitle;
     if (iframe.contentWindow?.document) {
       iframe.contentWindow.document.title = printTitle;
     }
