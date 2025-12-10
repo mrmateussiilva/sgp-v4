@@ -882,6 +882,13 @@ const buildStyles = (): string => `
 `;
 
 export const printOrder = async (order: OrderWithItems) => {
+  const orderIdentifier = String(order.numero || order.id || '').trim() || 'pedido';
+  const sanitizedIdentifier = orderIdentifier
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-');
+  const printTitle = `Pedido-${sanitizedIdentifier}`;
+
   // Carregar todas as imagens para base64 antes de gerar o conteúdo
   const imageBase64Map = new Map<string, string>();
   
@@ -936,7 +943,7 @@ export const printOrder = async (order: OrderWithItems) => {
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>Pedido #${escapeHtml((order.numero || order.id).toString())}</title>
+        <title>${escapeHtml(printTitle)}</title>
         <style>${styles}</style>
       </head>
       <body>
@@ -944,6 +951,7 @@ export const printOrder = async (order: OrderWithItems) => {
       </body>
     </html>
   `);
+  doc.title = printTitle;
   doc.close();
 
   const handleAfterPrint = () => {
@@ -956,6 +964,9 @@ export const printOrder = async (order: OrderWithItems) => {
   window.addEventListener('afterprint', handleAfterPrint);
 
   setTimeout(() => {
+    if (iframe.contentWindow?.document) {
+      iframe.contentWindow.document.title = printTitle;
+    }
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
   }, 100);
