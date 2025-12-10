@@ -7,8 +7,6 @@ import { Printer, X, ChevronDown } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
-import { printOrderServiceForm } from '../utils/printOrderServiceForm';
-import { printTemplateResumo } from '../utils/printTemplate';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
@@ -217,18 +215,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           : undefined,
     };
     await printOrder(enrichedOrder);
-  };
-
-  const handlePrintServiceForm = async () => {
-    const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
-    const enrichedOrder = {
-      ...order,
-      forma_pagamento_nome:
-        formaPagamentoNome && formaPagamentoNome !== 'Não informado'
-          ? formaPagamentoNome
-          : undefined,
-    };
-    await printOrderServiceForm(enrichedOrder);
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -1057,22 +1043,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">Impr.</span>
-              </Button>
-              <Button onClick={handlePrintServiceForm} variant="outline" size="sm" className="text-xs sm:text-sm">
-                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Ficha Geral</span>
-                <span className="sm:hidden">Geral</span>
-              </Button>
-              <Button 
-                onClick={async () => await printTemplateResumo(order)} 
-                variant="outline" 
-                size="sm" 
-                className="text-xs sm:text-sm"
-                title="Imprimir ficha resumo (1/3 A4) para produção"
-              >
-                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Ficha Resumo</span>
-                <span className="sm:hidden">Resumo</span>
               </Button>
             </div>
           </DialogTitle>
