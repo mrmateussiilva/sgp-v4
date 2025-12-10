@@ -1035,10 +1035,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
-        <DialogHeader className="flex-shrink-0 pb-4 border-b">
+        <DialogHeader className="flex-shrink-0 border-b px-4 sm:px-6 pt-4 sm:pt-6 pb-4">
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
               <Button onClick={handlePrint} variant="outline" size="sm" className="text-xs sm:text-sm">
                 <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">Imprimir</span>
@@ -1048,7 +1048,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+        <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6 pb-6">
           {/* Cabeçalho do Pedido */}
           <div className="text-center border-b pb-3">
             <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
@@ -1215,9 +1215,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             <DialogHeader className="p-6 pb-0 flex-shrink-0">
               <DialogTitle className="flex items-center justify-between">
                 <span>Visualização da Imagem</span>
-                <Button onClick={() => closeImageModal(false)} variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <X className="h-4 w-4" />
-                </Button>
               </DialogTitle>
             </DialogHeader>
             <div className="p-6 pt-4 overflow-y-auto">
