@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle, Loader2, WifiOff, AlertTriangle } from 'lucide-react';
-import { deleteConfig, loadConfig, saveConfig } from '@/utils/config';
+import { loadConfig, saveConfig } from '@/utils/config';
 import { normalizeApiUrl, verifyApiConnection } from '@/services/apiClient';
 
 interface ConfigApiProps {
@@ -120,24 +120,6 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
     }
   };
 
-  const handleReset = async () => {
-    setIsLoading(true);
-    try {
-      await deleteConfig();
-      setApiUrl(DEFAULT_API_URL);
-      setStatus({
-        type: 'idle',
-        message: 'Configuração removida. Informe um novo endereço.',
-      });
-    } catch (error) {
-      setStatus({
-        type: 'error',
-        message: `❌ Erro ao remover configuração: ${String(error)}`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-red-50/50 p-4">

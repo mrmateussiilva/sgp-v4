@@ -60,32 +60,12 @@ export default function OrderList() {
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
   
-  // Sistema de sincronização em tempo real via eventos Tauri
-  const [isRealtimeActive, setIsRealtimeActive] = useState(true);
-  const [lastSync, setLastSync] = useState<Date | undefined>();
-  const [syncCount, setSyncCount] = useState(0);
-  
   // Configurar sincronização automática via eventos
   useOrderAutoSync({
     orders,
     setOrders,
     removeOrder,
   });
-  
-  // Função para forçar sincronização manual (recarregar lista completa)
-  const handleForceSync = async () => {
-    console.log('🔄 Forçando sincronização manual...');
-    await loadOrders();
-    setLastSync(new Date());
-    setSyncCount(prev => prev + 1);
-  };
-  
-  const toggleRealtime = () => {
-    setIsRealtimeActive(!isRealtimeActive);
-    if (!isRealtimeActive) {
-      setLastSync(new Date());
-    }
-  };
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,20 +134,14 @@ export default function OrderList() {
       onOrderCreated: async (orderId) => {
         // useOrderAutoSync já atualiza a lista, apenas logar
         console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
       },
       onOrderUpdated: async (orderId) => {
         // useOrderAutoSync já atualiza a lista, apenas logar
         console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
       },
       onOrderCanceled: async (orderId) => {
         // useOrderAutoSync já remove o pedido, apenas logar
         console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
-        setSyncCount(prev => prev + 1);
-        setLastSync(new Date());
       },
     }, true, toast); // showToast = true, passar função toast
     
