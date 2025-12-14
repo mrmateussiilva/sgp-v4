@@ -436,9 +436,9 @@ export default function OrderList() {
         await api.deleteOrder(orderToDelete);
         removeOrder(orderToDelete);
         toast({
-          title: "Sucesso",
-          description: "Pedido excluído com sucesso!",
-          variant: "success",
+          title: "Pedido excluído",
+          description: "O pedido foi excluído com sucesso!",
+          variant: "info",
         });
       } catch (error: any) {
         const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível excluir o pedido.";

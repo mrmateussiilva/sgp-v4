@@ -23,9 +23,9 @@ export default function Admin() {
       await api.deleteAllOrders();
       setOrders([]);
       toast({
-        title: 'Sucesso',
-        description: 'Todos os pedidos foram deletados com sucesso.',
-        variant: 'success',
+        title: 'Pedidos excluídos',
+        description: 'Todos os pedidos foram excluídos com sucesso.',
+        variant: 'info',
       });
       setDeleteAllDialogOpen(false);
     } catch (error: any) {
