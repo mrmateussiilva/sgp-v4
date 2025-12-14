@@ -1,8 +1,21 @@
-import Papa from 'papaparse';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { OrderWithItems } from '../types';
 import { formatDateForDisplay } from '@/utils/date';
+
+// Lazy load de bibliotecas pesadas - carregadas apenas quando necessário
+const loadPapa = async () => {
+  const module = await import('papaparse');
+  return module.default;
+};
+
+const loadJsPDF = async () => {
+  const module = await import('jspdf');
+  return module.default;
+};
+
+const loadAutoTable = async () => {
+  const module = await import('jspdf-autotable');
+  return module.default;
+};
 
 type EnvioReportGroup = {
   forma_envio: string;
@@ -35,7 +48,7 @@ const formatIntervalLabel = (start: string, end?: string | null) => {
   return `${startLabel} - ${formatDateForDisplay(end, '-')}`;
 };
 
-const openPdfInPrintWindow = (doc: jsPDF, filename: string) => {
+const openPdfInPrintWindow = (doc: any, filename: string) => {
   if (typeof window === 'undefined') {
     doc.save(filename);
     return;
@@ -122,7 +135,8 @@ const openPdfInPrintWindow = (doc: jsPDF, filename: string) => {
   document.body.appendChild(iframe);
 };
 
-export const exportToCSV = (orders: OrderWithItems[]) => {
+export const exportToCSV = async (orders: OrderWithItems[]) => {
+  const Papa = await loadPapa();
   const csvData = orders.map((order) => ({
     ID: order.id,
     Cliente: order.customer_name,
@@ -146,7 +160,8 @@ export const exportToCSV = (orders: OrderWithItems[]) => {
   document.body.removeChild(link);
 };
 
-export const exportToPDF = (orders: OrderWithItems[]) => {
+export const exportToPDF = async (orders: OrderWithItems[]) => {
+  const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
   const doc = new jsPDF();
 
   doc.setFontSize(18);
@@ -174,7 +189,7 @@ export const exportToPDF = (orders: OrderWithItems[]) => {
   doc.save(`pedidos_${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
-export const exportEnvioReportToPDF = (
+export const exportEnvioReportToPDF = async (
   groups: EnvioReportGroup[],
   startDate: string,
   endDate?: string | null
@@ -183,6 +198,7 @@ export const exportEnvioReportToPDF = (
     return;
   }
 
+  const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
   const doc = new jsPDF();
   const intervalLabel = formatIntervalLabel(startDate, endDate);
   const totalPedidos = groups.reduce((acc, group) => acc + group.pedidos.length, 0);

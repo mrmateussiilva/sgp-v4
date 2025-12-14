@@ -26,9 +26,18 @@ import {
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, FileDown, RefreshCcw } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { isTauri } from '@/utils/isTauri';
+
+// Lazy load de bibliotecas pesadas
+const loadJsPDF = async () => {
+  const module = await import('jspdf');
+  return module.default;
+};
+
+const loadAutoTable = async () => {
+  const module = await import('jspdf-autotable');
+  return module.default;
+};
 
 const REPORT_OPTIONS: Record<
   'analitico' | 'sintetico',
@@ -218,7 +227,7 @@ export default function Fechamentos() {
     }
   };
 
-  const ensurePdfSpace = (doc: jsPDF, cursorY: number, required: number): number => {
+  const ensurePdfSpace = (doc: any, cursorY: number, required: number): number => {
     const pageHeight = doc.internal.pageSize.getHeight();
     if (cursorY + required > pageHeight - 20) {
       doc.addPage();
@@ -238,6 +247,7 @@ export default function Fechamentos() {
     }
 
     try {
+      const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
 

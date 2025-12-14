@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -14,31 +14,44 @@ import {
   BarChart,
   Settings,
   Truck,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
-import OrderList from '../components/OrderList';
 import ProtectedRoute from '../components/ProtectedRoute';
-import PedidoCreateView from '../views/PedidoCreateView';
-import PedidoEditView from '../views/PedidoEditView';
-import DashboardOverview from './DashboardOverview';
-import Clientes from './Clientes';
-import RelatoriosEnvios from './RelatoriosEnvios';
-import Fechamentos from './Fechamentos';
-import PainelDesempenho from './PainelDesempenho';
-import Admin from './Admin';
-import GestaoMateriais from './admin/GestaoMateriais';
-import GestaoDesigners from './admin/GestaoDesigners';
-import GestaoVendedores from './admin/GestaoVendedores';
-import GestaoFormasEnvio from './admin/GestaoFormasEnvio';
-import GestaoFormasPagamento from './admin/GestaoFormasPagamento';
-import GestaoUsuarios from './admin/GestaoUsuarios';
-import GestaoTemplateFicha from './admin/GestaoTemplateFicha';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+// Lazy load de todas as rotas para code-splitting
+const OrderList = lazy(() => import('../components/OrderList'));
+const PedidoCreateView = lazy(() => import('../views/PedidoCreateView'));
+const PedidoEditView = lazy(() => import('../views/PedidoEditView'));
+const DashboardOverview = lazy(() => import('./DashboardOverview'));
+const Clientes = lazy(() => import('./Clientes'));
+const RelatoriosEnvios = lazy(() => import('./RelatoriosEnvios'));
+const Fechamentos = lazy(() => import('./Fechamentos'));
+const PainelDesempenho = lazy(() => import('./PainelDesempenho'));
+const Admin = lazy(() => import('./Admin'));
+const GestaoMateriais = lazy(() => import('./admin/GestaoMateriais'));
+const GestaoDesigners = lazy(() => import('./admin/GestaoDesigners'));
+const GestaoVendedores = lazy(() => import('./admin/GestaoVendedores'));
+const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
+const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
+const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
+const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
+
+// Componente de loading para rotas lazy
+const RouteLoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="text-center space-y-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+      <p className="text-sm text-muted-foreground">Carregando...</p>
+    </div>
+  </div>
+);
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -371,97 +384,99 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
-        <Routes>
-          <Route path="/" element={<DashboardOverview />} />
-          <Route path="orders" element={<OrderList />} />
-          <Route path="orders/new" element={<PedidoCreateView />} />
-          <Route path="orders/edit/:id" element={<PedidoEditView />} />
-          {/* Novas rotas conforme solicitado */}
-          <Route path="pedido/novo" element={<PedidoCreateView />} />
-          <Route path="pedido/editar/:id" element={<PedidoEditView />} />
-            <Route path="clientes" element={<Clientes />} />
-            <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
-            <Route
-              path="painel-desempenho"
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <PainelDesempenho />
-                </ProtectedRoute>
-              }
-            />
-            <Route 
-              path="/fechamentos" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <Fechamentos />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <Admin />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/materiais" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoMateriais />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/designers" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoDesigners />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/vendedores" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoVendedores />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/formas-envio" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoFormasEnvio />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/formas-pagamento" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoFormasPagamento />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/usuarios" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoUsuarios />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/template-ficha" 
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <GestaoTemplateFicha />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<DashboardOverview />} />
+              <Route path="orders" element={<OrderList />} />
+              <Route path="orders/new" element={<PedidoCreateView />} />
+              <Route path="orders/edit/:id" element={<PedidoEditView />} />
+              {/* Novas rotas conforme solicitado */}
+              <Route path="pedido/novo" element={<PedidoCreateView />} />
+              <Route path="pedido/editar/:id" element={<PedidoEditView />} />
+              <Route path="clientes" element={<Clientes />} />
+              <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+              <Route
+                path="painel-desempenho"
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <PainelDesempenho />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/fechamentos" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <Fechamentos />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <Admin />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/materiais" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoMateriais />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/designers" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoDesigners />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/vendedores" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoVendedores />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/formas-envio" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoFormasEnvio />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/formas-pagamento" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoFormasPagamento />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/usuarios" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoUsuarios />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/template-ficha" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoTemplateFicha />
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
