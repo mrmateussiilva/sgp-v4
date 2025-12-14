@@ -7,7 +7,6 @@ import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
-import { AutoRefreshStatus } from './AutoRefreshStatus';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
@@ -1423,19 +1422,9 @@ export default function OrderList() {
     <div className="flex flex-col h-full space-y-6 min-h-screen">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Filtros</CardTitle>
-              <CardDescription>Busque e filtre os pedidos</CardDescription>
-            </div>
-            <AutoRefreshStatus 
-              isActive={isRealtimeActive}
-              isRefreshing={false}
-              lastRefresh={lastSync}
-              refreshCount={syncCount}
-              onToggle={toggleRealtime}
-              onForceRefresh={handleForceSync}
-            />
+          <div>
+            <CardTitle>Filtros</CardTitle>
+            <CardDescription>Busque e filtre os pedidos</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
