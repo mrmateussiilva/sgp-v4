@@ -25,10 +25,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-      <div className="text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p>Carregando página...</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+        <p className="text-slate-700">Carregando...</p>
       </div>
     </div>
   );
@@ -114,10 +114,10 @@ function App() {
 
   if (isCheckingConnection) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p>Verificando conexão com a API...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="text-slate-700">Verificando conexão...</p>
         </div>
       </div>
     );
