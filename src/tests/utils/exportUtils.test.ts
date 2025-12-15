@@ -128,6 +128,7 @@ describe('exportUtils - Lazy Loading', () => {
         {
           id: 1,
           customer_name: 'Cliente Teste',
+          address: 'Rua Teste',
           total_value: 100,
           status: OrderStatus.Pendente,
           created_at: '2024-01-01',
@@ -147,6 +148,7 @@ describe('exportUtils - Lazy Loading', () => {
         {
           id: 1,
           customer_name: 'Cliente Teste',
+          address: 'Rua Teste',
           total_value: 100,
           status: OrderStatus.Pendente,
           created_at: '2024-01-01',
@@ -172,7 +174,11 @@ describe('exportUtils - Lazy Loading', () => {
           pedidos: [
             {
               id: 1,
+              customer_name: 'Cliente Teste',
               cliente: 'Cliente Teste',
+              address: 'Rua Teste',
+              total_value: 100,
+              status: OrderStatus.Pendente,
               items: [],
               cidade_cliente: 'São Paulo',
               estado_cliente: 'SP',
@@ -204,7 +210,11 @@ describe('exportUtils - Lazy Loading', () => {
           pedidos: [
             {
               id: 1,
+              customer_name: 'Cliente 1',
               cliente: 'Cliente 1',
+              address: 'Rua Teste 1',
+              total_value: 100,
+              status: OrderStatus.Pendente,
               items: [],
               cidade_cliente: 'São Paulo',
               estado_cliente: 'SP',
@@ -216,7 +226,11 @@ describe('exportUtils - Lazy Loading', () => {
           pedidos: [
             {
               id: 2,
+              customer_name: 'Cliente 2',
               cliente: 'Cliente 2',
+              address: 'Rua Teste 2',
+              total_value: 200,
+              status: OrderStatus.Pendente,
               items: [],
               cidade_cliente: 'Rio de Janeiro',
               estado_cliente: 'RJ',

@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 /**
  * Testes para verificar que o code-splitting está funcionando corretamente
  * após o build. Estes testes verificam a estrutura dos chunks gerados.
  */
 describe('Code Splitting - Build Verification', () => {
-  const distPath = join(process.cwd(), 'dist');
-  const assetsPath = join(distPath, 'assets');
 
   it('deve verificar que o Dashboard não está no bundle principal', () => {
     // Este teste verifica que o Dashboard foi separado em um chunk próprio

@@ -4,8 +4,11 @@ import userEvent from '@testing-library/user-event';
 import Clientes from '@/pages/Clientes';
 
 // Mock de papaparse
-const mockParse = vi.fn((file, options) => {
-  const result = {
+const mockParse = vi.fn((_file: any, options?: any) => {
+  const result: {
+    data: Array<{ nome: string; telefone: string; email: string }>;
+    errors: Array<{ row: number; message: string }>;
+  } = {
     data: [
       { nome: 'Cliente 1', telefone: '11999999999', email: 'cliente1@test.com' },
       { nome: 'Cliente 2', telefone: '11888888888', email: 'cliente2@test.com' },
@@ -109,15 +112,20 @@ describe('Clientes - Lazy Loading CSV', () => {
     const user = userEvent.setup();
     
     // Mock de erro no parsing
-    mockParse.mockImplementationOnce((file, options) => {
+    mockParse.mockImplementationOnce((_file: any, options?: any) => {
+      const result: {
+        data: Array<{ nome: string; telefone: string; email: string }>;
+        errors: Array<{ row: number; message: string }>;
+      } = {
+        data: [],
+        errors: [
+          { row: 1, message: 'Erro de parsing' },
+        ],
+      };
       if (options?.complete) {
-        options.complete({
-          data: [],
-          errors: [
-            { row: 1, message: 'Erro de parsing' },
-          ],
-        });
+        options.complete(result);
       }
+      return result;
     });
 
     render(<Clientes />);
