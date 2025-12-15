@@ -6,6 +6,67 @@ import { apiClient, getApiUrl } from '../services/apiClient';
 const blobUrlCache = new Map<string, string>();
 
 /**
+ * Normaliza uma URL de imagem, substituindo localhost pela URL da API configurada
+ * @param imagePath - Caminho ou URL da imagem
+ * @returns URL normalizada
+ */
+function normalizeImageUrl(imagePath: string): string {
+  const apiUrl = getApiUrl();
+  
+  // Se for base64, retornar diretamente
+  if (imagePath.startsWith('data:image/')) {
+    return imagePath;
+  }
+
+  // Normalizar o caminho
+  let normalized = imagePath.replace(/\\/g, '/').trim();
+  
+  // Se for protocolo tauri://localhost, converter para http usando a API configurada
+  if (normalized.startsWith('tauri://localhost/') && apiUrl) {
+    try {
+      // Extrair o caminho após tauri://localhost/
+      const path = normalized.replace(/^tauri:\/\/localhost\/?/, '');
+      const cleanPath = path.startsWith('/') ? path : `/${path}`;
+      // Construir nova URL usando a base da API configurada
+      const apiBase = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+      normalized = apiBase + cleanPath;
+      console.log('[normalizeImageUrl] 🔄 Convertendo tauri://localhost:', {
+        original: imagePath,
+        normalized
+      });
+      return normalized;
+    } catch (e) {
+      console.warn('[normalizeImageUrl] ⚠️ Erro ao converter tauri://localhost:', e);
+    }
+  }
+  
+  // Se já for URL completa (http/https)
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    // Se contém localhost, substituir pela URL da API configurada
+    if (normalized.includes('localhost') && apiUrl) {
+      // Extrair o caminho da URL original
+      try {
+        const urlObj = new URL(normalized);
+        const path = urlObj.pathname + urlObj.search;
+        // Construir nova URL usando a base da API configurada
+        const apiBase = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+        normalized = apiBase + path;
+        console.log('[normalizeImageUrl] 🔄 Substituindo localhost:', {
+          original: imagePath,
+          normalized
+        });
+      } catch (e) {
+        console.warn('[normalizeImageUrl] ⚠️ Erro ao normalizar URL:', e);
+      }
+    }
+    return normalized;
+  }
+
+  // Para caminhos relativos, retornar como está (será tratado depois)
+  return normalized;
+}
+
+/**
  * Carrega uma imagem autenticada e retorna uma blob URL
  * @param imagePath - Caminho da imagem (pode ser relativo ou absoluto)
  * @returns Promise com a blob URL da imagem
@@ -17,20 +78,12 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
   }
 
   try {
-    // Normalizar o caminho
-    let url = imagePath;
+    // Normalizar a URL (substituir localhost se necessário)
+    const normalized = normalizeImageUrl(imagePath);
     
     // Se for base64, retornar diretamente
-    if (imagePath.startsWith('data:image/')) {
-      return imagePath;
-    }
-
-    // Normalizar o caminho
-    const normalized = imagePath.replace(/\\/g, '/').trim();
-    
-    // Se for base64, retornar diretamente
-    if (imagePath.startsWith('data:image/')) {
-      return imagePath;
+    if (normalized.startsWith('data:image/')) {
+      return normalized;
     }
 
     // Se já for URL completa (http/https), usar diretamente sem baseURL
@@ -74,7 +127,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
     console.log('[loadAuthenticatedImage] ✅ Imagem carregada:', {
       originalPath: imagePath,
-      url,
+      normalized,
       blobUrl
     });
 
