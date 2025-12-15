@@ -1,22 +1,26 @@
-# Configuração de Produção - SGP v4
+# ==========================================================
+# SGP v4 – Configuração de Build SEGURA para distribuição
+# Compatível com Windows 10 e Windows 11
+# Evita crash: 0xc000001d (Illegal Instruction)
+# ==========================================================
 
-# Otimizações para produção
+# -----------------------------
+# Perfil de release (otimizado)
+# -----------------------------
 [profile.release]
-# Otimizações de código
 opt-level = 3
-lto = true
+lto = "thin"          # LTO seguro (não propaga instruções ilegais)
 codegen-units = 1
 panic = "abort"
-
-# Otimizações de tamanho
 strip = true
 debug = false
 
-# Otimizações específicas para Tauri
+# -----------------------------------
+# Otimização uniforme por dependência
+# -----------------------------------
 [profile.release.package."*"]
 opt-level = 3
 
-# Configurações específicas para dependências
 [profile.release.package.sqlx]
 opt-level = 3
 
@@ -26,10 +30,11 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
-# Configurações de build
+# -----------------------------
+# Configuração CRÍTICA de build
+# -----------------------------
 [build]
 rustflags = [
-    "-C", "target-cpu=native",
-    "-C", "link-arg=-s"
+  "-C", "target-cpu=x86-64",
+  "-C", "target-feature=-avx,-avx2,-sse4.1,-sse4.2,-fma"
 ]
-
