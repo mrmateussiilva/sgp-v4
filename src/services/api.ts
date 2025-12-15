@@ -1205,6 +1205,17 @@ const saveFichaTemplatesRequest = async (
   return response.data;
 };
 
+const saveFichaTemplatesHTMLRequest = async (
+  htmlContent: { geral: string; resumo: string }
+): Promise<{ message: string; files: { geral?: string; resumo?: string } }> => {
+  requireSessionToken();
+  const response = await apiClient.put<{ message: string; files: { geral?: string; resumo?: string } }>(
+    '/fichas/templates/html',
+    htmlContent
+  );
+  return response.data;
+};
+
 export const api = {
   login: async (request: LoginRequest): Promise<LoginResponse> => {
     const response = await apiClient.post<LoginResponse>('/auth/login', request);
@@ -1217,6 +1228,8 @@ export const api = {
   getFichaTemplates: fetchFichaTemplates,
 
   saveFichaTemplates: saveFichaTemplatesRequest,
+
+  saveFichaTemplatesHTML: saveFichaTemplatesHTMLRequest,
 
   logout: async (): Promise<void> => {
     try {

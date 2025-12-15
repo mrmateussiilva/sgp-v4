@@ -15,6 +15,7 @@ import {
   FichaTemplatesConfig as TemplatesConfig,
   TemplateType,
 } from '@/types';
+import { generateTemplatesHTML } from '@/utils/generateTemplateHTML';
 
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
@@ -189,11 +190,30 @@ export default function GestaoTemplateFicha() {
       setTemplates(normalized);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
       setHasChanges(false);
-      toast({
-        title: 'Sucesso',
-        description: 'Templates salvos com sucesso!',
-        variant: 'default',
-      });
+      
+      // Gerar e salvar arquivos HTML no servidor
+      try {
+        const htmlFiles = generateTemplatesHTML(normalized.geral, normalized.resumo);
+        
+        // Enviar HTMLs para o servidor
+        await api.saveFichaTemplatesHTML(htmlFiles);
+        
+        console.log('[saveTemplates] ✅ Arquivos HTML enviados para o servidor');
+        
+        toast({
+          title: 'Sucesso',
+          description: 'Templates salvos e arquivos HTML gerados no servidor com sucesso!',
+          variant: 'default',
+        });
+      } catch (htmlError) {
+        console.error('Erro ao salvar arquivos HTML no servidor:', htmlError);
+        // Não falhar o salvamento se a geração de HTML falhar
+        toast({
+          title: 'Aviso',
+          description: 'Templates salvos, mas houve erro ao salvar arquivos HTML no servidor.',
+          variant: 'default',
+        });
+      }
     } catch (error) {
       console.error('Erro ao salvar templates:', error);
       toast({
