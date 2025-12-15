@@ -1,4 +1,4 @@
-import { OrderWithItems } from '../types';
+import { OrderWithItems, OrderItem } from '../types';
 import { generateTemplatePrintContent } from './templateProcessor';
 
 // ============================================================================
