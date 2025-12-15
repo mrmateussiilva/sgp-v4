@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { fetch } from '@tauri-apps/plugin-http';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
-
-interface UpdateResponse {
-  version: string;
-  notes?: string;
-}
+import { DEFAULT_MANIFEST_URL } from '@/utils/manifestUrl';
 
 type UpdateStatus = 'checking' | 'updated' | 'update_available' | 'error';
+
+interface ManualUpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string;
+  url?: string;
+  notes?: string;
+  date?: string;
+  signature?: string;
+}
 
 export default function UpdateStatus() {
   const navigate = useNavigate();
@@ -20,9 +25,11 @@ export default function UpdateStatus() {
   const [currentVersion, setCurrentVersion] = useState<string>('');
   const [latestVersion, setLatestVersion] = useState<string>('');
   const [updateNotes, setUpdateNotes] = useState<string>('');
+  const [updateInfo, setUpdateInfo] = useState<ManualUpdateInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const checkForUpdates = async () => {
     setIsChecking(true);
@@ -34,57 +41,23 @@ export default function UpdateStatus() {
       const appVersion = await invoke<string>('get_app_version');
       setCurrentVersion(appVersion);
 
-      try {
-        const response = await fetch('https://sgp.finderbit.com.br/update', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          connectTimeout: 10000, // 10 segundos de timeout
-        });
+      const result = await invoke<ManualUpdateInfo>('check_update_manual', {
+        manifestUrl: DEFAULT_MANIFEST_URL,
+      });
 
-        if (!response.ok) {
-          throw new Error(
-            `Erro ao consultar API: ${response.status} ${response.statusText}. Verifique se o servidor está acessível.`
-          );
-        }
+      setLatestVersion(result.latest_version || result.current_version || appVersion);
+      setUpdateNotes(result.notes || '');
 
-        const data: UpdateResponse = await response.json();
-
-        // Validar resposta
-        if (!data || !data.version) {
-          throw new Error('Resposta da API inválida: versão não encontrada');
-        }
-
-        setLatestVersion(data.version);
-        setUpdateNotes(data.notes || '');
-
-        // Comparar versões
-        if (compareVersions(appVersion, data.version) < 0) {
-          setStatus('update_available');
-        } else {
-          setStatus('updated');
-        }
-      } catch (fetchError) {
-        if (fetchError instanceof Error) {
-          if (fetchError.message.includes('timeout') || fetchError.message.includes('Timeout')) {
-            throw new Error('Timeout: A requisição demorou muito para responder. Verifique sua conexão com a internet.');
-          }
-          if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('Load failed') || fetchError.message.includes('network')) {
-            throw new Error(
-              'Não foi possível conectar ao servidor de atualizações. Verifique:\n' +
-              '• Sua conexão com a internet\n' +
-              '• Se o servidor https://sgp.finderbit.com.br está acessível\n' +
-              '• Se há bloqueios de firewall ou proxy'
-            );
-          }
-          throw fetchError;
-        }
-        throw new Error('Erro desconhecido ao fazer requisição');
+      if (result.available) {
+        setUpdateInfo(result);
+        setStatus('update_available');
+      } else {
+        setUpdateInfo(null);
+        setStatus('updated');
       }
     } catch (error) {
       console.error('Erro ao verificar atualizações:', error);
+      setUpdateInfo(null);
       setStatus('error');
       
       let errorMsg = 'Erro desconhecido ao verificar atualizações';
@@ -98,41 +71,35 @@ export default function UpdateStatus() {
     }
   };
 
-  // Função para comparar versões (formato semver: X.Y.Z)
-  const compareVersions = (v1: string, v2: string): number => {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const part1 = parts1[i] || 0;
-      const part2 = parts2[i] || 0;
-
-      if (part1 < part2) return -1;
-      if (part1 > part2) return 1;
-    }
-
-    return 0;
-  };
-
   // Verificar atualizações automaticamente ao abrir a tela
   useEffect(() => {
     checkForUpdates();
   }, []);
 
-  const handleUpdate = async () => {
-    if (!latestVersion || !currentVersion) {
+  const handleDownloadAndInstall = async () => {
+    if (!updateInfo?.url) {
+      toast({
+        title: 'Nenhuma atualização disponível',
+        description: 'Não encontramos um instalador para esta plataforma.',
+        variant: 'destructive',
+      });
       return;
     }
 
-    setIsInstalling(true);
     try {
-      await invoke<string>('install_update');
-      
-      // Se chegou aqui, a atualização foi instalada e o app será reiniciado
-      // Mostrar mensagem de sucesso
+      setIsDownloading(true);
+      const filePath = await invoke<string>('download_update_manual', {
+        updateUrl: updateInfo.url,
+      });
+
+      setIsDownloading(false);
+      setIsInstalling(true);
+
+      const message = await invoke<string>('install_update_manual', { filePath });
+
       toast({
-        title: '✅ Atualização instalada!',
-        description: 'A aplicação será reiniciada em instantes...',
+        title: '✅ Atualização aplicada',
+        description: message || 'A aplicação será reiniciada em instantes...',
         variant: 'success',
       });
     } catch (error) {
@@ -145,6 +112,7 @@ export default function UpdateStatus() {
         variant: 'destructive',
       });
     } finally {
+      setIsDownloading(false);
       setIsInstalling(false);
     }
   };
@@ -233,8 +201,8 @@ export default function UpdateStatus() {
               )}
 
               <Button
-                onClick={handleUpdate}
-                disabled={isInstalling}
+                onClick={handleDownloadAndInstall}
+                disabled={isInstalling || isDownloading}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 size="lg"
               >
@@ -243,10 +211,15 @@ export default function UpdateStatus() {
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Instalando...
                   </>
+                ) : isDownloading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Baixando...
+                  </>
                 ) : (
                   <>
                     <Download className="mr-2 h-5 w-5" />
-                    Atualizar Agora
+                    Baixar e Instalar
                   </>
                 )}
               </Button>
@@ -276,7 +249,7 @@ export default function UpdateStatus() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-sm text-blue-800 mb-2">Informações de Debug:</h4>
                 <div className="text-xs text-blue-700 space-y-1">
-                  <p>• URL da API: https://sgp.finderbit.com.br/update</p>
+                  <p>• URL da API: {DEFAULT_MANIFEST_URL}</p>
                   <p>• Verifique se o servidor está acessível no navegador</p>
                   <p>• Verifique sua conexão com a internet</p>
                   <p>• Verifique o console do navegador (F12) para mais detalhes</p>

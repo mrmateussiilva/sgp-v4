@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { fetch } from '@tauri-apps/plugin-http';
 import { toast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { DEFAULT_MANIFEST_URL } from '@/utils/manifestUrl';
 
-interface UpdateResponse {
-  version: string;
+interface ManualUpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string;
+  url?: string;
   notes?: string;
+  date?: string;
+  signature?: string;
 }
 
 /**
@@ -24,51 +29,30 @@ export function useAutoUpdateCheck() {
 
     const checkForUpdates = async () => {
       try {
-        // Obter versão atual do app
-        const appVersion = await invoke<string>('get_app_version');
-
-        // Consultar API externa
-        const response = await fetch('https://sgp.finderbit.com.br/update', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          connectTimeout: 10000, // 10 segundos de timeout
+        const result = await invoke<ManualUpdateInfo>('check_update_manual', {
+          manifestUrl: DEFAULT_MANIFEST_URL,
         });
 
-        if (!response.ok) {
-          // Silenciosamente falha se não conseguir verificar
+        if (!result.available) {
           return;
         }
 
-        const data: UpdateResponse = await response.json();
-
-        // Validar resposta
-        if (!data || !data.version) {
-          return;
-        }
-
-        // Comparar versões
-        if (compareVersions(appVersion, data.version) < 0) {
-          // Há atualização disponível - mostrar notificação
-          toast({
-            title: '🔄 Nova versão disponível!',
-            description: `Versão ${data.version} está disponível. Você está usando ${appVersion}.`,
-            variant: 'info',
-            action: (
-              <ToastAction
-                altText="Ver detalhes da atualização"
-                onClick={() => {
-                  // Navegar para a página de atualização
-                  window.location.hash = '#/update-status';
-                }}
-              >
-                Ver Detalhes
-              </ToastAction>
-            ),
-          });
-        }
+        toast({
+          title: '🔄 Nova versão disponível!',
+          description: `Versão ${result.latest_version} está disponível. Você está usando ${result.current_version}.`,
+          variant: 'info',
+          action: (
+            <ToastAction
+              altText="Ver detalhes da atualização"
+              onClick={() => {
+                // Navegar para a página de atualização
+                window.location.hash = '#/update-status';
+              }}
+            >
+              Ver Detalhes
+            </ToastAction>
+          ),
+        });
       } catch (error) {
         // Silenciosamente falha se não conseguir verificar
         // Não queremos mostrar erro ao usuário na inicialização
@@ -87,21 +71,5 @@ export function useAutoUpdateCheck() {
       clearTimeout(timeoutId);
     };
   }, []);
-}
-
-// Função para comparar versões (formato semver: X.Y.Z)
-function compareVersions(v1: string, v2: string): number {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const part1 = parts1[i] || 0;
-    const part2 = parts2[i] || 0;
-
-    if (part1 < part2) return -1;
-    if (part1 > part2) return 1;
-  }
-
-  return 0;
 }
 
