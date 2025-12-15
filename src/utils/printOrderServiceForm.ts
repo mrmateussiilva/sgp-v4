@@ -656,10 +656,15 @@ const buildServiceFormStyles = (): string => `
  * Imprime ficha de serviço usando template configurado ou fallback
  * @param order - Pedido a ser impresso
  * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
+ * @param items - Itens específicos para imprimir (opcional, se não fornecido, imprime todos)
  */
-export const printOrderServiceForm = async (order: OrderWithItems, templateType: 'geral' | 'resumo' = 'geral') => {
+export const printOrderServiceForm = async (
+  order: OrderWithItems, 
+  templateType: 'geral' | 'resumo' = 'geral',
+  items?: OrderItem[]
+) => {
   // Tentar usar template configurado primeiro
-  const templateContent = await generateTemplatePrintContent(templateType, order);
+  const templateContent = await generateTemplatePrintContent(templateType, order, items);
   
   let content: string;
   let styles: string;
@@ -671,16 +676,27 @@ export const printOrderServiceForm = async (order: OrderWithItems, templateType:
       ${templateContent.css}
       .template-document {
         width: 100%;
+        background: white;
       }
       @page {
-        size: A4 portrait;
+        size: ${templateType === 'resumo' ? 'A4 landscape' : 'A4 portrait'};
         margin: 0;
       }
       body {
-        font-family: Arial, sans-serif;
+        font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
         margin: 0;
         padding: 0;
         background: white;
+        color: #1a1a1a;
+      }
+      @media print {
+        .template-page {
+          page-break-after: always;
+          page-break-inside: avoid;
+        }
+        .template-page:last-child {
+          page-break-after: auto;
+        }
       }
     `;
   } else {

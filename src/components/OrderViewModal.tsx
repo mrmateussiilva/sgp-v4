@@ -3,10 +3,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Printer, ChevronDown } from 'lucide-react';
+import { Printer, ChevronDown, FileText, Layout } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { printOrder } from '../utils/printOrder';
+import { printOrderServiceForm } from '../utils/printOrderServiceForm';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from './ui/dropdown-menu';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
@@ -205,7 +213,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const handlePrint = async () => {
+  const handlePrint = async (type: 'default' | 'geral' | 'resumo' = 'default') => {
     const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
     const enrichedOrder = {
       ...order,
@@ -214,7 +222,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ? formaPagamentoNome
           : undefined,
     };
-    await printOrder(enrichedOrder);
+    
+    if (type === 'geral' || type === 'resumo') {
+      await printOrderServiceForm(enrichedOrder, type);
+    } else {
+      await printOrder(enrichedOrder);
+    }
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -1039,11 +1052,31 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
-              <Button onClick={handlePrint} variant="outline" size="sm" className="text-xs sm:text-sm">
-                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Imprimir</span>
-                <span className="sm:hidden">Impr.</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Imprimir</span>
+                    <span className="sm:hidden">Impr.</span>
+                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => handlePrint('default')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>Ficha Padrão (Detalhada)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handlePrint('geral')}>
+                    <Layout className="h-4 w-4 mr-2" />
+                    <span>Ficha Geral (Template A4)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePrint('resumo')}>
+                    <Layout className="h-4 w-4 mr-2" />
+                    <span>Ficha Resumo (Template 1/3 A4)</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </DialogTitle>
         </DialogHeader>
