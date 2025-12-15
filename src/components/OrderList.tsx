@@ -14,7 +14,7 @@ import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
-import { formatDateForDisplay, ensureDateInputValue } from '@/utils/date';
+import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,18 +113,6 @@ export default function OrderList() {
     novoValor: false,
     nomeSetor: '',
   });
-  const [sublimationModal, setSublimationModal] = useState<{
-    show: boolean;
-    pedidoId: number;
-    machine: string;
-    printDate: string;
-  }>({
-    show: false,
-    pedidoId: 0,
-    machine: '',
-    printDate: '',
-  });
-  const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Adicionar notificações toast para eventos de pedidos
@@ -215,7 +203,6 @@ export default function OrderList() {
     order: OrderWithItems,
     campo: string,
     novoValor: boolean,
-    extra?: { machine?: string; date?: string | null },
   ): UpdateOrderStatusRequest => {
     // CRÍTICO: Não incluir campo financeiro no payload quando não está sendo alterado
     // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
@@ -244,20 +231,23 @@ export default function OrderList() {
       (payload as any)._isFinanceiroUpdate = false;
     }
 
+    // Manter valores existentes de máquina e data de impressão quando não está alterando sublimação
+    // Quando desmarcar sublimação, limpar esses campos
     const existingMachine = order.sublimacao_maquina ?? null;
     const existingDate = order.sublimacao_data_impressao ?? null;
 
     if (campo === 'sublimacao') {
-      if (novoValor) {
-        payload.sublimacao_maquina =
-          extra?.machine !== undefined ? extra.machine : existingMachine;
-        payload.sublimacao_data_impressao =
-          extra?.date !== undefined ? extra.date : existingDate;
-      } else {
+      if (!novoValor) {
+        // Ao desmarcar, limpar máquina e data
         payload.sublimacao_maquina = null;
         payload.sublimacao_data_impressao = null;
+      } else {
+        // Ao marcar, manter valores existentes se houver, senão deixar null
+        payload.sublimacao_maquina = existingMachine;
+        payload.sublimacao_data_impressao = existingDate;
       }
     } else {
+      // Para outros campos, manter valores existentes
       payload.sublimacao_maquina = existingMachine;
       payload.sublimacao_data_impressao = existingDate;
     }
@@ -1209,20 +1199,6 @@ export default function OrderList() {
       return;
     }
 
-    if (campo === 'sublimacao' && !valorAtual) {
-      const defaultDate =
-        ensureDateInputValue(targetOrder.sublimacao_data_impressao ?? null) ||
-        new Date().toISOString().slice(0, 10);
-      setSublimationModal({
-        show: true,
-        pedidoId,
-        machine: targetOrder.sublimacao_maquina ?? '',
-        printDate: defaultDate,
-      });
-      setSublimationError(null);
-      return;
-    }
-
     setStatusConfirmModal({
       show: true,
       pedidoId,
@@ -1319,78 +1295,6 @@ export default function OrderList() {
     }
   };
 
-  const handleCloseSublimationModal = () => {
-    setSublimationModal({ show: false, pedidoId: 0, machine: '', printDate: '' });
-    setSublimationError(null);
-  };
-
-  const handleConfirmSublimation = async () => {
-    if (!sublimationModal.show) {
-      return;
-    }
-    const targetOrder = orders.find((order) => order.id === sublimationModal.pedidoId);
-    if (!targetOrder) {
-      handleCloseSublimationModal();
-      return;
-    }
-
-    const machine = sublimationModal.machine.trim();
-    const printDateRaw = sublimationModal.printDate.trim();
-    const normalizedDate = ensureDateInputValue(printDateRaw);
-
-    if (!machine) {
-      setSublimationError('Informe o nome da máquina.');
-      return;
-    }
-    if (!normalizedDate) {
-      setSublimationError('Informe a data de impressão.');
-      return;
-    }
-
-    const payload = buildStatusUpdatePayload(targetOrder, 'sublimacao', true, {
-      machine,
-      date: normalizedDate,
-    });
-
-    try {
-      const updatedOrder = await api.updateOrderStatus(payload);
-      updateOrder(updatedOrder);
-      const allCompleted =
-        updatedOrder.pronto && updatedOrder.status === OrderStatus.Concluido;
-
-      toast({
-        title: allCompleted ? 'Pedido concluído' : 'Sublimação marcada',
-        description: allCompleted
-          ? `Todos os setores foram concluídos. Pedido marcado como pronto em ${formatDateForDisplay(normalizedDate, '-')}.`
-          : `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
-        variant: "success",
-      });
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status de sublimação.';
-      const isForbidden = error?.response?.status === 403;
-      
-      if (isForbidden) {
-        toast({
-          title: '⚠️ Problema de permissão no servidor',
-          description: 'O servidor está bloqueando a atualização de "Sublimação" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Erro',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-      }
-      
-      // Log apenas em desenvolvimento para não poluir o console em produção
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error updating sublimation status:', error);
-      }
-    } finally {
-      handleCloseSublimationModal();
-    }
-  };
 
   return (
     <div className="flex flex-col h-full space-y-6 min-h-screen">
@@ -1997,59 +1901,6 @@ export default function OrderList() {
             <Button variant="destructive" onClick={handleDeleteConfirm}>
               Excluir
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Confirmação de Status */}
-      <Dialog
-        open={sublimationModal.show}
-        onOpenChange={(open) => {
-          if (!open) {
-            handleCloseSublimationModal();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Sublimação</DialogTitle>
-            <DialogDescription>
-              Informe os detalhes da impressão antes de marcar a sublimação como concluída.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="sublimation-machine">Máquina</Label>
-              <Input
-                id="sublimation-machine"
-                value={sublimationModal.machine}
-                onChange={(event) =>
-                  setSublimationModal((prev) => ({ ...prev, machine: event.target.value }))
-                }
-                placeholder="Ex: Epson SureColor F570"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sublimation-date">Data da impressão</Label>
-              <Input
-                id="sublimation-date"
-                type="date"
-                value={sublimationModal.printDate}
-                onChange={(event) =>
-                  setSublimationModal((prev) => ({ ...prev, printDate: event.target.value }))
-                }
-              />
-            </div>
-            {sublimationError && (
-              <p className="text-sm text-destructive">{sublimationError}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseSublimationModal}>
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmSublimation}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
