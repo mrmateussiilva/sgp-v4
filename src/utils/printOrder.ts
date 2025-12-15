@@ -730,7 +730,7 @@ const buildStyles = (): string => `
 
   .image-caption {
     width: 100%;
-    font-size: 9pt;
+    font-size: 32pt;
     color: #475569;
     text-align: center;
     line-height: 1.4;

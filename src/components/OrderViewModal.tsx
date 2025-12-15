@@ -1034,7 +1034,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 </Button>
               )}
               {legendaImagem && (
-                <p className="w-full rounded-md bg-white px-3 py-2 text-center text-xs text-slate-600 shadow-sm">
+                <p
+                  className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
+                  style={{ fontSize: '32pt', lineHeight: 1.2 }}
+                >
                   {legendaImagem}
                 </p>
               )}
