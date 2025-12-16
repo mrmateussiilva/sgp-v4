@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, FileDown, RefreshCcw } from 'lucide-react';
-import { isTauri } from '@/utils/isTauri';
+import { openPdfInWindow } from '@/utils/exportUtils';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -364,78 +364,21 @@ export default function Fechamentos() {
           : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
       const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
 
-      // Gerar o PDF como blob
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-
-      // Se estiver no Tauri, tentar usar shell.open
-      if (isTauri()) {
-        try {
-          const { save } = await import('@tauri-apps/plugin-dialog');
-          const { writeFile } = await import('@tauri-apps/plugin-fs');
-          const { appDataDir } = await import('@tauri-apps/api/path');
-
-          await appDataDir();
-          const filePath = await save({
-            defaultPath: filename,
-            filters: [{ name: 'PDF', extensions: ['pdf'] }],
-          });
-
-          if (filePath) {
-            // Converter blob para array de bytes
-            const arrayBuffer = await blob.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            await writeFile(filePath, uint8Array);
-
-            // Tentar abrir o arquivo
-            try {
-              const { open } = await import('@tauri-apps/plugin-shell');
-              await open(filePath);
-              toast({
-                title: 'Relatório exportado',
-                description: 'O arquivo foi salvo e aberto com sucesso.',
-              });
-            } catch (openError) {
-              console.warn('Erro ao abrir arquivo:', openError);
-              toast({
-                title: 'Relatório exportado',
-                description: 'O arquivo foi salvo, mas não foi possível abri-lo automaticamente.',
-              });
-            }
-          } else {
-            // Usuário cancelou
-            URL.revokeObjectURL(blobUrl);
-            return;
-          }
-        } catch (tauriError) {
-          console.error('Erro ao exportar via Tauri:', tauriError);
-          // Fallback para download direto
-          doc.save(filename);
-          toast({
-            title: 'Relatório exportado',
-            description: 'O arquivo foi baixado com sucesso.',
-          });
-        } finally {
-          URL.revokeObjectURL(blobUrl);
-        }
-      } else {
-        // Ambiente web: download direto
-        try {
-          doc.save(filename);
-          toast({
-            title: 'Relatório exportado',
-            description: 'O arquivo foi baixado com sucesso.',
-          });
-        } catch (saveError) {
-          console.error('Erro ao salvar PDF:', saveError);
-          toast({
-            title: 'Falha ao exportar relatório',
-            description: 'Não foi possível salvar o arquivo. Tente novamente.',
-            variant: 'destructive',
-          });
-        } finally {
-          URL.revokeObjectURL(blobUrl);
-        }
+      // Abrir PDF em nova janela para o usuário escolher salvar ou imprimir
+      try {
+        openPdfInWindow(doc, filename);
+        toast({
+          title: 'Relatório aberto',
+          description: 'O relatório foi aberto em uma nova janela. Você pode salvar ou imprimir.',
+        });
+      } catch (error) {
+        console.error('Erro ao abrir PDF:', error);
+        // Fallback: download direto
+        doc.save(filename);
+        toast({
+          title: 'Relatório exportado',
+          description: 'O arquivo foi baixado com sucesso.',
+        });
       }
     } catch (error) {
       console.error('Erro ao exportar relatório de fechamentos:', error);

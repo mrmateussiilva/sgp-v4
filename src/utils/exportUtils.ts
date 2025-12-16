@@ -135,6 +135,38 @@ const openPdfInPrintWindow = (doc: any, filename: string) => {
   document.body.appendChild(iframe);
 };
 
+// Função para abrir PDF em nova janela sem chamar print() automaticamente
+// Permite que o usuário escolha entre salvar ou imprimir
+export const openPdfInWindow = (doc: any, filename: string) => {
+  if (typeof window === 'undefined') {
+    doc.save(filename);
+    return;
+  }
+
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Abre uma nova janela com o PDF para o usuário escolher salvar ou imprimir
+  let pdfWindow: Window | null = null;
+  try {
+    pdfWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('Falha ao abrir nova janela para PDF:', err);
+    pdfWindow = null;
+  }
+
+  if (pdfWindow) {
+    // Limpa a URL após um tempo
+    setTimeout(() => {
+      try { URL.revokeObjectURL(blobUrl); } catch (_) { /* noop */ }
+    }, 60000); // 60 segundos para dar tempo do usuário interagir
+    return;
+  }
+
+  // Fallback: download direto
+  doc.save(filename);
+};
+
 export const exportToCSV = async (orders: OrderWithItems[]) => {
   const Papa = await loadPapa();
   const csvData = orders.map((order) => ({
