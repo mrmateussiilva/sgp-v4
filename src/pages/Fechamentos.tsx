@@ -237,7 +237,10 @@ export default function Fechamentos() {
   };
 
   const exportToPdf = async () => {
+    console.log('[exportToPdf] Função chamada');
+    
     if (!report) {
+      console.log('[exportToPdf] Nenhum relatório disponível');
       toast({
         title: 'Nenhum relatório disponível',
         description: 'Gere um relatório antes de exportar.',
@@ -246,8 +249,10 @@ export default function Fechamentos() {
       return;
     }
 
+    console.log('[exportToPdf] Relatório disponível, carregando bibliotecas...');
     try {
       const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
+      console.log('[exportToPdf] Bibliotecas carregadas, criando documento PDF...');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
 
@@ -358,22 +363,27 @@ export default function Fechamentos() {
     );
     doc.setTextColor(0, 0, 0);
 
+      console.log('[exportToPdf] PDF renderizado, gerando nome do arquivo...');
       const filenameSuffix =
         filters.startDate && filters.endDate && filters.endDate !== filters.startDate
           ? `${filters.startDate}_${filters.endDate}`
           : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
       const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
+      console.log('[exportToPdf] Nome do arquivo:', filename);
 
       // Abrir PDF em nova janela para o usuário escolher salvar ou imprimir
       try {
-        openPdfInWindow(doc, filename);
+        console.log('[exportToPdf] Chamando openPdfInWindow...');
+        await openPdfInWindow(doc, filename);
+        console.log('[exportToPdf] openPdfInWindow concluída com sucesso');
         toast({
           title: 'Relatório aberto',
-          description: 'O relatório foi aberto em uma nova janela. Você pode salvar ou imprimir.',
+          description: 'O relatório foi aberto. Você pode salvar ou imprimir.',
         });
       } catch (error) {
-        console.error('Erro ao abrir PDF:', error);
+        console.error('[exportToPdf] Erro ao abrir PDF:', error);
         // Fallback: download direto
+        console.log('[exportToPdf] Usando fallback: save direto');
         doc.save(filename);
         toast({
           title: 'Relatório exportado',
@@ -381,7 +391,8 @@ export default function Fechamentos() {
         });
       }
     } catch (error) {
-      console.error('Erro ao exportar relatório de fechamentos:', error);
+      console.error('[exportToPdf] Erro geral ao exportar relatório de fechamentos:', error);
+      console.error('[exportToPdf] Stack trace:', error instanceof Error ? error.stack : 'N/A');
       toast({
         title: 'Falha ao exportar relatório',
         description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado ao exportar o relatório.',
