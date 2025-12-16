@@ -136,77 +136,87 @@ const openPdfInPrintWindow = (doc: any, filename: string) => {
   document.body.appendChild(iframe);
 };
 
-// Função para abrir PDF em nova janela sem chamar print() automaticamente
-// Permite que o usuário escolha entre salvar ou imprimir
-export const openPdfInWindow = async (doc: any, filename: string) => {
-  console.log('[openPdfInWindow] Iniciando função', { filename });
+/**
+ * Função universal para abrir conteúdo em visualizador em tela cheia
+ * Funciona tanto para PDFs (jsPDF) quanto para HTML
+ * Permite que o usuário escolha entre salvar ou imprimir
+ */
+export const openInViewer = async (
+  content: { type: 'pdf'; doc: any; filename: string } | { type: 'html'; html: string; title: string }
+) => {
+  console.log('[openInViewer] Iniciando função', { type: content.type });
   
   if (typeof window === 'undefined') {
-    console.log('[openPdfInWindow] window é undefined, fazendo save direto');
-    doc.save(filename);
+    if (content.type === 'pdf') {
+      content.doc.save(content.filename);
+    }
     return;
   }
 
-  console.log('[openPdfInWindow] Gerando blob do PDF');
-  const blob = doc.output('blob');
-  const blobUrl = URL.createObjectURL(blob);
-  console.log('[openPdfInWindow] Blob criado, URL:', blobUrl);
+  let blobUrl: string;
+  
+  if (content.type === 'pdf') {
+    console.log('[openInViewer] Gerando blob do PDF');
+    const blob = content.doc.output('blob');
+    blobUrl = URL.createObjectURL(blob);
+    console.log('[openInViewer] Blob criado, URL:', blobUrl);
+  } else {
+    console.log('[openInViewer] Criando blob do HTML');
+    const blob = new Blob([content.html], { type: 'text/html' });
+    blobUrl = URL.createObjectURL(blob);
+    console.log('[openInViewer] Blob HTML criado, URL:', blobUrl);
+  }
 
   // Verificar se está no Tauri - tentar múltiplas formas de detecção
   const tauriCheck = isTauri();
   const tauriCheckAlt = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
     (window.location.port === '1420' || window.location.protocol === 'tauri:');
-  console.log('[openPdfInWindow] Verificando Tauri:', { tauriCheck, tauriCheckAlt, hostname: window.location.hostname, port: window.location.port });
+  console.log('[openInViewer] Verificando Tauri:', { tauriCheck, tauriCheckAlt, hostname: window.location.hostname, port: window.location.port });
   
-  // Tentar usar Tauri se detectado OU se window.open falhar
-  let shouldUseTauri = tauriCheck || tauriCheckAlt;
-  
-  if (shouldUseTauri) {
-    console.log('[openPdfInWindow] Tentando usar diálogo do Tauri...');
+  // Tentar usar Tauri se detectado (apenas para PDFs)
+  if (content.type === 'pdf' && (tauriCheck || tauriCheckAlt)) {
+    console.log('[openInViewer] Tentando usar diálogo do Tauri...');
     try {
-      console.log('[openPdfInWindow] Importando módulos do Tauri...');
+      console.log('[openInViewer] Importando módulos do Tauri...');
       const { save } = await import('@tauri-apps/plugin-dialog');
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       const { open } = await import('@tauri-apps/plugin-shell');
-      console.log('[openPdfInWindow] Módulos importados com sucesso');
+      console.log('[openInViewer] Módulos importados com sucesso');
 
-      console.log('[openPdfInWindow] Abrindo diálogo de salvar...');
+      console.log('[openInViewer] Abrindo diálogo de salvar...');
       const filePath = await save({
-        defaultPath: filename,
+        defaultPath: content.filename,
         filters: [{ name: 'PDF', extensions: ['pdf'] }],
       });
-      console.log('[openPdfInWindow] Diálogo retornou:', filePath);
+      console.log('[openInViewer] Diálogo retornou:', filePath);
 
       if (filePath) {
-        console.log('[openPdfInWindow] Convertendo blob para array de bytes...');
-        // Converter blob para array de bytes
+        console.log('[openInViewer] Convertendo blob para array de bytes...');
+        const blob = content.doc.output('blob');
         const arrayBuffer = await blob.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        console.log('[openPdfInWindow] Escrevendo arquivo...');
+        console.log('[openInViewer] Escrevendo arquivo...');
         await writeFile(filePath, uint8Array);
-        console.log('[openPdfInWindow] Arquivo salvo, abrindo...');
+        console.log('[openInViewer] Arquivo salvo, abrindo...');
         
-        // Abrir o arquivo com o visualizador padrão
         await open(filePath);
-        console.log('[openPdfInWindow] Arquivo aberto com sucesso');
+        console.log('[openInViewer] Arquivo aberto com sucesso');
         URL.revokeObjectURL(blobUrl);
         return;
       } else {
-        console.log('[openPdfInWindow] Usuário cancelou o diálogo');
-        // Usuário cancelou
+        console.log('[openInViewer] Usuário cancelou o diálogo');
         URL.revokeObjectURL(blobUrl);
         return;
       }
     } catch (tauriError) {
-      console.error('[openPdfInWindow] Erro ao abrir PDF via Tauri:', tauriError);
-      console.log('[openPdfInWindow] Tentando fallback: iframe...');
-      // Fallback: tentar usar iframe
+      console.error('[openInViewer] Erro ao abrir via Tauri:', tauriError);
+      console.log('[openInViewer] Tentando fallback: iframe...');
     }
   }
 
-  // Tentar abrir em iframe primeiro (mais compatível com Tauri)
-  console.log('[openPdfInWindow] Tentando abrir em iframe...');
+  // Criar iframe em tela cheia para visualização
+  console.log('[openInViewer] Criando iframe em tela cheia...');
   try {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -216,9 +226,10 @@ export const openPdfInWindow = async (doc: any, filename: string) => {
     iframe.style.height = '100%';
     iframe.style.border = 'none';
     iframe.style.zIndex = '9999';
+    iframe.style.backgroundColor = '#f5f5f5';
     iframe.src = blobUrl;
     
-    // Adicionar botão de fechar
+    // Container para botões de controle
     const container = document.createElement('div');
     container.style.position = 'fixed';
     container.style.top = '10px';
@@ -226,29 +237,65 @@ export const openPdfInWindow = async (doc: any, filename: string) => {
     container.style.zIndex = '10000';
     container.style.display = 'flex';
     container.style.gap = '10px';
+    container.style.flexDirection = 'column';
     
+    // Botão de imprimir
+    const printBtn = document.createElement('button');
+    printBtn.textContent = '🖨️ Imprimir';
+    printBtn.style.padding = '10px 20px';
+    printBtn.style.backgroundColor = '#3b82f6';
+    printBtn.style.color = 'white';
+    printBtn.style.border = 'none';
+    printBtn.style.borderRadius = '5px';
+    printBtn.style.cursor = 'pointer';
+    printBtn.style.fontSize = '14px';
+    printBtn.style.fontWeight = '500';
+    printBtn.onclick = () => {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }
+    };
+    
+    // Botão de salvar (apenas para PDFs)
+    let saveBtn: HTMLButtonElement | null = null;
+    if (content.type === 'pdf') {
+      saveBtn = document.createElement('button');
+      saveBtn.textContent = '💾 Salvar';
+      saveBtn.style.padding = '10px 20px';
+      saveBtn.style.backgroundColor = '#10b981';
+      saveBtn.style.color = 'white';
+      saveBtn.style.border = 'none';
+      saveBtn.style.borderRadius = '5px';
+      saveBtn.style.cursor = 'pointer';
+      saveBtn.style.fontSize = '14px';
+      saveBtn.style.fontWeight = '500';
+      saveBtn.onclick = () => {
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = content.filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+      };
+    }
+    
+    // Botão de fechar
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = 'Fechar';
+    closeBtn.textContent = '✕ Fechar';
     closeBtn.style.padding = '10px 20px';
     closeBtn.style.backgroundColor = '#ef4444';
     closeBtn.style.color = 'white';
     closeBtn.style.border = 'none';
     closeBtn.style.borderRadius = '5px';
     closeBtn.style.cursor = 'pointer';
-    closeBtn.onclick = () => {
-      document.body.removeChild(iframe);
-      document.body.removeChild(container);
-      URL.revokeObjectURL(blobUrl);
-    };
+    closeBtn.style.fontSize = '14px';
+    closeBtn.style.fontWeight = '500';
     
-    container.appendChild(closeBtn);
-    document.body.appendChild(iframe);
-    document.body.appendChild(container);
-    
-    console.log('[openPdfInWindow] Iframe criado e adicionado ao DOM');
-    
-    // Limpar após um tempo se não for fechado
-    setTimeout(() => {
+    const cleanup = () => {
       try {
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe);
@@ -258,58 +305,75 @@ export const openPdfInWindow = async (doc: any, filename: string) => {
         }
         URL.revokeObjectURL(blobUrl);
       } catch (_) { /* noop */ }
-    }, 300000); // 5 minutos
+    };
+    
+    closeBtn.onclick = cleanup;
+    
+    // Adicionar botões ao container
+    if (saveBtn) {
+      container.appendChild(saveBtn);
+    }
+    container.appendChild(printBtn);
+    container.appendChild(closeBtn);
+    
+    // Adicionar ao DOM
+    document.body.appendChild(iframe);
+    document.body.appendChild(container);
+    
+    console.log('[openInViewer] Iframe criado e adicionado ao DOM');
+    
+    // Limpar após um tempo se não for fechado (5 minutos)
+    setTimeout(() => {
+      cleanup();
+    }, 300000);
     
     return;
   } catch (iframeError) {
-    console.error('[openPdfInWindow] Erro ao criar iframe:', iframeError);
+    console.error('[openInViewer] Erro ao criar iframe:', iframeError);
   }
 
-  console.log('[openPdfInWindow] Tentando abrir em nova janela (ambiente web ou fallback)');
-  // Ambiente web ou fallback: abrir em nova janela
-  let pdfWindow: Window | null = null;
+  // Fallback: tentar window.open
+  console.log('[openInViewer] Tentando window.open como fallback...');
+  let newWindow: Window | null = null;
   try {
-    pdfWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-    console.log('[openPdfInWindow] window.open retornou:', pdfWindow);
+    newWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    console.log('[openInViewer] window.open retornou:', newWindow);
     
-    if (pdfWindow) {
-      console.log('[openPdfInWindow] Janela aberta com sucesso, focando...');
-      // Focar na janela
-      pdfWindow.focus();
-      
-      // Limpa a URL após um tempo
+    if (newWindow) {
+      console.log('[openInViewer] Janela aberta com sucesso');
+      newWindow.focus();
       setTimeout(() => {
         try { URL.revokeObjectURL(blobUrl); } catch (_) { /* noop */ }
-      }, 60000); // 60 segundos para dar tempo do usuário interagir
-      console.log('[openPdfInWindow] Processo concluído (nova janela)');
+      }, 60000);
       return;
-    } else {
-      console.warn('[openPdfInWindow] window.open retornou null (pode estar bloqueado)');
     }
   } catch (err) {
-    console.error('[openPdfInWindow] Erro ao abrir nova janela:', err);
+    console.error('[openInViewer] Erro ao abrir nova janela:', err);
   }
 
-  console.log('[openPdfInWindow] Usando fallback final: criar link de download');
-  // Fallback final: criar link de download
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  console.log('[openPdfInWindow] Link criado, clicando...');
-  link.click();
-  setTimeout(() => {
-    try {
-      document.body.removeChild(link);
-    } catch (_) { /* noop */ }
-  }, 100);
-  console.log('[openPdfInWindow] Download iniciado via link');
-  
-  // Limpar URL após um tempo
-  setTimeout(() => {
-    try { URL.revokeObjectURL(blobUrl); } catch (_) { /* noop */ }
-  }, 1000);
+  // Fallback final: download direto (apenas para PDFs)
+  if (content.type === 'pdf') {
+    console.log('[openInViewer] Usando fallback final: download direto');
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = content.filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      try {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      } catch (_) { /* noop */ }
+    }, 100);
+  }
+};
+
+// Função para abrir PDF em nova janela sem chamar print() automaticamente
+// Permite que o usuário escolha entre salvar ou imprimir
+// Usa a função universal openInViewer internamente
+export const openPdfInWindow = async (doc: any, filename: string) => {
+  return openInViewer({ type: 'pdf', doc, filename });
 };
 
 export const exportToCSV = async (orders: OrderWithItems[]) => {

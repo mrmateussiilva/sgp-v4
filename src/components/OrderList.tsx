@@ -632,36 +632,13 @@ export default function OrderList() {
 
     const printContent = await generatePrintList(orders);
     
-    // Criar iframe para impressão
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) {
-      document.body.removeChild(iframe);
-      return;
-    }
-
-    iframeDoc.open();
-    iframeDoc.write(printContent);
-    iframeDoc.close();
-
-    // Como as imagens já estão em base64, não precisamos aguardar carregamento
-    iframe.contentWindow?.focus();
-    
-    // Aguardar um pouco para o DOM estar pronto e então imprimir
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 300);
+    // Usar a função universal de visualização
+    const { openInViewer } = await import('../utils/exportUtils');
+    await openInViewer({ 
+      type: 'html', 
+      html: printContent, 
+      title: `Lista de Pedidos - ${orders.length} pedido(s)` 
+    });
   };
 
   const collectOrderData = (item: OrderItem): { basic: string[], details: string[] } => {

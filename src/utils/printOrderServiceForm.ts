@@ -705,27 +705,7 @@ export const printOrderServiceForm = async (
     styles = buildServiceFormStyles();
   }
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.style.opacity = '0';
-  iframe.style.pointerEvents = 'none';
-  iframe.style.visibility = 'hidden';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '-9999px';
-
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    document.body.removeChild(iframe);
-    return;
-  }
-
-  doc.open();
-  doc.write(`
+  const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
       <head>
@@ -737,20 +717,13 @@ export const printOrderServiceForm = async (
         ${content}
       </body>
     </html>
-  `);
-  doc.close();
+  `;
 
-  const handleAfterPrint = () => {
-    setTimeout(() => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-      document.body.removeChild(iframe);
-    }, 200);
-  };
-
-  window.addEventListener('afterprint', handleAfterPrint);
-
-  setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-  }, 100);
+  // Usar a função universal de visualização
+  const { openInViewer } = await import('./exportUtils');
+  await openInViewer({ 
+    type: 'html', 
+    html, 
+    title: `Ficha de Serviço #${order.numero || order.id}` 
+  });
 };
