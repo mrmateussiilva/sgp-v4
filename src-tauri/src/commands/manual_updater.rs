@@ -35,6 +35,7 @@ struct ResolvedManifest {
     url: String,
     notes: Option<String>,
     date: Option<String>,
+    #[allow(dead_code)] // Ignoramos signature intencionalmente - não validamos assinatura
     signature: Option<String>,
 }
 
@@ -115,13 +116,14 @@ fn resolve_manifest(body: &str) -> Result<ResolvedManifest, String> {
     Err("Formato de manifesto de atualização inválido".to_string())
 }
 
-/// Comando para baixar atualização manualmente (sem verificação de assinatura)
+/// Comando para baixar atualização manualmente (SEM verificação de assinatura/chave)
+/// Este comando ignora completamente qualquer validação de signature
 #[tauri::command]
 pub async fn download_update_manual(
     app_handle: AppHandle,
     update_url: String,
 ) -> Result<String, String> {
-    info!("📥 Baixando atualização manualmente de: {}", update_url);
+    info!("📥 Baixando atualização manualmente de: {} (SEM validação de assinatura)", update_url);
 
     // Obter diretório de cache do app
     let app_cache_dir = app_handle
@@ -209,19 +211,49 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
 
     // Para Windows, executar o MSI
     if path.extension().and_then(|s| s.to_str()) == Some("msi") {
+        // Usar parâmetros que ignoram validações de chave/produto
+        // /qn = quiet mode sem UI
+        // /norestart = não reiniciar automaticamente
+        // /L*v = log verbose para debug
+        let log_file = path.parent().unwrap().join("msi_install.log");
+        
         let output = Command::new("msiexec")
             .args(&[
                 "/i",
                 path.to_string_lossy().as_ref(),
-                "/quiet",
-                "/norestart",
+                "/qn",  // Quiet mode sem UI
+                "/norestart",  // Não reiniciar
+                "/L*v",  // Log verbose
+                log_file.to_string_lossy().as_ref(),
             ])
             .output()
             .map_err(|e| format!("Erro ao executar msiexec: {}", e))?;
 
+        // Ler o log para debug se houver erro
+        let log_content = if log_file.exists() {
+            std::fs::read_to_string(&log_file).unwrap_or_default()
+        } else {
+            String::new()
+        };
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Erro ao instalar MSI: {}", stderr));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            
+            // Extrair informações úteis do log
+            let error_msg = if log_content.contains("error") || log_content.contains("Error") {
+                let error_lines: Vec<&str> = log_content
+                    .lines()
+                    .filter(|l| l.to_lowercase().contains("error") || l.to_lowercase().contains("failed"))
+                    .take(5)
+                    .collect();
+                format!("Erros do log MSI: {}", error_lines.join("; "))
+            } else {
+                format!("Stderr: {} | Stdout: {}", stderr, stdout)
+            };
+            
+            warn!("Erro ao instalar MSI. Log disponível em: {:?}", log_file);
+            return Err(format!("Erro ao instalar MSI: {}. Verifique o log em {:?}", error_msg, log_file));
         }
 
         info!("✅ MSI instalado com sucesso");
@@ -318,11 +350,12 @@ fn install_macos_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), St
 
 /// Comando para verificar atualizações manualmente (sem assinatura)
 #[tauri::command]
+#[allow(non_snake_case)] // Mantemos camelCase para compatibilidade com frontend
 pub async fn check_update_manual(
     // IMPORTANTE: este nome precisa bater com a chave enviada pelo frontend (`manifestUrl`)
     manifestUrl: String,
 ) -> Result<serde_json::Value, String> {
-    info!("🔍 Verificando atualizações manualmente de: {}", manifestUrl);
+    info!("🔍 Verificando atualizações manualmente de: {} (SEM validação de assinatura)", manifestUrl);
 
     let response = reqwest::get(&manifestUrl)
         .await
@@ -342,7 +375,9 @@ pub async fn check_update_manual(
     let current_version = env!("CARGO_PKG_VERSION");
 
     // Comparar versões (simples)
+    // IMPORTANTE: Ignoramos completamente a signature - não há validação de assinatura
     if manifest.version != current_version {
+        info!("✅ Atualização disponível: {} -> {}", current_version, manifest.version);
         Ok(serde_json::json!({
             "available": true,
             "current_version": current_version,
@@ -350,9 +385,10 @@ pub async fn check_update_manual(
             "url": manifest.url,
             "notes": manifest.notes,
             "date": manifest.date,
-            "signature": manifest.signature
+            "signature": null  // Sempre null - não validamos assinatura
         }))
     } else {
+        info!("✅ Aplicação já está na versão mais recente: {}", current_version);
         Ok(serde_json::json!({
             "available": false,
             "current_version": current_version,

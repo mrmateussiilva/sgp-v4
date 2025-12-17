@@ -107,12 +107,24 @@ export default function UpdateStatus() {
       });
     } catch (error) {
       console.error('Erro ao instalar atualização:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao instalar atualização';
+      let errorMessage = 'Erro desconhecido ao instalar atualização';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Se o erro mencionar "key" ou "chave", sugerir verificar o MSI
+      if (errorMessage.toLowerCase().includes('key') || errorMessage.toLowerCase().includes('chave')) {
+        errorMessage += '\n\n💡 Dica: O instalador pode estar exigindo uma chave de produto. Verifique se o MSI está configurado corretamente.';
+      }
       
       toast({
         title: '❌ Erro ao instalar atualização',
         description: errorMessage,
         variant: 'destructive',
+        duration: 10000, // Mostrar por mais tempo
       });
     } finally {
       setIsDownloading(false);
