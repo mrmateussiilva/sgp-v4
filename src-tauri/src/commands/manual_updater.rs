@@ -70,20 +70,7 @@ fn platform_candidates() -> Vec<String> {
 }
 
 fn resolve_manifest(body: &str) -> Result<ResolvedManifest, String> {
-    if let Ok(simple) = serde_json::from_str::<SimpleUpdateManifest>(body) {
-        let url = simple
-            .url
-            .ok_or_else(|| "Manifesto simples não possui campo 'url'".to_string())?;
-
-        return Ok(ResolvedManifest {
-            version: simple.version,
-            url,
-            notes: simple.notes,
-            date: simple.date,
-            signature: None,
-        });
-    }
-
+    // 1) Tentar primeiro o formato com plataformas (compatível com manifest atual da API)
     if let Ok(platform_manifest) = serde_json::from_str::<PlatformManifest>(body) {
         for key in platform_candidates() {
             if let Some(entry) = platform_manifest.platforms.get(&key) {
@@ -108,6 +95,21 @@ fn resolve_manifest(body: &str) -> Result<ResolvedManifest, String> {
             "Manifesto não possui artefato para esta plataforma. Plataformas disponíveis: {}",
             available
         ));
+    }
+
+    // 2) Fallback: tentar formato simples (versão + URL direta)
+    if let Ok(simple) = serde_json::from_str::<SimpleUpdateManifest>(body) {
+        let url = simple
+            .url
+            .ok_or_else(|| "Manifesto simples não possui campo 'url'".to_string())?;
+
+        return Ok(ResolvedManifest {
+            version: simple.version,
+            url,
+            notes: simple.notes,
+            date: simple.date,
+            signature: None,
+        });
     }
 
     Err("Formato de manifesto de atualização inválido".to_string())
@@ -317,11 +319,12 @@ fn install_macos_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), St
 /// Comando para verificar atualizações manualmente (sem assinatura)
 #[tauri::command]
 pub async fn check_update_manual(
-    manifest_url: String,
+    // IMPORTANTE: este nome precisa bater com a chave enviada pelo frontend (`manifestUrl`)
+    manifestUrl: String,
 ) -> Result<serde_json::Value, String> {
-    info!("🔍 Verificando atualizações manualmente de: {}", manifest_url);
+    info!("🔍 Verificando atualizações manualmente de: {}", manifestUrl);
 
-    let response = reqwest::get(&manifest_url)
+    let response = reqwest::get(&manifestUrl)
         .await
         .map_err(|e| format!("Erro ao buscar manifest: {}", e))?;
 

@@ -29,6 +29,8 @@ export function useAutoUpdateCheck() {
 
     const checkForUpdates = async () => {
       try {
+        // IMPORTANTE: os nomes das props precisam bater com os nomes dos parâmetros
+        // do comando Rust (`manifestUrl`, em camelCase)
         const result = await invoke<ManualUpdateInfo>('check_update_manual', {
           manifestUrl: DEFAULT_MANIFEST_URL,
         });

@@ -42,6 +42,7 @@ export default function UpdateStatus() {
       setCurrentVersion(appVersion);
 
       const result = await invoke<ManualUpdateInfo>('check_update_manual', {
+        // O comando Rust agora espera `manifestUrl` (camelCase), alinhado com a mensagem de erro
         manifestUrl: DEFAULT_MANIFEST_URL,
       });
 
@@ -89,13 +90,15 @@ export default function UpdateStatus() {
     try {
       setIsDownloading(true);
       const filePath = await invoke<string>('download_update_manual', {
-        updateUrl: updateInfo.url,
+        // O comando Rust espera `update_url`
+        update_url: updateInfo.url,
       });
 
       setIsDownloading(false);
       setIsInstalling(true);
 
-      const message = await invoke<string>('install_update_manual', { filePath });
+      // O comando Rust espera `file_path`
+      const message = await invoke<string>('install_update_manual', { file_path: filePath });
 
       toast({
         title: '✅ Atualização aplicada',
