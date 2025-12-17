@@ -90,8 +90,8 @@ export default function UpdateStatus() {
     try {
       setIsDownloading(true);
       const filePath = await invoke<string>('download_update_manual', {
-        // O comando Rust espera `update_url`
-        update_url: updateInfo.url,
+        // O comando Rust espera `updateUrl` (camelCase, consistente com check_update_manual)
+        updateUrl: updateInfo.url,
       });
 
       setIsDownloading(false);

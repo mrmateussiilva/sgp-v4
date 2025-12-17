@@ -119,11 +119,12 @@ fn resolve_manifest(body: &str) -> Result<ResolvedManifest, String> {
 /// Comando para baixar atualização manualmente (SEM verificação de assinatura/chave)
 /// Este comando ignora completamente qualquer validação de signature
 #[tauri::command]
+#[allow(non_snake_case)] // Mantemos camelCase para compatibilidade com frontend
 pub async fn download_update_manual(
     app_handle: AppHandle,
-    update_url: String,
+    updateUrl: String,  // camelCase para consistência com check_update_manual
 ) -> Result<String, String> {
-    info!("📥 Baixando atualização manualmente de: {} (SEM validação de assinatura)", update_url);
+    info!("📥 Baixando atualização manualmente de: {} (SEM validação de assinatura)", updateUrl);
 
     // Obter diretório de cache do app
     let app_cache_dir = app_handle
@@ -137,7 +138,7 @@ pub async fn download_update_manual(
         .map_err(|e| format!("Erro ao criar diretório de downloads: {}", e))?;
 
     // Extrair nome do arquivo da URL
-    let filename = update_url
+    let filename = updateUrl
         .split('/')
         .last()
         .ok_or_else(|| "Não foi possível extrair nome do arquivo da URL".to_string())?;
@@ -147,7 +148,7 @@ pub async fn download_update_manual(
     info!("💾 Baixando para: {:?}", file_path);
 
     // Baixar arquivo usando reqwest
-    let response = reqwest::get(&update_url)
+    let response = reqwest::get(&updateUrl)
         .await
         .map_err(|e| format!("Erro ao baixar arquivo: {}", e))?;
 
