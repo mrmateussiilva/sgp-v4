@@ -2,7 +2,7 @@
  * Utilitário para gerar arquivo HTML a partir de templates de fichas
  */
 
-import { FichaTemplateConfig, TemplateFieldConfig } from '@/types';
+import { FichaTemplateConfig } from '@/types';
 
 const mmToPx = (mm: number) => mm * 3.779527559;
 
