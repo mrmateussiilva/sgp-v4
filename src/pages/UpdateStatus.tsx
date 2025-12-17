@@ -30,6 +30,8 @@ export default function UpdateStatus() {
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<string>('');
+  const [installProgress, setInstallProgress] = useState<string>('');
 
   const checkForUpdates = async () => {
     setIsChecking(true);
@@ -88,22 +90,55 @@ export default function UpdateStatus() {
     }
 
     try {
+      // Fase 1: Download
       setIsDownloading(true);
+      setDownloadProgress('Conectando ao servidor...');
+      
+      toast({
+        title: '📥 Iniciando download',
+        description: `Baixando versão ${updateInfo.latest_version}...`,
+        variant: 'info',
+      });
+
+      setDownloadProgress('Baixando arquivo de atualização...');
       const filePath = await invoke<string>('download_update_manual', {
         // O comando Rust espera `updateUrl` (camelCase, consistente com check_update_manual)
         updateUrl: updateInfo.url,
       });
 
+      setDownloadProgress('Download concluído!');
       setIsDownloading(false);
-      setIsInstalling(true);
+      
+      toast({
+        title: '✅ Download concluído',
+        description: 'Arquivo baixado com sucesso. Iniciando instalação...',
+        variant: 'success',
+      });
 
+      // Pequeno delay para o usuário ver a mensagem
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Fase 2: Instalação
+      setIsInstalling(true);
+      setInstallProgress('Preparando instalação...');
+      
+      toast({
+        title: '🔧 Instalando atualização',
+        description: 'Por favor, aguarde enquanto a atualização é instalada...',
+        variant: 'info',
+      });
+
+      setInstallProgress('Executando instalador...');
       // O comando Rust espera `filePath` (camelCase, consistente com outros comandos)
       const message = await invoke<string>('install_update_manual', { filePath: filePath });
 
+      setInstallProgress('Instalação concluída!');
+      
       toast({
-        title: '✅ Atualização aplicada',
-        description: message || 'A aplicação será reiniciada em instantes...',
+        title: '✅ Atualização aplicada com sucesso!',
+        description: message || 'A aplicação será reiniciada automaticamente em instantes...',
         variant: 'success',
+        duration: 5000,
       });
     } catch (error) {
       console.error('Erro ao instalar atualização:', error);
@@ -115,17 +150,28 @@ export default function UpdateStatus() {
         errorMessage = error;
       }
       
-      // Se o erro mencionar "key" ou "chave", sugerir verificar o MSI
-      if (errorMessage.toLowerCase().includes('key') || errorMessage.toLowerCase().includes('chave')) {
+      // Mensagens mais específicas baseadas no tipo de erro
+      if (errorMessage.toLowerCase().includes('conectar') || errorMessage.toLowerCase().includes('conexão')) {
+        errorMessage = '❌ Erro de conexão: Verifique sua internet e tente novamente.';
+      } else if (errorMessage.toLowerCase().includes('http')) {
+        errorMessage = '❌ Erro ao baixar: O arquivo pode não estar disponível no servidor.';
+      } else if (errorMessage.toLowerCase().includes('salvar') || errorMessage.toLowerCase().includes('disco')) {
+        errorMessage = '❌ Erro ao salvar: Verifique se há espaço em disco suficiente.';
+      } else if (errorMessage.toLowerCase().includes('key') || errorMessage.toLowerCase().includes('chave')) {
         errorMessage += '\n\n💡 Dica: O instalador pode estar exigindo uma chave de produto. Verifique se o MSI está configurado corretamente.';
+      } else if (errorMessage.toLowerCase().includes('msiexec') || errorMessage.toLowerCase().includes('instalar')) {
+        errorMessage = '❌ Erro ao instalar: Verifique se você tem permissões de administrador.';
       }
       
       toast({
-        title: '❌ Erro ao instalar atualização',
+        title: '❌ Erro ao processar atualização',
         description: errorMessage,
         variant: 'destructive',
-        duration: 10000, // Mostrar por mais tempo
+        duration: 10000,
       });
+      
+      setDownloadProgress('');
+      setInstallProgress('');
     } finally {
       setIsDownloading(false);
       setIsInstalling(false);
@@ -212,6 +258,34 @@ export default function UpdateStatus() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="font-semibold text-sm text-blue-800 mb-2">Notas da Atualização:</h4>
                   <p className="text-sm text-blue-700 whitespace-pre-wrap">{updateNotes}</p>
+                </div>
+              )}
+
+              {/* Feedback de progresso */}
+              {(isDownloading || isInstalling) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                  {isDownloading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">Download em andamento...</span>
+                      </div>
+                      {downloadProgress && (
+                        <p className="text-xs text-blue-700 ml-6">{downloadProgress}</p>
+                      )}
+                    </div>
+                  )}
+                  {isInstalling && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">Instalação em andamento...</span>
+                      </div>
+                      {installProgress && (
+                        <p className="text-xs text-blue-700 ml-6">{installProgress}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

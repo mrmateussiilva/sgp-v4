@@ -148,27 +148,40 @@ pub async fn download_update_manual(
     info!("💾 Baixando para: {:?}", file_path);
 
     // Baixar arquivo usando reqwest
+    info!("📡 Iniciando download de: {}", updateUrl);
     let response = reqwest::get(&updateUrl)
         .await
-        .map_err(|e| format!("Erro ao baixar arquivo: {}", e))?;
+        .map_err(|e| format!("Erro ao conectar com servidor: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!(
-            "Erro HTTP ao baixar: {}",
+            "Erro HTTP ao baixar: {} - Verifique se o arquivo existe no servidor",
             response.status()
         ));
     }
 
+    // Obter tamanho do arquivo se disponível
+    let content_length = response.content_length();
+    if let Some(size) = content_length {
+        let size_mb = size as f64 / 1_048_576.0;
+        info!("📦 Tamanho do arquivo: {:.2} MB", size_mb);
+    }
+
+    info!("⬇️ Baixando dados...");
     let bytes = response
         .bytes()
         .await
-        .map_err(|e| format!("Erro ao ler dados: {}", e))?;
+        .map_err(|e| format!("Erro ao baixar dados: {}. Verifique sua conexão com a internet.", e))?;
+
+    let downloaded_size = bytes.len();
+    let size_mb = downloaded_size as f64 / 1_048_576.0;
+    info!("💾 Salvando arquivo ({:.2} MB)...", size_mb);
 
     // Salvar arquivo
     std::fs::write(&file_path, &bytes)
-        .map_err(|e| format!("Erro ao salvar arquivo: {}", e))?;
+        .map_err(|e| format!("Erro ao salvar arquivo em disco: {}", e))?;
 
-    info!("✅ Arquivo baixado com sucesso: {:?}", file_path);
+    info!("✅ Arquivo baixado com sucesso: {:?} ({:.2} MB)", file_path, size_mb);
 
     Ok(file_path.to_string_lossy().to_string())
 }
