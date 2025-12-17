@@ -175,16 +175,17 @@ pub async fn download_update_manual(
 
 /// Comando para instalar atualização baixada manualmente
 #[tauri::command]
+#[allow(non_snake_case)] // Mantemos camelCase para compatibilidade com frontend
 pub async fn install_update_manual(
     app_handle: AppHandle,
-    file_path: String,
+    filePath: String,  // camelCase para consistência com outros comandos
 ) -> Result<String, String> {
-    info!("🚀 Instalando atualização de: {}", file_path);
+    info!("🚀 Instalando atualização de: {}", filePath);
 
-    let path = PathBuf::from(&file_path);
+    let path = PathBuf::from(&filePath);
     
     if !path.exists() {
-        return Err(format!("Arquivo não encontrado: {}", file_path));
+        return Err(format!("Arquivo não encontrado: {}", filePath));
     }
 
     // Detectar sistema operacional e instalar apropriadamente

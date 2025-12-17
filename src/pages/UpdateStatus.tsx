@@ -97,8 +97,8 @@ export default function UpdateStatus() {
       setIsDownloading(false);
       setIsInstalling(true);
 
-      // O comando Rust espera `file_path`
-      const message = await invoke<string>('install_update_manual', { file_path: filePath });
+      // O comando Rust espera `filePath` (camelCase, consistente com outros comandos)
+      const message = await invoke<string>('install_update_manual', { filePath: filePath });
 
       toast({
         title: '✅ Atualização aplicada',
