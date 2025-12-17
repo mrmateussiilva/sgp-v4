@@ -3,7 +3,7 @@
 mod commands;
 
 use tauri::Manager;
-use tracing::info;
+use tracing::{info, warn};
 use commands::devtools::{
     close_devtools,
     is_devtools_open,
@@ -38,6 +38,17 @@ fn main() {
             install_update_manual
         ])
         .setup(|app| {
+            // Atualizar título da janela com a versão
+            let version = env!("CARGO_PKG_VERSION");
+            let title = format!("SGP - Sistema de Gerenciamento de Pedidos v{}", version);
+            
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_title(&title).unwrap_or_else(|e| {
+                    warn!("Erro ao definir título da janela: {}", e);
+                });
+                info!("Título da janela definido: {}", title);
+            }
+            
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
             info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");
             Ok(())
