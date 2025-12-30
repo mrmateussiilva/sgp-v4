@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -15,7 +15,8 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2
+  Loader2,
+  Menu
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
@@ -23,6 +24,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DashboardMenuItem } from '@/components/DashboardMenuItem';
 import { cn } from '@/lib/utils';
 
 // Lazy load de todas as rotas para code-splitting
@@ -69,15 +71,22 @@ export default function Dashboard() {
         setAppVersion(version);
       } catch (error) {
         console.error('Erro ao obter versão:', error);
+        // Não mostrar erro ao usuário, apenas log
       }
     };
     fetchVersion();
   }, []);
 
-  const handleLogout = async () => {
-    await api.logout();
-    navigate('/login');
-  };
+  const handleLogout = useCallback(async () => {
+    try {
+      await api.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      // Mesmo com erro, redirecionar para login
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const allMenuItems = [
     { 
@@ -137,15 +146,18 @@ export default function Dashboard() {
     },
   ];
 
-  // Filtrar menu baseado em permissões
-  const menuItems = allMenuItems.filter(item => !item.adminOnly || isAdmin);
+  // Filtrar menu baseado em permissões (memoizado)
+  const menuItems = useMemo(() => 
+    allMenuItems.filter(item => !item.adminOnly || isAdmin),
+    [isAdmin]
+  );
 
-  const isActive = (path: string, exact?: boolean) => {
+  const isActive = useCallback((path: string, exact?: boolean) => {
     if (exact) {
       return location.pathname === path;
     }
     return location.pathname.startsWith(path);
-  };
+  }, [location.pathname]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -175,68 +187,40 @@ export default function Dashboard() {
             size="sm"
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
             className={cn("w-full", !sidebarExpanded && "justify-center px-0")}
+            aria-label={sidebarExpanded ? "Recolher menu" : "Expandir menu"}
+            aria-expanded={sidebarExpanded}
           >
             {sidebarExpanded ? (
               <>
-                <ChevronLeft className="h-4 w-4 mr-2" />
+                <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
                 Recolher
               </>
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
     </div>
 
         <Separator />
         
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
           {menuItems.map((item, index) => {
-            const Icon = item.icon;
             const active = isActive(item.path, item.exact);
-            
-            // Verificar se precisa adicionar separador antes de itens admin
             const previousItem = menuItems[index - 1];
             const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
             
-            const button = (
-              <Button
+            return (
+              <DashboardMenuItem
                 key={item.path}
-                variant={active ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full transition-all",
-                  sidebarExpanded ? "justify-start" : "justify-center px-0",
-                  active && "bg-primary/10 text-primary hover:bg-primary/20"
-                )}
-                onClick={() => navigate(item.path)}
-              >
-                <Icon className={cn("h-4 w-4", sidebarExpanded && "mr-2")} />
-                {sidebarExpanded && <span>{item.label}</span>}
-              </Button>
-  );
-
-  return (
-              <div key={item.path}>
-                {needsSeparator && (
-                  <div className="py-2">
-                    <Separator />
-                    {sidebarExpanded && (
-                      <p className="text-xs text-muted-foreground px-3 mt-2">Admin</p>
-                    )}
-                  </div>
-                )}
-                {!sidebarExpanded ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      {button}
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  button
-                )}
-              </div>
+                icon={item.icon}
+                label={item.label}
+                path={item.path}
+                active={active}
+                expanded={sidebarExpanded}
+                showTooltip={!sidebarExpanded}
+                needsSeparator={needsSeparator}
+                separatorLabel={needsSeparator ? "Admin" : undefined}
+              />
             );
           })}
         </nav>
@@ -282,8 +266,9 @@ export default function Dashboard() {
                   variant="outline" 
                   className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
                   onClick={handleLogout}
+                  aria-label={`Sair (${username})`}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -295,8 +280,9 @@ export default function Dashboard() {
               variant="outline" 
               className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-start"
               onClick={handleLogout}
+              aria-label={`Sair (${username})`}
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
               <span>Sair</span>
             </Button>
           )}
@@ -317,45 +303,32 @@ export default function Dashboard() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(false)}
+                aria-label="Fechar menu"
               >
-                <X className="h-5 w-5" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </Button>
             </div>
             
             <Separator />
             
-            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
               {menuItems.map((item, index) => {
-                const Icon = item.icon;
                 const active = isActive(item.path, item.exact);
-                
-                // Verificar se precisa adicionar separador antes de itens admin
                 const previousItem = menuItems[index - 1];
                 const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
                 
                 return (
-                  <div key={item.path}>
-                    {needsSeparator && (
-                      <div className="py-2">
-                        <Separator />
-                        <p className="text-xs text-muted-foreground px-3 mt-2">Admin</p>
-                      </div>
-                    )}
-                    <Button
-                      variant={active ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-start",
-                        active && "bg-primary/10 text-primary hover:bg-primary/20"
-                      )}
-                      onClick={() => {
-                        navigate(item.path);
-                        setSidebarOpen(false);
-                      }}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  </div>
+                  <DashboardMenuItem
+                    key={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    path={item.path}
+                    active={active}
+                    expanded={true}
+                    onClick={() => setSidebarOpen(false)}
+                    needsSeparator={needsSeparator}
+                    separatorLabel={needsSeparator ? "Admin" : undefined}
+                  />
                 );
               })}
             </nav>
@@ -371,8 +344,9 @@ export default function Dashboard() {
                 variant="outline" 
                 className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={handleLogout}
+                aria-label={`Sair (${username})`}
               >
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                 Sair
               </Button>
             </div>
@@ -382,8 +356,25 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Abrir menu de navegação"
+            aria-expanded={sidebarOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-bold text-primary">SGP</h1>
+          </div>
+          <div className="w-10" /> {/* Spacer para centralizar */}
+        </header>
+
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6" role="main">
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
               <Route path="/" element={<DashboardOverview />} />
