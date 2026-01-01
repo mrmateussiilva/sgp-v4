@@ -29,6 +29,7 @@ import {
   OrderItem,
   OrderFicha,
   FichaTemplatesConfig,
+  RelatorioTemplatesConfig,
 } from '../types';
 import { generateFechamentoReport } from '../utils/fechamentoReport';
 
@@ -1216,6 +1217,20 @@ const saveFichaTemplatesHTMLRequest = async (
   return response.data;
 };
 
+const fetchRelatorioTemplates = async (): Promise<RelatorioTemplatesConfig> => {
+  requireSessionToken();
+  const response = await apiClient.get<RelatorioTemplatesConfig>('/relatorios/templates');
+  return response.data;
+};
+
+const saveRelatorioTemplatesRequest = async (
+  payload: RelatorioTemplatesConfig
+): Promise<RelatorioTemplatesConfig> => {
+  requireSessionToken();
+  const response = await apiClient.put<RelatorioTemplatesConfig>('/relatorios/templates', payload);
+  return response.data;
+};
+
 export const api = {
   login: async (request: LoginRequest): Promise<LoginResponse> => {
     const response = await apiClient.post<LoginResponse>('/auth/login', request);
@@ -1230,6 +1245,10 @@ export const api = {
   saveFichaTemplates: saveFichaTemplatesRequest,
 
   saveFichaTemplatesHTML: saveFichaTemplatesHTMLRequest,
+
+  getRelatorioTemplates: fetchRelatorioTemplates,
+
+  saveRelatorioTemplates: saveRelatorioTemplatesRequest,
 
   logout: async (): Promise<void> => {
     try {

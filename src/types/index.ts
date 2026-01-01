@@ -606,3 +606,57 @@ export interface FichaTemplatesConfig {
   geral: FichaTemplateConfig;
   resumo: FichaTemplateConfig;
 }
+
+// ========================================
+// Templates de Relatórios
+// ========================================
+
+export type RelatorioTemplateType = 'envios' | 'fechamentos';
+
+export interface RelatorioTemplateConfig {
+  title: string;
+  // Campos de cabeçalho editáveis
+  headerFields: {
+    title?: string;
+    subtitle?: string;
+    periodoLabel?: string;
+    dataGeracaoLabel?: string;
+    totalPedidosLabel?: string;
+    [key: string]: string | undefined;
+  };
+  // Estilos
+  styles: {
+    fontFamily?: string;
+    fontSize?: number;
+    titleSize?: number;
+    subtitleSize?: number;
+    textColor?: string;
+    headerColor?: string;
+    borderColor?: string;
+    backgroundColor?: string;
+  };
+  // Configurações de tabela/lista
+  tableConfig?: {
+    showHeader?: boolean;
+    headerStyle?: {
+      backgroundColor?: string;
+      textColor?: string;
+      bold?: boolean;
+    };
+    alternatingRows?: boolean;
+    cellPadding?: number;
+  };
+  // Configurações de página
+  pageConfig?: {
+    marginTop?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+    marginRight?: number;
+  };
+  updatedAt?: string;
+}
+
+export interface RelatorioTemplatesConfig {
+  envios: RelatorioTemplateConfig;
+  fechamentos: RelatorioTemplateConfig;
+}
