@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, LayoutGrid, Table2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -14,6 +14,7 @@ import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
+import { OrderKanbanBoard } from './OrderKanbanBoard';
 import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('kanban');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -1272,17 +1274,128 @@ export default function OrderList() {
     }
   };
 
+  const handleKanbanStatusChange = async (orderId: number, newStatus: string) => {
+    const targetOrder = orders.find((order) => order.id === orderId);
+    if (!targetOrder) return;
 
+    // Mapear nomes de status para campos
+    const statusLabels: Record<string, string> = {
+      financeiro: 'Financeiro',
+      conferencia: 'Conferência',
+      sublimacao: 'Sublimação',
+      costura: 'Costura',
+      expedicao: 'Expedição',
+      pronto: 'Pronto',
+    };
+
+    // Ordem dos status (do primeiro ao último)
+    const statusOrder = ['financeiro', 'conferencia', 'sublimacao', 'costura', 'expedicao', 'pronto'];
+    const newStatusIndex = statusOrder.indexOf(newStatus);
+
+    // Se está movendo para uma coluna mais avançada, garantir que todos os status anteriores também sejam marcados
+    // Construir payload baseado no status atual e novo status
+    const payload = buildStatusUpdatePayload(
+      targetOrder,
+      newStatus,
+      true // sempre marcar como true ao mover para a coluna
+    );
+
+    // Garantir que todos os status anteriores ao novo status também estejam marcados
+    for (let i = 0; i < newStatusIndex; i++) {
+      const prevStatus = statusOrder[i];
+      if (prevStatus === 'financeiro') {
+        payload.financeiro = true;
+      } else if (prevStatus === 'conferencia') {
+        payload.conferencia = true;
+      } else if (prevStatus === 'sublimacao') {
+        payload.sublimacao = true;
+      } else if (prevStatus === 'costura') {
+        payload.costura = true;
+      } else if (prevStatus === 'expedicao') {
+        payload.expedicao = true;
+      }
+    }
+
+    try {
+      const updatedOrder = await api.updateOrderStatus(payload);
+      updateOrder(updatedOrder);
+      toast({
+        title: "Status atualizado",
+        description: `Pedido movido para ${statusLabels[newStatus] || newStatus}`,
+        variant: "success",
+      });
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Se estiver no modo kanban, renderizar layout full-screen limpo
+  if (viewMode === 'kanban') {
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
+        {/* Header minimalista */}
+        <div className="flex items-center justify-between px-8 py-5 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Pedidos</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Arraste os cards entre as colunas para atualizar o status</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Table2 className="h-4 w-4 mr-2" />
+              Tabela
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Kanban
+            </Button>
+          </div>
+        </div>
+
+        {/* Área do Kanban - ocupa todo o espaço restante */}
+        <div className="flex-1 overflow-hidden p-8">
+          <OrderKanbanBoard
+            orders={paginatedOrders}
+            onStatusChange={handleKanbanStatusChange}
+            onEdit={handleEdit}
+            onView={handleView}
+            onViewOrder={handleViewOrder}
+            onDelete={handleDeleteClick}
+            isAdmin={isAdmin}
+            loading={loading}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Modo tabela - layout original
   return (
     <div className="flex flex-col h-full space-y-6 min-h-screen">
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>Filtros</CardTitle>
-            <CardDescription>Busque e filtre os pedidos</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
+      {viewMode === 'table' && (
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Filtros</CardTitle>
+              <CardDescription>Busque e filtre os pedidos</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
           <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
@@ -1451,6 +1564,27 @@ export default function OrderList() {
               </Popover>
             </div>
             
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                <Table2 className="h-4 w-4 mr-2" />
+                Tabela
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === 'kanban' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('kanban')}
+              >
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Kanban
+              </Button>
+            </div>
+            
             {selectedOrderIdsForPrint.length > 0 && (
               <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
                 <div className="flex items-center gap-2">
@@ -1484,12 +1618,14 @@ export default function OrderList() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden">
-            <SmoothTableWrapper>
-              <Table className="w-full">
+          {viewMode === 'table' ? (
+            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden">
+              <SmoothTableWrapper>
+                <Table className="w-full">
               <TableHeader>
             <TableRow>
                   <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
@@ -1785,6 +1921,7 @@ export default function OrderList() {
         </Table>
             </SmoothTableWrapper>
           </div>
+          ) : null}
         </CardContent>
       </Card>
 
