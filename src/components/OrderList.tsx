@@ -101,7 +101,7 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('kanban');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
