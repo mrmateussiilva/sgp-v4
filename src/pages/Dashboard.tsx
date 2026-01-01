@@ -44,6 +44,7 @@ const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
 const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
+const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
 
 // Componente de loading para rotas lazy
 const RouteLoadingFallback = () => (
@@ -463,6 +464,14 @@ export default function Dashboard() {
                 element={
                   <ProtectedRoute requireAdmin={true}>
                     <GestaoTemplateFicha />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/template-relatorios" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoTemplateRelatorios />
                   </ProtectedRoute>
                 } 
               />

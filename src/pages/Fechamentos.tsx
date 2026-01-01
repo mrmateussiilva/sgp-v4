@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ReportGroup,
   ReportResponse,
@@ -25,8 +26,9 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings } from 'lucide-react';
 import { openPdfInWindow } from '@/utils/exportUtils';
+import { useAuthStore } from '@/store/authStore';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -111,6 +113,8 @@ const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 const formatInputDate = (date: Date) => date.toISOString().slice(0, 10);
 
 export default function Fechamentos() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuthStore();
   const { toast } = useToast();
 
   const today = useMemo(() => new Date(), []);
@@ -534,11 +538,23 @@ export default function Fechamentos() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
-        <p className="text-muted-foreground">
-          Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
+          <p className="text-muted-foreground">
+            Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
+          </p>
+        </div>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard/admin/template-relatorios')}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Editar Template
+          </Button>
+        )}
       </div>
 
       <Card>

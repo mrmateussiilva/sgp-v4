@@ -119,6 +119,14 @@ export default function Admin() {
       color: 'text-indigo-500',
       bgColor: 'bg-indigo-50 hover:bg-indigo-100',
     },
+    {
+      title: 'Templates de Relatórios',
+      description: 'Configure templates de relatórios de envios e fechamentos',
+      icon: FileText,
+      path: '/dashboard/admin/template-relatorios',
+      color: 'text-teal-500',
+      bgColor: 'bg-teal-50 hover:bg-teal-100',
+    },
   ];
 
   return (
