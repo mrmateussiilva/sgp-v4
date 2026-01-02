@@ -59,6 +59,8 @@ export interface OrderItem {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+  data_impressao?: string;
+  rip_maquina?: string;
 }
 
 export interface OrderWithItems {

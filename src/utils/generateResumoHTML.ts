@@ -151,11 +151,12 @@ export function generateResumoHTMLStructured(): string {
     image-rendering: auto;
     aspect-ratio: auto;
   }
-  .spec-item:empty,
-  .spec-item:has-text(": "),
-  .spec-item:has-text(": Não"),
-  .spec-item:has-text(":  "),
-  .spec-item:has-text(": 0") {
+  /* Esconder campos vazios apenas para tipos que não sejam painel/tecido */
+  .especificacoes-content:not([data-tipo-producao="painel"]):not([data-tipo-producao="tecido"]) .spec-item:empty,
+  .especificacoes-content:not([data-tipo-producao="painel"]):not([data-tipo-producao="tecido"]) .spec-item:has-text(": "),
+  .especificacoes-content:not([data-tipo-producao="painel"]):not([data-tipo-producao="tecido"]) .spec-item:has-text(": Não"),
+  .especificacoes-content:not([data-tipo-producao="painel"]):not([data-tipo-producao="tecido"]) .spec-item:has-text(":  "),
+  .especificacoes-content:not([data-tipo-producao="painel"]):not([data-tipo-producao="tecido"]) .spec-item:has-text(": 0") {
     display: none;
   }
   /* Esconder campos baseado no tipo de produção */

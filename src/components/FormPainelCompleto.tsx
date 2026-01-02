@@ -9,6 +9,7 @@ import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 import { CurrencyInput } from '@/components/ui/currency-input';
+import { resizeImage } from '@/utils/imageResizer';
 
 interface FormPainelCompletoProps {
   tabId: string;
@@ -390,14 +391,21 @@ export function FormPainelCompleto({
             <Input
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    onDataChange('imagem', reader.result as string);
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    const resizedImage = await resizeImage(file);
+                    onDataChange('imagem', resizedImage);
+                  } catch (error) {
+                    console.error('Erro ao redimensionar imagem:', error);
+                    // Fallback: usar imagem original se redimensionamento falhar
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      onDataChange('imagem', reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
                 }
               }}
               className="hidden"
@@ -405,14 +413,42 @@ export function FormPainelCompleto({
             />
             <label
               htmlFor={`upload-imagem-${tabId}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files?.[0];
+                if (file && file.type.startsWith('image/')) {
+                  try {
+                    const resizedImage = await resizeImage(file);
+                    onDataChange('imagem', resizedImage);
+                  } catch (error) {
+                    console.error('Erro ao redimensionar imagem:', error);
+                    // Fallback: usar imagem original se redimensionamento falhar
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      onDataChange('imagem', reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }
+              }}
               className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
             >
               {tabData?.imagem ? (
-                <div className="relative w-full h-full flex items-center justify-center">
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
                   <img
                     src={tabData?.imagem}
                     alt="Preview"
                     className="max-w-full max-h-full object-contain p-2"
+                    style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
                   />
                   <button
                     type="button"
@@ -443,6 +479,27 @@ export function FormPainelCompleto({
               placeholder="Digite a legenda exibida abaixo da imagem"
               className="h-10"
             />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-700">Data de Impressão</Label>
+              <Input
+                type="date"
+                value={tabData?.data_impressao || ''}
+                onChange={(e) => onDataChange('data_impressao', e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-slate-700">RIP Máquina</Label>
+              <Input
+                value={tabData?.rip_maquina || ''}
+                onChange={(e) => onDataChange('rip_maquina', e.target.value)}
+                placeholder="Ex: RIP-001"
+                className="h-10"
+              />
+            </div>
           </div>
         </div>
       </div>

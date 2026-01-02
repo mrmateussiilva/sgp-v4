@@ -10,6 +10,8 @@ const mmToPx = (mm: number) => mm * 3.779527559;
  * Gera HTML completo para um template de ficha
  */
 export function generateTemplateHTML(template: FichaTemplateConfig): string {
+  // Gerar um ID único para este template para evitar conflitos de variáveis
+  const templateId = `template_${template.templateType || 'default'}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const pageWidthPx = mmToPx(template.width);
   const pageHeightPx = mmToPx(template.height);
   
@@ -140,89 +142,104 @@ ${fieldsHTML}
   </div>
   
   <script>
-    // Exemplo de dados para preview (substituir com dados reais)
-    const sampleData = {
-      numero: '001',
-      cliente: 'Cliente Exemplo',
-      telefone_cliente: '(11) 99999-9999',
-      data_entrada: '2024-01-15',
-      data_entrega: '2024-01-20',
-      item_name: 'Produto Exemplo',
-      dimensoes: '100x200cm',
-      designer: 'Designer Exemplo',
-      vendedor: 'Vendedor Exemplo',
-      tecido: 'Tecido Exemplo',
-      quantity: 1,
-      unit_price: 100.00,
-      subtotal: 100.00,
-      valor_frete: 20.00,
-      total_value: 120.00,
-      observacao: 'Observações do pedido',
-      imagem: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2VtPC90ZXh0Pjwvc3ZnPg=='
-    };
-    
-    // Função para formatar data
-    function formatDate(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('pt-BR');
-    }
-    
-    // Função para formatar moeda
-    function formatCurrency(value) {
-      if (!value) return 'R$ 0,00';
-      const num = typeof value === 'string' ? parseFloat(value) : value;
-      return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    
-    // Substituir placeholders com dados de exemplo
-    document.querySelectorAll('[class*="field-"]').forEach(field => {
-      const html = field.innerHTML;
-      let newHtml = html;
+    (function() {
+      // ID único para este template - usar escopo isolado
+      const templateScope = '${templateId}';
+      // Exemplo de dados para preview (substituir com dados reais) - nome único para evitar conflitos
+      const sampleData = (function() {
+        const data = {
+        numero: '001',
+        cliente: 'Cliente Exemplo',
+        telefone_cliente: '(11) 99999-9999',
+        data_entrada: '2024-01-15',
+        data_entrega: '2024-01-20',
+        item_name: 'Produto Exemplo',
+        dimensoes: '100x200cm',
+        designer: 'Designer Exemplo',
+        vendedor: 'Vendedor Exemplo',
+        tecido: 'Tecido Exemplo',
+        quantity: 1,
+        unit_price: 100.00,
+        subtotal: 100.00,
+        valor_frete: 20.00,
+        total_value: 120.00,
+        observacao: 'Observações do pedido',
+        imagem: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2VtPC90ZXh0Pjwvc3ZnPg=='
+        };
+        return data;
+      })();
       
-      // Substituir {{key}} por valores
-      newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
-        const value = sampleData[key.trim()] || '';
-        
-        if (format) {
-          const formatType = format.trim();
-          if (formatType === 'date') {
-            return formatDate(value);
-          } else if (formatType === 'currency') {
-            return formatCurrency(value);
-          }
-        }
-        
-        return value || match;
-      });
+      // Função para formatar data
+      function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('pt-BR');
+      }
       
-      field.innerHTML = newHtml;
-    });
-    
-    // Função para preencher com dados reais (chamar quando tiver dados do pedido)
-    window.fillTemplate = function(data) {
-      document.querySelectorAll('[class*="field-"]').forEach(field => {
-        const html = field.innerHTML;
-        let newHtml = html;
-        
-        newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
-          const value = data[key.trim()] || '';
+      // Função para formatar moeda
+      function formatCurrency(value) {
+        if (!value) return 'R$ 0,00';
+        const num = typeof value === 'string' ? parseFloat(value) : value;
+        return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      
+      // Substituir placeholders com dados de exemplo - apenas neste escopo
+      const pageElement = document.querySelector('.page');
+      if (pageElement) {
+        pageElement.querySelectorAll('[class*="field-"]').forEach(field => {
+          const html = field.innerHTML;
+          let newHtml = html;
           
-          if (format) {
-            const formatType = format.trim();
-            if (formatType === 'date') {
-              return formatDate(value);
-            } else if (formatType === 'currency') {
-              return formatCurrency(value);
+          // Substituir {{key}} por valores
+          newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
+            const value = sampleData[key.trim()] || '';
+            
+            if (format) {
+              const formatType = format.trim();
+              if (formatType === 'date') {
+                return formatDate(value);
+              } else if (formatType === 'currency') {
+                return formatCurrency(value);
+              }
             }
-          }
+            
+            return value || match;
+          });
           
-          return value || match;
+          field.innerHTML = newHtml;
         });
-        
-        field.innerHTML = newHtml;
-      });
-    };
+      }
+      
+      // Função para preencher com dados reais (chamar quando tiver dados do pedido)
+      // Usar namespace único para evitar conflitos
+      const fillTemplateFn = 'fillTemplate_' + templateScope.replace(/[^a-zA-Z0-9]/g, '_');
+      window[fillTemplateFn] = function(data) {
+        const pageElement = document.querySelector('.page');
+        if (pageElement) {
+          pageElement.querySelectorAll('[class*="field-"]').forEach(field => {
+            const html = field.innerHTML;
+            let newHtml = html;
+            
+            newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
+              const value = data[key.trim()] || '';
+              
+              if (format) {
+                const formatType = format.trim();
+                if (formatType === 'date') {
+                  return formatDate(value);
+                } else if (formatType === 'currency') {
+                  return formatCurrency(value);
+                }
+              }
+              
+              return value || match;
+            });
+            
+            field.innerHTML = newHtml;
+          });
+        }
+      };
+    })();
   </script>
 </body>
 </html>`;

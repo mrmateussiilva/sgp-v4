@@ -256,6 +256,10 @@ export const createOrderDataMap = (
     quantidade_totem: item?.quantidade_totem || '',
     outros_valores_totem: '', // Valor monetário removido
     
+    // Campos de impressão (para anotação manual no resumo)
+    data_impressao: item?.data_impressao || '',
+    rip_maquina: item?.rip_maquina || '',
+    
     // Campos genéricos (fallback) - excluindo valores monetários
     ...Object.keys(itemRecord).reduce((acc, key) => {
       // Pular campos de valores monetários
@@ -522,27 +526,35 @@ const processTemplateHTML = (
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+        // Remover linhas vazias para totem
+        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'lona') {
         // Lona: remover campos de painel, tecido, totem e adesivo
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+        // Remover linhas vazias para lona
+        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'adesivo') {
         // Adesivo: remover campos de painel, tecido, totem e lona
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+        // Remover linhas vazias para adesivo
+        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-        // Painel/Tecido: remover campos de totem, lona e adesivo
+        // Painel/Tecido: remover apenas campos de totem, lona e adesivo
+        // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+        // NÃO remover linhas vazias para painel/tecido - mostrar todas as informações técnicas
+      } else {
+        // Para outros tipos, remover linhas vazias
+        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       }
-      
-      // Remover linhas vazias ou com apenas ": " ou ": Não" após substituição
-      itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       
       // Envolver cada item em item-container com estilos inline para garantir altura fixa
       return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${itemHtml}</div>`;
@@ -618,27 +630,35 @@ const processTemplateHTML = (
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+    // Remover linhas vazias para totem
+    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'lona') {
     // Lona: remover campos de painel, tecido, totem e adesivo
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+    // Remover linhas vazias para lona
+    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'adesivo') {
     // Adesivo: remover campos de painel, tecido, totem e lona
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+    // Remover linhas vazias para adesivo
+    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-    // Painel/Tecido: remover campos de totem, lona e adesivo
+    // Painel/Tecido: remover apenas campos de totem, lona e adesivo
+    // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+    // NÃO remover linhas vazias para painel/tecido - mostrar todas as informações técnicas
+  } else {
+    // Para outros tipos, remover linhas vazias
+    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
   }
-  
-  // Remover linhas vazias ou com apenas ": " ou ": Não" após substituição
-  processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
   
   // Envolver em template-page para manter estrutura consistente
   return `<div class="template-page">${processed}</div>`;
