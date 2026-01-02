@@ -142,9 +142,22 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   // Função para lidar com clique na imagem
   const handleImageClick = async (imageUrl: string, caption?: string, itemId?: string | number) => {
-    if (!imageUrl || !isValidImagePath(imageUrl)) {
+    if (!imageUrl) {
       return;
     }
+    
+    // Se for base64, usar diretamente
+    if (imageUrl.startsWith('data:image/')) {
+      setImageError(false);
+      setSelectedImage(imageUrl);
+      setSelectedImageCaption(caption?.trim() ?? '');
+      return;
+    }
+    
+    if (!isValidImagePath(imageUrl)) {
+      return;
+    }
+    
     try {
       // Resetar erro antes de tentar carregar
       setImageError(false);
@@ -385,6 +398,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const isLona = tipoProducao === 'lona';
     const isTotem = tipoProducao === 'totem';
     const isAdesivo = tipoProducao === 'adesivo';
+    const isPainel = tipoProducao === 'painel' || tipoProducao === 'generica';
 
     const formatSpacing = (value?: string | null) => {
       const normalized = normalizeText(value);
@@ -421,6 +435,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       omitKeys.add('tipo_acabamento');
     }
 
+    // Ilhós - quantidade e espaçamento
     const ilhosParts: string[] = [];
     if (hasQuantityValue(item.quantidade_ilhos)) {
       ilhosParts.push(`Qtd: ${normalizeText(item.quantidade_ilhos)}`);
@@ -431,9 +446,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       ilhosParts.push(`Espaçamento: ${ilhosSpacing}`);
       omitKeys.add('espaco_ilhos');
     }
-    if (hasPositiveNumber(item.valor_ilhos)) {
-      omitKeys.add('valor_ilhos');
-    }
     if (ilhosParts.length > 0) {
       sections.push({
         label: 'Ilhós',
@@ -441,7 +453,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
+    
+    // Valor dos Ilhós - campo separado para maior clareza
+    if (hasPositiveNumber(item.valor_ilhos)) {
+      sections.push({
+        label: 'Valor dos Ilhós',
+        value: formatCurrency(parseCurrencyValue(item.valor_ilhos)),
+        variant: 'accent',
+      });
+      omitKeys.add('valor_ilhos');
+    }
 
+    // Cordinha - quantidade e espaçamento
     const cordinhaParts: string[] = [];
     if (hasQuantityValue(item.quantidade_cordinha)) {
       cordinhaParts.push(`Qtd: ${normalizeText(item.quantidade_cordinha)}`);
@@ -452,9 +475,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       cordinhaParts.push(`Espaçamento: ${cordinhaSpacing}`);
       omitKeys.add('espaco_cordinha');
     }
-    if (hasPositiveNumber(item.valor_cordinha)) {
-      omitKeys.add('valor_cordinha');
-    }
     if (cordinhaParts.length > 0) {
       sections.push({
         label: 'Cordinha',
@@ -462,30 +482,102 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
+    
+    // Valor da Cordinha - campo separado para maior clareza
+    if (hasPositiveNumber(item.valor_cordinha)) {
+      sections.push({
+        label: 'Valor da Cordinha',
+        value: formatCurrency(parseCurrencyValue(item.valor_cordinha)),
+        variant: 'accent',
+      });
+      omitKeys.add('valor_cordinha');
+    }
 
+    // Campos específicos para PAINEL/GENERICA
+    if (isPainel) {
+      const quantidadePaineis = normalizeText(item.quantidade_paineis);
+      if (quantidadePaineis) {
+        sections.push({
+          label: 'Quantidade de Painéis',
+          value: quantidadePaineis,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_paineis');
+      }
+
+      const valorPainel = (item as any).valor_painel;
+      if (hasPositiveNumber(valorPainel)) {
+        sections.push({
+          label: 'Valor do Painel',
+          value: formatCurrency(parseCurrencyValue(valorPainel)),
+          variant: 'accent',
+        });
+        omitKeys.add('valor_painel');
+      }
+
+      const valoresAdicionais = (item as any).valores_adicionais;
+      if (hasPositiveNumber(valoresAdicionais)) {
+        sections.push({
+          label: 'Valores Adicionais',
+          value: formatCurrency(parseCurrencyValue(valoresAdicionais)),
+          variant: 'warning',
+        });
+        omitKeys.add('valores_adicionais');
+      }
+    }
+
+    // Campos específicos para LONA
     if (isLona) {
       const terceirizado = (item as any).terceirizado;
       if (typeof terceirizado === 'boolean') {
+        sections.push({
+          label: 'Terceirizado',
+          value: terceirizado ? 'Sim' : 'Não',
+          variant: 'accent',
+        });
         omitKeys.add('terceirizado');
       }
 
       const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
       if (acabamentoLonaRaw) {
+        const acabamentoDisplay = acabamentoLonaRaw.toLowerCase() === 'refilar' 
+          ? 'Refilar' 
+          : acabamentoLonaRaw.toLowerCase() === 'nao_refilar' || acabamentoLonaRaw.toLowerCase() === 'não_refilar'
+            ? 'Não Refilar'
+            : acabamentoLonaRaw
+                .split(/[_-]/)
+                .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                .join(' ');
+        sections.push({
+          label: 'Acabamento da Lona',
+          value: acabamentoDisplay,
+          variant: 'accent',
+        });
         omitKeys.add('acabamento_lona');
       }
 
       const valorBaseLona = (item as any).valor_lona;
       if (hasPositiveNumber(valorBaseLona)) {
+        sections.push({
+          label: 'Valor da Lona',
+          value: formatCurrency(parseCurrencyValue(valorBaseLona)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_lona');
       }
 
       const outrosValoresLona = (item as any).outros_valores_lona;
       if (hasPositiveNumber(outrosValoresLona)) {
+        sections.push({
+          label: 'Outros Valores (Lona)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresLona)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_lona');
       }
 
       const quantidadeLona = normalizeText((item as any).quantidade_lona);
-      if (quantidadeLona) {
+      if (quantidadeLona && quantidadeLona !== '1') {
         sections.push({
           label: 'Quantidade de Lonas',
           value: quantidadeLona,
@@ -495,6 +587,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
     }
 
+    // Campos específicos para TOTEM
     if (isTotem) {
       const acabamentoTotem = normalizeText((item as any).acabamento_totem);
       if (acabamentoTotem) {
@@ -521,7 +614,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
 
       const quantidadeTotem = normalizeText((item as any).quantidade_totem);
-      if (quantidadeTotem) {
+      if (quantidadeTotem && quantidadeTotem !== '1') {
         sections.push({
           label: 'Quantidade de Totens',
           value: quantidadeTotem,
@@ -532,34 +625,61 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
       const valorTotem = (item as any).valor_totem;
       if (hasPositiveNumber(valorTotem)) {
+        sections.push({
+          label: 'Valor do Totem',
+          value: formatCurrency(parseCurrencyValue(valorTotem)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_totem');
       }
 
       const outrosValoresTotem = (item as any).outros_valores_totem;
       if (hasPositiveNumber(outrosValoresTotem)) {
+        sections.push({
+          label: 'Outros Valores (Totem)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresTotem)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_totem');
       }
     }
 
+    // Campos específicos para ADESIVO
     if (isAdesivo) {
-      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
-      if (tipoAdesivo) {
-        omitKeys.add('tipo_adesivo');
+      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
+      if (quantidadeAdesivo && quantidadeAdesivo !== '1') {
+        sections.push({
+          label: 'Quantidade de Adesivos',
+          value: quantidadeAdesivo,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_adesivo');
       }
 
       const valorAdesivo = (item as any).valor_adesivo;
       if (hasPositiveNumber(valorAdesivo)) {
+        sections.push({
+          label: 'Valor do Adesivo',
+          value: formatCurrency(parseCurrencyValue(valorAdesivo)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_adesivo');
       }
 
       const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
       if (hasPositiveNumber(outrosValoresAdesivo)) {
+        sections.push({
+          label: 'Outros Valores (Adesivo)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresAdesivo)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_adesivo');
       }
 
-      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
-      if (quantidadeAdesivo) {
-        omitKeys.add('quantidade_adesivo');
+      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
+      if (tipoAdesivo) {
+        // Já aparece como "Material" na seção principal, mas vamos adicionar aqui também se necessário
+        omitKeys.add('tipo_adesivo');
       }
     }
 
@@ -644,7 +764,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       omitKeys: Array.from(fallbackOmitKeys),
     });
     const hasObservation = hasTextValue(item.observacao);
-    const hasImage = hasTextValue(item.imagem);
+    const hasImage = !!(item.imagem && (typeof item.imagem === 'string' && item.imagem.trim().length > 0));
     const hasBasicInfo = [
       normalizeText(item.tipo_producao),
       normalizeText(item.descricao),
@@ -729,7 +849,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     });
 
     const hasObservation = hasTextValue(item.observacao);
-    const hasImage = hasTextValue(item.imagem);
+    const hasImage = !!(item.imagem && (typeof item.imagem === 'string' && item.imagem.trim().length > 0));
     const tipo = normalizeText(item.tipo_producao);
     const tipoLower = tipo.toLowerCase();
     const isLonaType = tipoLower === 'lona';
@@ -741,8 +861,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
     const quantidadeLona = normalizeText((item as any).quantidade_lona);
     const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
-    const quantidadeDisplay =
-      painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
+    
+    // Para painel, priorizar quantidade_paineis mesmo se for 1
+    const isPainelType = tipoLower === 'painel' || tipoLower === 'generica';
+    const quantidadeDisplay = isPainelType && painelQuantidade
+      ? painelQuantidade
+      : painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
 
     const vendedor = normalizeText(item.vendedor);
     const designer = normalizeText(item.designer);
@@ -915,16 +1039,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
                 {(() => {
                   const imagePath = item.imagem;
-                  const isValid = isValidImagePath(imagePath || '');
+                  const isBase64 = imagePath && imagePath.startsWith('data:image/');
+                  const isValid = isBase64 || isValidImagePath(imagePath || '');
                   const itemKey = String(item.id ?? item.item_name);
                   const hasError = itemImageErrors[itemKey] || false;
-                  const isLoading = loadingImages.has(imagePath || '');
+                  const isLoading = !isBase64 && loadingImages.has(imagePath || '');
                   const blobUrl = itemImageUrls.get(itemKey);
                   
                   // Debug log
                   if (imagePath) {
                     console.log('[OrderViewModal] Processando imagem:', {
-                      original: imagePath,
+                      original: imagePath?.substring(0, 50) + '...',
+                      isBase64,
                       isValid,
                       itemKey,
                       hasError,
@@ -942,20 +1068,42 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     );
                   }
                   
-                  // Se estiver carregando, mostrar indicador
-                  if (isLoading && !blobUrl) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Carregando imagem...</span>
-                      </div>
-                    );
-                  }
-                  
                   // Se houver erro, mostrar placeholder
                   if (hasError) {
                     return (
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
                         <span className="text-sm">Erro ao carregar imagem</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Se for base64, usar diretamente
+                  if (isBase64) {
+                    return (
+                      <img
+                        key={`img-${itemKey}-base64`}
+                        src={imagePath}
+                        alt={`Imagem do item ${item.item_name}`}
+                        className="h-full w-full object-contain"
+                        style={{ display: 'block' }}
+                        onError={(event) => {
+                          console.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
+                            itemKey
+                          });
+                          setItemImageErrors(prev => ({
+                            ...prev,
+                            [itemKey]: true
+                          }));
+                        }}
+                      />
+                    );
+                  }
+                  
+                  // Se estiver carregando e não tiver blob URL, mostrar indicador
+                  if (isLoading && !blobUrl) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Carregando imagem...</span>
                       </div>
                     );
                   }
@@ -969,7 +1117,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     );
                   }
                   
-                  // Renderizar imagem
+                  // Renderizar imagem do blob URL
                   return (
                     <img
                       key={`img-${itemKey}-${blobUrl}`}
@@ -1011,15 +1159,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   );
                 })()}
               </div>
-              {isValidImagePath(item.imagem!) && (
+              {(isValidImagePath(item.imagem!) || (item.imagem && item.imagem.startsWith('data:image/'))) && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
                   className="w-full"
-                  disabled={loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
+                  disabled={!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
                 >
-                  {loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
+                  {!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
                     ? 'Carregando...'
                     : 'Abrir imagem em destaque'}
                 </Button>
