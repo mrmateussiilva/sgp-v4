@@ -507,6 +507,40 @@ const processTemplateHTML = (
         }
       }
       
+      // Normalizar tipo de produção para lowercase no atributo data-tipo-producao ANTES de remover linhas vazias
+      const tipoProducao = String(itemDataMap.tipo_producao || '').toLowerCase().trim();
+      itemHtml = itemHtml.replace(
+        /data-tipo-producao="[^"]*"/gi,
+        `data-tipo-producao="${tipoProducao}"`
+      );
+      
+      // Remover campos irrelevantes baseado no tipo de produção
+      // Usar regex mais flexível para capturar elementos com múltiplas classes
+      if (tipoProducao === 'totem') {
+        // Totem: remover campos de painel, lona e adesivo
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+      } else if (tipoProducao === 'lona') {
+        // Lona: remover campos de painel, tecido, totem e adesivo
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+      } else if (tipoProducao === 'adesivo') {
+        // Adesivo: remover campos de painel, tecido, totem e lona
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+      } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
+        // Painel/Tecido: remover campos de totem, lona e adesivo
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+      }
+      
       // Remover linhas vazias ou com apenas ": " ou ": Não" após substituição
       itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       
@@ -567,6 +601,40 @@ const processTemplateHTML = (
         `src="${imageUrl}"`
       );
     }
+  }
+  
+  // Normalizar tipo de produção para lowercase no atributo data-tipo-producao
+  const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
+  processed = processed.replace(
+    /data-tipo-producao="[^"]*"/gi,
+    `data-tipo-producao="${tipoProducao}"`
+  );
+  
+  // Remover campos irrelevantes baseado no tipo de produção
+  // Usar regex mais flexível para capturar elementos com múltiplas classes
+  if (tipoProducao === 'totem') {
+    // Totem: remover campos de painel, lona e adesivo
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+  } else if (tipoProducao === 'lona') {
+    // Lona: remover campos de painel, tecido, totem e adesivo
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
+  } else if (tipoProducao === 'adesivo') {
+    // Adesivo: remover campos de painel, tecido, totem e lona
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+  } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
+    // Painel/Tecido: remover campos de totem, lona e adesivo
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
+    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
   }
   
   // Remover linhas vazias ou com apenas ": " ou ": Não" após substituição

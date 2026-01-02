@@ -60,7 +60,7 @@ export function generateResumoHTMLStructured(): string {
     padding: 3px 6px;
     margin-right: 6px;
     font-weight: bold;
-    font-size: 9pt;
+    font-size: 11pt;
     border: 1px solid #ddd;
   }
   .client-info {
@@ -69,18 +69,18 @@ export function generateResumoHTMLStructured(): string {
   }
   .client-name {
     font-weight: bold;
-    font-size: 8pt;
+    font-size: 10pt;
     margin-bottom: 1px;
     word-wrap: break-word;
   }
   .client-details {
-    font-size: 6.5pt;
+    font-size: 8.5pt;
     color: #666;
     word-wrap: break-word;
   }
   .delivery-info {
     text-align: right;
-    font-size: 6.5pt;
+    font-size: 8.5pt;
     white-space: nowrap;
   }
   .priority-high {
@@ -95,21 +95,22 @@ export function generateResumoHTMLStructured(): string {
     min-height: 0;
   }
   .left-column {
-    flex: 1;
+    width: 40%;
+    flex-shrink: 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 3mm;
   }
   .right-column {
-    width: 55mm;
+    width: 60%;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
   }
   .section-title {
     font-weight: bold;
-    font-size: 8pt;
+    font-size: 10pt;
     margin-bottom: 2mm;
     border-bottom: 1px solid #ddd;
     padding-bottom: 1mm;
@@ -117,7 +118,7 @@ export function generateResumoHTMLStructured(): string {
     flex-shrink: 0;
   }
   .section-content {
-    font-size: 7pt;
+    font-size: 9pt;
     line-height: 1.4;
     flex: 1;
     overflow-y: auto;
@@ -136,20 +137,52 @@ export function generateResumoHTMLStructured(): string {
     align-items: center;
     justify-content: center;
     min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
   }
   .image-container img {
-    max-width: 100%;
-    max-height: 100%;
+    max-width: 60%;
+    max-height: 60%;
     width: auto;
     height: auto;
     object-fit: contain;
+    object-position: center;
     display: block;
+    image-rendering: auto;
+    aspect-ratio: auto;
   }
   .spec-item:empty,
   .spec-item:has-text(": "),
   .spec-item:has-text(": Não"),
   .spec-item:has-text(":  "),
   .spec-item:has-text(": 0") {
+    display: none;
+  }
+  /* Esconder campos baseado no tipo de produção */
+  .especificacoes-content[data-tipo-producao="totem"] .spec-painel,
+  .especificacoes-content[data-tipo-producao="totem"] .spec-tecido,
+  .especificacoes-content[data-tipo-producao="totem"] .spec-lona,
+  .especificacoes-content[data-tipo-producao="totem"] .spec-adesivo {
+    display: none;
+  }
+  .especificacoes-content[data-tipo-producao="lona"] .spec-painel,
+  .especificacoes-content[data-tipo-producao="lona"] .spec-tecido,
+  .especificacoes-content[data-tipo-producao="lona"] .spec-totem,
+  .especificacoes-content[data-tipo-producao="lona"] .spec-adesivo {
+    display: none;
+  }
+  .especificacoes-content[data-tipo-producao="adesivo"] .spec-painel,
+  .especificacoes-content[data-tipo-producao="adesivo"] .spec-tecido,
+  .especificacoes-content[data-tipo-producao="adesivo"] .spec-totem,
+  .especificacoes-content[data-tipo-producao="adesivo"] .spec-lona {
+    display: none;
+  }
+  .especificacoes-content[data-tipo-producao="painel"] .spec-totem,
+  .especificacoes-content[data-tipo-producao="painel"] .spec-lona,
+  .especificacoes-content[data-tipo-producao="painel"] .spec-adesivo,
+  .especificacoes-content[data-tipo-producao="tecido"] .spec-totem,
+  .especificacoes-content[data-tipo-producao="tecido"] .spec-lona,
+  .especificacoes-content[data-tipo-producao="tecido"] .spec-adesivo {
     display: none;
   }
   @media print {
@@ -236,29 +269,38 @@ export function generateResumoHTMLStructured(): string {
       <!-- Seção: Especificações Técnicas -->
       <div style="flex: 1; min-height: 0;">
         <div class="section-title">ESPECIFICAÇÕES TÉCNICAS</div>
-        <div class="section-content especificacoes-content">
-          <div class="spec-item">• Overloque: {{overloque}}</div>
-          <div class="spec-item">• Elástico: {{elastico}}</div>
-          <div class="spec-item">• Emenda: {{emenda}}</div>
-          <div class="spec-item">• Qtd Emendas: {{emenda_qtd}}</div>
-          <div class="spec-item">• Zíper: {{ziper}}</div>
-          <div class="spec-item">• Cordinha Extra: {{cordinha_extra}}</div>
-          <div class="spec-item">• Alcinha: {{alcinha}}</div>
-          <div class="spec-item">• Toalha Pronta: {{toalha_pronta}}</div>
-          <div class="spec-item">• Tipo Acabamento: {{tipo_acabamento}}</div>
-          <div class="spec-item">• Ilhós Qtd: {{quantidade_ilhos}}</div>
-          <div class="spec-item">• Espaçamento Ilhós: {{espaco_ilhos}}</div>
-          <div class="spec-item">• Cordinha Qtd: {{quantidade_cordinha}}</div>
-          <div class="spec-item">• Espaçamento Cordinha: {{espaco_cordinha}}</div>
-          <div class="spec-item">• Painéis Qtd: {{quantidade_paineis}}</div>
-          <div class="spec-item">• Terceirizado: {{terceirizado}}</div>
-          <div class="spec-item">• Acabamento Lona: {{acabamento_lona}}</div>
-          <div class="spec-item">• Lona Qtd: {{quantidade_lona}}</div>
-          <div class="spec-item">• Acabamento Totem: {{acabamento_totem}}</div>
-          <div class="spec-item">• Acabamento Totem Outro: {{acabamento_totem_outro}}</div>
-          <div class="spec-item">• Totem Qtd: {{quantidade_totem}}</div>
-          <div class="spec-item">• Tipo Adesivo: {{tipo_adesivo}}</div>
-          <div class="spec-item">• Adesivo Qtd: {{quantidade_adesivo}}</div>
+        <div class="section-content especificacoes-content" data-tipo-producao="{{tipo_producao}}">
+          <!-- Campos para PAINEL/TECIDO -->
+          <div class="spec-item spec-painel spec-tecido">• Overloque: {{overloque}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Elástico: {{elastico}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Emenda: {{emenda}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Qtd Emendas: {{emenda_qtd}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Zíper: {{ziper}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Cordinha Extra: {{cordinha_extra}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Alcinha: {{alcinha}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Toalha Pronta: {{toalha_pronta}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Tipo Acabamento: {{tipo_acabamento}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Ilhós Qtd: {{quantidade_ilhos}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Espaçamento Ilhós: {{espaco_ilhos}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Cordinha Qtd: {{quantidade_cordinha}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Espaçamento Cordinha: {{espaco_cordinha}}</div>
+          <div class="spec-item spec-painel spec-tecido">• Painéis Qtd: {{quantidade_paineis}}</div>
+          <div class="spec-item spec-painel spec-tecido spec-totem spec-lona">• Terceirizado: {{terceirizado}}</div>
+          
+          <!-- Campos para LONA -->
+          <div class="spec-item spec-lona">• Acabamento Lona: {{acabamento_lona}}</div>
+          <div class="spec-item spec-lona">• Lona Qtd: {{quantidade_lona}}</div>
+          
+          <!-- Campos para TOTEM -->
+          <div class="spec-item spec-totem">• Acabamento Totem: {{acabamento_totem}}</div>
+          <div class="spec-item spec-totem">• Acabamento Totem Outro: {{acabamento_totem_outro}}</div>
+          <div class="spec-item spec-totem">• Totem Qtd: {{quantidade_totem}}</div>
+          
+          <!-- Campos para ADESIVO -->
+          <div class="spec-item spec-adesivo">• Tipo Adesivo: {{tipo_adesivo}}</div>
+          <div class="spec-item spec-adesivo">• Adesivo Qtd: {{quantidade_adesivo}}</div>
+          
+          <!-- Campos genéricos (sempre visíveis) -->
           <div class="spec-item">• Observação: {{observacao_item}}</div>
           <div class="spec-item">• Legenda: {{legenda_imagem}}</div>
         </div>
