@@ -15,7 +15,6 @@ import {
   Truck,
   Target,
   RefreshCw,
-  Menu,
   Search
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
@@ -272,7 +271,7 @@ export default function DashboardOverview() {
 
         return {
           ...order,
-          isOverdue,
+          isOverdue: isOverdue ?? undefined,
           daysUntilDelivery,
         };
       });

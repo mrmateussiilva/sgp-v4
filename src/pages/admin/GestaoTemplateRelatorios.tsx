@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/services/api';
 import {
@@ -167,17 +166,6 @@ export default function GestaoTemplateRelatorios() {
   useEffect(() => {
     void loadTemplates();
   }, [loadTemplates]);
-
-  const updateTemplate = (field: keyof RelatorioTemplateConfig, value: any) => {
-    setTemplates((prev) => ({
-      ...prev,
-      [currentTemplateType]: {
-        ...prev[currentTemplateType],
-        [field]: value,
-      },
-    }));
-    setHasChanges(true);
-  };
 
   const updateHeaderField = (key: string, value: string) => {
     setTemplates((prev) => ({

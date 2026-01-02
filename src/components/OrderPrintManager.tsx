@@ -126,11 +126,11 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 
       // Itens reordenados
       doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('Itens do Pedido:', margin, yPosition);
       yPosition += 10;
 
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       
       let totalItems = 0;
@@ -143,11 +143,11 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 
         const itemNumber = index + 1;
         doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.text(`${itemNumber}. ${item.item_name}`, margin, yPosition);
         yPosition += 7;
 
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         
         if (item.descricao) {
@@ -193,7 +193,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       yPosition += 10;
 
       doc.setFontSize(11);
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.text(`Total de Itens: ${totalItems}`, margin, yPosition);
       yPosition += 8;
       
@@ -204,7 +204,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       }
 
       doc.setFontSize(12);
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       const totalValue = parseCurrencyValue(order.total_value || order.valor_total || 0);
       doc.text(`Total: R$ ${totalValue.toFixed(2)}`, margin, yPosition);
 

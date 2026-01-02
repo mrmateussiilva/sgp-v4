@@ -1086,7 +1086,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                         alt={`Imagem do item ${item.item_name}`}
                         className="h-full w-full object-contain"
                         style={{ display: 'block' }}
-                        onError={(event) => {
+                        onError={() => {
                           console.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
                             itemKey
                           });

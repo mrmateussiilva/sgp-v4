@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, LayoutGrid, Table2, Camera } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
-import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
+import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
