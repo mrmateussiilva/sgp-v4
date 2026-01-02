@@ -55,18 +55,45 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
 
 const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   title: 'FICHA DE SERVIÇO - RESUMO PRODUÇÃO',
-  width: 70,
-  height: 99,
-  marginTop: 3,
-  marginBottom: 3,
-  marginLeft: 5,
-  marginRight: 5,
+  width: 187, // Largura do template resumo
+  height: 92, // Altura do template resumo
+  marginTop: 1,
+  marginBottom: 1,
+  marginLeft: 2,
+  marginRight: 2,
   fields: [
-    { id: 'numero_os_resumo', type: 'text', label: 'OS:', key: 'numero', x: 5, y: 5, width: 15, height: 5, fontSize: 10, bold: true, visible: true, editable: true },
-    { id: 'descricao_resumo', type: 'text', label: 'Desc:', key: 'item_name', x: 5, y: 12, width: 60, height: 8, fontSize: 9, bold: false, visible: true, editable: true },
-    { id: 'tamanho_resumo', type: 'text', label: 'Tam:', key: 'dimensoes', x: 5, y: 22, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
-    { id: 'quantidade_resumo', type: 'number', label: 'Qtd:', key: 'quantity', x: 5, y: 30, width: 15, height: 5, fontSize: 9, bold: false, visible: true, editable: true },
-    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 5, y: 38, width: 30, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    // FAIXA HORIZONTAL - Linha 1 (y: 2-6mm)
+    // Coluna 1: ID e Cliente
+    { id: 'numero_resumo', type: 'text', label: '#', key: 'numero', x: 2, y: 2, width: 15, height: 5, fontSize: 9, bold: true, visible: true, editable: true },
+    { id: 'cliente_resumo', type: 'text', label: '', key: 'cliente', x: 19, y: 2, width: 65, height: 5, fontSize: 8, bold: true, visible: true, editable: true },
+    
+    // Coluna 2: Tipo e Descrição
+    { id: 'tipo_item', type: 'text', label: 'Tipo:', key: 'tipo_producao', x: 87, y: 2, width: 50, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'descricao_item', type: 'text', label: 'Desc:', key: 'item_name', x: 140, y: 2, width: 60, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Coluna 3: Quantidade
+    { id: 'quantidade_item', type: 'number', label: 'Qtd:', key: 'quantity', x: 203, y: 2, width: 20, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    
+    // Coluna 4: Imagem (pequena, fixa - lado direito)
+    { id: 'imagem_item', type: 'image', label: '', key: 'imagem', x: 253, y: 2, width: 22, height: 34, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 2 (y: 8-12mm)
+    // Coluna 1: Telefone
+    { id: 'telefone_resumo', type: 'text', label: '', key: 'telefone_cliente', x: 2, y: 8, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    // Cidade/Estado
+    { id: 'cidade_resumo', type: 'text', label: '', key: 'cidade_estado', x: 44, y: 8, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Coluna 2: Overloque e Elástico (lado a lado)
+    { id: 'overloque_item', type: 'text', label: 'Overloque', key: 'overloque', x: 87, y: 8, width: 55, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'elastico_item', type: 'text', label: 'Elástico', key: 'elastico', x: 145, y: 8, width: 55, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Coluna 3: Emenda e Qtd Emendas (lado a lado)
+    { id: 'emenda_item', type: 'text', label: 'Emenda:', key: 'emenda', x: 203, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'qtd_emendas_item', type: 'text', label: 'Qtd:', key: 'emenda_qtd', x: 240, y: 8, width: 15, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 3 (y: 13-17mm)
+    // Entrega
+    { id: 'entrega_resumo', type: 'text', label: '', key: 'forma_envio', x: 2, y: 13, width: 80, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
   ],
 };
 
@@ -127,6 +154,19 @@ export default function GestaoTemplateFicha() {
   const [snapToGridEnabled, setSnapToGridEnabled] = useState(true);
 
   const template = templates[currentTemplateType];
+
+  // Template já está na orientação correta (horizontal para resumo)
+  const canvasWidth = template.width;
+  const canvasHeight = template.height;
+
+  // Sem transformação de coordenadas - template já está na orientação correta
+  const transformCoords = (x: number, y: number): { x: number; y: number } => {
+    return { x, y };
+  };
+
+  const inverseTransformCoords = (x: number, y: number): { x: number; y: number } => {
+    return { x, y };
+  };
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -466,8 +506,15 @@ export default function GestaoTemplateFicha() {
   };
 
   const handleFieldMove = useCallback((fieldId: string, newX: number, newY: number) => {
+    // Coordenadas já vêm transformadas de volta, então usar diretamente
     let finalX = Math.max(0, newX);
     let finalY = Math.max(0, newY);
+
+    // Verificar limites (usar template.width/height originais, não canvasWidth/Height)
+    const maxX = template.width - 10;
+    const maxY = template.height - 5;
+    finalX = Math.min(finalX, maxX);
+    finalY = Math.min(finalY, maxY);
 
     if (snapToGridEnabled) {
       finalX = snapToGrid(finalX);
@@ -484,7 +531,7 @@ export default function GestaoTemplateFicha() {
       },
     }));
     setHasChanges(true);
-  }, [currentTemplateType, snapToGridEnabled]);
+  }, [currentTemplateType, snapToGridEnabled, template.width, template.height]);
 
   const handleFieldResize = useCallback((
     fieldId: string,
@@ -565,8 +612,8 @@ export default function GestaoTemplateFicha() {
       if (container) {
         const containerWidth = container.clientWidth - 32;
         const containerHeight = container.clientHeight - 32;
-        const pageWidth = mmToPx(template.width);
-        const pageHeight = mmToPx(template.height);
+        const pageWidth = mmToPx(canvasWidth);
+        const pageHeight = mmToPx(canvasHeight);
         
         const scaleX = containerWidth / pageWidth;
         const scaleY = containerHeight / pageHeight;
@@ -823,10 +870,10 @@ export default function GestaoTemplateFicha() {
               isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-gray-200 ring-opacity-75"
             )}
             style={{
-              width: `${mmToPx(template.width) * currentScale}px`,
-              height: `${mmToPx(template.height) * currentScale}px`,
-              minWidth: `${mmToPx(template.width) * currentScale}px`,
-              minHeight: `${mmToPx(template.height) * currentScale}px`,
+              width: `${mmToPx(canvasWidth) * currentScale}px`,
+              height: `${mmToPx(canvasHeight) * currentScale}px`,
+              minWidth: `${mmToPx(canvasWidth) * currentScale}px`,
+              minHeight: `${mmToPx(canvasHeight) * currentScale}px`,
               backgroundImage: showGrid 
                 ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)` 
                 : 'none',
@@ -872,26 +919,36 @@ export default function GestaoTemplateFicha() {
                 </div>
               </div>
             )}
-            {template.fields.map((field) => (
+            {template.fields.map((field) => {
+              // Template já está na orientação correta (horizontal), sem transformações
+              return (
                 <FieldEditor
                   key={field.id}
                   field={field}
                   scale={currentScale}
                   isSelected={selectedField === field.id}
                   onSelect={(e) => handleFieldClick(field.id, e)}
-                  onMove={(x, y) => handleFieldMove(field.id, x, y)}
-                  onResize={(handle, w, h, dx, dy) => handleFieldResize(field.id, handle, w, h, dx, dy)}
+                  onMove={(x, y) => {
+                    handleFieldMove(field.id, x, y);
+                  }}
+                  onResize={(handle, w, h, dx, dy) => {
+                    handleFieldResize(field.id, handle, w, h, dx, dy);
+                  }}
                   onDelete={() => handleDeleteField(field.id)}
                   onImageUpload={(file) => handleImageUpload(field.id, file)}
-                  onUpdate={(prop, value) => updateFieldProperty(field.id, prop, value)}
+                  onUpdate={(prop, value) => {
+                    updateFieldProperty(field.id, prop, value);
+                  }}
                 />
-              ))}
+              );
+            })}
             
             {/* Popup de Propriedades Flutuante */}
             {selectedField && (() => {
               const selectedFieldData = template.fields.find((f) => f.id === selectedField);
               if (!selectedFieldData) return null;
               
+              // Coordenadas diretas (template já está na orientação correta)
               const fieldX = mmToPx(selectedFieldData.x) * currentScale;
               const fieldY = mmToPx(selectedFieldData.y) * currentScale;
               const fieldWidth = mmToPx(selectedFieldData.width) * currentScale;
@@ -900,7 +957,7 @@ export default function GestaoTemplateFicha() {
               // Posicionar popup acima do campo se houver espaço, senão abaixo
               const popupX = fieldX + fieldWidth / 2;
               const spaceAbove = fieldY;
-              const spaceBelow = (mmToPx(template.height) * currentScale) - (fieldY + fieldHeight);
+              const spaceBelow = (mmToPx(canvasHeight) * currentScale) - (fieldY + fieldHeight);
               const showAbove = spaceAbove > 80 || spaceAbove > spaceBelow;
               const popupY = showAbove ? fieldY - 8 : fieldY + fieldHeight + 8;
               
@@ -928,7 +985,10 @@ export default function GestaoTemplateFicha() {
                           type="number"
                           step="0.1"
                           value={selectedFieldData.x.toFixed(1)}
-                          onChange={(e) => updateFieldProperty(selectedField, 'x', Number(e.target.value))}
+                          onChange={(e) => {
+                            const newValue = Number(e.target.value);
+                            updateFieldProperty(selectedField, 'x', newValue);
+                          }}
                           className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
                         />
                       </div>
@@ -939,7 +999,10 @@ export default function GestaoTemplateFicha() {
                           type="number"
                           step="0.1"
                           value={selectedFieldData.y.toFixed(1)}
-                          onChange={(e) => updateFieldProperty(selectedField, 'y', Number(e.target.value))}
+                          onChange={(e) => {
+                            const newValue = Number(e.target.value);
+                            updateFieldProperty(selectedField, 'y', newValue);
+                          }}
                           className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
                         />
                       </div>
@@ -953,7 +1016,10 @@ export default function GestaoTemplateFicha() {
                           type="number"
                           step="0.1"
                           value={selectedFieldData.width.toFixed(1)}
-                          onChange={(e) => updateFieldProperty(selectedField, 'width', Number(e.target.value))}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            updateFieldProperty(selectedField, 'width', value);
+                          }}
                           className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
                         />
                       </div>
@@ -964,7 +1030,10 @@ export default function GestaoTemplateFicha() {
                           type="number"
                           step="0.1"
                           value={selectedFieldData.height.toFixed(1)}
-                          onChange={(e) => updateFieldProperty(selectedField, 'height', Number(e.target.value))}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            updateFieldProperty(selectedField, 'height', value);
+                          }}
                           className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
                         />
                       </div>

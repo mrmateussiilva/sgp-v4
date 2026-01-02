@@ -302,51 +302,68 @@ const renderField = (
 /**
  * Gera o CSS para o template
  */
-const generateTemplateStyles = (template: FichaTemplate): string => {
-  return `
-    .template-page {
-      width: ${mmToPx(template.width)}px;
-      height: ${mmToPx(template.height)}px;
-      position: relative;
-      background: white;
-      margin: 0 auto;
-      padding: ${mmToPx(template.marginTop)}px ${mmToPx(template.marginRight)}px ${mmToPx(template.marginBottom)}px ${mmToPx(template.marginLeft)}px;
-      box-sizing: border-box;
-      page-break-after: always;
-    }
-    
-    .template-field {
-      box-sizing: border-box;
-    }
-    
-    .template-field-text,
-    .template-field-date,
-    .template-field-number,
-    .template-field-currency {
-      display: flex;
-      align-items: center;
-      padding: 2px;
-    }
-    
-    .template-field-image {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid #ddd;
-      background: #f9f9f9;
-    }
-    
-    @media print {
-      .template-page {
-        page-break-inside: avoid;
-      }
+    const generateTemplateStyles = (template: FichaTemplate): string => {
+      const isResumo = template.title?.toLowerCase().includes('resumo');
       
-      .template-field {
-        page-break-inside: avoid;
-      }
-    }
-  `;
-};
+      return `
+        .template-page {
+          width: ${mmToPx(template.width)}px;
+          height: ${mmToPx(template.height)}px;
+          position: relative;
+          background: white;
+          margin: 0 auto;
+          padding: ${mmToPx(template.marginTop)}px ${mmToPx(template.marginRight)}px ${mmToPx(template.marginBottom)}px ${mmToPx(template.marginLeft)}px;
+          box-sizing: border-box;
+          ${isResumo ? '' : 'page-break-after: always;'}
+        }
+        
+        .template-field {
+          box-sizing: border-box;
+        }
+        
+        .template-field-text,
+        .template-field-date,
+        .template-field-number,
+        .template-field-currency {
+          display: flex;
+          align-items: flex-start;
+          padding: 1px 2px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          hyphens: auto;
+          ${isResumo ? 'overflow: hidden; text-overflow: ellipsis;' : ''}
+        }
+        
+        .template-field-image {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #ddd;
+          background: #f9f9f9;
+          ${isResumo ? 'overflow: hidden;' : ''}
+        }
+        
+        ${isResumo ? `
+        /* Template resumo: faixa horizontal - altura nunca cresce */
+        .template-page {
+          overflow: hidden;
+        }
+        .template-field {
+          max-height: 100%;
+        }
+        ` : ''}
+        
+        @media print {
+          .template-page {
+            ${isResumo ? 'page-break-inside: avoid;' : 'page-break-inside: avoid;'}
+          }
+          
+          .template-field {
+            page-break-inside: avoid;
+          }
+        }
+      `;
+    };
 
 /**
  * Gera o HTML completo de uma ficha baseada no template

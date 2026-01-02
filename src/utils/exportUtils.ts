@@ -218,112 +218,232 @@ export const openInViewer = async (
   // Criar iframe em tela cheia para visualização
   console.log('[openInViewer] Criando iframe em tela cheia...');
   try {
+    // Container principal com overlay escuro
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = '#1a1a1a';
+    overlay.style.zIndex = '9998';
+    
+    // Container do conteúdo principal (tela cheia)
+    const mainContainer = document.createElement('div');
+    mainContainer.style.position = 'fixed';
+    mainContainer.style.top = '0';
+    mainContainer.style.left = '0';
+    mainContainer.style.width = '100%';
+    mainContainer.style.height = '100%';
+    mainContainer.style.zIndex = '9999';
+    mainContainer.style.backgroundColor = '#ffffff';
+    mainContainer.style.overflow = 'hidden';
+    mainContainer.style.display = 'flex';
+    mainContainer.style.flexDirection = 'column';
+    
+    // Barra superior (header)
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.padding = '16px 24px';
+    header.style.backgroundColor = '#f8f9fa';
+    header.style.borderBottom = '1px solid #e9ecef';
+    
+    // Título
+    const title = document.createElement('div');
+    title.style.display = 'flex';
+    title.style.alignItems = 'center';
+    title.style.gap = '12px';
+    const titleIcon = document.createElement('span');
+    titleIcon.textContent = '📄';
+    titleIcon.style.fontSize = '20px';
+    const titleText = document.createElement('span');
+    titleText.textContent = (content.type === 'html' ? content.title : 'Visualização') || 'Visualização';
+    titleText.style.fontSize = '18px';
+    titleText.style.fontWeight = '600';
+    titleText.style.color = '#1a1a1a';
+    titleText.style.letterSpacing = '-0.02em';
+    title.appendChild(titleIcon);
+    title.appendChild(titleText);
+    
+    // Container de botões (header)
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '10px';
+    buttonContainer.style.alignItems = 'center';
+    
+    // Função helper para criar botões estilizados
+    const createStyledButton = (
+      text: string,
+      icon: string,
+      bgColor: string,
+      hoverBgColor: string,
+      onClick: () => void
+    ) => {
+      const btn = document.createElement('button');
+      btn.style.display = 'inline-flex';
+      btn.style.alignItems = 'center';
+      btn.style.gap = '8px';
+      btn.style.padding = '10px 18px';
+      btn.style.backgroundColor = bgColor;
+      btn.style.color = 'white';
+      btn.style.border = 'none';
+      btn.style.borderRadius = '8px';
+      btn.style.cursor = 'pointer';
+      btn.style.fontSize = '14px';
+      btn.style.fontWeight = '500';
+      btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+      btn.style.transition = 'all 0.2s ease';
+      btn.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+      
+      const iconSpan = document.createElement('span');
+      iconSpan.textContent = icon;
+      iconSpan.style.fontSize = '16px';
+      
+      const textSpan = document.createElement('span');
+      textSpan.textContent = text;
+      
+      btn.appendChild(iconSpan);
+      btn.appendChild(textSpan);
+      
+      // Hover effect
+      btn.addEventListener('mouseenter', () => {
+        btn.style.backgroundColor = hoverBgColor;
+        btn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
+        btn.style.transform = 'translateY(-1px)';
+      });
+      
+      btn.addEventListener('mouseleave', () => {
+        btn.style.backgroundColor = bgColor;
+        btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
+        btn.style.transform = 'translateY(0)';
+      });
+      
+      btn.addEventListener('mousedown', () => {
+        btn.style.transform = 'translateY(0)';
+        btn.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
+      });
+      
+      btn.addEventListener('mouseup', () => {
+        btn.style.transform = 'translateY(-1px)';
+        btn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
+      });
+      
+      btn.onclick = onClick;
+      return btn;
+    };
+    
+    // Botão de imprimir
+    const printBtn = createStyledButton(
+      'Imprimir',
+      '🖨️',
+      '#3b82f6',
+      '#2563eb',
+      () => {
+        if (iframe.contentWindow) {
+          setTimeout(() => {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+            }
+          }, 100);
+        }
+      }
+    );
+    
+    // Botão de salvar (apenas para PDFs)
+    let saveBtn: HTMLButtonElement | null = null;
+    if (content.type === 'pdf') {
+      saveBtn = createStyledButton(
+        'Salvar',
+        '💾',
+        '#10b981',
+        '#059669',
+        () => {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = content.filename;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            document.body.removeChild(link);
+          }, 100);
+        }
+      );
+    }
+    
+    // Botão de fechar
+    const closeBtn = createStyledButton(
+      'Fechar',
+      '✕',
+      '#6b7280',
+      '#4b5563',
+      () => {
+        cleanup();
+      }
+    );
+    
+    // Adicionar botões ao container
+    buttonContainer.appendChild(printBtn);
+    if (saveBtn) {
+      buttonContainer.appendChild(saveBtn);
+    }
+    buttonContainer.appendChild(closeBtn);
+    
+    // Montar header
+    header.appendChild(title);
+    header.appendChild(buttonContainer);
+    
+    // Container do iframe
+    const iframeContainer = document.createElement('div');
+    iframeContainer.style.flex = '1';
+    iframeContainer.style.position = 'relative';
+    iframeContainer.style.overflow = 'hidden';
+    iframeContainer.style.backgroundColor = '#ffffff';
+    
+    // Iframe
     const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
+    iframe.style.position = 'absolute';
     iframe.style.top = '0';
     iframe.style.left = '0';
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.style.zIndex = '9999';
-    iframe.style.backgroundColor = '#f5f5f5';
+    iframe.style.backgroundColor = '#ffffff';
     iframe.src = blobUrl;
     
-    // Container para botões de controle
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = '10px';
-    container.style.right = '10px';
-    container.style.zIndex = '10000';
-    container.style.display = 'flex';
-    container.style.gap = '10px';
-    container.style.flexDirection = 'column';
+    iframeContainer.appendChild(iframe);
     
-    // Botão de imprimir
-    const printBtn = document.createElement('button');
-    printBtn.textContent = '🖨️ Imprimir';
-    printBtn.style.padding = '10px 20px';
-    printBtn.style.backgroundColor = '#3b82f6';
-    printBtn.style.color = 'white';
-    printBtn.style.border = 'none';
-    printBtn.style.borderRadius = '5px';
-    printBtn.style.cursor = 'pointer';
-    printBtn.style.fontSize = '14px';
-    printBtn.style.fontWeight = '500';
-    printBtn.onclick = () => {
-      if (iframe.contentWindow) {
-        // Aguardar um pouco para garantir que o conteúdo está carregado
-        setTimeout(() => {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-          }
-        }, 100);
-      }
-    };
-    
-    // Botão de salvar (apenas para PDFs)
-    let saveBtn: HTMLButtonElement | null = null;
-    if (content.type === 'pdf') {
-      saveBtn = document.createElement('button');
-      saveBtn.textContent = '💾 Salvar';
-      saveBtn.style.padding = '10px 20px';
-      saveBtn.style.backgroundColor = '#10b981';
-      saveBtn.style.color = 'white';
-      saveBtn.style.border = 'none';
-      saveBtn.style.borderRadius = '5px';
-      saveBtn.style.cursor = 'pointer';
-      saveBtn.style.fontSize = '14px';
-      saveBtn.style.fontWeight = '500';
-      saveBtn.onclick = () => {
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = content.filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
-      };
-    }
-    
-    // Botão de fechar
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕ Fechar';
-    closeBtn.style.padding = '10px 20px';
-    closeBtn.style.backgroundColor = '#ef4444';
-    closeBtn.style.color = 'white';
-    closeBtn.style.border = 'none';
-    closeBtn.style.borderRadius = '5px';
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.fontSize = '14px';
-    closeBtn.style.fontWeight = '500';
+    // Montar estrutura principal
+    mainContainer.appendChild(header);
+    mainContainer.appendChild(iframeContainer);
     
     const cleanup = () => {
       try {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
+        if (document.body.contains(overlay)) {
+          document.body.removeChild(overlay);
         }
-        if (document.body.contains(container)) {
-          document.body.removeChild(container);
+        if (document.body.contains(mainContainer)) {
+          document.body.removeChild(mainContainer);
         }
         URL.revokeObjectURL(blobUrl);
       } catch (_) { /* noop */ }
     };
     
-    closeBtn.onclick = cleanup;
-    
-    // Adicionar botões ao container
-    if (saveBtn) {
-      container.appendChild(saveBtn);
-    }
-    container.appendChild(printBtn);
-    container.appendChild(closeBtn);
-    
     // Adicionar ao DOM
-    document.body.appendChild(iframe);
-    document.body.appendChild(container);
+    document.body.appendChild(overlay);
+    document.body.appendChild(mainContainer);
+    
+    // Adicionar animação de entrada
+    mainContainer.style.opacity = '0';
+    mainContainer.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      mainContainer.style.transition = 'all 0.3s ease';
+      mainContainer.style.opacity = '1';
+      mainContainer.style.transform = 'scale(1)';
+    }, 10);
     
     console.log('[openInViewer] Iframe criado e adicionado ao DOM');
     

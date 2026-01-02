@@ -1,5 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
-import { generateTemplatePrintContent } from './templateProcessor';
+import { generateTemplatePrintContent, loadTemplates } from './templateProcessor';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -173,6 +173,17 @@ export const printMultipleOrdersServiceForm = async (
     );
   }
 
+  // Carregar template para obter dimensões reais
+  const templates = await loadTemplates();
+  const template = templates?.[templateType];
+  
+  if (!template) {
+    throw new Error(`Template ${templateType} não encontrado para obter dimensões`);
+  }
+
+  // Usar dimensões reais do template
+  const templateHeight = template.height; // 92mm para resumo
+
   // Gerar conteúdo HTML para cada pedido
   const ordersHtml = await Promise.all(
     orders.map(async (order) => {
@@ -192,8 +203,34 @@ export const printMultipleOrdersServiceForm = async (
     throw new Error('Nenhum pedido pôde ser processado para impressão');
   }
 
-  // Combinar todos os HTMLs em um único documento
-  const combinedContent = validOrdersHtml.join('\n');
+  // Para template resumo, organizar como faixas horizontais repetidas
+  let combinedContent: string;
+  if (templateType === 'resumo') {
+    // Template resumo: cada item é uma faixa horizontal que se repete
+    // A página controla quantos itens cabem, não o item individual
+    // Usar altura real do template + 2mm spacing
+    const itemHeightWithSpacing = templateHeight + 2; // altura real + 2mm spacing
+    const availableHeight = 190; // 210mm - 20mm margens
+    const itemsPerPage = Math.floor(availableHeight / itemHeightWithSpacing);
+    
+    const pages: string[][] = [];
+    
+    // Agrupar itens em páginas
+    for (let i = 0; i < validOrdersHtml.length; i += itemsPerPage) {
+      pages.push(validOrdersHtml.slice(i, i + itemsPerPage));
+    }
+    
+    // Cada página contém múltiplas faixas horizontais (itens)
+    // Cada item é uma linha de relatório, não um bloco empilhado
+    combinedContent = pages.map((pageItems) => {
+      return `<div class="resumo-page">
+        ${pageItems.join('\n')}
+      </div>`;
+    }).join('\n');
+  } else {
+    // Para template geral, manter comportamento atual (um por página)
+    combinedContent = validOrdersHtml.join('\n');
+  }
   
   const styles = `
     ${templateContent.css}
@@ -212,6 +249,42 @@ export const printMultipleOrdersServiceForm = async (
       background: white;
       color: #1a1a1a;
     }
+    ${templateType === 'resumo' ? `
+    .resumo-page {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      page-break-inside: avoid;
+    }
+    /* Cada template-page é uma faixa horizontal única que se repete */
+    .resumo-page .template-page {
+      flex: 0 0 auto;
+      height: ${templateHeight}mm;
+      width: 100%;
+      max-height: ${templateHeight}mm;
+      min-height: ${templateHeight}mm;
+      page-break-after: auto !important;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 2mm;
+      overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .resumo-page .template-page:last-child {
+      margin-bottom: 0;
+      border-bottom: none;
+    }
+    /* Campos dentro da faixa não podem crescer verticalmente */
+    .resumo-page .template-page .template-field {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-wrap: break-word;
+      max-height: 100%;
+    }
+    ` : ''}
     @media print {
       * {
         -webkit-print-color-adjust: exact !important;
@@ -232,6 +305,37 @@ export const printMultipleOrdersServiceForm = async (
         display: none !important;
       }
       
+      ${templateType === 'resumo' ? `
+      .resumo-page {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+      }
+      /* Faixa horizontal única - altura fixa, nunca cresce */
+      .resumo-page .template-page {
+        flex: 0 0 auto !important;
+        height: ${templateHeight}mm !important;
+        max-height: ${templateHeight}mm !important;
+        min-height: ${templateHeight}mm !important;
+        width: 100% !important;
+        page-break-after: auto !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 2mm !important;
+        overflow: hidden !important;
+      }
+      .resumo-page .template-page:last-child {
+        margin-bottom: 0 !important;
+        border-bottom: none !important;
+      }
+      /* Campos nunca crescem verticalmente */
+      .resumo-page .template-page .template-field {
+        overflow: hidden !important;
+        max-height: 100% !important;
+      }
+      ` : `
       .template-page {
         page-break-after: always;
         page-break-inside: avoid;
@@ -240,6 +344,7 @@ export const printMultipleOrdersServiceForm = async (
       .template-page:last-child {
         page-break-after: auto;
       }
+      `}
     }
   `;
 
