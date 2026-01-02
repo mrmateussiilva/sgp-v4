@@ -15,26 +15,55 @@ import {
   FichaTemplatesConfig as TemplatesConfig,
   TemplateType,
 } from '@/types';
-import { generateTemplatesHTML } from '@/utils/generateTemplateHTML';
+import { generateResumoHTMLStructured } from '@/utils/generateResumoHTML';
 
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
   { id: 'cliente', type: 'text', label: 'Cliente', key: 'cliente' },
   { id: 'telefone', type: 'text', label: 'Telefone', key: 'telefone_cliente' },
+  { id: 'cidade_estado', type: 'text', label: 'Cidade/Estado', key: 'cidade_estado' },
   { id: 'data_entrada', type: 'date', label: 'Data Entrada', key: 'data_entrada' },
   { id: 'data_entrega', type: 'date', label: 'Data Entrega', key: 'data_entrega' },
+  { id: 'forma_envio', type: 'text', label: 'Forma de Envio', key: 'forma_envio' },
   { id: 'descricao', type: 'text', label: 'Descrição', key: 'item_name' },
+  { id: 'tipo_producao', type: 'text', label: 'Tipo de Produção', key: 'tipo_producao' },
   { id: 'tamanho', type: 'text', label: 'Tamanho', key: 'dimensoes' },
+  { id: 'largura', type: 'text', label: 'Largura', key: 'largura' },
+  { id: 'altura', type: 'text', label: 'Altura', key: 'altura' },
+  { id: 'metro_quadrado', type: 'text', label: 'Área (m²)', key: 'metro_quadrado' },
   { id: 'designer', type: 'text', label: 'Designer', key: 'designer' },
   { id: 'vendedor', type: 'text', label: 'Vendedor', key: 'vendedor' },
   { id: 'tecido', type: 'text', label: 'Tecido', key: 'tecido' },
   { id: 'quantidade', type: 'number', label: 'Quantidade', key: 'quantity' },
+  { id: 'observacao', type: 'text', label: 'Observações', key: 'observacao_item' },
+  { id: 'legenda_imagem', type: 'text', label: 'Legenda da Imagem', key: 'legenda_imagem' },
+  { id: 'imagem', type: 'image', label: 'Imagem', key: 'imagem' },
+  { id: 'tipo_acabamento', type: 'text', label: 'Tipo de Acabamento', key: 'tipo_acabamento' },
+  { id: 'quantidade_ilhos', type: 'text', label: 'Quantidade de Ilhós', key: 'quantidade_ilhos' },
+  { id: 'espaco_ilhos', type: 'text', label: 'Espaçamento dos Ilhós', key: 'espaco_ilhos' },
+  { id: 'quantidade_cordinha', type: 'text', label: 'Quantidade de Cordinhas', key: 'quantidade_cordinha' },
+  { id: 'espaco_cordinha', type: 'text', label: 'Espaçamento das Cordinhas', key: 'espaco_cordinha' },
+  { id: 'emenda', type: 'text', label: 'Emenda', key: 'emenda' },
+  { id: 'emenda_qtd', type: 'text', label: 'Quantidade de Emendas', key: 'emenda_qtd' },
+  { id: 'overloque', type: 'text', label: 'Overloque', key: 'overloque' },
+  { id: 'elastico', type: 'text', label: 'Elástico', key: 'elastico' },
+  { id: 'ziper', type: 'text', label: 'Zíper', key: 'ziper' },
+  { id: 'cordinha_extra', type: 'text', label: 'Cordinha Extra', key: 'cordinha_extra' },
+  { id: 'alcinha', type: 'text', label: 'Alcinha', key: 'alcinha' },
+  { id: 'toalha_pronta', type: 'text', label: 'Toalha Pronta', key: 'toalha_pronta' },
+  { id: 'quantidade_paineis', type: 'text', label: 'Quantidade de Painéis', key: 'quantidade_paineis' },
+  { id: 'terceirizado', type: 'text', label: 'Terceirizado', key: 'terceirizado' },
+  { id: 'acabamento_lona', type: 'text', label: 'Acabamento (Lona)', key: 'acabamento_lona' },
+  { id: 'quantidade_lona', type: 'text', label: 'Quantidade de Lonas', key: 'quantidade_lona' },
+  { id: 'acabamento_totem', type: 'text', label: 'Acabamento (Totem)', key: 'acabamento_totem' },
+  { id: 'acabamento_totem_outro', type: 'text', label: 'Acabamento Extra (Totem)', key: 'acabamento_totem_outro' },
+  { id: 'quantidade_totem', type: 'text', label: 'Quantidade de Totens', key: 'quantidade_totem' },
+  { id: 'tipo_adesivo', type: 'text', label: 'Tipo de Adesivo', key: 'tipo_adesivo' },
+  { id: 'quantidade_adesivo', type: 'text', label: 'Quantidade de Adesivos', key: 'quantidade_adesivo' },
   { id: 'valor_unitario', type: 'currency', label: 'Valor Unitário', key: 'unit_price' },
   { id: 'subtotal', type: 'currency', label: 'Subtotal', key: 'subtotal' },
   { id: 'valor_frete', type: 'currency', label: 'Valor Frete', key: 'valor_frete' },
   { id: 'total', type: 'currency', label: 'Total', key: 'total_value' },
-  { id: 'observacao', type: 'text', label: 'Observações', key: 'observacao' },
-  { id: 'imagem', type: 'image', label: 'Imagem', key: 'imagem' },
 ];
 
 const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
@@ -64,36 +93,83 @@ const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   fields: [
     // FAIXA HORIZONTAL - Linha 1 (y: 2-6mm)
     // Coluna 1: ID e Cliente
-    { id: 'numero_resumo', type: 'text', label: '#', key: 'numero', x: 2, y: 2, width: 15, height: 5, fontSize: 9, bold: true, visible: true, editable: true },
-    { id: 'cliente_resumo', type: 'text', label: '', key: 'cliente', x: 19, y: 2, width: 65, height: 5, fontSize: 8, bold: true, visible: true, editable: true },
+    { id: 'numero_resumo', type: 'text', label: '#', key: 'numero', x: 2, y: 2, width: 12, height: 5, fontSize: 9, bold: true, visible: true, editable: true },
+    { id: 'cliente_resumo', type: 'text', label: 'Cliente:', key: 'cliente', x: 15, y: 2, width: 50, height: 5, fontSize: 8, bold: true, visible: true, editable: true },
     
     // Coluna 2: Tipo e Descrição
-    { id: 'tipo_item', type: 'text', label: 'Tipo:', key: 'tipo_producao', x: 87, y: 2, width: 50, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
-    { id: 'descricao_item', type: 'text', label: 'Desc:', key: 'item_name', x: 140, y: 2, width: 60, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'tipo_item', type: 'text', label: 'Tipo:', key: 'tipo_producao', x: 67, y: 2, width: 35, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'descricao_item', type: 'text', label: 'Desc:', key: 'item_name', x: 104, y: 2, width: 50, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
     
     // Coluna 3: Quantidade
-    { id: 'quantidade_item', type: 'number', label: 'Qtd:', key: 'quantity', x: 203, y: 2, width: 20, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
+    { id: 'quantidade_item', type: 'number', label: 'Qtd:', key: 'quantity', x: 156, y: 2, width: 15, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
     
     // Coluna 4: Imagem (pequena, fixa - lado direito)
-    { id: 'imagem_item', type: 'image', label: '', key: 'imagem', x: 253, y: 2, width: 22, height: 34, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'imagem_item', type: 'image', label: '', key: 'imagem', x: 173, y: 2, width: 12, height: 34, fontSize: 7, bold: false, visible: true, editable: true },
     
     // FAIXA HORIZONTAL - Linha 2 (y: 8-12mm)
-    // Coluna 1: Telefone
-    { id: 'telefone_resumo', type: 'text', label: '', key: 'telefone_cliente', x: 2, y: 8, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    // Cidade/Estado
-    { id: 'cidade_resumo', type: 'text', label: '', key: 'cidade_estado', x: 44, y: 8, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    // Coluna 1: Telefone e Cidade
+    { id: 'telefone_resumo', type: 'text', label: 'Tel:', key: 'telefone_cliente', x: 2, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'cidade_resumo', type: 'text', label: 'Cidade:', key: 'cidade_estado', x: 39, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     
-    // Coluna 2: Overloque e Elástico (lado a lado)
-    { id: 'overloque_item', type: 'text', label: 'Overloque', key: 'overloque', x: 87, y: 8, width: 55, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    { id: 'elastico_item', type: 'text', label: 'Elástico', key: 'elastico', x: 145, y: 8, width: 55, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    // Coluna 2: Vendedor e Designer
+    { id: 'vendedor_resumo', type: 'text', label: 'Vend:', key: 'vendedor', x: 76, y: 8, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'designer_resumo', type: 'text', label: 'Des:', key: 'designer', x: 108, y: 8, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     
-    // Coluna 3: Emenda e Qtd Emendas (lado a lado)
-    { id: 'emenda_item', type: 'text', label: 'Emenda:', key: 'emenda', x: 203, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    { id: 'qtd_emendas_item', type: 'text', label: 'Qtd:', key: 'emenda_qtd', x: 240, y: 8, width: 15, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    // Coluna 3: Tecido
+    { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 140, y: 8, width: 45, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     
     // FAIXA HORIZONTAL - Linha 3 (y: 13-17mm)
-    // Entrega
-    { id: 'entrega_resumo', type: 'text', label: '', key: 'forma_envio', x: 2, y: 13, width: 80, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    // Dimensões
+    { id: 'dimensoes_resumo', type: 'text', label: 'Dimensões:', key: 'dimensoes', x: 2, y: 13, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'metro_quadrado_resumo', type: 'text', label: 'm²:', key: 'metro_quadrado', x: 44, y: 13, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Acabamentos
+    { id: 'tipo_acabamento_resumo', type: 'text', label: 'Acab:', key: 'tipo_acabamento', x: 66, y: 13, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'overloque_resumo', type: 'text', label: 'Overloque:', key: 'overloque', x: 98, y: 13, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'elastico_resumo', type: 'text', label: 'Elástico:', key: 'elastico', x: 125, y: 13, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'emenda_resumo', type: 'text', label: 'Emenda:', key: 'emenda', x: 152, y: 13, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'emenda_qtd_resumo', type: 'text', label: 'Qtd:', key: 'emenda_qtd', x: 174, y: 13, width: 11, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 4 (y: 18-22mm)
+    // Ilhós
+    { id: 'quantidade_ilhos_resumo', type: 'text', label: 'Ilhós Qtd:', key: 'quantidade_ilhos', x: 2, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'espaco_ilhos_resumo', type: 'text', label: 'Esp:', key: 'espaco_ilhos', x: 29, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Cordinha
+    { id: 'quantidade_cordinha_resumo', type: 'text', label: 'Cord Qtd:', key: 'quantidade_cordinha', x: 51, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'espaco_cordinha_resumo', type: 'text', label: 'Esp:', key: 'espaco_cordinha', x: 78, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Campos booleanos
+    { id: 'ziper_resumo', type: 'text', label: 'Zíper:', key: 'ziper', x: 100, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'cordinha_extra_resumo', type: 'text', label: 'Cord Extra:', key: 'cordinha_extra', x: 122, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'alcinha_resumo', type: 'text', label: 'Alcinha:', key: 'alcinha', x: 149, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'toalha_pronta_resumo', type: 'text', label: 'Toalha:', key: 'toalha_pronta', x: 171, y: 18, width: 14, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 5 (y: 23-27mm)
+    // Painéis
+    { id: 'quantidade_paineis_resumo', type: 'text', label: 'Painéis Qtd:', key: 'quantidade_paineis', x: 2, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Lona
+    { id: 'terceirizado_resumo', type: 'text', label: 'Terceirizado:', key: 'terceirizado', x: 34, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'acabamento_lona_resumo', type: 'text', label: 'Acab Lona:', key: 'acabamento_lona', x: 66, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'quantidade_lona_resumo', type: 'text', label: 'Lona Qtd:', key: 'quantidade_lona', x: 98, y: 23, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Totem
+    { id: 'acabamento_totem_resumo', type: 'text', label: 'Acab Totem:', key: 'acabamento_totem', x: 125, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'acabamento_totem_outro_resumo', type: 'text', label: 'Totem Outro:', key: 'acabamento_totem_outro', x: 157, y: 23, width: 28, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 6 (y: 28-32mm)
+    // Totem e Adesivo
+    { id: 'quantidade_totem_resumo', type: 'text', label: 'Totem Qtd:', key: 'quantidade_totem', x: 2, y: 28, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'tipo_adesivo_resumo', type: 'text', label: 'Tipo Adesivo:', key: 'tipo_adesivo', x: 29, y: 28, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'quantidade_adesivo_resumo', type: 'text', label: 'Adesivo Qtd:', key: 'quantidade_adesivo', x: 66, y: 28, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // Entrega e Observações
+    { id: 'entrega_resumo', type: 'text', label: 'Entrega:', key: 'forma_envio', x: 98, y: 28, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    { id: 'observacao_resumo', type: 'text', label: 'Obs:', key: 'observacao_item', x: 140, y: 28, width: 45, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
+    
+    // FAIXA HORIZONTAL - Linha 7 (y: 33-37mm) - Legenda da imagem
+    { id: 'legenda_imagem_resumo', type: 'text', label: 'Legenda:', key: 'legenda_imagem', x: 2, y: 33, width: 183, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
   ],
 };
 
@@ -159,15 +235,6 @@ export default function GestaoTemplateFicha() {
   const canvasWidth = template.width;
   const canvasHeight = template.height;
 
-  // Sem transformação de coordenadas - template já está na orientação correta
-  const transformCoords = (x: number, y: number): { x: number; y: number } => {
-    return { x, y };
-  };
-
-  const inverseTransformCoords = (x: number, y: number): { x: number; y: number } => {
-    return { x, y };
-  };
-
   const loadTemplates = useCallback(async () => {
     setLoading(true);
     let loadedFromServer = false;
@@ -231,26 +298,32 @@ export default function GestaoTemplateFicha() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
       setHasChanges(false);
       
-      // Gerar e salvar arquivos HTML no servidor
+      // Gerar HTML estruturado para resumo (com seções organizadas) e salvar
       try {
-        const htmlFiles = generateTemplatesHTML(normalized.geral, normalized.resumo);
+        // Para resumo, usar HTML estruturado com seções
+        const resumoHTML = generateResumoHTMLStructured();
         
-        // Enviar HTMLs para o servidor
-        await api.saveFichaTemplatesHTML(htmlFiles);
+        // Para geral, usar o HTML gerado do JSON (ou manter vazio se não houver)
+        const { generateTemplatesHTML } = await import('@/utils/generateTemplateHTML');
+        const geralHTML = generateTemplatesHTML(normalized.geral, normalized.resumo).geral;
         
-        console.log('[saveTemplates] ✅ Arquivos HTML enviados para o servidor');
+        await api.saveFichaTemplatesHTML({ 
+          geral: geralHTML, 
+          resumo: resumoHTML 
+        });
+        
+        console.log('[saveTemplates] ✅ HTML estruturado gerado e salvo para resumo');
         
         toast({
           title: 'Sucesso',
-          description: 'Templates salvos e arquivos HTML gerados no servidor com sucesso!',
+          description: 'Templates salvos! HTML estruturado gerado para resumo com todas as seções e campos disponíveis.',
           variant: 'default',
         });
       } catch (htmlError) {
-        console.error('Erro ao salvar arquivos HTML no servidor:', htmlError);
-        // Não falhar o salvamento se a geração de HTML falhar
+        console.error('Erro ao salvar HTML estruturado:', htmlError);
         toast({
           title: 'Aviso',
-          description: 'Templates salvos, mas houve erro ao salvar arquivos HTML no servidor.',
+          description: 'Templates JSON salvos, mas houve erro ao gerar HTML estruturado.',
           variant: 'default',
         });
       }
@@ -578,7 +651,7 @@ export default function GestaoTemplateFicha() {
     setHasChanges(true);
   }, [currentTemplateType, template.fields, snapToGridEnabled]);
 
-  const updateFieldProperty = (fieldId: string, property: keyof TemplateField, value: any) => {
+  const updateFieldProperty = (fieldId: string, property: keyof TemplateField, value: unknown) => {
     setTemplates({
       ...templates,
       [currentTemplateType]: {
@@ -591,7 +664,7 @@ export default function GestaoTemplateFicha() {
     setHasChanges(true);
   };
 
-  const updateTemplateProperty = (property: keyof FichaTemplate, value: any) => {
+  const updateTemplateProperty = (property: keyof FichaTemplate, value: unknown) => {
     setTemplates({
       ...templates,
       [currentTemplateType]: {
@@ -1059,7 +1132,7 @@ interface FieldEditorProps {
   onResize: (handle: ResizeHandle, width: number, height: number, deltaX: number, deltaY: number) => void;
   onDelete: () => void;
   onImageUpload?: (file: File) => void;
-  onUpdate?: (property: keyof TemplateField, value: any) => void;
+  onUpdate?: (property: keyof TemplateField, value: unknown) => void;
 }
 
 function FieldEditor({

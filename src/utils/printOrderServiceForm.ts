@@ -41,9 +41,18 @@ export const printOrderServiceForm = async (
       background: white;
     }
     @page {
-      size: ${templateType === 'resumo' ? 'A4 landscape' : 'A4 portrait'};
-      margin: 10mm;
+      size: ${templateType === 'resumo' ? '187mm 280mm' : 'A4 portrait'};
+      margin: ${templateType === 'resumo' ? '0' : '10mm'};
     }
+    ${templateType === 'resumo' ? `
+    body {
+      width: 187mm;
+      height: 280mm;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    ` : ''}
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
       margin: 0;
@@ -73,11 +82,26 @@ export const printOrderServiceForm = async (
       
       .template-page {
         page-break-after: always;
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .template-page:last-child {
         page-break-after: auto;
+      }
+      /* Para template resumo, forçar altura fixa para exatamente 2 itens */
+      .template-page[style*="187mm"],
+      .template-page[style*="width: 100%"] {
+        height: 274mm !important;
+        max-height: 274mm !important;
+        overflow: hidden !important;
+      }
+      .item-container {
+        height: 135mm !important;
+        max-height: 135mm !important;
+        min-height: 135mm !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
       }
     }
   `;

@@ -1217,6 +1217,25 @@ const saveFichaTemplatesHTMLRequest = async (
   return response.data;
 };
 
+const getFichaTemplateHTML = async (templateType: 'geral' | 'resumo'): Promise<{ html: string | null; exists: boolean }> => {
+  requireSessionToken();
+  try {
+    const response = await apiClient.get<{ html: string | null; exists: boolean }>(
+      `/fichas/templates/html/${templateType}/content`
+    );
+    return response.data;
+  } catch (error) {
+    const axiosError = error as { response?: { status?: number } };
+    // Se não existir (404), retornar null (não é erro, apenas não há template editado)
+    if (axiosError.response?.status === 404) {
+      return { html: null, exists: false };
+    }
+    // Para outros erros, logar mas retornar null para usar fallback
+    console.warn('[api] Erro ao buscar template HTML editado:', error);
+    return { html: null, exists: false };
+  }
+};
+
 const fetchRelatorioTemplates = async (): Promise<RelatorioTemplatesConfig> => {
   requireSessionToken();
   const response = await apiClient.get<RelatorioTemplatesConfig>('/relatorios/templates');
@@ -1245,6 +1264,8 @@ export const api = {
   saveFichaTemplates: saveFichaTemplatesRequest,
 
   saveFichaTemplatesHTML: saveFichaTemplatesHTMLRequest,
+
+  getFichaTemplateHTML: getFichaTemplateHTML,
 
   getRelatorioTemplates: fetchRelatorioTemplates,
 
