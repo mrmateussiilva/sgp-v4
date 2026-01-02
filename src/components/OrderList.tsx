@@ -101,7 +101,9 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  // Desativado temporariamente: botões de alternância entre tabela e kanban
+  const [viewMode] = useState<'table' | 'kanban'>('table');
+  // const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -1344,7 +1346,8 @@ export default function OrderList() {
             <h1 className="text-xl font-semibold text-foreground">Pedidos</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Arraste os cards entre as colunas para atualizar o status</p>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Botões de alternância desativados temporariamente */}
+          {/* <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -1364,7 +1367,7 @@ export default function OrderList() {
               <LayoutGrid className="h-4 w-4 mr-2" />
               Kanban
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Área do Kanban - ocupa todo o espaço restante */}
@@ -1564,7 +1567,8 @@ export default function OrderList() {
               </Popover>
             </div>
             
-            <div className="flex items-center gap-2">
+            {/* Botões de alternância desativados temporariamente */}
+            {/* <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant={viewMode === 'table' ? 'default' : 'outline'}
@@ -1583,7 +1587,7 @@ export default function OrderList() {
                 <LayoutGrid className="h-4 w-4 mr-2" />
                 Kanban
               </Button>
-            </div>
+            </div> */}
             
             {selectedOrderIdsForPrint.length > 0 && (
               <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
