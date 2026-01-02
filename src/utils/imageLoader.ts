@@ -6,6 +6,11 @@ import { apiClient, getApiUrl } from '../services/apiClient';
 const blobUrlCache = new Map<string, string>();
 
 /**
+ * Cache de blobs para evitar recarregar a mesma imagem múltiplas vezes
+ */
+const blobCache = new Map<string, Blob>();
+
+/**
  * Normaliza uma URL de imagem, substituindo localhost pela URL da API configurada
  * @param imagePath - Caminho ou URL da imagem
  * @returns URL normalizada
@@ -97,6 +102,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
       blobUrlCache.set(imagePath, blobUrl);
+      blobCache.set(imagePath, blob);
       return blobUrl;
     }
 
@@ -122,8 +128,9 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Armazenar no cache
+    // Armazenar no cache (tanto blob URL quanto blob)
     blobUrlCache.set(imagePath, blobUrl);
+    blobCache.set(imagePath, blob);
 
     console.log('[loadAuthenticatedImage] ✅ Imagem carregada:', {
       originalPath: imagePath,
@@ -149,6 +156,7 @@ export function clearImageCache(): void {
     URL.revokeObjectURL(blobUrl);
   });
   blobUrlCache.clear();
+  blobCache.clear();
 }
 
 /**
@@ -159,6 +167,7 @@ export function revokeImageUrl(imagePath: string): void {
   if (blobUrl) {
     URL.revokeObjectURL(blobUrl);
     blobUrlCache.delete(imagePath);
+    blobCache.delete(imagePath);
   }
 }
 
@@ -174,18 +183,30 @@ export async function imageToBase64(imagePath: string): Promise<string> {
       return imagePath;
     }
 
-    // Carregar a imagem autenticada (retorna blob URL)
-    const blobUrl = await loadAuthenticatedImage(imagePath);
+    // Verificar se já temos o blob em cache
+    let blob: Blob | undefined = blobCache.get(imagePath);
     
-    // Se for base64, retornar diretamente
-    if (blobUrl.startsWith('data:image/')) {
-      return blobUrl;
-    }
+    if (!blob) {
+      // Carregar a imagem autenticada (retorna blob URL)
+      const blobUrl = await loadAuthenticatedImage(imagePath);
+      
+      // Se for base64, retornar diretamente
+      if (blobUrl.startsWith('data:image/')) {
+        return blobUrl;
+      }
 
-    // Converter blob URL para base64
-    const response = await fetch(blobUrl);
-    const blob = await response.blob();
+      // Tentar obter o blob do cache novamente (pode ter sido adicionado durante loadAuthenticatedImage)
+      blob = blobCache.get(imagePath);
+      
+      // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
+      if (!blob) {
+        const response = await fetch(blobUrl);
+        blob = await response.blob();
+        blobCache.set(imagePath, blob);
+      }
+    }
     
+    // Converter blob para base64
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -193,7 +214,7 @@ export async function imageToBase64(imagePath: string): Promise<string> {
         resolve(base64String);
       };
       reader.onerror = reject;
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(blob!);
     });
   } catch (error) {
     console.error('[imageToBase64] ❌ Erro ao converter imagem para base64:', {

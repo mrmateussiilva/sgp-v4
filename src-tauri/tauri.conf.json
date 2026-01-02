@@ -12,7 +12,7 @@
     "app": {
         "withGlobalTauri": false,
         "security": {
-            "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; img-src 'self' data: blob: tauri://localhost asset: https://asset.localhost http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' tauri://localhost ipc://localhost http://192.168.15.3:8000 http://192.168.0.10:8000 http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:* ws://*:* wss://*:*;",
+            "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; img-src 'self' data: blob: tauri://localhost asset: https://asset.localhost http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:*; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' blob: tauri://localhost ipc://localhost http://192.168.15.3:8000 http://192.168.0.10:8000 http://192.168.*.*:* http://10.*.*.*:* http://172.16.*.*:* http://*:* https://*:* ws://*:* wss://*:*;",
             "capabilities": [
                 "default"
             ]
