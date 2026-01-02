@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { OrderItem, OrderWithItems } from '../types';
 import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { printOrder } from '../utils/printOrder';
+import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { isTauri } from '@/utils/isTauri';
 
 interface OrderPrintManagerProps {
@@ -261,11 +261,12 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Usar a função de impressão existente
-      await printOrder(reorderedOrder);
+      // Usar template da API (sempre usa template 'geral')
+      await printOrderServiceForm(reorderedOrder, 'geral');
     } catch (error) {
       console.error('Erro ao imprimir:', error);
-      alert('Erro ao imprimir. Tente novamente.');
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao imprimir. Tente novamente.';
+      alert(`Erro ao imprimir: ${errorMessage}`);
     } finally {
       setIsGenerating(false);
     }

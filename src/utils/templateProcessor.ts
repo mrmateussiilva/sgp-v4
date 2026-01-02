@@ -82,18 +82,7 @@ const fetchTemplatesFromServer = async (): Promise<TemplatesConfig | null> => {
 };
 
 export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
-  if (templatesCache) {
-    return templatesCache;
-  }
-
-  // Tentar carregar templates locais primeiro (mais rápido e não depende do servidor)
-  const local = getLocalTemplates();
-  if (local) {
-    templatesCache = local;
-    return templatesCache;
-  }
-
-  // Se não houver templates locais, tentar buscar do servidor
+  // Sempre tentar buscar da API primeiro
   if (!fetchPromise) {
     fetchPromise = fetchTemplatesFromServer().finally(() => {
       fetchPromise = null;
@@ -103,6 +92,19 @@ export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
   const remote = await fetchPromise;
   if (remote) {
     templatesCache = remote;
+    return templatesCache;
+  }
+
+  // Se a API não estiver disponível, tentar usar cache local como fallback
+  if (!templatesCache) {
+    const local = getLocalTemplates();
+    if (local) {
+      templatesCache = local;
+      console.warn('[templateProcessor] API indisponível, usando cache local');
+      return templatesCache;
+    }
+  } else {
+    // Se já tiver em cache, retornar (mas ainda assim tentar atualizar em background)
     return templatesCache;
   }
 
@@ -181,7 +183,7 @@ export const createOrderDataMap = (
     data_entrega: formatDate(order.data_entrega),
     forma_envio: order.forma_envio || '',
     forma_pagamento_id: order.forma_pagamento_id?.toString() || '',
-    valor_frete: formatCurrency((order as any).valor_frete || (order as any).frete || 0),
+    valor_frete: formatCurrency((order as unknown as Record<string, unknown>).valor_frete || (order as unknown as Record<string, unknown>).frete || 0),
     total_value: formatCurrency(order.total_value || 0),
     observacao: order.observacao || '',
     
