@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Plus, 
   LogOut, 
-  X,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -15,8 +14,7 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2,
-  Menu
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
@@ -57,7 +55,6 @@ const RouteLoadingFallback = () => (
 );
 
 export default function Dashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [appVersion, setAppVersion] = useState<string>('');
   const navigate = useNavigate();
@@ -218,7 +215,6 @@ export default function Dashboard() {
                 path={item.path}
                 active={active}
                 expanded={sidebarExpanded}
-                showTooltip={!sidebarExpanded}
                 needsSeparator={needsSeparator}
                 separatorLabel={needsSeparator ? "Admin" : undefined}
               />
@@ -290,89 +286,8 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* Sidebar Mobile */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-card border-r shadow-lg">
-            <div className="p-6 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-primary">SGP v4</h1>
-                <p className="text-sm text-muted-foreground mt-1">Sistema de Gerenciamento</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(false)}
-                aria-label="Fechar menu"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </div>
-            
-            <Separator />
-            
-            <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
-              {menuItems.map((item, index) => {
-                const active = isActive(item.path, item.exact);
-                const previousItem = menuItems[index - 1];
-                const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
-                
-                return (
-                  <DashboardMenuItem
-                    key={item.path}
-                    icon={item.icon}
-                    label={item.label}
-                    path={item.path}
-                    active={active}
-                    expanded={true}
-                    onClick={() => setSidebarOpen(false)}
-                    needsSeparator={needsSeparator}
-                    separatorLabel={needsSeparator ? "Admin" : undefined}
-                  />
-                );
-              })}
-            </nav>
-
-            <Separator />
-
-            <div className="p-4">
-              <div className="mb-3 px-3">
-                <p className="text-sm font-medium">Usuário</p>
-                <p className="text-sm text-muted-foreground">{username}</p>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleLogout}
-                aria-label={`Sair (${username})`}
-              >
-                <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                Sair
-              </Button>
-            </div>
-          </aside>
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Abrir menu de navegação"
-            aria-expanded={sidebarOpen}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-bold text-primary">SGP</h1>
-          </div>
-          <div className="w-10" /> {/* Spacer para centralizar */}
-        </header>
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-6" role="main">

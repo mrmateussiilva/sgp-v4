@@ -1,7 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +11,6 @@ interface DashboardMenuItemProps {
   active: boolean;
   expanded: boolean;
   onClick?: () => void;
-  showTooltip?: boolean;
   needsSeparator?: boolean;
   separatorLabel?: string;
 }
@@ -24,7 +22,6 @@ export function DashboardMenuItem({
   active,
   expanded,
   onClick,
-  showTooltip = false,
   needsSeparator = false,
   separatorLabel,
 }: DashboardMenuItemProps) {
@@ -32,25 +29,10 @@ export function DashboardMenuItem({
 
   const handleClick = () => {
     navigate(path);
-    onClick?.();
+    if (onClick) {
+      onClick();
+    }
   };
-
-  const button = (
-    <Button
-      variant={active ? "secondary" : "ghost"}
-      className={cn(
-        "w-full transition-all",
-        expanded ? "justify-start" : "justify-center px-0",
-        active && "bg-primary/10 text-primary hover:bg-primary/20"
-      )}
-      onClick={handleClick}
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
-    >
-      <Icon className={cn("h-4 w-4", expanded && "mr-2")} aria-hidden="true" />
-      {expanded && <span>{label}</span>}
-    </Button>
-  );
 
   return (
     <div>
@@ -64,18 +46,22 @@ export function DashboardMenuItem({
           )}
         </div>
       )}
-      {showTooltip && !expanded ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {button}
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {label}
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        button
-      )}
+      <Button
+        type="button"
+        variant={active ? "secondary" : "ghost"}
+        className={cn(
+          "w-full transition-all",
+          expanded ? "justify-start" : "justify-center px-0",
+          active && "bg-primary/10 text-primary hover:bg-primary/20"
+        )}
+        onClick={handleClick}
+        aria-label={label}
+        aria-current={active ? "page" : undefined}
+        title={!expanded ? label : undefined}
+      >
+        <Icon className={cn("h-4 w-4", expanded && "mr-2")} aria-hidden="true" />
+        {expanded && <span>{label}</span>}
+      </Button>
     </div>
   );
 }

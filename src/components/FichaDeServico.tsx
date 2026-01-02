@@ -156,7 +156,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
   return (
     <div className="bg-gray-50 p-4">
       {/* Controles */}
-      <div className="max-w-4xl mx-auto mb-6 print:hidden">
+      <div className="max-w-4xl mx-auto mb-6 no-print">
         <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
           <h1 className="text-xl font-bold text-gray-800">
             Ficha de Serviço - OS #{orderData.numero || orderData.id}
@@ -629,19 +629,45 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
         /* Estilos para impressão */
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+
           body {
-            padding: 0;
-            margin: 0;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+          }
+
+          /* Esconder elementos que não devem ser impressos */
+          button,
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Garantir que botões não apareçam na impressão */
+          [class*="print:hidden"],
+          button[onclick] {
+            display: none !important;
           }
 
           .ficha-container {
-            max-width: 190mm;
-            margin: 0 auto 5mm auto;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 auto 5mm auto !important;
             page-break-inside: avoid;
+            break-inside: avoid;
           }
 
           .ficha-container:last-child {
-            margin-bottom: 0;
+            margin-bottom: 0 !important;
           }
 
           .ficha-header,
@@ -649,12 +675,26 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           .ficha-image-section,
           .ficha-footer {
             page-break-inside: avoid;
+            break-inside: avoid;
           }
 
           /* Garantir que duas fichas caibam por página */
           .ficha-container {
             max-height: 130mm;
             overflow: hidden;
+          }
+
+          /* Ajustes de cores para impressão */
+          .ficha-header {
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .field-label {
+            background: #f8f8f8 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
 

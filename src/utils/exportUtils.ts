@@ -252,8 +252,13 @@ export const openInViewer = async (
     printBtn.style.fontWeight = '500';
     printBtn.onclick = () => {
       if (iframe.contentWindow) {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
+        // Aguardar um pouco para garantir que o conteúdo está carregado
+        setTimeout(() => {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+        }, 100);
       }
     };
     
