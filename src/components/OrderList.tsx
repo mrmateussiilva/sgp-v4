@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, LayoutGrid, Table2 } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, LayoutGrid, Table2, Camera } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -54,6 +55,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
+import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { isValidImagePath } from '@/utils/path';
+import { isTauri } from '@/utils/isTauri';
 
 export default function OrderList() {
   const navigate = useNavigate();
@@ -423,6 +427,242 @@ export default function OrderList() {
     }
     setDeleteDialogOpen(false);
     setOrderToDelete(null);
+  };
+
+  const handleQuickShare = async (order: OrderWithItems) => {
+    try {
+      // Buscar pedido completo se não tiver itens carregados
+      let orderWithItems = order;
+      if (!order.items || order.items.length === 0) {
+        orderWithItems = await api.getOrderById(order.id);
+      }
+
+      if (!orderWithItems.items || orderWithItems.items.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "Este pedido não possui itens para compartilhar.",
+          variant: "warning",
+        });
+        return;
+      }
+
+      // Criar div temporário off-screen
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '600px';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.padding = '20px';
+      tempDiv.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      tempDiv.style.color = '#000';
+      
+      // Título do pedido
+      const titleDiv = document.createElement('div');
+      titleDiv.style.marginBottom = '20px';
+      titleDiv.style.fontSize = '18px';
+      titleDiv.style.fontWeight = 'bold';
+      titleDiv.textContent = `Pedido #${orderWithItems.numero || orderWithItems.id} - ${orderWithItems.cliente || orderWithItems.customer_name || 'Cliente'}`;
+      tempDiv.appendChild(titleDiv);
+
+      // Container para itens
+      const itemsContainer = document.createElement('div');
+      itemsContainer.style.display = 'flex';
+      itemsContainer.style.flexDirection = 'column';
+      itemsContainer.style.gap = '30px';
+
+      // Carregar e renderizar cada item
+      for (const item of orderWithItems.items) {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.flexDirection = 'column';
+        itemDiv.style.gap = '10px';
+        itemDiv.style.borderBottom = '1px solid #e5e5e5';
+        itemDiv.style.paddingBottom = '20px';
+
+        // Nome do item
+        if (item.item_name) {
+          const itemNameDiv = document.createElement('div');
+          itemNameDiv.style.fontSize = '16px';
+          itemNameDiv.style.fontWeight = '600';
+          itemNameDiv.textContent = item.item_name;
+          itemDiv.appendChild(itemNameDiv);
+        }
+
+        // Imagem do item (se existir)
+        if (item.imagem && isValidImagePath(item.imagem)) {
+          try {
+            const imageUrl = await loadAuthenticatedImage(item.imagem);
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.borderRadius = '8px';
+            img.style.marginTop = '10px';
+            img.style.marginBottom = '10px';
+            
+            // Aguardar carregamento da imagem
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              // Timeout de segurança
+              setTimeout(() => {
+                if (!img.complete) {
+                  reject(new Error('Timeout ao carregar imagem'));
+                }
+              }, 10000);
+            });
+            
+            itemDiv.appendChild(img);
+          } catch (error) {
+            console.error('Erro ao carregar imagem do item:', error);
+            // Continuar mesmo se a imagem falhar
+          }
+        }
+
+        // Legenda/Observação
+        const caption = item.legenda_imagem || item.observacao;
+        if (caption) {
+          const captionDiv = document.createElement('div');
+          captionDiv.style.fontSize = '14px';
+          captionDiv.style.color = '#333';
+          captionDiv.style.lineHeight = '1.5';
+          captionDiv.style.whiteSpace = 'pre-wrap';
+          captionDiv.textContent = caption;
+          itemDiv.appendChild(captionDiv);
+        }
+
+        itemsContainer.appendChild(itemDiv);
+      }
+
+      tempDiv.appendChild(itemsContainer);
+      document.body.appendChild(tempDiv);
+
+      // Aguardar um pouco para garantir que tudo foi renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Capturar screenshot
+      const canvas = await html2canvas(tempDiv, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Melhor qualidade
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+      });
+
+      // Converter canvas para blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
+      });
+
+      if (!blob) {
+        throw new Error('Não foi possível gerar a imagem');
+      }
+
+      // Tentar copiar para clipboard usando Tauri (se disponível) ou fallback para download
+      if (isTauri()) {
+        try {
+          // Usar plugin de clipboard do Tauri
+          const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
+          
+          // Converter blob para Uint8Array (bytes do arquivo PNG)
+          const arrayBuffer = await blob.arrayBuffer();
+          const imageBytes = new Uint8Array(arrayBuffer);
+          
+          await writeImage(imageBytes);
+          
+          toast({
+            title: "Copiado!",
+            description: "Cole no WhatsApp",
+            variant: "success",
+          });
+        } catch (tauriError) {
+          console.error('Erro ao copiar via Tauri:', tauriError);
+          // Fallback para download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(a)) {
+              document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+          }, 100);
+          
+          toast({
+            title: "Imagem salva",
+            description: "A imagem foi baixada. Anexe ao WhatsApp.",
+            variant: "info",
+          });
+        }
+      } else {
+        // Ambiente web: tentar clipboard do navegador primeiro
+        let copied = false;
+        try {
+          if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            copied = true;
+          }
+        } catch (clipboardError) {
+          console.warn('Erro ao copiar para clipboard:', clipboardError);
+        }
+
+        if (copied) {
+          toast({
+            title: "Copiado!",
+            description: "Cole no WhatsApp",
+            variant: "success",
+          });
+        } else {
+          // Fallback para download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(a)) {
+              document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+          }, 100);
+          
+          toast({
+            title: "Imagem salva",
+            description: "A imagem foi baixada. Anexe ao WhatsApp.",
+            variant: "info",
+          });
+        }
+      }
+      
+      // Limpar div temporário
+      if (document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar screenshot:', error);
+      
+      // Limpar div temporário se ainda existir
+      const tempDiv = document.querySelector('div[style*="-9999px"]');
+      if (tempDiv && document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
+      
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar a imagem. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Função para lidar com ordenação
@@ -1187,7 +1427,7 @@ export default function OrderList() {
                   <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
                   <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
                   <TableHead className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
@@ -1233,6 +1473,8 @@ export default function OrderList() {
                     </TableCell>
                     <TableCell className="text-right sticky right-0 z-10 bg-background border-l">
                       <div className="flex justify-end gap-2">
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
                         <Skeleton className="h-8 w-8" />
                         <Skeleton className="h-8 w-8" />
                       </div>
@@ -1369,8 +1611,26 @@ export default function OrderList() {
                             {order.pronto ? 'Pronto' : 'Em Andamento'}
                           </Badge>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] px-1 lg:px-2 xl:px-3">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3">
                         <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleQuickShare(order)}
+                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                  title="Ação Rápida: Copiar itens para WhatsApp"
+                                >
+                                  <Camera className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copiar itens do pedido para WhatsApp</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button
                             size="icon"
                             variant="ghost"
