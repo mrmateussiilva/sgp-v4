@@ -67,7 +67,16 @@ const fetchTemplatesFromServer = async (): Promise<TemplatesConfig | null> => {
     saveTemplatesToStorage(response.data);
     return normalized;
   } catch (error) {
-    console.warn('[templateProcessor] Falha ao buscar templates no servidor:', error);
+    // Silenciar erros 422 (Unprocessable Content) - geralmente significa que o endpoint não está disponível ou não há templates configurados
+    const axiosError = error as { response?: { status?: number } };
+    if (axiosError.response?.status === 422) {
+      // Erro 422 é esperado quando não há templates configurados - não logar como warning
+      return null;
+    }
+    // Logar apenas erros inesperados
+    if (axiosError.response?.status !== 404) {
+      console.warn('[templateProcessor] Falha ao buscar templates no servidor:', error);
+    }
     return null;
   }
 };
@@ -77,6 +86,14 @@ export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
     return templatesCache;
   }
 
+  // Tentar carregar templates locais primeiro (mais rápido e não depende do servidor)
+  const local = getLocalTemplates();
+  if (local) {
+    templatesCache = local;
+    return templatesCache;
+  }
+
+  // Se não houver templates locais, tentar buscar do servidor
   if (!fetchPromise) {
     fetchPromise = fetchTemplatesFromServer().finally(() => {
       fetchPromise = null;
@@ -89,9 +106,8 @@ export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
     return templatesCache;
   }
 
-  const local = getLocalTemplates();
-  templatesCache = local;
-  return templatesCache;
+  // Se não houver templates remotos nem locais, retornar null
+  return null;
 };
 
 // ============================================================================

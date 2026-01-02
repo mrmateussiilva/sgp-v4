@@ -3,21 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Printer, ChevronDown, FileText, Layout } from 'lucide-react';
+import { Printer, ChevronDown, FileText } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
-import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from './ui/dropdown-menu';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
+import { OrderPrintManager } from './OrderPrintManager';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -38,6 +31,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
+  const [showPrintManager, setShowPrintManager] = useState(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -213,7 +207,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const handlePrint = async (type: 'default' | 'geral' | 'resumo' = 'default') => {
+  const handlePrint = async () => {
     const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
     const enrichedOrder = {
       ...order,
@@ -223,11 +217,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           : undefined,
     };
     
-    if (type === 'geral' || type === 'resumo') {
-      await printOrderServiceForm(enrichedOrder, type);
-    } else {
-      await printOrder(enrichedOrder);
-    }
+    // Sempre usar a ficha completa (geral)
+    await printOrderServiceForm(enrichedOrder, 'geral');
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -1055,31 +1046,26 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">
-                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Imprimir</span>
-                    <span className="sm:hidden">Impr.</span>
-                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => handlePrint('default')}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    <span>Ficha Padrão (Detalhada)</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handlePrint('geral')}>
-                    <Layout className="h-4 w-4 mr-2" />
-                    <span>Ficha Geral (Template A4)</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handlePrint('resumo')}>
-                    <Layout className="h-4 w-4 mr-2" />
-                    <span>Ficha Resumo (Template 1/3 A4)</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs sm:text-sm"
+                onClick={() => setShowPrintManager(true)}
+              >
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Gerenciar Impressão</span>
+                <span className="sm:hidden">Ger.</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs sm:text-sm"
+                onClick={handlePrint}
+              >
+                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Imprimir Ficha</span>
+                <span className="sm:hidden">Impr.</span>
+              </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -1295,6 +1281,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Modal de Gerenciamento de Impressão */}
+      {showPrintManager && (
+        <OrderPrintManager
+          isOpen={showPrintManager}
+          onClose={() => setShowPrintManager(false)}
+          order={order}
+        />
       )}
     </Dialog>
   );
