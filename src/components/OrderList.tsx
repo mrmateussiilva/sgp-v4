@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
@@ -44,9 +44,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -87,7 +86,7 @@ export default function OrderList() {
   const [selectedVendedor, setSelectedVendedor] = useState<string>('');
   const [selectedDesigner, setSelectedDesigner] = useState<string>('');
   const [selectedCidade, setSelectedCidade] = useState<string>('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
@@ -692,7 +691,87 @@ export default function OrderList() {
     setSearchTerm('');
     setDateFrom('');
     setDateTo('');
+    setProductionStatusFilter('pending');
   };
+
+  // Formatar data para exibição
+  const formatDateFilter = (date: string) => {
+    if (!date) return '';
+    const [year, month, day] = date.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // Obter lista de filtros ativos para exibição
+  const activeFiltersList = useMemo(() => {
+    const filters: Array<{ label: string; onRemove: () => void }> = [];
+    
+    if (productionStatusFilter !== 'pending') {
+      filters.push({
+        label: productionStatusFilter === 'ready' ? 'Prontos' : 'Todos',
+        onRemove: () => setProductionStatusFilter('pending'),
+      });
+    }
+    
+    if (dateFrom || dateTo) {
+      const dateLabel = dateFrom && dateTo
+        ? `${formatDateFilter(dateFrom)} a ${formatDateFilter(dateTo)}`
+        : dateFrom
+        ? `A partir de ${formatDateFilter(dateFrom)}`
+        : `Até ${formatDateFilter(dateTo)}`;
+      filters.push({
+        label: `Período: ${dateLabel}`,
+        onRemove: () => {
+          setDateFrom('');
+          setDateTo('');
+        },
+      });
+    }
+    
+    if (searchTerm) {
+      filters.push({
+        label: `Busca: "${searchTerm}"`,
+        onRemove: () => setSearchTerm(''),
+      });
+    }
+    
+    selectedStatuses.forEach(status => {
+      const statusLabels: Record<string, string> = {
+        financeiro: 'Financeiro',
+        conferencia: 'Conferência',
+        sublimacao: 'Sublimação',
+        costura: 'Costura',
+        expedicao: 'Expedição',
+        pronto: 'Pronto',
+      };
+      filters.push({
+        label: statusLabels[status] || status,
+        onRemove: () => setSelectedStatuses(selectedStatuses.filter(s => s !== status)),
+      });
+    });
+    
+    if (selectedVendedor) {
+      filters.push({
+        label: `Vendedor: ${selectedVendedor}`,
+        onRemove: () => setSelectedVendedor(''),
+      });
+    }
+    
+    if (selectedDesigner) {
+      filters.push({
+        label: `Designer: ${selectedDesigner}`,
+        onRemove: () => setSelectedDesigner(''),
+      });
+    }
+    
+    if (selectedCidade) {
+      filters.push({
+        label: `Cidade: ${selectedCidade}`,
+        onRemove: () => setSelectedCidade(''),
+      });
+    }
+    
+    return filters;
+  }, [productionStatusFilter, dateFrom, dateTo, searchTerm, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade]);
 
   // Contar filtros ativos
   const activeFiltersCount = useMemo(() => {
@@ -1121,245 +1200,295 @@ export default function OrderList() {
 
   // Modo tabela - layout original
   return (
-    <div className="flex flex-col h-full space-y-6 min-h-screen">
+    <div className="flex flex-col h-full space-y-4 min-h-screen">
       {viewMode === 'table' && (
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Filtros</CardTitle>
-              <CardDescription>Busque e filtre os pedidos</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-          <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente ou ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select
-              value={productionStatusFilter}
-              onValueChange={(value) =>
-                setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
-              }
-            >
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Status de Produção" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pendentes</SelectItem>
-                <SelectItem value="ready">Prontos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                placeholder="Data inicial"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full sm:w-[150px]"
-              />
-              <Input
-                type="date"
-                placeholder="Data final"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full sm:w-[150px]"
-              />
-            </div>
-              <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filtros Avançados
-                    {activeFiltersCount > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {activeFiltersCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">Filtros Avançados</h4>
-                      {activeFiltersCount > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearAllFilters}
-                          className="h-7 text-xs"
-                        >
-                          Limpar todos
-                        </Button>
-                      )}
+        <>
+          {/* Barra de Filtros Principais - Sempre Visível */}
+          <Card className="border-2">
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4">
+                {/* Linha 1: Busca e Status */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Busca - Prioridade 1 */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-10"
+                    />
+                  </div>
+                  
+                  {/* Status - Prioridade 1 */}
+                  <div className="w-full sm:w-[180px]">
+                    <Select
+                      value={productionStatusFilter}
+                      onValueChange={(value) =>
+                        setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+                      }
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Status de produção" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
+                        <SelectItem value="ready">Prontos para entrega</SelectItem>
+                        <SelectItem value="all">Todos os pedidos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Data de Entrega - Prioridade 1 */}
+                  <div className="flex gap-2 flex-1 sm:flex-initial">
+                    <div className="flex-1 sm:w-[160px] relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="date"
+                        placeholder="Data inicial de entrega"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="pl-10 h-10"
+                        title="Data inicial de entrega"
+                      />
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Status de Produção</Label>
-                      <div className="space-y-2">
-                        {[
-                          { value: 'financeiro', label: 'Financeiro' },
-                          { value: 'conferencia', label: 'Conferência' },
-                          { value: 'sublimacao', label: 'Sublimação' },
-                          { value: 'costura', label: 'Costura' },
-                          { value: 'expedicao', label: 'Expedição' },
-                          { value: 'pronto', label: 'Pronto' },
-                        ].map((status) => (
-                          <div key={status.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`status-${status.value}`}
-                              checked={selectedStatuses.includes(status.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedStatuses([...selectedStatuses, status.value]);
-                                } else {
-                                  setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
-                                }
-                              }}
-                            />
-                            <Label
-                              htmlFor={`status-${status.value}`}
-                              className="text-sm font-normal cursor-pointer"
+                    <div className="flex-1 sm:w-[160px] relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="date"
+                        placeholder="Data final de entrega"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="pl-10 h-10"
+                        title="Data final de entrega"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha 2: Filtros Ativos e Controles - Sempre visível quando há filtros */}
+                {activeFiltersList.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">Mostrando:</span>
+                        {activeFiltersList.map((filter, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="gap-1.5 px-2.5 py-1 text-sm font-medium"
+                          >
+                            <span>{filter.label}</span>
+                            <button
+                              onClick={filter.onRemove}
+                              className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5 transition-colors"
+                              aria-label={`Remover filtro ${filter.label}`}
                             >
-                              {status.label}
-                            </Label>
-                          </div>
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
                         ))}
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vendedor-filter" className="text-sm font-medium">Vendedor</Label>
-                      <Select 
-                        value={selectedVendedor || "all"} 
-                        onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="vendedor-filter">
-                          <SelectValue placeholder="Selecione um vendedor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          {vendedores.filter(v => v.nome).map((v) => (
-                            <SelectItem key={v.id} value={v.nome}>
-                              {v.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="designer-filter" className="text-sm font-medium">Designer</Label>
-                      <Select 
-                        value={selectedDesigner || "all"} 
-                        onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="designer-filter">
-                          <SelectValue placeholder="Selecione um designer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          {designers.filter(d => d.nome).map((d) => (
-                            <SelectItem key={d.id} value={d.nome}>
-                              {d.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cidade-filter" className="text-sm font-medium">Cidade</Label>
-                      <Select 
-                        value={selectedCidade || "all"} 
-                        onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="cidade-filter">
-                          <SelectValue placeholder="Selecione uma cidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          {cidades.filter(c => c && c.trim()).map((cidade) => (
-                            <SelectItem key={cidade} value={cidade}>
-                              {cidade}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                      className="h-8 gap-1.5 font-medium"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Limpar todos os filtros
+                    </Button>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            {/* Botões de alternância desativados temporariamente */}
-            {/* <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant={viewMode === 'table' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-              >
-                <Table2 className="h-4 w-4 mr-2" />
-                Tabela
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === 'kanban' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-              >
-                <LayoutGrid className="h-4 w-4 mr-2" />
-                Kanban
-              </Button>
-            </div> */}
-            
-            {selectedOrderIdsForPrint.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedOrderIdsForPrint([])}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Limpar
-                  </Button>
+                )}
+                
+                {/* Indicador quando não há filtros */}
+                {activeFiltersList.length === 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Use os filtros acima para buscar pedidos. Todos os filtros são aplicados instantaneamente.
+                    </p>
+                  </div>
+                )}
+
+                {/* Linha 3: Filtros Avançados (Colapsáveis) */}
+                <div className="border-t pt-3">
                   <Button
                     type="button"
-                    variant="default"
+                    variant="ghost"
                     size="sm"
-              onClick={handlePrintSelected}
-            >
-                    <Printer className="h-4 w-4 mr-1" />
-                    Imprimir Selecionados
-            </Button>
+                    onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+                    className="w-full justify-between h-9"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filtros Adicionais
+                      {activeFiltersCount > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {activeFiltersCount}
+                        </Badge>
+                      )}
+                    </span>
+                    {advancedFiltersOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                  
+                  {advancedFiltersOpen && (
+                    <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Status de Produção */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Status de Produção</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { value: 'financeiro', label: 'Financeiro' },
+                              { value: 'conferencia', label: 'Conferência' },
+                              { value: 'sublimacao', label: 'Sublimação' },
+                              { value: 'costura', label: 'Costura' },
+                              { value: 'expedicao', label: 'Expedição' },
+                              { value: 'pronto', label: 'Pronto' },
+                            ].map((status) => (
+                              <div key={status.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`status-${status.value}`}
+                                  checked={selectedStatuses.includes(status.value)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedStatuses([...selectedStatuses, status.value]);
+                                    } else {
+                                      setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
+                                    }
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`status-${status.value}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {status.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Filtros Secundários */}
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="vendedor-filter" className="text-sm font-semibold">Vendedor</Label>
+                            <Select 
+                              value={selectedVendedor || "all"} 
+                              onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="vendedor-filter" className="h-9">
+                                <SelectValue placeholder="Todos os vendedores" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {vendedores.filter(v => v.nome).map((v) => (
+                                  <SelectItem key={v.id} value={v.nome}>
+                                    {v.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="designer-filter" className="text-sm font-semibold">Designer</Label>
+                            <Select 
+                              value={selectedDesigner || "all"} 
+                              onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="designer-filter" className="h-9">
+                                <SelectValue placeholder="Todos os designers" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {designers.filter(d => d.nome).map((d) => (
+                                  <SelectItem key={d.id} value={d.nome}>
+                                    {d.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="cidade-filter" className="text-sm font-semibold">Cidade</Label>
+                            <Select 
+                              value={selectedCidade || "all"} 
+                              onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="cidade-filter" className="h-9">
+                                <SelectValue placeholder="Todas as cidades" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                {cidades.filter(c => c && c.trim()).map((cidade) => (
+                                  <SelectItem key={cidade} value={cidade}>
+                                    {cidade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Barra de Seleção de Pedidos para Impressão */}
+          {selectedOrderIdsForPrint.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">
+                  {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedOrderIdsForPrint([])}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={handlePrintSelected}
+                >
+                  <Printer className="h-4 w-4 mr-1" />
+                  Imprimir Selecionados
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           {viewMode === 'table' ? (
-            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden">
+            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden relative">
+              {/* Indicador de loading sutil */}
+              {loading && paginatedOrders.length > 0 && (
+                <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
+                  <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
+                </div>
+              )}
               <SmoothTableWrapper>
                 <Table className="w-full">
               <TableHeader>
@@ -1431,7 +1560,7 @@ export default function OrderList() {
             </TableRow>
               </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading && paginatedOrders.length === 0 ? (
               <>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
