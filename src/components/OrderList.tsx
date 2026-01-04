@@ -16,7 +16,9 @@ import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderKanbanBoard } from './OrderKanbanBoard';
+import { OrderContextPanel } from './OrderContextPanel';
 import { formatDateForDisplay } from '@/utils/date';
+import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -120,6 +122,13 @@ export default function OrderList() {
     novoValor: false,
     nomeSetor: '',
   });
+  
+  // Estados para painel lateral e navegação por teclado
+  const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
+  const selectedOrder = useOrderStore((state) => state.selectedOrder);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
   const { toast } = useToast();
 
   // Adicionar notificações toast para eventos de pedidos
@@ -950,6 +959,49 @@ export default function OrderList() {
     }
   }, [filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
 
+  // Handlers para painel lateral - precisa estar depois de paginatedOrders
+  const handleOpenContextPanel = (order: OrderWithItems) => {
+    setSelectedOrder(order);
+    setContextPanelOpen(true);
+    const index = paginatedOrders.findIndex(o => o.id === order.id);
+    if (index >= 0) {
+      setSelectedOrderIndex(index);
+    }
+  };
+
+  const handleCloseContextPanel = () => {
+    setContextPanelOpen(false);
+    setSelectedOrderIndex(null);
+  };
+
+  // Navegação por teclado (setas)
+  const handleNavigateUp = useCallback(() => {
+    if (paginatedOrders.length === 0) return;
+    
+    const currentIndex = selectedOrderIndex ?? 0;
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : paginatedOrders.length - 1;
+    setSelectedOrderIndex(newIndex);
+    
+    const order = paginatedOrders[newIndex];
+    if (order) {
+      setSelectedOrder(order);
+      setContextPanelOpen(true);
+    }
+  }, [paginatedOrders, selectedOrderIndex]);
+
+  const handleNavigateDown = useCallback(() => {
+    if (paginatedOrders.length === 0) return;
+    
+    const currentIndex = selectedOrderIndex ?? -1;
+    const newIndex = currentIndex < paginatedOrders.length - 1 ? currentIndex + 1 : 0;
+    setSelectedOrderIndex(newIndex);
+    
+    const order = paginatedOrders[newIndex];
+    if (order) {
+      setSelectedOrder(order);
+      setContextPanelOpen(true);
+    }
+  }, [paginatedOrders, selectedOrderIndex]);
   const handlePrintSelected = async () => {
     if (selectedOrderIdsForPrint.length === 0) {
       return;
@@ -1000,6 +1052,114 @@ export default function OrderList() {
       });
     }
   };
+
+  // Atalhos de teclado - precisa estar depois de todos os handlers
+  const shortcuts: KeyboardShortcut[] = useMemo(() => [
+    {
+      key: 'n',
+      ctrl: true,
+      action: () => navigate('/dashboard/pedido/novo'),
+      description: 'Novo pedido',
+    },
+    {
+      key: 'f',
+      ctrl: true,
+      action: () => searchInputRef.current?.focus(),
+      description: 'Focar busca',
+    },
+    {
+      key: '/',
+      action: () => searchInputRef.current?.focus(),
+      description: 'Focar busca',
+    },
+    {
+      key: 'ArrowUp',
+      action: handleNavigateUp,
+      description: 'Navegar para cima',
+      enabled: !detailsOpen && !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
+    },
+    {
+      key: 'ArrowDown',
+      action: handleNavigateDown,
+      description: 'Navegar para baixo',
+      enabled: !detailsOpen && !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
+    },
+    {
+      key: 'Enter',
+      action: () => {
+        if (selectedOrder && !detailsOpen && !viewModalOpen) {
+          handleView(selectedOrder);
+        }
+      },
+      description: 'Abrir detalhes',
+      enabled: selectedOrder !== null && !detailsOpen && !viewModalOpen,
+    },
+    {
+      key: 'e',
+      action: () => {
+        if (selectedOrder) {
+          handleEdit(selectedOrder);
+        }
+      },
+      description: 'Editar pedido',
+      enabled: selectedOrder !== null,
+    },
+    {
+      key: 'd',
+      action: () => {
+        if (selectedOrder && isAdmin) {
+          handleDeleteClick(selectedOrder.id);
+        }
+      },
+      description: 'Deletar pedido',
+      enabled: selectedOrder !== null && isAdmin,
+    },
+    {
+      key: 'p',
+      action: () => {
+        if (selectedOrder) {
+          setSelectedOrderIdsForPrint([selectedOrder.id]);
+          setTimeout(() => handlePrintSelected(), 100);
+        }
+      },
+      description: 'Imprimir ficha',
+      enabled: selectedOrder !== null,
+    },
+    {
+      key: 'Escape',
+      action: () => {
+        if (contextPanelOpen) {
+          handleCloseContextPanel();
+        } else if (detailsOpen) {
+          setDetailsOpen(false);
+        } else if (viewModalOpen) {
+          setViewModalOpen(false);
+        } else if (deleteDialogOpen) {
+          setDeleteDialogOpen(false);
+        }
+      },
+      description: 'Fechar painel/modal',
+    },
+  ], [
+    navigate,
+    handleNavigateUp,
+    handleNavigateDown,
+    selectedOrder,
+    detailsOpen,
+    viewModalOpen,
+    editDialogOpen,
+    deleteDialogOpen,
+    contextPanelOpen,
+    isAdmin,
+    handleView,
+    handleEdit,
+    handleDeleteClick,
+    handleCloseContextPanel,
+    handlePrintSelected,
+    setSelectedOrderIdsForPrint,
+  ]);
+
+  useKeyboardShortcuts(shortcuts);
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
     // Verificar se é ação financeira e se o usuário não é admin
@@ -1226,7 +1386,10 @@ export default function OrderList() {
 
   // Modo tabela - layout original
   return (
-    <div className="flex flex-col h-full space-y-4 min-h-screen">
+    <div className={cn(
+      "flex flex-col h-full space-y-4 min-h-screen transition-all duration-300",
+      contextPanelOpen && "pr-[400px]"
+    )}>
       {viewMode === 'table' && (
         <>
           {/* Barra de Filtros Principais - Sempre Visível */}
@@ -1240,6 +1403,7 @@ export default function OrderList() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                      ref={searchInputRef}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 h-10"
@@ -1648,9 +1812,10 @@ export default function OrderList() {
                 </TableCell>
               </TableRow>
             ) : (
-                  paginatedOrders.map((order: OrderWithItems) => {
+                  paginatedOrders.map((order: OrderWithItems, index: number) => {
                     const urgency = getOrderUrgency(order.data_entrega);
                     const isOverdue = urgency.type === 'overdue';
+                    const isSelected = selectedOrderIndex === index;
                     const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
                     const isHighPriority = order.prioridade === 'ALTA';
                     const isDelayed = isOverdue && !order.pronto;
@@ -1667,10 +1832,15 @@ export default function OrderList() {
                     return (
                       <TableRow 
                         key={order.id} 
-                        className={rowClassName}
+                        className={cn(
+                          rowClassName,
+                          isSelected && 'bg-primary/10 border-l-4 border-l-primary',
+                          'cursor-pointer'
+                        )}
                         data-overdue={isDelayed}
                         data-urgent={isUrgent}
                         data-priority={order.prioridade}
+                        onClick={() => handleOpenContextPanel(order)}
                       >
                         <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                           <Checkbox
@@ -1867,7 +2037,10 @@ export default function OrderList() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleView(order)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleView(order);
+                            }}
                             className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                             title="Detalhes"
                           >
@@ -1876,7 +2049,10 @@ export default function OrderList() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleEdit(order)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(order);
+                            }}
                             className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                           >
                             <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
@@ -1885,7 +2061,10 @@ export default function OrderList() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => handleDeleteClick(order.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(order.id);
+                              }}
                               className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
@@ -2066,6 +2245,42 @@ export default function OrderList() {
             setSelectedOrderForView(order);
           }
         }}
+      />
+
+      {/* Painel Lateral de Contexto */}
+      <OrderContextPanel
+        order={selectedOrder}
+        isOpen={contextPanelOpen}
+        onClose={handleCloseContextPanel}
+        onEdit={(orderId) => {
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            handleEdit(order);
+          }
+        }}
+        onView={(order) => handleView(order)}
+        onDelete={(orderId) => handleDeleteClick(orderId)}
+        onPrint={(orderId) => {
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            setSelectedOrderIdsForPrint([orderId]);
+            setTimeout(() => handlePrintSelected(), 100);
+          }
+        }}
+        onStatusChange={(orderId, field, value) => {
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            const fieldLabels: Record<string, string> = {
+              financeiro: 'Financeiro',
+              conferencia: 'Conferência',
+              sublimacao: 'Sublimação',
+              costura: 'Costura',
+              expedicao: 'Expedição',
+            };
+            handleStatusClick(orderId, field, !value, fieldLabels[field] || field);
+          }
+        }}
+        isAdmin={isAdmin}
       />
     </div>
   );
