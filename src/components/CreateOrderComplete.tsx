@@ -24,7 +24,7 @@ import {
   UpdateOrderItemRequest,
   UpdateOrderMetadataRequest,
 } from '@/types';
-import { api } from '@/services/api';
+import { api, getTiposProducaoAtivos } from '@/services/api';
 import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
@@ -33,7 +33,8 @@ import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 
-const TIPOS_PRODUCAO = [
+// Tipos de produção padrão como fallback caso a API não esteja disponível
+const TIPOS_PRODUCAO_FALLBACK = [
   { value: 'painel', label: 'Tecido' },
   { value: 'generica', label: 'Produção Genérica' },
   { value: 'totem', label: 'Totem' },
@@ -126,6 +127,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(getInitialId());
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+  const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>(TIPOS_PRODUCAO_FALLBACK);
 
   console.log('[CreateOrderComplete] Estado inicial:', { 
     mode, 
@@ -489,6 +491,28 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return Array.from(unique).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   };
 
+
+  // Carregar tipos de produção ativos da API
+  useEffect(() => {
+    const loadTiposProducao = async () => {
+      try {
+        const tipos = await getTiposProducaoAtivos();
+        console.log('Tipos de produção carregados da API:', tipos);
+        // Sempre atualizar, mesmo que vazio (usará fallback se necessário)
+        if (tipos.length > 0) {
+          setTiposProducao(tipos);
+          console.log('Tipos de produção atualizados:', tipos);
+        } else {
+          console.warn('Nenhum tipo de produção encontrado na API, usando fallback');
+          // Manter fallback se API não retornar dados
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tipos de produção da API, usando fallback:', error);
+        // Manter tipos padrão como fallback
+      }
+    };
+    loadTiposProducao();
+  }, []);
 
   // Integração com eventos de pedidos em tempo real
   // Quando o pedido sendo editado é atualizado em outra máquina, avisar o usuário
@@ -2090,7 +2114,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_PRODUCAO.map(tipo => (
+                      {tiposProducao.map(tipo => (
                         <SelectItem key={tipo.value} value={tipo.value}>
                           {tipo.label}
                         </SelectItem>
