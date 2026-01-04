@@ -226,6 +226,20 @@ interface UserUpdatePayload {
   is_active?: boolean;
 }
 
+interface TipoProducaoApi {
+  id: number;
+  name: string;
+  description?: string | null;
+  active: boolean;
+  created_at?: string | null;
+}
+
+interface TipoProducaoPayload {
+  name: string;
+  description?: string | null;
+  active: boolean;
+}
+
 interface MaterialPayload {
   nome: string;
   tipo: string;
@@ -277,6 +291,14 @@ export interface UserEntity {
   username: string;
   is_admin: boolean;
   is_active: boolean;
+  created_at?: string;
+}
+
+export interface TipoProducaoEntity {
+  id: number;
+  name: string;
+  description?: string;
+  active: boolean;
   created_at?: string;
 }
 
@@ -821,6 +843,28 @@ const buildUserUpdatePayload = (payload: UserUpdatePayload): Record<string, any>
   if (payload.password) update.password = payload.password;
   if (payload.is_admin !== undefined) update.is_admin = payload.is_admin;
   if (payload.is_active !== undefined) update.is_active = payload.is_active;
+  return sanitizePayload(update);
+};
+
+const mapTipoProducaoFromApi = (tipo: TipoProducaoApi): TipoProducaoEntity => ({
+  id: tipo.id,
+  name: tipo.name,
+  description: tipo.description ?? undefined,
+  active: Boolean(tipo.active),
+  created_at: tipo.created_at ?? undefined,
+});
+
+const buildTipoProducaoCreatePayload = (payload: TipoProducaoPayload): TipoProducaoPayload => ({
+  name: payload.name,
+  description: normalizeNullableString(payload.description),
+  active: payload.active ?? true,
+});
+
+const buildTipoProducaoUpdatePayload = (payload: Partial<TipoProducaoPayload>): Record<string, any> => {
+  const update: Record<string, any> = {};
+  if (payload.name !== undefined) update.name = payload.name;
+  if (payload.description !== undefined) update.description = normalizeNullableString(payload.description);
+  if (payload.active !== undefined) update.active = Boolean(payload.active);
   return sanitizePayload(update);
 };
 
@@ -1904,4 +1948,52 @@ export async function getOrdersByDeliveryDate(
 export async function getOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
   const order = await fetchOrderById(orderId);
   return mapOrderToFicha(order);
+}
+
+// ==================== TIPOS DE PRODUÇÃO ====================
+
+export async function getTiposProducao(_sessionToken: string): Promise<TipoProducaoEntity[]> {
+  requireSessionToken();
+  const response = await apiClient.get<TipoProducaoApi[]>('/producoes');
+  return (response.data ?? []).map(mapTipoProducaoFromApi);
+}
+
+export async function getTiposProducaoAtivos(): Promise<Array<{ value: string; label: string }>> {
+  try {
+    const response = await apiClient.get<TipoProducaoApi[]>('/producoes/ativos');
+    return (response.data ?? []).map(tipo => ({
+      value: tipo.name.toLowerCase(),
+      label: tipo.description || tipo.name,
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar tipos de produção ativos:', error);
+    return [];
+  }
+}
+
+export async function createTipoProducao(
+  _sessionToken: string,
+  request: TipoProducaoPayload,
+): Promise<TipoProducaoEntity> {
+  requireSessionToken();
+  const payload = buildTipoProducaoCreatePayload(request);
+  const response = await apiClient.post<TipoProducaoApi>('/producoes', payload);
+  return mapTipoProducaoFromApi(response.data);
+}
+
+export async function updateTipoProducao(
+  _sessionToken: string,
+  request: TipoProducaoPayload & { id: number },
+): Promise<TipoProducaoEntity> {
+  requireSessionToken();
+  const { id, ...rest } = request;
+  const payload = buildTipoProducaoUpdatePayload(rest);
+  const response = await apiClient.patch<TipoProducaoApi>(`/producoes/${id}`, payload);
+  return mapTipoProducaoFromApi(response.data);
+}
+
+export async function deleteTipoProducao(_sessionToken: string, tipoId: number): Promise<boolean> {
+  requireSessionToken();
+  await apiClient.delete(`/producoes/${tipoId}`);
+  return true;
 }
