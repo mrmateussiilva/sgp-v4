@@ -38,6 +38,7 @@ const Admin = lazy(() => import('./Admin'));
 const GestaoMateriais = lazy(() => import('./admin/GestaoMateriais'));
 const GestaoDesigners = lazy(() => import('./admin/GestaoDesigners'));
 const GestaoVendedores = lazy(() => import('./admin/GestaoVendedores'));
+const GestaoTiposProducao = lazy(() => import('./admin/GestaoTiposProducao'));
 const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
@@ -347,6 +348,14 @@ export default function Dashboard() {
                 element={
                   <ProtectedRoute requireAdmin={true}>
                     <GestaoVendedores />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/tipos-producao" 
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <GestaoTiposProducao />
                   </ProtectedRoute>
                 } 
               />

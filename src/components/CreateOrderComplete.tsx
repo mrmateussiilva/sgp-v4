@@ -94,8 +94,6 @@ interface TabItem {
   cordinha_extra: boolean;
   alcinha: boolean;
   toalha_pronta: boolean;
-  data_impressao: string;
-  rip_maquina: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -186,8 +184,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       cordinha_extra: false,
       alcinha: false,
       toalha_pronta: false,
-      data_impressao: '',
-      rip_maquina: '',
     };
   }
 
@@ -356,8 +352,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       cordinha_extra: Boolean(anyItem.cordinha_extra),
       alcinha: Boolean(anyItem.alcinha),
       toalha_pronta: Boolean(anyItem.toalha_pronta),
-      data_impressao: anyItem.data_impressao ?? '',
-      rip_maquina: anyItem.rip_maquina ?? '',
     };
   }
 

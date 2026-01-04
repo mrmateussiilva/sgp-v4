@@ -88,6 +88,14 @@ export default function Admin() {
       bgColor: 'bg-green-50 hover:bg-green-100',
     },
     {
+      title: 'Tipos de Produção',
+      description: 'Gerencie tipos de produção disponíveis',
+      icon: Package,
+      path: '/dashboard/admin/tipos-producao',
+      color: 'text-amber-500',
+      bgColor: 'bg-amber-50 hover:bg-amber-100',
+    },
+    {
       title: 'Formas de Envio',
       description: 'Configure formas e valores de envio',
       icon: Truck,
