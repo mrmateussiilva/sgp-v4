@@ -17,6 +17,14 @@ use commands::manual_updater::{
     download_update_manual,
     install_update_manual,
 };
+use commands::images::{
+    save_image_locally,
+    get_local_image_path,
+    load_local_image_as_base64,
+    read_image_file,
+    cache_image_from_url,
+    process_and_save_image,
+};
 
 fn main() {
     setup_tracing();
@@ -36,7 +44,14 @@ fn main() {
             get_app_version,
             check_update_manual,
             download_update_manual,
-            install_update_manual
+            install_update_manual,
+            // Comandos de gerenciamento de imagens
+            save_image_locally,
+            get_local_image_path,
+            load_local_image_as_base64,
+            read_image_file,
+            cache_image_from_url,
+            process_and_save_image,
         ])
         .setup(|app| {
             // Atualizar título da janela com a versão
