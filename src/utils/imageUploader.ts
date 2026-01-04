@@ -1,6 +1,7 @@
 import { readImageFile } from './localImageManager';
-import { apiClient } from '../services/apiClient';
+import { apiClient, getApiUrl } from '../services/apiClient';
 import { isTauri } from './isTauri';
+import { getClient } from '@tauri-apps/api/http';
 
 /**
  * Resultado de um upload de imagem
@@ -74,10 +75,11 @@ export async function uploadImageToServer(
     };
   } catch (error: any) {
     console.error('Erro no upload de imagem:', error);
+    console.error('Erro detalhado:', error?.response?.data);
     return {
       success: false,
       server_reference: null,
-      error: error?.response?.data?.detail || error?.message || 'Erro desconhecido no upload',
+      error: error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Erro desconhecido no upload',
     };
   }
 }
