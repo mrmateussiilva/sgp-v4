@@ -59,6 +59,7 @@ import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 import { isTauri } from '@/utils/isTauri';
+import { cn } from '@/lib/utils';
 
 export default function OrderList() {
   const navigate = useNavigate();
