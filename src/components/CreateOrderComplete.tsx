@@ -1504,93 +1504,56 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
   /**
-   * Faz upload assíncrono de imagens locais após salvar pedido
-   * Atualiza referências no banco após upload bem-sucedido
+   * Faz upload obrigatório de imagens ANTES de salvar pedido
+   * Atualiza normalizedItems com referências do servidor
+   * Se algum upload falhar, lança erro para impedir salvamento
    */
-  const uploadImagesAsync = async (
-    orderId: number,
+  const uploadImagesBeforeSave = async (
     items: NormalizedItem[]
   ): Promise<void> => {
-    const uploads: Array<{ localPath: string; orderItemId: number }> = [];
-    
     // Coletar todas as imagens que precisam upload
-    for (const item of items) {
-      if (item.imagem && needsUpload(item.imagem) && item.orderItemId) {
-        uploads.push({
-          localPath: item.imagem,
-          orderItemId: item.orderItemId,
-        });
-      }
-    }
+    const itemsWithLocalImages = items.filter(
+      (item) => item.imagem && needsUpload(item.imagem)
+    );
     
-    if (uploads.length === 0) {
+    if (itemsWithLocalImages.length === 0) {
       return; // Nenhuma imagem para upload
     }
     
-    console.log(`[uploadImagesAsync] Iniciando upload de ${uploads.length} imagens para pedido ${orderId}`);
+    console.log(`[uploadImagesBeforeSave] Fazendo upload obrigatório de ${itemsWithLocalImages.length} imagens antes de salvar pedido`);
     
-    // Fazer uploads em paralelo
-    const results = await Promise.allSettled(
-      uploads.map(({ localPath, orderItemId }) =>
-        uploadImageToServer(localPath, orderItemId)
-      )
-    );
-    
-    // Processar resultados e atualizar referências
-    const updates: Array<{ itemId: number; serverReference: string }> = [];
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled' && result.value.success) {
-        updates.push({
-          itemId: uploads[index].orderItemId,
-          serverReference: result.value.server_reference!,
-        });
-      } else {
-        const error = result.status === 'rejected' 
-          ? result.reason 
-          : result.value.error;
-        console.warn(`[uploadImagesAsync] Falha no upload da imagem ${index + 1}:`, error);
+    // Fazer uploads em paralelo - usar Promise.all para falhar rápido se algum falhar
+    const uploadPromises = itemsWithLocalImages.map((item) => {
+      if (!item.imagem) {
+        return Promise.reject(new Error('Dados de imagem ausentes para upload local'));
       }
+      // Usar orderItemId se disponível (edição), senão undefined (criação)
+      return uploadImageToServer(item.imagem, item.orderItemId);
     });
     
-    // Atualizar referências no banco se houver sucessos
-    if (updates.length > 0) {
-      try {
-        // Buscar pedido atualizado para obter itens
-        const updatedOrder = await api.getOrderById(orderId);
-        
-        // Criar payload de atualização apenas com referências de imagem
-        const itemsToUpdate = updatedOrder.items
-          .filter((item) => updates.some((u) => u.itemId === item.id))
-          .map((item) => {
-            const update = updates.find((u) => u.itemId === item.id);
-            return {
-              id: item.id,
-              imagem: update?.serverReference || item.imagem,
-            };
-          });
-        
-        if (itemsToUpdate.length > 0) {
-          // Buscar pedido atual para obter dados necessários
-          const currentOrder = await api.getOrderById(orderId);
-          
-          // Atualizar apenas as referências de imagem, mantendo outros dados
-          await api.updateOrder({
-            id: orderId,
-            customer_name: currentOrder.customer_name || currentOrder.cliente || '',
-            address: currentOrder.address || currentOrder.cidade_cliente || '',
-            cidade_cliente: currentOrder.cidade_cliente || '',
-            status: currentOrder.status,
-            items: itemsToUpdate as any,
-            valor_frete: currentOrder.valor_frete,
-          });
-          
-          console.log(`[uploadImagesAsync] ✅ ${updates.length} imagens atualizadas no banco`);
+    try {
+      const uploadResults = await Promise.all(uploadPromises);
+      
+      // Atualizar referências nos items normalizados
+      uploadResults.forEach((result, index) => {
+        if (result.success && result.server_reference) {
+          const itemIndex = items.findIndex(
+            (item) => item === itemsWithLocalImages[index]
+          );
+          if (itemIndex >= 0) {
+            items[itemIndex].imagem = result.server_reference;
+            console.log(`[uploadImagesBeforeSave] ✅ Imagem ${index + 1} enviada: ${result.server_reference}`);
+          }
+        } else {
+          const error = result.error || 'Erro desconhecido no upload';
+          throw new Error(`Falha no upload da imagem ${index + 1}: ${error}`);
         }
-      } catch (error) {
-        console.error('[uploadImagesAsync] Erro ao atualizar referências no banco:', error);
-        // Não falhar silenciosamente, mas não bloquear o fluxo
-      }
+      });
+      
+      console.log(`[uploadImagesBeforeSave] ✅ Todas as ${uploadResults.length} imagens foram enviadas com sucesso`);
+    } catch (error) {
+      console.error('[uploadImagesBeforeSave] ❌ Erro no upload obrigatório de imagens:', error);
+      throw error; // Re-lançar para impedir salvamento
     }
   };
 
@@ -1729,6 +1692,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           return;
         }
 
+        // CRÍTICO: Fazer upload obrigatório de imagens ANTES de salvar pedido
+        try {
+          await uploadImagesBeforeSave(normalizedItems);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido no upload de imagens';
+          toast({
+            title: 'Erro no upload de imagens',
+            description: `${errorMessage}. O pedido não foi salvo.`,
+            variant: 'destructive',
+          });
+          return; // NÃO SALVAR O PEDIDO se upload falhar
+        }
+
         const updateItemsPayload: UpdateOrderItemRequest[] = normalizedItems.map(
           ({ orderItemId, ...rest }) => ({
             id: orderItemId,
@@ -1741,10 +1717,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           customer_name: formData.cliente,
           cliente: formData.cliente,
           address: address,
-          cidade_cliente: address,
+          cidade_cliente: formData.cidade_cliente || address,
           status: formData.status ?? OrderStatus.Pendente,
           items: updateItemsPayload,
           valor_frete: valorFrete,
+          telefone_cliente: formData.telefone_cliente,
+          estado_cliente: formData.estado_cliente,
+          data_entrega: dataEntregaFormatted || undefined,
+          prioridade: formData.prioridade,
+          forma_envio: formData.forma_envio,
+          forma_pagamento_id: formData.tipo_pagamento ? Number.parseInt(formData.tipo_pagamento, 10) : undefined,
+          observacao: formData.observacao,
         };
 
         const updatedOrder = await api.updateOrder(updateRequest);
@@ -1851,49 +1834,24 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         populateFormFromOrder(finalOrder);
         updateOrderInStore(finalOrder);
         
-        // Upload assíncrono de imagens locais em background
-        uploadImagesAsync(finalOrder.id, normalizedItems).catch((error) => {
-          console.error('Erro no upload assíncrono de imagens:', error);
-          // Não bloquear o fluxo, apenas logar
-        });
+        // Imagens já foram enviadas antes de salvar, então estão prontas
+        console.log('[handleConfirmSave] ✅ Pedido atualizado com imagens já enviadas ao servidor');
         
         navigate('/dashboard/orders');
         return;
       }
 
-      // Fazer upload de imagens locais ANTES de criar o pedido
-      const itemsWithLocalImages = normalizedItems.filter(
-        (item) => item.imagem && needsUpload(item.imagem)
-      );
-      
-      if (itemsWithLocalImages.length > 0) {
-        console.log(`[handleConfirmSave] Fazendo upload de ${itemsWithLocalImages.length} imagens antes de criar pedido`);
-        
-        // Para criação, fazer upload sem orderItemId primeiro
-        const uploadPromises = itemsWithLocalImages.map((item) => {
-          if (!item.imagem) return Promise.resolve({ success: false, server_reference: null });
-          return uploadImageToServer(item.imagem); // Sem orderItemId
+      // CRÍTICO: Fazer upload obrigatório de imagens ANTES de criar pedido
+      try {
+        await uploadImagesBeforeSave(normalizedItems);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido no upload de imagens';
+        toast({
+          title: 'Erro no upload de imagens',
+          description: `${errorMessage}. O pedido não foi criado.`,
+          variant: 'destructive',
         });
-        
-        const uploadResults = await Promise.allSettled(uploadPromises);
-        
-        // Atualizar referências nos items
-        uploadResults.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value.success && result.value.server_reference) {
-            const itemIndex = normalizedItems.findIndex(
-              (item) => item === itemsWithLocalImages[index]
-            );
-            if (itemIndex >= 0) {
-              normalizedItems[itemIndex].imagem = result.value.server_reference;
-              console.log(`[handleConfirmSave] ✅ Imagem ${index + 1} enviada: ${result.value.server_reference}`);
-            }
-          } else {
-            const error = result.status === 'rejected' 
-              ? result.reason 
-              : (result.value && 'error' in result.value ? result.value.error : 'Erro desconhecido');
-            console.warn(`[handleConfirmSave] ⚠️ Falha no upload da imagem ${index + 1}:`, error);
-          }
-        });
+        return; // NÃO CRIAR O PEDIDO se upload falhar
       }
 
       const createItems: CreateOrderItemRequest[] = normalizedItems.map(
