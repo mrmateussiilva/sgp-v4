@@ -480,27 +480,6 @@ export function FormPainelCompleto({
               className="h-10"
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-slate-700">Data de Impressão</Label>
-              <Input
-                type="date"
-                value={tabData?.data_impressao || ''}
-                onChange={(e) => onDataChange('data_impressao', e.target.value)}
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-slate-700">RIP Máquina</Label>
-              <Input
-                value={tabData?.rip_maquina || ''}
-                onChange={(e) => onDataChange('rip_maquina', e.target.value)}
-                placeholder="Ex: RIP-001"
-                className="h-10"
-              />
-            </div>
-          </div>
         </div>
       </div>
 

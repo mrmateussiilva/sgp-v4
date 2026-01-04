@@ -174,27 +174,6 @@ export function FormTotemProducao({
               className="text-sm"
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Data de Impressão</Label>
-              <Input
-                type="date"
-                value={tabData?.data_impressao || ''}
-                onChange={(e) => onDataChange('data_impressao', e.target.value)}
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-base font-medium">RIP Máquina</Label>
-              <Input
-                value={tabData?.rip_maquina || ''}
-                onChange={(e) => onDataChange('rip_maquina', e.target.value)}
-                placeholder="Ex: RIP-001"
-                className="h-10"
-              />
-            </div>
-          </div>
         </div>
 
         <div className="space-y-2 flex flex-col">
