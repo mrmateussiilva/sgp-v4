@@ -2662,7 +2662,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 
                 return (
                   <div key={tabId} className="text-sm mb-2">
-                    <strong>{index + 1}.</strong> {item.descricao} - {TIPOS_PRODUCAO.find(t => t.value === item.tipo_producao)?.label}
+                    <strong>{index + 1}.</strong> {item.descricao} - {tiposProducao.find(t => t.value === item.tipo_producao)?.label}
                     {(item.tipo_producao === 'painel' || item.tipo_producao === 'generica') && parseInt(item.quantidade_paineis || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_paineis})</span>
                     )}
