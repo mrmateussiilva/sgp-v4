@@ -119,15 +119,23 @@ function normalizeImageUrl(imagePath: string): string {
  * @returns Promise com a blob URL da imagem
  */
 export async function loadAuthenticatedImage(imagePath: string): Promise<string> {
-  // Se já está em cache de blob URL, retornar
-  if (blobUrlCache.has(imagePath)) {
-    return blobUrlCache.get(imagePath)!;
+  // Normalizar PRIMEIRO para usar como chave consistente do cache
+  const normalized = normalizeImageUrl(imagePath);
+  
+  // Verificar cache usando caminho normalizado (chave principal)
+  if (blobUrlCache.has(normalized)) {
+    return blobUrlCache.get(normalized)!;
+  }
+  
+  // Verificar também com caminho original para compatibilidade
+  if (normalized !== imagePath && blobUrlCache.has(imagePath)) {
+    const cachedUrl = blobUrlCache.get(imagePath)!;
+    // Migrar para chave normalizada para consistência futura
+    blobUrlCache.set(normalized, cachedUrl);
+    return cachedUrl;
   }
 
   try {
-    // Normalizar a URL (substituir localhost se necessário)
-    const normalized = normalizeImageUrl(imagePath);
-    
     // Se for base64, retornar diretamente
     if (normalized.startsWith('data:image/')) {
       return normalized;
@@ -145,8 +153,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         const response = await fetch(base64);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
-        blobUrlCache.set(imagePath, blobUrl);
-        blobCache.set(imagePath, blob);
+        // Salvar usando caminho normalizado como chave principal
+        blobUrlCache.set(normalized, blobUrl);
+        blobCache.set(normalized, blob);
+        // Também salvar com caminho original para compatibilidade
+        if (normalized !== imagePath) {
+          blobUrlCache.set(imagePath, blobUrl);
+          blobCache.set(imagePath, blob);
+        }
         return blobUrl;
       }
     }
@@ -161,8 +175,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
-      blobUrlCache.set(imagePath, blobUrl);
-      blobCache.set(imagePath, blob);
+      // Salvar usando caminho normalizado como chave principal
+      blobUrlCache.set(normalized, blobUrl);
+      blobCache.set(normalized, blob);
+      // Também salvar com caminho original para compatibilidade
+      if (normalized !== imagePath) {
+        blobUrlCache.set(imagePath, blobUrl);
+        blobCache.set(imagePath, blob);
+      }
       
       // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
       if (isTauri() && response.data) {
@@ -171,7 +191,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
           const arrayBuffer = await blob.arrayBuffer();
           const imageData = new Uint8Array(arrayBuffer);
           
-          // Cachear localmente
+          // Cachear localmente usando caminho normalizado
           await cacheImageFromUrl(normalized, imageData);
           console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
         } catch (cacheError) {
@@ -214,9 +234,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Armazenar no cache (tanto blob URL quanto blob)
-    blobUrlCache.set(imagePath, blobUrl);
-    blobCache.set(imagePath, blob);
+    // Armazenar no cache usando caminho normalizado como chave principal
+    blobUrlCache.set(normalized, blobUrl);
+    blobCache.set(normalized, blob);
+    // Também salvar com caminho original para compatibilidade
+    if (normalized !== imagePath) {
+      blobUrlCache.set(imagePath, blobUrl);
+      blobCache.set(imagePath, blob);
+    }
 
     // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
     if (isTauri() && response.data) {
@@ -225,7 +250,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);
         
-        // Cachear localmente
+        // Cachear localmente usando caminho normalizado
         await cacheImageFromUrl(normalized, imageData);
         console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
       } catch (cacheError) {
