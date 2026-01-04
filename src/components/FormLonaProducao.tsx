@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
-import { resizeImage } from '@/utils/imageResizer';
+import { processAndSaveImage } from '@/utils/localImageManager';
+import { getImagePreviewUrl } from '@/utils/imagePreview';
+import { isTauri } from '@/utils/isTauri';
+import { useToast } from '@/hooks/use-toast';
 
 const normalizeDecimal = (value: string | number): string => {
   const str = String(value ?? '').trim();
@@ -47,6 +50,32 @@ export function FormLonaProducao({
   onCancelItem,
   hasUnsavedChanges = false,
 }: FormLonaProducaoProps) {
+  const { toast } = useToast();
+  
+  // Estado para preview da imagem (temporário, apenas para exibição)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Carregar preview quando imagem mudar
+  useEffect(() => {
+    if (!tabData?.imagem) {
+      setImagePreviewUrl(null);
+      return;
+    }
+
+    setImageLoading(true);
+    getImagePreviewUrl(tabData.imagem)
+      .then((url) => {
+        setImagePreviewUrl(url);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar preview de imagem:', error);
+        setImagePreviewUrl(null);
+      })
+      .finally(() => {
+        setImageLoading(false);
+      });
+  }, [tabData?.imagem]);
   const parseBR = (value: string | number): number => {
     if (!value) return 0;
     if (typeof value === 'number') {
@@ -271,17 +300,62 @@ export function FormLonaProducao({
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                try {
-                  const resizedImage = await resizeImage(file);
-                  onDataChange('imagem', resizedImage);
-                } catch (error) {
-                  console.error('Erro ao redimensionar imagem:', error);
-                  // Fallback: usar imagem original se redimensionamento falhar
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    onDataChange('imagem', reader.result as string);
-                  };
-                  reader.readAsDataURL(file);
+
+                // Se estiver em Tauri, salvar localmente
+                if (isTauri()) {
+                  try {
+                    setImageLoading(true);
+                    
+                    // Converter File para Uint8Array
+                    const arrayBuffer = await file.arrayBuffer();
+                    const imageData = new Uint8Array(arrayBuffer);
+                    
+                    // Processar e salvar localmente
+                    const metadata = await processAndSaveImage(
+                      imageData,
+                      1200, // maxWidth
+                      1200, // maxHeight
+                      85    // quality
+                    );
+                    
+                    // Armazenar local_path no estado (NÃO base64!)
+                    onDataChange('imagem', metadata.local_path);
+                    onDataChange('_image_metadata', metadata);
+                    
+                    // Carregar preview temporário
+                    const preview = await getImagePreviewUrl(metadata.local_path);
+                    setImagePreviewUrl(preview);
+                    
+                    toast({
+                      title: 'Imagem salva',
+                      description: 'Imagem salva localmente com sucesso.',
+                    });
+                  } catch (error) {
+                    console.error('Erro ao salvar imagem localmente:', error);
+                    toast({
+                      title: 'Erro',
+                      description: 'Não foi possível salvar a imagem localmente.',
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setImageLoading(false);
+                  }
+                } else {
+                  // Fallback para ambiente web
+                  try {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      onDataChange('imagem', reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  } catch (error) {
+                    console.error('Erro ao ler arquivo:', error);
+                    toast({
+                      title: 'Erro',
+                      description: 'Não foi possível ler o arquivo.',
+                      variant: 'destructive',
+                    });
+                  }
                 }
               }}
               className="hidden"
@@ -301,27 +375,78 @@ export function FormLonaProducao({
                 e.preventDefault();
                 e.stopPropagation();
                 const file = e.dataTransfer.files?.[0];
-                if (file && file.type.startsWith('image/')) {
+                if (!file || !file.type.startsWith('image/')) return;
+
+                // Se estiver em Tauri, salvar localmente
+                if (isTauri()) {
                   try {
-                    const resizedImage = await resizeImage(file);
-                    onDataChange('imagem', resizedImage);
+                    setImageLoading(true);
+                    
+                    // Converter File para Uint8Array
+                    const arrayBuffer = await file.arrayBuffer();
+                    const imageData = new Uint8Array(arrayBuffer);
+                    
+                    // Processar e salvar localmente
+                    const metadata = await processAndSaveImage(
+                      imageData,
+                      1200, // maxWidth
+                      1200, // maxHeight
+                      85    // quality
+                    );
+                    
+                    // Armazenar local_path no estado
+                    onDataChange('imagem', metadata.local_path);
+                    onDataChange('_image_metadata', metadata);
+                    
+                    // Carregar preview temporário
+                    const preview = await getImagePreviewUrl(metadata.local_path);
+                    setImagePreviewUrl(preview);
+                    
+                    toast({
+                      title: 'Imagem salva',
+                      description: 'Imagem salva localmente com sucesso.',
+                    });
                   } catch (error) {
-                    console.error('Erro ao redimensionar imagem:', error);
-                    // Fallback: usar imagem original se redimensionamento falhar
+                    console.error('Erro ao salvar imagem localmente:', error);
+                    toast({
+                      title: 'Erro',
+                      description: 'Não foi possível salvar a imagem localmente.',
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setImageLoading(false);
+                  }
+                } else {
+                  // Fallback para ambiente web
+                  try {
                     const reader = new FileReader();
                     reader.onloadend = () => {
                       onDataChange('imagem', reader.result as string);
                     };
                     reader.readAsDataURL(file);
+                  } catch (error) {
+                    console.error('Erro ao ler arquivo:', error);
+                    toast({
+                      title: 'Erro',
+                      description: 'Não foi possível ler o arquivo.',
+                      variant: 'destructive',
+                    });
                   }
                 }
               }}
               className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
             >
-              {tabData?.imagem ? (
+              {imageLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                    <span className="text-sm text-gray-600">Carregando imagem...</span>
+                  </div>
+                </div>
+              ) : imagePreviewUrl ? (
                 <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
                   <img
-                    src={tabData?.imagem}
+                    src={imagePreviewUrl}
                     alt="Preview lona"
                     className="max-w-full max-h-full object-contain p-2"
                     style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
@@ -332,6 +457,8 @@ export function FormLonaProducao({
                       event.preventDefault();
                       onDataChange('imagem', '');
                       onDataChange('legenda_imagem', '');
+                      onDataChange('_image_metadata', null);
+                      setImagePreviewUrl(null);
                     }}
                     className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
                   >
