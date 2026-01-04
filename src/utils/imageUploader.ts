@@ -52,13 +52,14 @@ export async function uploadImageToServer(
     }
     
     // Upload para API
-    const response = await apiClient.post('/order-items/upload-image', formData, {
+    // O router de pedidos tem prefixo /pedidos, então o endpoint é /pedidos/order-items/upload-image
+    const response = await apiClient.post('/pedidos/order-items/upload-image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     
     return {
       success: true,
-      server_reference: response.data.image_reference || response.data.path || response.data.url,
+      server_reference: response.data.server_reference || response.data.image_reference || response.data.path || response.data.url,
     };
   } catch (error: any) {
     console.error('Erro no upload de imagem:', error);
