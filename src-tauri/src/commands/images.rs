@@ -3,9 +3,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use tauri::{command, AppHandle};
+use tauri::{command, AppHandle, Manager};
 use tracing::{error, info};
 use uuid::Uuid;
+use image::GenericImageView;
+use base64::{Engine as _, engine::general_purpose};
 
 // Estrutura para armazenar metadados de imagem
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,10 +22,11 @@ pub struct ImageMetadata {
 
 /// Obtém o diretório de imagens do app
 fn get_images_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    // Usar a mesma API que manual_updater.rs usa
     let app_data_dir = app
-        .path_resolver()
+        .path()
         .app_data_dir()
-        .ok_or("Não foi possível obter diretório de dados do app")?;
+        .map_err(|e| format!("Erro ao obter diretório de dados do app: {}", e))?;
 
     let images_dir = app_data_dir.join("images");
     Ok(images_dir)
@@ -165,7 +168,7 @@ pub async fn load_local_image_as_base64(
         .unwrap_or("image/jpeg");
 
     // Converter para base64
-    let base64_data = base64::encode(&image_data);
+    let base64_data = general_purpose::STANDARD.encode(&image_data);
     let data_url = format!("data:{};base64,{}", mime_type, base64_data);
 
     info!("Imagem carregada como base64: {} (tamanho: {} bytes)", local_path, image_data.len());
