@@ -1606,8 +1606,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             espaco_cordinha: item.espaco_cordinha,
             valor_cordinha: item.valor_cordinha,
             observacao: item.observacao,
-            // Não enviar local_path para API - será substituído por referência do servidor após upload
-            imagem: item.imagem && needsUpload(item.imagem) ? undefined : item.imagem,
+            // Campo imagem será atualizado após upload obrigatório (que ocorre antes de criar o pedido)
+            imagem: item.imagem,
             legenda_imagem: item.legenda_imagem,
             quantidade_paineis: item.quantidade_paineis,
             valor_painel: item.valor_painel,
