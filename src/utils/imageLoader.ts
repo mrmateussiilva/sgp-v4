@@ -185,7 +185,16 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
     // Para caminhos relativos, usar o apiClient com baseURL configurado
     // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
-    const relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    
+    // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
+    // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
+    if (relativePath.startsWith('/pedidos/tmp/') || /^\/pedidos\/\d+\//.test(relativePath)) {
+      // Construir caminho para o endpoint /pedidos/media/{file_path}
+      // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
+      relativePath = `/pedidos/media${relativePath}`;
+      console.log('[loadAuthenticatedImage] 🔄 Convertendo para endpoint /media/:', relativePath);
+    }
     
     console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {
       originalPath: imagePath,
