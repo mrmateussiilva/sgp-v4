@@ -1,0 +1,45 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissões padrão para a janela principal utilizar recursos essenciais, FS e HTTP.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "fs:default",
+    "fs:allow-mkdir",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-remove",
+    "fs:allow-write-file",
+    "fs:scope-appconfig-recursive",
+    "fs:scope-appdata-recursive",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    "http:default",
+    "http:allow-fetch-cancel",
+    "http:allow-fetch-read-body",
+    "http:allow-fetch-send",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "http://*:*" },
+        { "url": "https://*:*" },
+        { "url": "http://localhost:*" },
+        { "url": "http://127.0.0.1:*" },
+        { "url": "http://192.168.*:*" },
+        { "url": "http://10.*:*" },
+        { "url": "http://172.16.*:*" },
+        { "url": "http://192.168.15.2:*" },
+        { "url": "http://192.168.15.3:*" },
+        { "url": "http://192.168.0.*:*" },
+        { "url": "http://192.168.0.10:*" }
+      ]
+    }
+  ]
+}

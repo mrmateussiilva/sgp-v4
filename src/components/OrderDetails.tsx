@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOrderStore } from '../store/orderStore';
 import { OrderAuditLogEntry, OrderItem, OrderStatus } from '../types';
 import { api } from '@/services/api';
+import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,55 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
     return () => {
       isMounted = false;
     };
+  }, [open, selectedOrder?.id]);
+
+  // Integração com eventos de pedidos em tempo real
+  // Quando o pedido sendo visualizado é atualizado, recarregar dados
+  useEffect(() => {
+    if (!open || !selectedOrder) {
+      return;
+    }
+
+    const { updateOrder: updateOrderInStore } = useOrderStore.getState();
+    
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderUpdated: async (orderId) => {
+        // Se o pedido sendo visualizado foi atualizado, recarregar dados
+        if (orderId === selectedOrder.id) {
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              // Atualizar no store
+              updateOrderInStore(updatedOrder);
+              // Recarregar histórico
+              try {
+                const entries = await api.getOrderHistory(orderId);
+                setHistory(entries);
+              } catch (error) {
+                console.error('Erro ao recarregar histórico:', error);
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido após evento:', error);
+          }
+        }
+      },
+      onOrderCanceled: async (orderId) => {
+        // Se o pedido sendo visualizado foi cancelado, atualizar status
+        if (orderId === selectedOrder.id) {
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              updateOrderInStore(updatedOrder);
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido cancelado:', error);
+          }
+        }
+      },
+    }, false); // Não mostrar toast automático na tela de detalhes
+    
+    return unsubscribe;
   }, [open, selectedOrder?.id]);
 
   const getStatusVariant = (status: OrderStatus) => {

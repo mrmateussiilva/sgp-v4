@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Printer, X, ChevronDown } from 'lucide-react';
+import { Printer, ChevronDown, FileText } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
-import { printOrder } from '../utils/printOrder';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
-import { normalizeImagePath, isValidImagePath } from '@/utils/path';
+import { isValidImagePath } from '@/utils/path';
+import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
+import { OrderPrintManager } from './OrderPrintManager';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -22,13 +23,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   onClose,
   order,
 }) => {
-  if (!order) return null;
-
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [imageError, setImageError] = useState<boolean>(false);
+  const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
+  const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
+  const [showPrintManager, setShowPrintManager] = useState(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -43,6 +46,93 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     fetchFormasPagamento();
   }, []);
 
+  // Carregar imagens dos itens quando o modal abrir ou quando itens forem expandidos
+  useEffect(() => {
+    if (!isOpen || !order?.items) return;
+
+    const loadItemImages = async () => {
+      const imageUrlMap = new Map<string, string>();
+      const itemsToLoad: Array<{ itemKey: string; imagePath: string }> = [];
+
+      // Coletar todas as imagens que precisam ser carregadas
+      for (const item of order.items) {
+        if (item.imagem && isValidImagePath(item.imagem)) {
+          const itemKey = String(item.id ?? item.item_name);
+          // Se já está carregada, usar do cache
+          if (itemImageUrls.has(itemKey)) {
+            imageUrlMap.set(itemKey, itemImageUrls.get(itemKey)!);
+          } else if (!loadingImages.has(item.imagem)) {
+            itemsToLoad.push({ itemKey, imagePath: item.imagem });
+          }
+        }
+      }
+
+      // Carregar imagens que ainda não foram carregadas
+      if (itemsToLoad.length > 0) {
+        setLoadingImages(prev => {
+          const newSet = new Set(prev);
+          itemsToLoad.forEach(({ imagePath }) => newSet.add(imagePath));
+          return newSet;
+        });
+
+        for (const { itemKey, imagePath } of itemsToLoad) {
+          try {
+            console.log(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
+            const blobUrl = await loadAuthenticatedImage(imagePath);
+            imageUrlMap.set(itemKey, blobUrl);
+            console.log(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
+          } catch (err) {
+            console.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
+              imagem: imagePath,
+              error: err
+            });
+            // Marcar erro no estado
+            setItemImageErrors(prev => ({
+              ...prev,
+              [itemKey]: true
+            }));
+          }
+        }
+
+        setLoadingImages(prev => {
+          const newSet = new Set(prev);
+          itemsToLoad.forEach(({ imagePath }) => newSet.delete(imagePath));
+          return newSet;
+        });
+      }
+
+      // Atualizar o estado com todas as URLs (incluindo as já carregadas)
+      if (imageUrlMap.size > 0 || itemsToLoad.length > 0) {
+        setItemImageUrls(prev => {
+          const updated = new Map(prev);
+          imageUrlMap.forEach((url, key) => updated.set(key, url));
+          return updated;
+        });
+      }
+    };
+
+    loadItemImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, order?.items, openItemKey]);
+
+  // Cleanup: revogar blob URLs quando o componente for desmontado ou modal fechar
+  useEffect(() => {
+    return () => {
+      // Só revogar URLs se o modal principal estiver fechado
+      if (!isOpen) {
+        itemImageUrls.forEach((_blobUrl, itemKey) => {
+          // Encontrar o caminho original da imagem para revogar
+          const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+          if (item?.imagem) {
+            revokeImageUrl(item.imagem);
+          }
+        });
+      }
+    };
+  }, [itemImageUrls, order?.items, isOpen]);
+
+  if (!order) return null;
+
   // Função para obter o nome da forma de pagamento
   const getFormaPagamentoNome = (id?: number) => {
     if (!id) return 'Não informado';
@@ -51,14 +141,72 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   // Função para lidar com clique na imagem
-  const handleImageClick = (imageUrl: string, caption?: string) => {
-    if (!imageUrl || !isValidImagePath(imageUrl)) {
+  const handleImageClick = async (imageUrl: string, caption?: string, itemId?: string | number) => {
+    if (!imageUrl) {
       return;
     }
-    const normalizedPath = normalizeImagePath(imageUrl);
-    setSelectedImage(normalizedPath);
-    setSelectedImageCaption(caption?.trim() ?? '');
-    setImageError(false);
+    
+    // Se for base64, usar diretamente
+    if (imageUrl.startsWith('data:image/')) {
+      setImageError(false);
+      setSelectedImage(imageUrl);
+      setSelectedImageCaption(caption?.trim() ?? '');
+      return;
+    }
+    
+    if (!isValidImagePath(imageUrl)) {
+      return;
+    }
+    
+    try {
+      // Resetar erro antes de tentar carregar
+      setImageError(false);
+      setSelectedImage(null);
+      
+      // Tentar encontrar a blob URL nos itens já carregados
+      let blobUrl: string | undefined;
+      
+      // Se temos o itemId, tentar buscar diretamente pelo itemKey
+      if (itemId !== undefined) {
+        const itemKey = String(itemId);
+        blobUrl = itemImageUrls.get(itemKey);
+        if (blobUrl) {
+          console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por itemId):', { itemKey, imageUrl });
+        }
+      }
+      
+      // Se não encontrou pelo itemId, procurar pelo caminho da imagem
+      if (!blobUrl) {
+        for (const [itemKey, url] of itemImageUrls.entries()) {
+          const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
+          if (item?.imagem === imageUrl) {
+            blobUrl = url;
+            console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por caminho):', { itemKey, imageUrl });
+            break;
+          }
+        }
+      }
+      
+      // Se não encontrou, carregar a imagem
+      if (!blobUrl) {
+        console.log('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
+        blobUrl = await loadAuthenticatedImage(imageUrl);
+        console.log('[OrderViewModal] ✅ Imagem carregada para modal:', blobUrl);
+      }
+      
+      // Verificar se a blob URL é válida
+      if (!blobUrl) {
+        throw new Error('Blob URL não foi criada');
+      }
+      
+      setSelectedImage(blobUrl);
+      setSelectedImageCaption(caption?.trim() ?? '');
+      setImageError(false);
+    } catch (error) {
+      console.error('[OrderViewModal] ❌ Erro ao carregar imagem para modal:', error);
+      setImageError(true);
+      setSelectedImage(null);
+    }
   };
 
   // Função para fechar o modal de imagem
@@ -72,7 +220,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
     const enrichedOrder = {
       ...order,
@@ -81,19 +229,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ? formaPagamentoNome
           : undefined,
     };
-    printOrder(enrichedOrder);
-  };
-
-  const handlePrintServiceForm = () => {
-    const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
-    const enrichedOrder = {
-      ...order,
-      forma_pagamento_nome:
-        formaPagamentoNome && formaPagamentoNome !== 'Não informado'
-          ? formaPagamentoNome
-          : undefined,
-    };
-    printOrderServiceForm(enrichedOrder);
+    
+    // Sempre usar a ficha completa (geral)
+    await printOrderServiceForm(enrichedOrder, 'geral');
   };
 
   const parseCurrencyValue = (value: unknown): number => {
@@ -260,6 +398,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const isLona = tipoProducao === 'lona';
     const isTotem = tipoProducao === 'totem';
     const isAdesivo = tipoProducao === 'adesivo';
+    const isPainel = tipoProducao === 'painel' || tipoProducao === 'generica';
 
     const formatSpacing = (value?: string | null) => {
       const normalized = normalizeText(value);
@@ -296,6 +435,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       omitKeys.add('tipo_acabamento');
     }
 
+    // Ilhós - quantidade e espaçamento
     const ilhosParts: string[] = [];
     if (hasQuantityValue(item.quantidade_ilhos)) {
       ilhosParts.push(`Qtd: ${normalizeText(item.quantidade_ilhos)}`);
@@ -306,9 +446,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       ilhosParts.push(`Espaçamento: ${ilhosSpacing}`);
       omitKeys.add('espaco_ilhos');
     }
-    if (hasPositiveNumber(item.valor_ilhos)) {
-      omitKeys.add('valor_ilhos');
-    }
     if (ilhosParts.length > 0) {
       sections.push({
         label: 'Ilhós',
@@ -316,7 +453,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
+    
+    // Valor dos Ilhós - campo separado para maior clareza
+    if (hasPositiveNumber(item.valor_ilhos)) {
+      sections.push({
+        label: 'Valor dos Ilhós',
+        value: formatCurrency(parseCurrencyValue(item.valor_ilhos)),
+        variant: 'accent',
+      });
+      omitKeys.add('valor_ilhos');
+    }
 
+    // Cordinha - quantidade e espaçamento
     const cordinhaParts: string[] = [];
     if (hasQuantityValue(item.quantidade_cordinha)) {
       cordinhaParts.push(`Qtd: ${normalizeText(item.quantidade_cordinha)}`);
@@ -327,9 +475,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       cordinhaParts.push(`Espaçamento: ${cordinhaSpacing}`);
       omitKeys.add('espaco_cordinha');
     }
-    if (hasPositiveNumber(item.valor_cordinha)) {
-      omitKeys.add('valor_cordinha');
-    }
     if (cordinhaParts.length > 0) {
       sections.push({
         label: 'Cordinha',
@@ -337,30 +482,102 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
+    
+    // Valor da Cordinha - campo separado para maior clareza
+    if (hasPositiveNumber(item.valor_cordinha)) {
+      sections.push({
+        label: 'Valor da Cordinha',
+        value: formatCurrency(parseCurrencyValue(item.valor_cordinha)),
+        variant: 'accent',
+      });
+      omitKeys.add('valor_cordinha');
+    }
 
+    // Campos específicos para PAINEL/GENERICA
+    if (isPainel) {
+      const quantidadePaineis = normalizeText(item.quantidade_paineis);
+      if (quantidadePaineis) {
+        sections.push({
+          label: 'Quantidade de Painéis',
+          value: quantidadePaineis,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_paineis');
+      }
+
+      const valorPainel = (item as any).valor_painel;
+      if (hasPositiveNumber(valorPainel)) {
+        sections.push({
+          label: 'Valor do Painel',
+          value: formatCurrency(parseCurrencyValue(valorPainel)),
+          variant: 'accent',
+        });
+        omitKeys.add('valor_painel');
+      }
+
+      const valoresAdicionais = (item as any).valores_adicionais;
+      if (hasPositiveNumber(valoresAdicionais)) {
+        sections.push({
+          label: 'Valores Adicionais',
+          value: formatCurrency(parseCurrencyValue(valoresAdicionais)),
+          variant: 'warning',
+        });
+        omitKeys.add('valores_adicionais');
+      }
+    }
+
+    // Campos específicos para LONA
     if (isLona) {
       const terceirizado = (item as any).terceirizado;
       if (typeof terceirizado === 'boolean') {
+        sections.push({
+          label: 'Terceirizado',
+          value: terceirizado ? 'Sim' : 'Não',
+          variant: 'accent',
+        });
         omitKeys.add('terceirizado');
       }
 
       const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
       if (acabamentoLonaRaw) {
+        const acabamentoDisplay = acabamentoLonaRaw.toLowerCase() === 'refilar' 
+          ? 'Refilar' 
+          : acabamentoLonaRaw.toLowerCase() === 'nao_refilar' || acabamentoLonaRaw.toLowerCase() === 'não_refilar'
+            ? 'Não Refilar'
+            : acabamentoLonaRaw
+                .split(/[_-]/)
+                .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                .join(' ');
+        sections.push({
+          label: 'Acabamento da Lona',
+          value: acabamentoDisplay,
+          variant: 'accent',
+        });
         omitKeys.add('acabamento_lona');
       }
 
       const valorBaseLona = (item as any).valor_lona;
       if (hasPositiveNumber(valorBaseLona)) {
+        sections.push({
+          label: 'Valor da Lona',
+          value: formatCurrency(parseCurrencyValue(valorBaseLona)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_lona');
       }
 
       const outrosValoresLona = (item as any).outros_valores_lona;
       if (hasPositiveNumber(outrosValoresLona)) {
+        sections.push({
+          label: 'Outros Valores (Lona)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresLona)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_lona');
       }
 
       const quantidadeLona = normalizeText((item as any).quantidade_lona);
-      if (quantidadeLona) {
+      if (quantidadeLona && quantidadeLona !== '1') {
         sections.push({
           label: 'Quantidade de Lonas',
           value: quantidadeLona,
@@ -370,6 +587,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
     }
 
+    // Campos específicos para TOTEM
     if (isTotem) {
       const acabamentoTotem = normalizeText((item as any).acabamento_totem);
       if (acabamentoTotem) {
@@ -396,7 +614,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
 
       const quantidadeTotem = normalizeText((item as any).quantidade_totem);
-      if (quantidadeTotem) {
+      if (quantidadeTotem && quantidadeTotem !== '1') {
         sections.push({
           label: 'Quantidade de Totens',
           value: quantidadeTotem,
@@ -407,34 +625,61 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
       const valorTotem = (item as any).valor_totem;
       if (hasPositiveNumber(valorTotem)) {
+        sections.push({
+          label: 'Valor do Totem',
+          value: formatCurrency(parseCurrencyValue(valorTotem)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_totem');
       }
 
       const outrosValoresTotem = (item as any).outros_valores_totem;
       if (hasPositiveNumber(outrosValoresTotem)) {
+        sections.push({
+          label: 'Outros Valores (Totem)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresTotem)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_totem');
       }
     }
 
+    // Campos específicos para ADESIVO
     if (isAdesivo) {
-      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
-      if (tipoAdesivo) {
-        omitKeys.add('tipo_adesivo');
+      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
+      if (quantidadeAdesivo && quantidadeAdesivo !== '1') {
+        sections.push({
+          label: 'Quantidade de Adesivos',
+          value: quantidadeAdesivo,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_adesivo');
       }
 
       const valorAdesivo = (item as any).valor_adesivo;
       if (hasPositiveNumber(valorAdesivo)) {
+        sections.push({
+          label: 'Valor do Adesivo',
+          value: formatCurrency(parseCurrencyValue(valorAdesivo)),
+          variant: 'accent',
+        });
         omitKeys.add('valor_adesivo');
       }
 
       const outrosValoresAdesivo = (item as any).outros_valores_adesivo;
       if (hasPositiveNumber(outrosValoresAdesivo)) {
+        sections.push({
+          label: 'Outros Valores (Adesivo)',
+          value: formatCurrency(parseCurrencyValue(outrosValoresAdesivo)),
+          variant: 'warning',
+        });
         omitKeys.add('outros_valores_adesivo');
       }
 
-      const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
-      if (quantidadeAdesivo) {
-        omitKeys.add('quantidade_adesivo');
+      const tipoAdesivo = normalizeText((item as any).tipo_adesivo);
+      if (tipoAdesivo) {
+        // Já aparece como "Material" na seção principal, mas vamos adicionar aqui também se necessário
+        omitKeys.add('tipo_adesivo');
       }
     }
 
@@ -519,7 +764,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       omitKeys: Array.from(fallbackOmitKeys),
     });
     const hasObservation = hasTextValue(item.observacao);
-    const hasImage = hasTextValue(item.imagem);
+    const hasImage = !!(item.imagem && (typeof item.imagem === 'string' && item.imagem.trim().length > 0));
     const hasBasicInfo = [
       normalizeText(item.tipo_producao),
       normalizeText(item.descricao),
@@ -551,12 +796,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+      <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
         <div className="space-y-2">
           {entries.map((entry, index) => (
             <div
               key={`${entry.label}-${index}`}
-              className="flex flex-wrap items-baseline gap-2 text-sm"
+              className="flex flex-wrap items-baseline gap-2 text-xs sm:text-sm"
             >
               <span className={`font-semibold ${getVariantClasses(entry.variant)}`}>
                 {entry.label}:
@@ -604,7 +849,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     });
 
     const hasObservation = hasTextValue(item.observacao);
-    const hasImage = hasTextValue(item.imagem);
+    const hasImage = !!(item.imagem && (typeof item.imagem === 'string' && item.imagem.trim().length > 0));
     const tipo = normalizeText(item.tipo_producao);
     const tipoLower = tipo.toLowerCase();
     const isLonaType = tipoLower === 'lona';
@@ -616,8 +861,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
     const quantidadeLona = normalizeText((item as any).quantidade_lona);
     const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
-    const quantidadeDisplay =
-      painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
+    
+    // Para painel, priorizar quantidade_paineis mesmo se for 1
+    const isPainelType = tipoLower === 'painel' || tipoLower === 'generica';
+    const quantidadeDisplay = isPainelType && painelQuantidade
+      ? painelQuantidade
+      : painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
 
     const vendedor = normalizeText(item.vendedor);
     const designer = normalizeText(item.designer);
@@ -745,10 +994,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className={`space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
+      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
+        <div className={`space-y-3 sm:space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
           {infoRows.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-4 py-3">
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
               {infoRows.map((row, index) => (
                 <div key={index}>{row}</div>
               ))}
@@ -758,16 +1007,16 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           {renderDetailLines(detailEntries)}
 
           {filteredFallback.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
               {filteredFallback.map((entry) => (
                 <div
                   key={entry.key}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
                 >
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {entry.label}
                   </div>
-                  <div className="text-sm text-slate-900">{entry.value}</div>
+                  <div className="text-xs sm:text-sm text-slate-900">{entry.value}</div>
                 </div>
               ))}
             </div>
@@ -788,37 +1037,146 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </span>
             <div className="flex w-full flex-col items-center gap-3">
               <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
-                {isValidImagePath(item.imagem!) ? (
-                  <img
-                    src={normalizeImagePath(item.imagem!)}
-                    alt={`Imagem do item ${item.item_name}`}
-                    className="h-full w-full object-contain"
-                    onError={(event) => {
-                      const target = event.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      const placeholder = target.parentElement?.querySelector('.image-placeholder');
-                      if (placeholder) {
-                        (placeholder as HTMLElement).style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400" style={{ display: isValidImagePath(item.imagem!) ? 'none' : 'flex' }}>
-                  <span className="text-sm">Imagem não disponível</span>
-                </div>
+                {(() => {
+                  const imagePath = item.imagem;
+                  const isBase64 = imagePath && imagePath.startsWith('data:image/');
+                  const isValid = isBase64 || isValidImagePath(imagePath || '');
+                  const itemKey = String(item.id ?? item.item_name);
+                  const hasError = itemImageErrors[itemKey] || false;
+                  const isLoading = !isBase64 && loadingImages.has(imagePath || '');
+                  const blobUrl = itemImageUrls.get(itemKey);
+                  
+                  // Debug log
+                  if (imagePath) {
+                    console.log('[OrderViewModal] Processando imagem:', {
+                      original: imagePath?.substring(0, 50) + '...',
+                      isBase64,
+                      isValid,
+                      itemKey,
+                      hasError,
+                      isLoading,
+                      hasBlobUrl: !!blobUrl
+                    });
+                  }
+                  
+                  // Se não for válido, mostrar placeholder
+                  if (!isValid || !imagePath) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Imagem não disponível</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Se houver erro, mostrar placeholder
+                  if (hasError) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Erro ao carregar imagem</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Se for base64, usar diretamente
+                  if (isBase64) {
+                    return (
+                      <img
+                        key={`img-${itemKey}-base64`}
+                        src={imagePath}
+                        alt={`Imagem do item ${item.item_name}`}
+                        className="h-full w-full object-contain"
+                        style={{ display: 'block' }}
+                        onError={() => {
+                          console.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
+                            itemKey
+                          });
+                          setItemImageErrors(prev => ({
+                            ...prev,
+                            [itemKey]: true
+                          }));
+                        }}
+                      />
+                    );
+                  }
+                  
+                  // Se estiver carregando e não tiver blob URL, mostrar indicador
+                  if (isLoading && !blobUrl) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Carregando imagem...</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Se não tiver blob URL ainda, mostrar placeholder
+                  if (!blobUrl) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                        <span className="text-sm">Carregando imagem...</span>
+                      </div>
+                    );
+                  }
+                  
+                  // Renderizar imagem do blob URL
+                  return (
+                    <img
+                      key={`img-${itemKey}-${blobUrl}`}
+                      src={blobUrl}
+                      alt={`Imagem do item ${item.item_name}`}
+                      className="h-full w-full object-contain"
+                      style={{ display: 'block' }}
+                      onLoad={() => {
+                        console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
+                          itemKey,
+                          blobUrl
+                        });
+                        // Garantir que o erro seja removido se a imagem carregar
+                        setItemImageErrors(prev => {
+                          const updated = { ...prev };
+                          delete updated[itemKey];
+                          return updated;
+                        });
+                      }}
+                      onError={(event) => {
+                        const target = event.currentTarget as HTMLImageElement;
+                        const imageSrc = target.src;
+                        console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
+                          originalPath: imagePath,
+                          blobUrl,
+                          finalSrc: imageSrc,
+                          itemKey,
+                          status: target.complete ? 'complete' : 'incomplete',
+                          naturalWidth: target.naturalWidth,
+                          naturalHeight: target.naturalHeight
+                        });
+                        // Marcar erro no estado
+                        setItemImageErrors(prev => ({
+                          ...prev,
+                          [itemKey]: true
+                        }));
+                      }}
+                    />
+                  );
+                })()}
               </div>
-              {isValidImagePath(item.imagem!) && (
+              {(isValidImagePath(item.imagem!) || (item.imagem && item.imagem.startsWith('data:image/'))) && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleImageClick(item.imagem!, legendaImagem)}
+                  onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
                   className="w-full"
+                  disabled={!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
                 >
-                  Abrir imagem em destaque
+                  {!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
+                    ? 'Carregando...'
+                    : 'Abrir imagem em destaque'}
                 </Button>
               )}
               {legendaImagem && (
-                <p className="w-full rounded-md bg-white px-3 py-2 text-center text-xs text-slate-600 shadow-sm">
+                <p
+                  className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
+                  style={{ fontSize: '32pt', lineHeight: 1.2 }}
+                >
                   {legendaImagem}
                 </p>
               )}
@@ -831,34 +1189,43 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] h-[90vh] max-w-none max-h-none overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Pedido #{order.numero || order.id}</span>
-            <div className="flex gap-2">
-              <Button onClick={handlePrint} variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir
+      <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
+        <DialogHeader className="flex-shrink-0 border-b px-4 sm:px-6 pt-4 sm:pt-6 pb-4">
+          <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
+            <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs sm:text-sm"
+                onClick={() => setShowPrintManager(true)}
+              >
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Gerenciar Impressão</span>
+                <span className="sm:hidden">Ger.</span>
               </Button>
-              <Button onClick={handlePrintServiceForm} variant="outline" size="sm">
-                <Printer className="h-4 w-4 mr-2" />
-                Ficha de Serviço
-              </Button>
-              <Button onClick={onClose} variant="outline" size="sm">
-                <X className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs sm:text-sm"
+                onClick={handlePrint}
+              >
+                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Imprimir Ficha</span>
+                <span className="sm:hidden">Impr.</span>
               </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6 pb-6">
           {/* Cabeçalho do Pedido */}
-          <div className="text-center border-b pb-4">
-            <h2 className="text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
+          <div className="text-center border-b pb-3">
+            <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
           </div>
 
           {/* Informações Principais */}
-          <div className="grid grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
             <div>
               <span className="font-semibold">Nome do Cliente:</span><br />
               {order.customer_name || order.cliente || 'Não informado'}
@@ -880,7 +1247,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </div>
 
           {/* Datas e Forma de Envio */}
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
             <div>
               <span className="font-semibold">Data de Entrada:</span><br />
               {formatDate(order.data_entrada)}
@@ -899,15 +1266,26 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
           {/* Itens */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Itens do Pedido</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-3">Itens do Pedido</h3>
 
             {order.items && order.items.length > 0 ? (
               <div className="space-y-3">
                 {order.items.map((item, index) => {
                   const key = String(item.id ?? `order-${index}`);
                   const isOpen = openItemKey === key;
-                  const toggleOpen = () =>
+                  const toggleOpen = () => {
+                    const willOpen = openItemKey !== key;
                     setOpenItemKey((current) => (current === key ? null : key));
+                    // Resetar erro de imagem quando o item é expandido para tentar carregar novamente
+                    if (willOpen && item.imagem) {
+                      const itemKey = String(item.id ?? item.item_name);
+                      setItemImageErrors(prev => {
+                        const updated = { ...prev };
+                        delete updated[itemKey];
+                        return updated;
+                      });
+                    }
+                  };
 
                   return (
                     <div
@@ -917,13 +1295,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       <button
                         type="button"
                         onClick={toggleOpen}
-                        className="w-full bg-slate-50/60 px-4 py-3 text-left transition hover:bg-slate-100/80"
+                        className="w-full bg-slate-50/60 px-3 sm:px-4 py-2 sm:py-3 text-left transition hover:bg-slate-100/80"
                       >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <span className="text-sm font-semibold text-slate-500">#{index + 1}</span>
-                            <div>
-                              <div className="font-semibold text-slate-900">{item.item_name}</div>
+                        <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-2 sm:gap-3">
+                            <span className="text-xs sm:text-sm font-semibold text-slate-500">#{index + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm sm:text-base text-slate-900 truncate">{item.item_name}</div>
                               {hasDetailedData(item) ? (
                                 <div className="text-xs text-emerald-600">
                                   Clique para ver os detalhes completos
@@ -936,7 +1314,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
                             <div className="font-medium">Qtd: {item.quantity}</div>
                             <ChevronDown
                               className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
@@ -948,7 +1326,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </button>
 
                       {isOpen && (
-                        <div className="space-y-4 border-t border-slate-200 bg-white px-4 py-4">
+                        <div className="space-y-3 sm:space-y-4 border-t border-slate-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
                           {renderItemDetailsContent(item)}
                         </div>
                       )}
@@ -967,13 +1345,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
           {/* Forma de Pagamento e Valores */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Forma de Pagamento - Valores</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <h3 className="text-base sm:text-lg font-semibold mb-3">Forma de Pagamento - Valores</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-semibold">Forma de Pagamento:</span><br />
                 {getFormaPagamentoNome(order.forma_pagamento_id)}
               </div>
-              <div className="text-right space-y-1">
+              <div className="text-left sm:text-right space-y-1">
                 <div>
                   <span className="font-semibold">Itens:</span>
                   <span className="ml-2 text-base font-medium text-slate-700">
@@ -1003,23 +1381,28 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       {/* Modal de Imagem */}
       {selectedImage && (
         <Dialog open={!!selectedImage} onOpenChange={(open) => closeImageModal(open)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0" onInteractOutside={(e) => e.preventDefault()}>
-            <DialogHeader className="p-6 pb-0">
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0" size="lg" onInteractOutside={(e) => e.preventDefault()}>
+            <DialogHeader className="p-6 pb-0 flex-shrink-0">
               <DialogTitle className="flex items-center justify-between">
                 <span>Visualização da Imagem</span>
-                <Button onClick={() => closeImageModal(false)} variant="ghost" size="sm">
-                  <X className="h-4 w-4" />
-                </Button>
               </DialogTitle>
             </DialogHeader>
-            <div className="p-6 pt-0">
+            <div className="p-6 pt-4 overflow-y-auto">
               <div className="flex flex-col items-center gap-4">
-                {!imageError ? (
+                {!imageError && selectedImage ? (
                   <img
                     src={selectedImage}
                     alt="Imagem do item"
                     className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                    onError={() => {
+                    onLoad={() => {
+                      console.log('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
+                      setImageError(false);
+                    }}
+                    onError={(e) => {
+                      console.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
+                        src: selectedImage,
+                        error: e
+                      });
                       setImageError(true);
                     }}
                   />
@@ -1028,11 +1411,17 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     <div className="text-center">
                       <p className="text-slate-500 mb-2">Imagem não encontrada</p>
                       <p className="text-sm text-slate-400">O arquivo pode ter sido movido ou excluído</p>
+                      {selectedImage && (
+                        <p className="text-xs text-slate-400 mt-2">URL: {selectedImage.substring(0, 50)}...</p>
+                      )}
                     </div>
                   </div>
                 )}
-                {selectedImageCaption && !imageError && (
-                  <p className="max-w-3xl text-center text-sm text-slate-600">
+                {selectedImageCaption && !imageError && selectedImage && (
+                  <p
+                    className="max-w-3xl text-center text-slate-600"
+                    style={{ fontSize: '32pt', lineHeight: 1.2 }}
+                  >
                     {selectedImageCaption}
                   </p>
                 )}
@@ -1040,6 +1429,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Modal de Gerenciamento de Impressão */}
+      {showPrintManager && (
+        <OrderPrintManager
+          isOpen={showPrintManager}
+          onClose={() => setShowPrintManager(false)}
+          order={order}
+        />
       )}
     </Dialog>
   );

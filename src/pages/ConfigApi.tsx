@@ -2,10 +2,8 @@ import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckCircle, Loader2, Server } from 'lucide-react';
-import { deleteConfig, loadConfig, saveConfig } from '@/utils/config';
+import { AlertCircle, CheckCircle, Loader2, WifiOff, AlertTriangle } from 'lucide-react';
+import { loadConfig, saveConfig } from '@/utils/config';
 import { normalizeApiUrl, verifyApiConnection } from '@/services/apiClient';
 
 interface ConfigApiProps {
@@ -132,119 +130,118 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
     }
   };
 
-  const handleReset = async () => {
-    setIsLoading(true);
-    try {
-      await deleteConfig();
-      setApiUrl(DEFAULT_API_URL);
-      setStatus({
-        type: 'idle',
-        message: 'Configuração removida. Informe um novo endereço.',
-      });
-    } catch (error) {
-      setStatus({
-        type: 'error',
-        message: `❌ Erro ao remover configuração: ${String(error)}`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-2xl shadow-xl">
-        <CardHeader className="space-y-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-          <div className="flex items-center gap-3">
-            <Server className="h-8 w-8" />
-            <CardTitle className="text-2xl">Configuração da API</CardTitle>
-          </div>
-          <CardDescription className="text-blue-100">
-            Informe o endereço da API Python (FastAPI) utilizada pelo sistema.
-          </CardDescription>
-        </CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-red-50/50 p-4">
+      <div className="w-full max-w-lg space-y-4">
+        {/* Alerta Principal */}
+        <div className="bg-white border-l-4 border-red-500 rounded-lg shadow-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <WifiOff className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-red-900 mb-1">
+                Erro de Conexão com a API
+              </h2>
+              <p className="text-sm text-red-700 mb-4">
+                Não foi possível conectar ao servidor da API. Verifique a configuração abaixo.
+              </p>
 
-        <CardContent className="space-y-6 p-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Atenção:</strong> O backend Rust do Tauri não acessa a rede. Todas as
-              requisições partem do frontend React via HTTP para a API Python.
+              {/* Campo de URL */}
+              <div className="space-y-2 mb-4">
+                <label htmlFor="apiUrl" className="text-sm font-medium text-slate-700 block">
+                  Endereço da API
+                </label>
+                <Input
+                  id="apiUrl"
+                  type="text"
+                  placeholder="http://192.168.0.10:8000"
+                  value={apiUrl}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  noUppercase
+                  className="w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isLoading && apiUrl.trim()) {
+                      handleTest();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Status Message */}
+              {status.message && (
+                <div className={`flex items-start gap-2 p-3 rounded-md mb-4 ${
+                  status.type === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : status.type === 'error'
+                    ? 'bg-red-50 text-red-800 border border-red-200'
+                    : status.type === 'testing'
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : 'bg-slate-50 text-slate-800 border border-slate-200'
+                }`}>
+                  {status.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  ) : status.type === 'error' ? (
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  ) : status.type === 'testing' ? (
+                    <Loader2 className="h-5 w-5 flex-shrink-0 mt-0.5 animate-spin" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  )}
+                  <p className="text-sm flex-1">{status.message}</p>
+                </div>
+              )}
+
+              {/* Botões */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleTest}
+                  disabled={isLoading || !apiUrl.trim()}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isLoading && status.type === 'testing' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testando...
+                    </>
+                  ) : (
+                    'Testar Conexão'
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={isLoading || status.type !== 'success'}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                >
+                  {isLoading && status.type !== 'testing' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Conectar'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dica Rápida */}
+        {status.type === 'error' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs text-amber-800">
+              <strong>Dica:</strong> Verifique se a API está em execução e se o endereço está correto.
             </p>
           </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="apiUrl" className="text-base font-medium">
-                URL da API
-              </Label>
-              <Input
-                id="apiUrl"
-                type="text"
-                placeholder="http://192.168.0.10:8000"
-                value={apiUrl}
-                onChange={handleChange}
-                className="mt-2"
-                disabled={isLoading}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Exemplo: http://192.168.0.10:8000 ou http://seu-servidor:8000
-              </p>
-            </div>
-          </div>
-
-          {status.message && (
-            <div
-              className={`flex items-center gap-2 p-3 rounded-lg ${
-                status.type === 'success'
-                  ? 'bg-green-50 text-green-800 border border-green-200'
-                  : status.type === 'error'
-                  ? 'bg-red-50 text-red-800 border border-red-200'
-                  : 'bg-blue-50 text-blue-800 border border-blue-200'
-              }`}
-            >
-              {status.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 flex-shrink-0" />
-              ) : status.type === 'error' ? (
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              ) : (
-                <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin" />
-              )}
-              <p className="text-sm">{status.message}</p>
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              onClick={handleTest}
-              disabled={isLoading || !apiUrl.trim()}
-              variant="outline"
-              className="flex-1"
-            >
-              {isLoading && status.type === 'testing' ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testando...
-                </>
-              ) : (
-                'Testar Conexão'
-              )}
-            </Button>
-
-            <Button
-              onClick={handleSave}
-              disabled={isLoading || status.type !== 'success'}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-            >
-              Salvar e Conectar
-            </Button>
-
-            <Button onClick={handleReset} disabled={isLoading} variant="ghost">
-              Resetar
-            </Button>
-          </div>
-
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }

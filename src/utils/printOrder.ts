@@ -1,4 +1,6 @@
 import { OrderItem, OrderWithItems } from '../types';
+import { imageToBase64 } from './imageLoader';
+import { isValidImagePath } from './path';
 
 // ============================================================================
 // TYPES
@@ -241,12 +243,18 @@ const buildItemCard = (
   itemIndex: number,
   totalQuantity: number,
   isLastItem: boolean, 
-  financials: OrderFinancials
+  financials: OrderFinancials,
+  imageBase64Map?: Map<string, string>
 ): string => {
   const itemRecord = item as unknown as Record<string, unknown>;
   const details = collectItemDetails(item);
-  const imageUrl = item.imagem?.trim();
+  const imagePath = item.imagem?.trim();
   const imageCaption = getFieldValue(itemRecord, 'legenda_imagem');
+  
+  // Usar base64 se disponível, senão usar o caminho original
+  const imageUrl = imagePath && imageBase64Map?.has(imagePath) 
+    ? imageBase64Map.get(imagePath)! 
+    : imagePath;
 
   // Calcular valores financeiros do item
   const subtotal = parseCurrencyValue(item.subtotal);
@@ -414,7 +422,7 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
 // CONTENT GENERATION - Geração de Conteúdo
 // ============================================================================
 
-const generatePrintContent = (order: OrderWithItems): string => {
+const generatePrintContent = (order: OrderWithItems, imageBase64Map?: Map<string, string>): string => {
   const financials = computeOrderFinancials(order);
   const headerHtml = buildOrderHeader(order);
 
@@ -452,7 +460,7 @@ const generatePrintContent = (order: OrderWithItems): string => {
       return `
         <div class="page">
           ${headerHtml}
-          ${buildItemCard(expanded.item, expanded.itemIndex, expanded.totalQuantity, isLastPage, financials)}
+          ${buildItemCard(expanded.item, expanded.itemIndex, expanded.totalQuantity, isLastPage, financials, imageBase64Map)}
         </div>
       `;
     })
@@ -478,10 +486,10 @@ const buildStyles = (): string => `
   }
 
   body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     font-size: 11pt;
-    line-height: 1.25;
-    color: #000;
+    line-height: 1.4;
+    color: #1a1a1a;
     background: #fff;
     padding: 0;
     margin: 0;
@@ -516,41 +524,57 @@ const buildStyles = (): string => `
   /* ========== CABEÇALHO ========== */
   .header {
     flex-shrink: 0;
-    padding-bottom: 3mm;
-    border-bottom: 2px solid #000;
-    margin-bottom: 3mm;
+    padding: 4mm 0;
+    border-bottom: 3px solid #1e293b;
+    margin-bottom: 4mm;
+    background: linear-gradient(to bottom, #f8fafc 0%, #ffffff 100%);
+    border-radius: 4px;
+    padding-left: 2mm;
+    padding-right: 2mm;
   }
 
   .header-line1,
   .header-line2 {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
-    padding: 1px 0;
-    line-height: 1.3;
+    padding: 2px 0;
+    line-height: 1.5;
   }
 
   .header-line1 {
-    font-size: 11pt;
+    font-size: 12pt;
+    font-weight: 600;
+    margin-bottom: 2mm;
   }
 
   .header-line2 {
     font-size: 10pt;
+    color: #475569;
   }
 
   .header-line1 span,
   .header-line2 span {
     white-space: nowrap;
+    padding: 1px 4px;
+  }
+
+  .header-line1 span strong {
+    color: #0f172a;
+    font-weight: 700;
   }
 
   .header-line2 .priority {
-    color: #d00;
+    color: #dc2626;
     font-weight: bold;
+    background: #fee2e2;
+    padding: 2px 6px;
+    border-radius: 3px;
   }
 
   .header-divider {
     height: 2px;
-    background: #000;
+    background: linear-gradient(to right, #1e293b 0%, transparent 100%);
     margin-top: 3mm;
   }
 
@@ -569,30 +593,33 @@ const buildStyles = (): string => `
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
     color: white;
-    padding: 8px 16px;
-    border-radius: 8px;
-    margin-bottom: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    margin-bottom: 10px;
     align-self: flex-start;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    min-width: 100px;
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25), 0 2px 4px rgba(37, 99, 235, 0.15);
+    min-width: 110px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .numbering-label {
     font-size: 9pt;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-    margin-bottom: 2px;
+    letter-spacing: 1px;
+    opacity: 0.95;
+    margin-bottom: 3px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .numbering-value {
-    font-size: 18pt;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 20pt;
+    font-weight: 800;
+    letter-spacing: 1.5px;
     line-height: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   .item-content-row {
@@ -616,20 +643,28 @@ const buildStyles = (): string => `
   }
 
   .details-table td {
-    padding: 2px 6px;
+    padding: 4px 8px;
     font-size: 10pt;
-    border-bottom: 1px solid #e5e5e5;
+    border-bottom: 1px solid #e2e8f0;
     vertical-align: top;
+    transition: background-color 0.1s;
+  }
+
+  .details-table tr:hover td {
+    background-color: #f8fafc;
   }
 
   .details-table td.label {
     font-weight: 600;
-    width: 150px;
-    color: #333;
+    width: 160px;
+    color: #475569;
+    background: #f1f5f9;
+    border-right: 2px solid #cbd5e1;
   }
 
   .details-table td.value {
-    color: #000;
+    color: #1e293b;
+    font-weight: 500;
   }
 
   .details-table tr:last-child td {
@@ -645,17 +680,21 @@ const buildStyles = (): string => `
   }
 
   .observation {
-    margin-top: 6px;
-    padding: 5px 6px;
-    background: #f5f5f5;
-    border-left: 2px solid #666;
-    font-size: 9pt;
-    line-height: 1.3;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: linear-gradient(to right, #fef3c7 0%, #fef9e7 100%);
+    border-left: 4px solid #f59e0b;
+    border-radius: 4px;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.1);
   }
 
   .observation strong {
     display: block;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    color: #92400e;
+    font-weight: 700;
   }
 
   /* Coluna de Imagem */
@@ -669,29 +708,37 @@ const buildStyles = (): string => `
   .image-wrapper {
     width: 100%;
     max-height: 160mm;
-    border: 1px solid #ddd;
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #f9f9f9;
-    padding: 6px;
-    gap: 8px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 8px;
+    gap: 10px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
   .image-wrapper img {
     max-width: 100%;
     max-height: 140mm;
     object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
   .image-caption {
     width: 100%;
-    font-size: 0.8rem;
-    color: #4b5563;
+    font-size: 32pt;
+    color: #475569;
     text-align: center;
-    line-height: 1.2;
+    line-height: 1.4;
     word-break: break-word;
+    font-weight: 500;
+    padding: 4px;
+    background: #ffffff;
+    border-radius: 3px;
   }
 
   .no-image {
@@ -710,14 +757,18 @@ const buildStyles = (): string => `
   /* ========== RESUMO FINANCEIRO DO ITEM ========== */
   .item-financial-section {
     flex-shrink: 0;
-    padding: 5px 0 6px 0;
-    border-top: 1px solid #ccc;
+    padding: 8px 0 10px 0;
+    border-top: 2px solid #cbd5e1;
+    margin-top: 4px;
   }
 
   .item-financial-section h3 {
-    font-size: 11pt;
-    font-weight: bold;
-    margin-bottom: 4px;
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .financial-table {
@@ -727,19 +778,23 @@ const buildStyles = (): string => `
   }
 
   .financial-table td {
-    padding: 3px 6px;
+    padding: 5px 8px;
     font-size: 10pt;
-    border-bottom: 1px solid #e5e5e5;
+    border-bottom: 1px solid #e2e8f0;
   }
 
   .financial-table td.label {
     font-weight: 600;
-    width: 170px;
+    width: 180px;
+    color: #475569;
+    background: #f8fafc;
   }
 
   .financial-table td.value {
     text-align: right;
     font-weight: 600;
+    color: #1e293b;
+    font-family: 'Courier New', monospace;
   }
 
   .financial-table tr:last-child td {
@@ -747,9 +802,11 @@ const buildStyles = (): string => `
   }
 
   .financial-table tr.total-row td {
-    border-top: 2px solid #000;
-    padding-top: 5px;
-    font-size: 10pt;
+    border-top: 3px solid #1e293b;
+    padding-top: 8px;
+    font-size: 11pt;
+    background: #f1f5f9;
+    font-weight: 700;
   }
 
   /* ========== DIVISÓRIA ========== */
@@ -764,16 +821,23 @@ const buildStyles = (): string => `
   .order-financial-section {
     flex-shrink: 0;
     max-height: 55mm;
-    padding: 8px 10px;
-    background: #f9f9f9;
-    border: 2px solid #000;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border: 3px solid #1e293b;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   .order-financial-section h2 {
-    font-size: 11pt;
-    font-weight: bold;
-    margin-bottom: 6px;
+    font-size: 12pt;
+    font-weight: 700;
+    margin-bottom: 8px;
     text-align: center;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #1e293b;
   }
 
   .order-financial-section .financial-table {
@@ -782,14 +846,18 @@ const buildStyles = (): string => `
   }
 
   .order-financial-section tr.final-total-row td {
-    border-top: 2px solid #000;
-    padding-top: 6px;
-    font-size: 10pt;
-    font-weight: bold;
+    border-top: 3px solid #1e293b;
+    padding-top: 10px;
+    font-size: 12pt;
+    font-weight: 800;
+    background: #ffffff;
+    color: #0f172a;
   }
 
   .order-financial-section tr.final-total-row td.value {
-    font-size: 11pt;
+    font-size: 14pt;
+    color: #059669;
+    font-family: 'Courier New', monospace;
   }
 
   /* ========== MENSAGENS ========== */
@@ -873,51 +941,113 @@ const buildStyles = (): string => `
   }
 `;
 
-export const printOrder = (order: OrderWithItems) => {
-  const content = generatePrintContent(order);
+export const printOrder = async (order: OrderWithItems) => {
+  const orderIdentifier = String(order.numero || order.id || '').trim() || 'pedido';
+  const sanitizedIdentifier = orderIdentifier
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-');
+  const printTitle = `Pedido-${sanitizedIdentifier}`;
+  const previousTitle = document.title;
+
+  // Carregar todas as imagens para base64 antes de gerar o conteúdo
+  const imageBase64Map = new Map<string, string>();
+  
+  if (Array.isArray(order.items)) {
+    const imagePromises = order.items
+      .filter(item => item.imagem && isValidImagePath(item.imagem))
+      .map(async (item) => {
+        try {
+          const imagePath = item.imagem!.trim();
+          console.log('[printOrder] 🔄 Carregando imagem para impressão:', imagePath);
+          const base64 = await imageToBase64(imagePath);
+          imageBase64Map.set(imagePath, base64);
+          console.log('[printOrder] ✅ Imagem carregada para impressão:', imagePath);
+        } catch (error) {
+          console.error('[printOrder] ❌ Erro ao carregar imagem para impressão:', {
+            imagem: item.imagem,
+            error
+          });
+          // Continuar mesmo se uma imagem falhar
+        }
+      });
+    
+    await Promise.all(imagePromises);
+    console.log('[printOrder] 📊 Total de imagens carregadas:', imageBase64Map.size);
+  }
+  
+  const content = generatePrintContent(order, imageBase64Map);
   const styles = buildStyles();
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    document.body.removeChild(iframe);
-    return;
-  }
-
-  doc.open();
-  doc.write(`
+  const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
-        <title>Pedido #${escapeHtml((order.numero || order.id).toString())}</title>
+        <title>${escapeHtml(printTitle)}</title>
         <style>${styles}</style>
       </head>
       <body>
         ${content}
+        <script>
+          (function(){
+            function doPrint(){
+              try { window.focus(); window.print(); } catch(e){}
+            }
+            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
+          })();
+        </script>
       </body>
     </html>
-  `);
-  doc.close();
+  `;
 
-  const handleAfterPrint = () => {
-    setTimeout(() => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-      document.body.removeChild(iframe);
-    }, 200);
-  };
-
-  window.addEventListener('afterprint', handleAfterPrint);
-
+  // Abrir nova janela e imprimir (mesma abordagem dos relatórios)
+  let win: Window | null = null;
+  try {
+    win = window.open('', '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('Não foi possível abrir janela de impressão:', err);
+    win = null;
+  }
+  
+  if (!win) {
+    // Fallback: usa iframe oculto
+    const temp = document.createElement('iframe');
+    temp.style.position = 'fixed';
+    temp.style.width = '0';
+    temp.style.height = '0';
+    temp.style.border = '0';
+    document.body.appendChild(temp);
+    const doc = temp.contentDocument || temp.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        try { 
+          temp.contentWindow?.focus(); 
+          temp.contentWindow?.print(); 
+        } catch {
+          // Ignorar erros de impressão
+        }
+        setTimeout(() => { 
+          try { 
+            document.body.removeChild(temp); 
+          } catch {
+            // Ignorar erros de remoção
+          }
+        }, 1000);
+      }, 300);
+    }
+    return;
+  }
+  
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  
+  // Restaurar título anterior após um tempo
   setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-  }, 100);
+    document.title = previousTitle;
+  }, 1000);
 };

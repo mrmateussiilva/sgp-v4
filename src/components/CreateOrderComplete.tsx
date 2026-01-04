@@ -25,6 +25,7 @@ import {
   UpdateOrderMetadataRequest,
 } from '@/types';
 import { api } from '@/services/api';
+import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
 import { FormTotemProducao } from '@/components/FormTotemProducao';
@@ -93,6 +94,8 @@ interface TabItem {
   cordinha_extra: boolean;
   alcinha: boolean;
   toalha_pronta: boolean;
+  data_impressao: string;
+  rip_maquina: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -101,19 +104,39 @@ interface CreateOrderCompleteProps {
 
 type NormalizedItem = CreateOrderItemRequest & { orderItemId?: number };
 
-export default function CreateOrderComplete({ mode = 'create' }: CreateOrderCompleteProps) {
+export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) {
   const navigate = useNavigate();
   const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
-  const { orders, setOrders, updateOrder: updateOrderInStore } = useOrderStore();
+  const { updateOrder: updateOrderInStore } = useOrderStore();
 
-  const isEditMode = mode === 'edit';
-  const initialSelectedId =
-    isEditMode && routeOrderId ? Number.parseInt(routeOrderId, 10) : null;
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(
-    Number.isNaN(initialSelectedId ?? NaN) ? null : initialSelectedId
-  );
+  console.log('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
+
+  // Detectar automaticamente se está em modo edição baseado na rota
+  // Se routeOrderId existir, está em modo edição
+  const isEditMode = mode === 'edit' || Boolean(routeOrderId);
+  
+  // Calcular ID inicial de forma segura
+  const getInitialId = () => {
+    if (routeOrderId) {
+      const parsed = Number.parseInt(routeOrderId, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  };
+  
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(getInitialId());
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+
+  console.log('[CreateOrderComplete] Estado inicial:', { 
+    mode, 
+    routeOrderId, 
+    isEditMode, 
+    selectedOrderId, 
+    isLoadingOrder, 
+    hasCurrentOrder: !!currentOrder 
+  });
 
   function createEmptyTab(tabId: string): TabItem {
     return {
@@ -163,6 +186,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       cordinha_extra: false,
       alcinha: false,
       toalha_pronta: false,
+      data_impressao: '',
+      rip_maquina: '',
     };
   }
 
@@ -199,6 +224,13 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   return parsed.toFixed(2).replace('.', ',');
 }
 
+  function formatCurrencyBR(value: number): string {
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   function parseLocaleNumber(value?: string | number | null): number {
     if (value === null || value === undefined) {
       return 0;
@@ -211,14 +243,34 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       return 0;
     }
     const compact = trimmed.replace(/\s+/g, '');
-    let normalized = compact;
-    if (compact.includes(',') && compact.includes('.')) {
-      normalized = compact.replace(/\./g, '').replace(',', '.');
-    } else if (compact.includes(',')) {
-      normalized = compact.replace(',', '.');
-    } else {
-      normalized = compact.replace(',', '.');
+    
+    // Remove caracteres não numéricos exceto vírgula e ponto
+    const cleaned = compact.replace(/[^\d,.-]/g, '');
+    
+    // Encontra a posição da última vírgula e do último ponto
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    
+    let normalized = cleaned;
+    
+    // Se tem vírgula e ponto, determinar qual é o separador decimal
+    if (lastComma > -1 && lastDot > -1) {
+      // O separador decimal é o que aparece por último
+      if (lastComma > lastDot) {
+        // Formato pt-BR: vírgula é decimal, ponto é milhar (ex: 70.000,00)
+        normalized = cleaned.replace(/\./g, '').replace(',', '.');
+      } else {
+        // Formato en-US: ponto é decimal, vírgula é milhar (ex: 70,000.00)
+        normalized = cleaned.replace(/,/g, '');
+      }
+    } else if (lastComma > -1) {
+      // Só tem vírgula: tratar como separador decimal
+      normalized = cleaned.replace(',', '.');
+    } else if (lastDot > -1) {
+      // Só tem ponto: tratar como separador decimal
+      normalized = cleaned;
     }
+    
     const parsed = Number.parseFloat(normalized);
     return Number.isNaN(parsed) ? 0 : parsed;
   }
@@ -304,58 +356,75 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       cordinha_extra: Boolean(anyItem.cordinha_extra),
       alcinha: Boolean(anyItem.alcinha),
       toalha_pronta: Boolean(anyItem.toalha_pronta),
+      data_impressao: anyItem.data_impressao ?? '',
+      rip_maquina: anyItem.rip_maquina ?? '',
     };
   }
 
   function populateFormFromOrder(order: OrderWithItems) {
-    const orderStatus = order.status ?? OrderStatus.Pendente;
-    const isConcluido = orderStatus === OrderStatus.Concluido;
-    
-    setIsLocked(isConcluido);
-    setLocalStatus(orderStatus);
-    
-    setFormData((prev) => ({
-      ...prev,
-      numero: order.numero ?? '',
-      cliente: order.cliente ?? order.customer_name ?? '',
-      telefone_cliente: order.telefone_cliente ?? '',
-      cidade_cliente: order.cidade_cliente ?? '',
-      estado_cliente: order.estado_cliente ?? '',
-      data_entrada: toDateInputValue(order.data_entrada) || prev.data_entrada,
-      data_entrega: toDateInputValue(order.data_entrega),
-      prioridade: order.prioridade ?? 'NORMAL',
-      status: isConcluido ? OrderStatus.EmProcessamento : orderStatus, // Permite edição mudando para EmProcessamento
-      observacao: order.observacao ?? '',
-      forma_envio: order.forma_envio ?? '',
-      tipo_pagamento: order.forma_pagamento_id
-        ? order.forma_pagamento_id.toString()
-        : '',
-      valor_frete: formatCurrencyValue(order.valor_frete ?? '0'),
-    }));
+    try {
+      const orderStatus = order.status ?? OrderStatus.Pendente;
+      const isConcluido = orderStatus === OrderStatus.Concluido;
+      
+      setIsLocked(isConcluido);
+      setLocalStatus(orderStatus);
+      
+      setFormData((prev) => ({
+        ...prev,
+        numero: order.numero ?? '',
+        cliente: order.cliente ?? order.customer_name ?? '',
+        telefone_cliente: order.telefone_cliente ?? '',
+        cidade_cliente: order.cidade_cliente ?? '',
+        estado_cliente: order.estado_cliente ?? '',
+        data_entrada: toDateInputValue(order.data_entrada) || prev.data_entrada,
+        data_entrega: toDateInputValue(order.data_entrega),
+        prioridade: order.prioridade ?? 'NORMAL',
+        status: isConcluido ? OrderStatus.EmProcessamento : orderStatus, // Permite edição mudando para EmProcessamento
+        observacao: order.observacao ?? '',
+        forma_envio: order.forma_envio ?? '',
+        tipo_pagamento: order.forma_pagamento_id
+          ? order.forma_pagamento_id.toString()
+          : '',
+        valor_frete: formatCurrencyValue(order.valor_frete ?? '0'),
+      }));
 
-    const items = order.items ?? [];
-    if (items.length === 0) {
-      setTabs(['tab-1']);
-      setTabsData({ 'tab-1': createEmptyTab('tab-1') });
-      setActiveTab('tab-1');
-      setItemHasUnsavedChanges({});
-      return;
+      const items = order.items ?? [];
+      if (items.length === 0) {
+        setTabs(['tab-1']);
+        setTabsData({ 'tab-1': createEmptyTab('tab-1') });
+        setActiveTab('tab-1');
+        setItemHasUnsavedChanges({});
+        return;
+      }
+
+      const generatedTabs = items.map((_, index) => `tab-${index + 1}`);
+      const data: Record<string, TabItem> = {};
+      generatedTabs.forEach((tabId, index) => {
+        try {
+          data[tabId] = mapItemToTab(items[index], tabId);
+        } catch (itemError) {
+          console.error(`Erro ao mapear item ${index} para tab ${tabId}:`, itemError);
+          // Criar tab vazia em caso de erro
+          data[tabId] = createEmptyTab(tabId);
+        }
+      });
+      setTabs(generatedTabs);
+      setTabsData(data);
+      setActiveTab(generatedTabs[0]);
+      setItemHasUnsavedChanges(
+        generatedTabs.reduce<Record<string, boolean>>((acc, tabId) => {
+          acc[tabId] = false;
+          return acc;
+        }, {})
+      );
+    } catch (error) {
+      console.error('Erro ao popular formulário com dados do pedido:', error);
+      toast({
+        title: 'Erro ao carregar dados',
+        description: 'Ocorreu um erro ao preencher o formulário. Alguns dados podem estar incompletos.',
+        variant: 'destructive',
+      });
     }
-
-    const generatedTabs = items.map((_, index) => `tab-${index + 1}`);
-    const data: Record<string, TabItem> = {};
-    generatedTabs.forEach((tabId, index) => {
-      data[tabId] = mapItemToTab(items[index], tabId);
-    });
-    setTabs(generatedTabs);
-    setTabsData(data);
-    setActiveTab(generatedTabs[0]);
-    setItemHasUnsavedChanges(
-      generatedTabs.reduce<Record<string, boolean>>((acc, tabId) => {
-        acc[tabId] = false;
-        return acc;
-      }, {})
-    );
   }
 
   const [formData, setFormData] = useState({
@@ -427,92 +496,141 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
   };
 
 
+  // Integração com eventos de pedidos em tempo real
+  // Quando o pedido sendo editado é atualizado em outra máquina, avisar o usuário
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode || !selectedOrderId) {
       return;
     }
-    if (!routeOrderId) {
-      return;
-    }
-    const parsed = Number.parseInt(routeOrderId, 10);
-    if (!Number.isNaN(parsed)) {
-      setSelectedOrderId(parsed);
-    }
-  }, [isEditMode, routeOrderId]);
 
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderUpdated: async (orderId) => {
+        // Se o pedido sendo editado foi atualizado, recarregar dados
+        if (orderId === selectedOrderId) {
+          toast({
+            title: 'Pedido Atualizado',
+            description: 'Este pedido foi atualizado em outra máquina. Recarregando dados...',
+            variant: 'default',
+          });
+          
+          // Recarregar o pedido
+          try {
+            const updatedOrder = await fetchOrderAfterEvent(orderId);
+            if (updatedOrder) {
+              setCurrentOrder(updatedOrder);
+              // Recarregar formulário com dados atualizados
+              populateFormFromOrder(updatedOrder);
+            }
+          } catch (error) {
+            console.error('Erro ao recarregar pedido após evento:', error);
+          }
+        }
+      },
+      onOrderCanceled: async (orderId) => {
+        // Se o pedido sendo editado foi cancelado, avisar
+        if (orderId === selectedOrderId) {
+          toast({
+            title: 'Pedido Cancelado',
+            description: 'Este pedido foi cancelado em outra máquina.',
+            variant: 'destructive',
+          });
+        }
+      },
+    }, false); // Não mostrar toast automático, vamos mostrar mensagens customizadas
+    
+    return unsubscribe;
+  }, [isEditMode, selectedOrderId, toast]);
+
+  // Efeito para detectar ID da rota e entrar em modo edição automaticamente
   useEffect(() => {
-    if (!isEditMode) {
-      return;
-    }
-
-    if (orders.length > 0) {
-      return;
-    }
-
-    let active = true;
-    // Carregar opções de pedidos para seleção
-    (async () => {
+    if (routeOrderId) {
       try {
-        const fetched = await api.getOrders();
-        if (!active) {
-          return;
+        const parsed = Number.parseInt(routeOrderId, 10);
+        if (!Number.isNaN(parsed) && parsed > 0) {
+          console.log('[CreateOrderComplete] Definindo selectedOrderId para:', parsed);
+          setSelectedOrderId(parsed);
+        } else {
+          console.error('[CreateOrderComplete] ID inválido na rota:', routeOrderId);
+          toast({
+            title: 'ID inválido',
+            description: 'O ID do pedido na URL é inválido.',
+            variant: 'destructive',
+          });
+          navigate('/dashboard/orders');
         }
-        setOrders(fetched);
       } catch (error) {
-        if (!active) {
-          return;
-        }
-        console.error('Erro ao carregar pedidos disponíveis:', error);
+        console.error('[CreateOrderComplete] Erro ao processar ID da rota:', error);
         toast({
-          title: 'Erro ao carregar pedidos',
-          description: 'Não foi possível listar os pedidos para edição.',
+          title: 'Erro',
+          description: 'Erro ao processar o ID do pedido.',
           variant: 'destructive',
         });
-      } finally {
-        if (active) {
-          // Finalizar carregamento
-        }
+        navigate('/dashboard/orders');
       }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [isEditMode, orders, setOrders, toast]);
-
-  useEffect(() => {
-    if (!isEditMode) {
-      return;
+    } else {
+      // Se não tem routeOrderId e está em modo edição, pode ser problema
+      if (mode === 'edit') {
+        console.warn('[CreateOrderComplete] Modo edição mas sem ID na rota');
+      }
     }
+  }, [routeOrderId, navigate, toast, mode]);
 
-    if (!selectedOrderId) {
-      setCurrentOrder(null);
+  // Removido: não precisamos mais carregar lista de pedidos quando temos ID na rota
+  // O pedido será carregado diretamente pelo ID
+
+  // Carregar pedido quando tiver ID selecionado
+  useEffect(() => {
+    // Só carregar se tiver um ID válido
+    if (!selectedOrderId || selectedOrderId <= 0) {
+      console.log('[CreateOrderComplete] Sem ID válido, não carregando pedido');
       return;
     }
 
     let active = true;
-    // Carregar pedido selecionado
+
+    // Carregar pedido pelo ID
+    console.log('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
+    setIsLoadingOrder(true);
+    
     (async () => {
       try {
         const order = await api.getOrderById(selectedOrderId);
+        console.log('[CreateOrderComplete] Pedido carregado da API:', order);
+        
         if (!active) {
+          console.log('[CreateOrderComplete] Componente desmontado, cancelando...');
           return;
         }
+        
+        if (!order) {
+          throw new Error('Pedido não encontrado');
+        }
+        
         setCurrentOrder(order);
+        console.log('[CreateOrderComplete] Populando formulário...');
         populateFormFromOrder(order);
+        console.log('[CreateOrderComplete] Formulário populado com sucesso');
       } catch (error) {
         if (!active) {
           return;
         }
-        console.error('Erro ao carregar pedido para edição:', error);
+        console.error('[CreateOrderComplete] Erro ao carregar pedido para edição:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         toast({
           title: 'Erro ao carregar pedido',
-          description: 'Não foi possível carregar os dados completos do pedido selecionado.',
+          description: `Não foi possível carregar os dados completos do pedido: ${errorMessage}`,
           variant: 'destructive',
         });
+        // Redirecionar após 2 segundos
+        setTimeout(() => {
+          if (active) {
+            navigate('/dashboard/orders');
+          }
+        }, 2000);
       } finally {
         if (active) {
-          // Finalizar carregamento
+          setIsLoadingOrder(false);
+          console.log('[CreateOrderComplete] Loading finalizado');
         }
       }
     })();
@@ -520,7 +638,8 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     return () => {
       active = false;
     };
-  }, [isEditMode, selectedOrderId, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrderId, navigate, toast]);
 
   // Carregar catálogos do banco (ativos)
   useEffect(() => {
@@ -872,7 +991,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     }
 
     // Calcular valor total do pedido
-    const valorTotal = parseLocaleNumber(calcularTotal());
+    const valorTotal = calcularTotal();
     if (valorTotal <= 0) {
       errors.valor_total = 'Valor total do pedido deve ser maior que zero';
     }
@@ -1300,10 +1419,14 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     return totalBruto;
   };
 
-  const calcularTotal = () => {
+  const calcularTotal = (): number => {
     const valorItens = calcularValorItens();
     const frete = parseLocaleNumber(formData.valor_frete);
-    return (valorItens + frete).toFixed(2).replace('.', ',');
+    return valorItens + frete;
+  };
+
+  const calcularTotalFormatado = (): string => {
+    return formatCurrencyBR(calcularTotal());
   };
 
   const handleSalvar = () => {
@@ -1621,7 +1744,10 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
       }
 
       const createItems: CreateOrderItemRequest[] = normalizedItems.map(
-        ({ orderItemId, ...item }) => item
+        ({ orderItemId, ...item }) => {
+          // Remover orderItemId do objeto (não é necessário para criação)
+          return item;
+        }
       );
 
       const createOrderRequest: CreateOrderRequest = {
@@ -1679,6 +1805,39 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
     });
   };
 
+  // Mostrar loading quando estiver em modo edição
+  // Se tem routeOrderId ou selectedOrderId, mostrar loading até carregar
+  if (isEditMode) {
+    // Se tem ID na rota mas ainda não foi setado no estado, aguardar
+    if (routeOrderId && !selectedOrderId) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-[400px]">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="text-lg font-medium">Preparando edição...</p>
+            <p className="text-sm text-muted-foreground">ID: {routeOrderId}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Se tem selectedOrderId mas está carregando ou não tem pedido ainda
+    if (selectedOrderId) {
+      if (isLoadingOrder || !currentOrder) {
+        return (
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="text-lg font-medium">Carregando pedido...</p>
+              <p className="text-sm text-muted-foreground">ID: {selectedOrderId}</p>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
+  // Renderizar o formulário
   return (
     <div className="space-y-4 max-w-full mx-auto pb-8 px-4">
 
@@ -2342,7 +2501,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
             <div className="space-y-2">
               <Label className="text-base font-medium">Valor Total (R$)</Label>
               <Input
-                value={calcularTotal()}
+                value={calcularTotalFormatado()}
                 disabled
                 className={`bg-emerald-100 font-bold text-emerald-900 h-12 text-xl ${errors.valor_total ? 'border-red-500' : ''}`}
               />
@@ -2481,7 +2640,7 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0 ? 1 : quantidadeAdesivo);
                 }
                 
-                const valorFormatado = valorTotalItem.toFixed(2).replace('.', ',');
+                const valorFormatado = formatCurrencyBR(valorTotalItem);
                 
                 return (
                   <div key={tabId} className="text-sm mb-2">
@@ -2509,16 +2668,16 @@ export default function CreateOrderComplete({ mode = 'create' }: CreateOrderComp
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>Valor Itens:</span>
-                  <span className="font-semibold">R$ {calcularValorItens().toFixed(2).replace('.', ',')}</span>
+                  <span className="font-semibold">R$ {formatCurrencyBR(calcularValorItens())}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Frete:</span>
-                  <span className="font-semibold">R$ {formData.valor_frete}</span>
+                  <span className="font-semibold">R$ {formatCurrencyBR(parseLocaleNumber(formData.valor_frete))}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg">
                   <span className="font-bold">Total:</span>
-                  <span className="font-bold text-emerald-700">R$ {calcularTotal()}</span>
+                  <span className="font-bold text-emerald-700">R$ {formatCurrencyBR(calcularTotal())}</span>
                 </div>
               </div>
             </div>

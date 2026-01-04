@@ -4,7 +4,7 @@ import { OrderWithItems } from '../types';
 interface OrderState {
   orders: OrderWithItems[];
   selectedOrder: OrderWithItems | null;
-  setOrders: (orders: OrderWithItems[]) => void;
+  setOrders: (orders: OrderWithItems[] | ((prev: OrderWithItems[]) => OrderWithItems[])) => void;
   setSelectedOrder: (order: OrderWithItems | null) => void;
   addOrder: (order: OrderWithItems) => void;
   updateOrder: (order: OrderWithItems) => void;
@@ -14,7 +14,15 @@ interface OrderState {
 export const useOrderStore = create<OrderState>((set) => ({
   orders: [],
   selectedOrder: null,
-  setOrders: (orders) => set({ orders }),
+  setOrders: (ordersOrUpdater) => {
+    if (typeof ordersOrUpdater === 'function') {
+      // Se for uma função, usar como updater (padrão Zustand)
+      set((state) => ({ orders: ordersOrUpdater(state.orders) }));
+    } else {
+      // Se for um array, substituir diretamente
+      set({ orders: ordersOrUpdater });
+    }
+  },
   setSelectedOrder: (order) => set({ selectedOrder: order }),
   addOrder: (order) => set((state) => ({ orders: [order, ...state.orders] })),
   updateOrder: (order) =>

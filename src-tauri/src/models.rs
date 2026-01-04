@@ -99,6 +99,10 @@ pub struct OrderItemFicha {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub observacao: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub imagem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legenda_imagem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub emenda: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emenda_qtd: Option<String>,

@@ -285,18 +285,38 @@ class OrdersWebSocketManager {
       try {
         const payload = typeof event.data === 'string' ? event.data : '';
         if (!payload) {
+          console.warn('⚠️ WebSocket recebeu mensagem vazia');
           return;
         }
+        
         const message = JSON.parse(payload) as OrderEventMessage;
+        
+        // Log detalhado em desenvolvimento
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📨 WebSocket mensagem recebida:', {
+            type: message.type,
+            order_id: message.order_id,
+            has_order: !!(message as any).order,
+            listeners_count: this.listeners.size,
+          });
+        }
+        
+        // Notificar todos os listeners
+        let processedCount = 0;
         this.listeners.forEach((listener) => {
           try {
             listener(message);
+            processedCount++;
           } catch (error) {
-            console.error('Erro ao processar listener do WebSocket:', error);
+            console.error('❌ Erro ao processar listener do WebSocket:', error);
           }
         });
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Mensagem processada por ${processedCount} listener(s)`);
+        }
       } catch (error) {
-        console.error('Erro ao decodificar mensagem do WebSocket:', error);
+        console.error('❌ Erro ao decodificar mensagem do WebSocket:', error);
         this.updateStatus({
           lastError: 'Mensagem inválida recebida do WebSocket',
         });

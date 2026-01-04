@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ReportGroup,
   ReportResponse,
@@ -25,10 +26,20 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { isTauri } from '@/utils/isTauri';
+import { Loader2, FileDown, RefreshCcw, Settings } from 'lucide-react';
+import { openPdfInWindow } from '@/utils/exportUtils';
+import { useAuthStore } from '@/store/authStore';
+
+// Lazy load de bibliotecas pesadas
+const loadJsPDF = async () => {
+  const module = await import('jspdf');
+  return module.default;
+};
+
+const loadAutoTable = async () => {
+  const module = await import('jspdf-autotable');
+  return module.default;
+};
 
 const REPORT_OPTIONS: Record<
   'analitico' | 'sintetico',
@@ -42,8 +53,12 @@ const REPORT_OPTIONS: Record<
     { value: 'analitico_entrega_painel', label: 'Entrega × Tecido' },
   ],
   sintetico: [
-    { value: 'sintetico_data', label: 'Por Data' },
+    { value: 'sintetico_data', label: 'Por Data (automático)' },
+    { value: 'sintetico_data_entrada', label: 'Por Data de Entrada' },
+    { value: 'sintetico_data_entrega', label: 'Por Data de Entrega' },
+    { value: 'sintetico_vendedor', label: 'Por Vendedor' },
     { value: 'sintetico_designer', label: 'Por Designer' },
+    { value: 'sintetico_vendedor_designer', label: 'Por Vendedor/Designer' },
     { value: 'sintetico_cliente', label: 'Por Cliente' },
     { value: 'sintetico_entrega', label: 'Por Forma de Entrega' },
   ],
@@ -56,6 +71,9 @@ type FiltersState = {
   startDate: string;
   endDate: string;
   status: StatusOption;
+  dateMode: 'entrada' | 'entrega';
+  vendedor?: string;
+  designer?: string;
 };
 
 const QUICK_RANGES = [
@@ -95,6 +113,8 @@ const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 const formatInputDate = (date: Date) => date.toISOString().slice(0, 10);
 
 export default function Fechamentos() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuthStore();
   const { toast } = useToast();
 
   const today = useMemo(() => new Date(), []);
@@ -109,12 +129,43 @@ export default function Fechamentos() {
     startDate: formatInputDate(firstDayOfMonth),
     endDate: formatInputDate(today),
     status: STATUS_OPTIONS[0],
+    dateMode: 'entrega',
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [nomeFilter, setNomeFilter] = useState<string>('');
+  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
+  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
+
+  // Carregar listas de vendedores e designers ativos para os filtros
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPeople = async () => {
+      try {
+        const [vendedoresResponse, designersResponse] = await Promise.all([
+          api.getVendedoresAtivos(),
+          api.getDesignersAtivos(),
+        ]);
+
+        if (!isMounted) return;
+
+        setVendedores(vendedoresResponse);
+        setDesigners(designersResponse);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Erro ao carregar vendedores/designers para filtros de fechamento:', error);
+      }
+    };
+
+    void loadPeople();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!availableOptions.some((option) => option.value === filters.reportType)) {
@@ -150,6 +201,9 @@ export default function Fechamentos() {
       start_date: filters.startDate || undefined,
       end_date: filters.endDate || undefined,
       status: filters.status || undefined,
+      date_mode: filters.dateMode,
+      vendedor: filters.vendedor || undefined,
+      designer: filters.designer || undefined,
     };
 
     setLoading(true);
@@ -177,7 +231,7 @@ export default function Fechamentos() {
     }
   };
 
-  const ensurePdfSpace = (doc: jsPDF, cursorY: number, required: number): number => {
+  const ensurePdfSpace = (doc: any, cursorY: number, required: number): number => {
     const pageHeight = doc.internal.pageSize.getHeight();
     if (cursorY + required > pageHeight - 20) {
       doc.addPage();
@@ -187,7 +241,10 @@ export default function Fechamentos() {
   };
 
   const exportToPdf = async () => {
+    console.log('[exportToPdf] Função chamada');
+    
     if (!report) {
+      console.log('[exportToPdf] Nenhum relatório disponível');
       toast({
         title: 'Nenhum relatório disponível',
         description: 'Gere um relatório antes de exportar.',
@@ -196,7 +253,10 @@ export default function Fechamentos() {
       return;
     }
 
+    console.log('[exportToPdf] Relatório disponível, carregando bibliotecas...');
     try {
+      const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
+      console.log('[exportToPdf] Bibliotecas carregadas, criando documento PDF...');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
 
@@ -300,92 +360,43 @@ export default function Fechamentos() {
     doc.rect(14, cursorY - 6, 182, 8, 'F');
     doc.text('TOTAL GERAL', 18, cursorY - 1);
     doc.text(
-      `Frete: ${formatCurrency(report.total.valor_frete)}  |  Serviços: ${formatCurrency(report.total.valor_servico)}`,
+      `Total: ${formatCurrency(report.total.valor_frete + report.total.valor_servico)}`,
       196,
       cursorY - 1,
       { align: 'right' },
     );
     doc.setTextColor(0, 0, 0);
 
+      console.log('[exportToPdf] PDF renderizado, gerando nome do arquivo...');
       const filenameSuffix =
         filters.startDate && filters.endDate && filters.endDate !== filters.startDate
           ? `${filters.startDate}_${filters.endDate}`
           : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
       const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
+      console.log('[exportToPdf] Nome do arquivo:', filename);
 
-      // Gerar o PDF como blob
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-
-      // Se estiver no Tauri, tentar usar shell.open
-      if (isTauri()) {
-        try {
-          const { save } = await import('@tauri-apps/plugin-dialog');
-          const { writeFile } = await import('@tauri-apps/plugin-fs');
-
-          const filePath = await save({
-            defaultPath: filename,
-            filters: [{ name: 'PDF', extensions: ['pdf'] }],
-          });
-
-          if (filePath) {
-            // Converter blob para array de bytes
-            const arrayBuffer = await blob.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            await writeFile(filePath, uint8Array);
-
-            // Tentar abrir o arquivo
-            try {
-              const { open } = await import('@tauri-apps/plugin-shell');
-              await open(filePath);
-              toast({
-                title: 'Relatório exportado',
-                description: 'O arquivo foi salvo e aberto com sucesso.',
-              });
-            } catch (openError) {
-              console.warn('Erro ao abrir arquivo:', openError);
-              toast({
-                title: 'Relatório exportado',
-                description: 'O arquivo foi salvo, mas não foi possível abri-lo automaticamente.',
-              });
-            }
-          } else {
-            // Usuário cancelou
-            URL.revokeObjectURL(blobUrl);
-            return;
-          }
-        } catch (tauriError) {
-          console.error('Erro ao exportar via Tauri:', tauriError);
-          // Fallback para download direto
-          doc.save(filename);
-          toast({
-            title: 'Relatório exportado',
-            description: 'O arquivo foi baixado com sucesso.',
-          });
-        } finally {
-          URL.revokeObjectURL(blobUrl);
-        }
-      } else {
-        // Ambiente web: download direto
-        try {
-          doc.save(filename);
-          toast({
-            title: 'Relatório exportado',
-            description: 'O arquivo foi baixado com sucesso.',
-          });
-        } catch (saveError) {
-          console.error('Erro ao salvar PDF:', saveError);
-          toast({
-            title: 'Falha ao exportar relatório',
-            description: 'Não foi possível salvar o arquivo. Tente novamente.',
-            variant: 'destructive',
-          });
-        } finally {
-          URL.revokeObjectURL(blobUrl);
-        }
+      // Abrir PDF em nova janela para o usuário escolher salvar ou imprimir
+      try {
+        console.log('[exportToPdf] Chamando openPdfInWindow...');
+        await openPdfInWindow(doc, filename);
+        console.log('[exportToPdf] openPdfInWindow concluída com sucesso');
+        toast({
+          title: 'Relatório aberto',
+          description: 'O relatório foi aberto. Você pode salvar ou imprimir.',
+        });
+      } catch (error) {
+        console.error('[exportToPdf] Erro ao abrir PDF:', error);
+        // Fallback: download direto
+        console.log('[exportToPdf] Usando fallback: save direto');
+        doc.save(filename);
+        toast({
+          title: 'Relatório exportado',
+          description: 'O arquivo foi baixado com sucesso.',
+        });
       }
     } catch (error) {
-      console.error('Erro ao exportar relatório de fechamentos:', error);
+      console.error('[exportToPdf] Erro geral ao exportar relatório de fechamentos:', error);
+      console.error('[exportToPdf] Stack trace:', error instanceof Error ? error.stack : 'N/A');
       toast({
         title: 'Falha ao exportar relatório',
         description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado ao exportar o relatório.',
@@ -527,11 +538,23 @@ export default function Fechamentos() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
-        <p className="text-muted-foreground">
-          Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
+          <p className="text-muted-foreground">
+            Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
+          </p>
+        </div>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard/admin/template-relatorios')}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Editar Template
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -539,19 +562,19 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Filtro por Nome */}
+          {/* Filtro por Nome (cliente, vendedor, designer, etc.) */}
           {report && (
             <div className="space-y-2">
               <Label>Filtrar por nome</Label>
               <Input
                 type="text"
-                placeholder="Filtrar por nome..."
+                placeholder="Buscar por cliente, vendedor, designer ou descrição..."
                 value={nomeFilter}
                 onChange={(e) => setNomeFilter(e.target.value)}
                 className="bg-white"
               />
               <p className="text-sm text-muted-foreground">
-                Digite o nome da ficha ou descrição para filtrar os resultados
+                Digite um trecho do nome (cliente, vendedor, designer) ou da descrição para filtrar os resultados.
               </p>
             </div>
           )}
@@ -639,6 +662,24 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
+              <Label>Tipo de data</Label>
+              <Select
+                value={filters.dateMode}
+                onValueChange={(value) =>
+                  updateFilter('dateMode', value as FiltersState['dateMode'])
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrega">Data de entrega</SelectItem>
+                  <SelectItem value="entrada">Data de entrada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Status</Label>
               <Select
                 value={filters.status}
@@ -655,6 +696,56 @@ export default function Fechamentos() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Vendedor</Label>
+              <Select
+                value={filters.vendedor && filters.vendedor.length > 0 ? filters.vendedor : 'all'}
+                onValueChange={(value) =>
+                  updateFilter('vendedor', value === 'all' ? '' : (value as string))
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione um vendedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {vendedores.map((vendedor) => (
+                    <SelectItem key={vendedor.id} value={vendedor.nome}>
+                      {vendedor.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Use para fechamento de comissão por vendedor. A lista vem automaticamente do cadastro.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Designer</Label>
+              <Select
+                value={filters.designer && filters.designer.length > 0 ? filters.designer : 'all'}
+                onValueChange={(value) =>
+                  updateFilter('designer', value === 'all' ? '' : (value as string))
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione um designer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {designers.map((designer) => (
+                    <SelectItem key={designer.id} value={designer.nome}>
+                      {designer.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Combine com o vendedor para fechar comissão por par vendedor/designer.
+              </p>
             </div>
 
             <div className="flex flex-col gap-2 md:justify-end">
@@ -712,8 +803,7 @@ export default function Fechamentos() {
               <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100 px-6 py-3 text-base text-slate-700 md:flex-row md:items-center md:justify-between">
                 <span>Total do período</span>
                 <span className="font-semibold text-slate-900">
-                  Frete: {formatCurrency(filteredReport.total.valor_frete)} | Serviços:{' '}
-                  {formatCurrency(filteredReport.total.valor_servico)}
+                  Total: {formatCurrency(filteredReport.total.valor_frete + filteredReport.total.valor_servico)}
                 </span>
               </div>
               <div className="bg-slate-50 px-6 py-3 text-base text-slate-500">

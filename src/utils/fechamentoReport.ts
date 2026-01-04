@@ -12,6 +12,7 @@ type NormalizedRow = {
   ficha: string;
   cliente: string;
   designer: string;
+  vendedor: string;
   tipo: string;
   formaEnvio: string;
   data: string;
@@ -27,8 +28,12 @@ const REPORT_TITLES: Record<string, string> = {
   analitico_cliente_painel: 'Relatório Analítico — Cliente × Tipo de Produção',
   analitico_designer_painel: 'Relatório Analítico — Designer × Tipo de Produção',
   analitico_entrega_painel: 'Relatório Analítico — Forma de Entrega × Tipo de Produção',
-  sintetico_data: 'Relatório Sintético — Totais por Data',
+  sintetico_data: 'Relatório Sintético — Totais por Data (referência automática)',
+  sintetico_data_entrada: 'Relatório Sintético — Totais por Data de Entrada',
+  sintetico_data_entrega: 'Relatório Sintético — Totais por Data de Entrega',
   sintetico_designer: 'Relatório Sintético — Totais por Designer',
+  sintetico_vendedor: 'Relatório Sintético — Totais por Vendedor',
+  sintetico_vendedor_designer: 'Relatório Sintético — Totais por Vendedor/Designer',
   sintetico_cliente: 'Relatório Sintético — Totais por Cliente',
   sintetico_entrega: 'Relatório Sintético — Totais por Forma de Entrega',
 };
@@ -160,11 +165,27 @@ const splitFrete = (totalFrete: number, itemsLength: number): number[] => {
   return shares;
 };
 
-const buildRowsFromOrder = (order: OrderWithItems): NormalizedRow[] => {
+type DateReferenceMode = 'entrada' | 'entrega' | 'auto';
+
+const getOrderReferenceDate = (
+  order: OrderWithItems,
+  mode: DateReferenceMode,
+): string | null => {
+  if (mode === 'entrada') {
+    return order.data_entrada ?? null;
+  }
+  if (mode === 'entrega') {
+    return order.data_entrega ?? null;
+  }
+  // modo automático preserva o comportamento antigo
+  return order.data_entrega ?? order.data_entrada ?? order.created_at ?? null;
+};
+
+const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode): NormalizedRow[] => {
   const items = order.items ?? [];
   const cliente = safeLabel(order.cliente ?? order.customer_name, 'Cliente não informado');
   const formaEnvio = safeLabel(order.forma_envio, 'Sem forma de envio');
-  const ordemDataRef = order.data_entrega ?? order.data_entrada ?? null;
+  const ordemDataRef = getOrderReferenceDate(order, dateMode);
   const dataLabel = formatDateLabel(ordemDataRef);
   const valorFreteTotal = parseCurrency(order.valor_frete ?? 0);
 
@@ -176,6 +197,7 @@ const buildRowsFromOrder = (order: OrderWithItems): NormalizedRow[] => {
         ficha: order.numero ?? order.id.toString(),
         cliente,
         designer: 'Sem designer',
+        vendedor: 'Sem vendedor',
         tipo: 'Sem tipo',
         formaEnvio,
         data: ordemDataRef ?? '',
@@ -191,6 +213,7 @@ const buildRowsFromOrder = (order: OrderWithItems): NormalizedRow[] => {
 
   return items.map((item, index) => {
     const designer = safeLabel(item.designer, 'Sem designer');
+    const vendedor = safeLabel(item.vendedor, 'Sem vendedor');
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
     const descricao = safeLabel(item.descricao ?? item.item_name, 'Item sem descrição');
     const valorServico = getSubtotalValue(item);
@@ -201,6 +224,7 @@ const buildRowsFromOrder = (order: OrderWithItems): NormalizedRow[] => {
       ficha: order.numero ?? order.id.toString(),
       cliente,
       designer,
+      vendedor,
       tipo,
       formaEnvio,
       data: ordemDataRef ?? '',
@@ -298,7 +322,7 @@ const filterOrdersByDate = (orders: OrderWithItems[], startDate?: string, endDat
   const end = endDate ? new Date(endDate) : null;
 
   return orders.filter((order) => {
-    const referenceDate = order.data_entrega ?? order.data_entrada ?? order.created_at ?? null;
+    const referenceDate = getOrderReferenceDate(order, 'auto');
     if (!referenceDate) {
       return true;
     }
@@ -311,6 +335,41 @@ const filterOrdersByDate = (orders: OrderWithItems[], startDate?: string, endDat
       const adjustedEnd = new Date(end);
       adjustedEnd.setHours(23, 59, 59, 999);
       if (current > adjustedEnd) return false;
+    }
+    return true;
+  });
+};
+
+const normalizeFilterText = (value?: string): string => {
+  if (!value) return '';
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const filterRowsByPeople = (
+  rows: NormalizedRow[],
+  payload: ReportRequestPayload,
+): NormalizedRow[] => {
+  const vendedorFilter = normalizeFilterText(payload.vendedor);
+  const designerFilter = normalizeFilterText(payload.designer);
+
+  if (!vendedorFilter && !designerFilter) {
+    return rows;
+  }
+
+  return rows.filter((row) => {
+    const rowVendedor = normalizeFilterText(row.vendedor);
+    const rowDesigner = normalizeFilterText(row.designer);
+
+    if (vendedorFilter && !rowVendedor.includes(vendedorFilter)) {
+      return false;
+    }
+    if (designerFilter && !rowDesigner.includes(designerFilter)) {
+      return false;
     }
     return true;
   });
@@ -336,10 +395,16 @@ export const generateFechamentoReport = (
   orders: OrderWithItems[],
   payload: ReportRequestPayload,
 ): ReportResponse => {
+  const dateMode: DateReferenceMode =
+    payload.date_mode === 'entrada' || payload.date_mode === 'entrega'
+      ? payload.date_mode
+      : 'auto';
+
   const filteredByStatus = filterOrdersByStatus(orders, payload.status);
   const filteredOrders = filterOrdersByDate(filteredByStatus, payload.start_date, payload.end_date);
 
-  const baseRows = filteredOrders.flatMap((order) => buildRowsFromOrder(order));
+  const baseRowsAll = filteredOrders.flatMap((order) => buildRowsFromOrder(order, dateMode));
+  const baseRows = filterRowsByPeople(baseRowsAll, payload);
   const totals = computeTotalsFromRows(baseRows);
 
   const reportType = payload.report_type;
@@ -386,16 +451,41 @@ export const generateFechamentoReport = (
           (value) => `Tipo: ${value}`,
         );
       case 'sintetico_data':
+        // Mantém o comportamento antigo (referência automática) para compatibilidade
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data: ${value}`,
+        );
+      case 'sintetico_data_entrada':
+        return buildSingleLevelAggregate(
+          baseRows,
+          (row) => row.dataLabel,
+          (value) => `Data de Entrada: ${value}`,
+        );
+      case 'sintetico_data_entrega':
+        return buildSingleLevelAggregate(
+          baseRows,
+          (row) => row.dataLabel,
+          (value) => `Data de Entrega: ${value}`,
         );
       case 'sintetico_designer':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.designer,
           (value) => `Designer: ${value}`,
+        );
+      case 'sintetico_vendedor':
+        return buildSingleLevelAggregate(
+          baseRows,
+          (row) => row.vendedor,
+          (value) => `Vendedor: ${value}`,
+        );
+      case 'sintetico_vendedor_designer':
+        return buildSingleLevelAggregate(
+          baseRows,
+          (row) => `${row.vendedor} / ${row.designer}`,
+          (value) => `Vendedor/Designer: ${value}`,
         );
       case 'sintetico_cliente':
         return buildSingleLevelAggregate(

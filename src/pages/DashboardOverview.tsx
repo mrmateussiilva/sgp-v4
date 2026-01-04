@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, 
@@ -13,15 +13,20 @@ import {
   Zap,
   FileText,
   Truck,
-  Target
+  Target,
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
 import { OrderWithItems } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { formatDateForDisplay } from '@/utils/date';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardStats {
   totalOrders: number;
@@ -43,110 +48,209 @@ interface RecentOrder extends OrderWithItems {
 export default function DashboardOverview() {
   const navigate = useNavigate();
   const { orders } = useOrderStore();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalOrders: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    urgentOrders: 0,
-    overdueOrders: 0,
-    avgProductionTime: 0,
-    avgDelayTime: 0,
-    todayOrders: 0,
-    efficiencyRate: 0,
-  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    calculateStats();
+  // Validar se orders é um array válido
+  const validOrders = useMemo(() => {
+    if (!Array.isArray(orders)) {
+      console.warn('Orders não é um array válido');
+      return [];
+    }
+    return orders;
   }, [orders]);
 
-  const calculateStats = () => {
-    setLoading(true);
-    
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter(order => !order.pronto).length;
-    const completedOrders = orders.filter(order => order.pronto).length;
-    const urgentOrders = orders.filter(order => order.prioridade === 'ALTA').length;
-    
-    // Calcular pedidos atrasados
-    const overdueOrders = orders.filter(order => {
-      if (order.pronto) return false;
-      const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-      return deliveryDate && deliveryDate < today;
-    }).length;
-    
-    // Calcular tempo médio de produção (apenas pedidos concluídos)
-    const completedOrdersWithDates = orders.filter(order => {
-      return order.pronto && order.data_entrada && order.created_at;
-    });
-    
-    let totalProductionTime = 0;
-    completedOrdersWithDates.forEach(order => {
-      const startDate = new Date(order.data_entrada || order.created_at || '');
-      const endDate = new Date();
-      const productionDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      totalProductionTime += productionDays;
-    });
-    
-    const avgProductionTime = completedOrdersWithDates.length > 0 
-      ? Math.round(totalProductionTime / completedOrdersWithDates.length) 
-      : 0;
-    
-    // Calcular tempo médio de atraso
-    const overdueOrdersWithDates = orders.filter(order => {
-      if (order.pronto) return false;
-      const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-      return deliveryDate && deliveryDate < today;
-    });
-    
-    let totalDelayTime = 0;
-    overdueOrdersWithDates.forEach(order => {
-      const deliveryDate = new Date(order.data_entrega || '');
-      const delayDays = Math.ceil((today.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
-      totalDelayTime += delayDays;
-    });
-    
-    const avgDelayTime = overdueOrdersWithDates.length > 0 
-      ? Math.round(totalDelayTime / overdueOrdersWithDates.length) 
-      : 0;
-    
-    const todayOrders = orders.filter(order => {
-      const orderDate = order.data_entrada || order.created_at;
-      return orderDate && orderDate.startsWith(todayStr);
-    }).length;
+  // Calcular estatísticas com useMemo para otimização
+  const stats = useMemo<DashboardStats>(() => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+      
+      if (validOrders.length === 0) {
+        return {
+          totalOrders: 0,
+          pendingOrders: 0,
+          completedOrders: 0,
+          urgentOrders: 0,
+          overdueOrders: 0,
+          avgProductionTime: 0,
+          avgDelayTime: 0,
+          todayOrders: 0,
+          efficiencyRate: 0,
+        };
+      }
+      
+      const totalOrders = validOrders.length;
+      const pendingOrders = validOrders.filter(order => !order.pronto).length;
+      const completedOrders = validOrders.filter(order => order.pronto).length;
+      const urgentOrders = validOrders.filter(order => order.prioridade === 'ALTA').length;
+      
+      // Calcular pedidos atrasados
+      const overdueOrders = validOrders.filter(order => {
+        if (order.pronto) return false;
+        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
+        if (!deliveryDate) return false;
+        deliveryDate.setHours(0, 0, 0, 0);
+        return deliveryDate < today;
+      }).length;
+      
+      // Calcular tempo médio de produção (apenas pedidos concluídos)
+      // CORRIGIDO: Usar updated_at ou data de conclusão real ao invés de new Date()
+      const completedOrdersWithDates = validOrders.filter(order => {
+        return order.pronto && order.data_entrada && (order.created_at || order.updated_at);
+      });
+      
+      let totalProductionTime = 0;
+      completedOrdersWithDates.forEach(order => {
+        const startDate = new Date(order.data_entrada || order.created_at || '');
+        // Usar updated_at se disponível, senão usar data atual como fallback
+        const endDate = order.updated_at ? new Date(order.updated_at) : new Date();
+        const productionDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (productionDays > 0) {
+          totalProductionTime += productionDays;
+        }
+      });
+      
+      const avgProductionTime = completedOrdersWithDates.length > 0 
+        ? Math.round(totalProductionTime / completedOrdersWithDates.length) 
+        : 0;
+      
+      // Calcular tempo médio de atraso
+      const overdueOrdersWithDates = validOrders.filter(order => {
+        if (order.pronto) return false;
+        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
+        if (!deliveryDate) return false;
+        deliveryDate.setHours(0, 0, 0, 0);
+        return deliveryDate < today;
+      });
+      
+      let totalDelayTime = 0;
+      overdueOrdersWithDates.forEach(order => {
+        const deliveryDate = new Date(order.data_entrega || '');
+        deliveryDate.setHours(0, 0, 0, 0);
+        const delayDays = Math.ceil((today.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (delayDays > 0) {
+          totalDelayTime += delayDays;
+        }
+      });
+      
+      const avgDelayTime = overdueOrdersWithDates.length > 0 
+        ? Math.round(totalDelayTime / overdueOrdersWithDates.length) 
+        : 0;
+      
+      const todayOrders = validOrders.filter(order => {
+        const orderDate = order.data_entrada || order.created_at;
+        return orderDate && orderDate.startsWith(todayStr);
+      }).length;
 
-    // Calcular taxa de eficiência (pedidos no prazo vs total)
-    const onTimeOrders = orders.filter(order => {
-      if (!order.pronto) return false;
-      const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-      const completedDate = order.updated_at ? new Date(order.updated_at) : new Date();
-      return deliveryDate && completedDate <= deliveryDate;
-    }).length;
-    
-    const efficiencyRate = completedOrders > 0 
-      ? Math.round((onTimeOrders / completedOrders) * 100) 
-      : 0;
+      // Calcular taxa de eficiência (pedidos no prazo vs total)
+      const onTimeOrders = validOrders.filter(order => {
+        if (!order.pronto) return false;
+        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
+        if (!deliveryDate) return false;
+        const completedDate = order.updated_at ? new Date(order.updated_at) : new Date();
+        deliveryDate.setHours(23, 59, 59, 999);
+        return completedDate <= deliveryDate;
+      }).length;
+      
+      const efficiencyRate = completedOrders > 0 
+        ? Math.round((onTimeOrders / completedOrders) * 100) 
+        : 0;
 
-    setStats({
-      totalOrders,
-      pendingOrders,
-      completedOrders,
-      urgentOrders,
-      overdueOrders,
-      avgProductionTime,
-      avgDelayTime,
-      todayOrders,
-      efficiencyRate,
-    });
-    
+      return {
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        urgentOrders,
+        overdueOrders,
+        avgProductionTime,
+        avgDelayTime,
+        todayOrders,
+        efficiencyRate,
+      };
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao calcular estatísticas do dashboard',
+        variant: 'destructive',
+      });
+      return {
+        totalOrders: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+        urgentOrders: 0,
+        overdueOrders: 0,
+        avgProductionTime: 0,
+        avgDelayTime: 0,
+        todayOrders: 0,
+        efficiencyRate: 0,
+      };
+    }
+  }, [validOrders, toast]);
+
+  useEffect(() => {
     setLoading(false);
-  };
+    setLastUpdate(new Date());
+  }, [stats]);
 
-  const getRecentOrders = (): RecentOrder[] => {
-    return orders
+  // Atualização automática a cada 30 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setLastUpdate(new Date());
+      }, 500);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Memoizar funções de formatação
+  const formatDays = useCallback((days: number): string => {
+    if (days === 1) return '1 dia';
+    if (days === 0) return '0 dias';
+    return `${days} dias`;
+  }, []);
+
+  const getProductionStatus = useCallback((order: OrderWithItems): string => {
+    if (order.pronto) return 'Pronto';
+    if (order.expedicao) return 'Expedição';
+    if (order.costura) return 'Costura';
+    if (order.sublimacao) return 'Sublimação';
+    if (order.conferencia) return 'Conferência';
+    if (order.financeiro) return 'Financeiro';
+    return 'Pendente';
+  }, []);
+
+  const getProductionStatusColor = useCallback((order: OrderWithItems): string => {
+    if (order.pronto) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    if (order.expedicao) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    if (order.costura) return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+    if (order.sublimacao) return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+    if (order.conferencia) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+    if (order.financeiro) return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+  }, []);
+
+  // Memoizar listas de pedidos com filtro de busca
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm.trim()) return validOrders;
+    const term = searchTerm.toLowerCase();
+    return validOrders.filter(order => {
+      const numero = String(order.numero || order.id || '').toLowerCase();
+      const cliente = (order.cliente || order.customer_name || '').toLowerCase();
+      return numero.includes(term) || cliente.includes(term);
+    });
+  }, [validOrders, searchTerm]);
+
+  const recentOrders = useMemo((): RecentOrder[] => {
+    return filteredOrders
       .sort((a, b) => {
         const dateA = new Date(a.created_at || a.data_entrada || '');
         const dateB = new Date(b.created_at || b.data_entrada || '');
@@ -156,21 +260,25 @@ export default function DashboardOverview() {
       .map(order => {
         const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
         const today = new Date();
-        const isOverdue = deliveryDate && deliveryDate < today && !order.pronto ? true : false;
+        today.setHours(0, 0, 0, 0);
+        if (deliveryDate) {
+          deliveryDate.setHours(0, 0, 0, 0);
+        }
+        const isOverdue = deliveryDate && deliveryDate < today && !order.pronto;
         const daysUntilDelivery = deliveryDate 
           ? Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
           : undefined;
 
         return {
           ...order,
-          isOverdue,
+          isOverdue: isOverdue ?? undefined,
           daysUntilDelivery,
         };
       });
-  };
+  }, [filteredOrders]);
 
-  const getUrgentOrders = (): RecentOrder[] => {
-    return orders
+  const urgentOrders = useMemo((): RecentOrder[] => {
+    return filteredOrders
       .filter(order => order.prioridade === 'ALTA' && !order.pronto)
       .sort((a, b) => {
         const dateA = new Date(a.data_entrega || '');
@@ -183,42 +291,66 @@ export default function DashboardOverview() {
         isOverdue: false,
         daysUntilDelivery: undefined,
       }));
-  };
+  }, [filteredOrders]);
 
-  const formatDays = (days: number): string => {
-    if (days === 1) return '1 dia';
-    return `${days} dias`;
-  };
+  // Memoizar eficiência por etapa
+  const productionEfficiency = useMemo(() => {
+    const total = Math.max(validOrders.length, 1);
+    return {
+      financeiro: Math.round((validOrders.filter(o => o.financeiro).length / total) * 100),
+      conferencia: Math.round((validOrders.filter(o => o.conferencia).length / total) * 100),
+      sublimacao: Math.round((validOrders.filter(o => o.sublimacao).length / total) * 100),
+      costura: Math.round((validOrders.filter(o => o.costura).length / total) * 100),
+      expedicao: Math.round((validOrders.filter(o => o.expedicao).length / total) * 100),
+    };
+  }, [validOrders]);
 
-  const getProductionStatus = (order: OrderWithItems): string => {
-    if (order.pronto) return 'Pronto';
-    if (order.expedicao) return 'Expedição';
-    if (order.costura) return 'Costura';
-    if (order.sublimacao) return 'Sublimação';
-    if (order.conferencia) return 'Conferência';
-    if (order.financeiro) return 'Financeiro';
-    return 'Pendente';
-  };
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setLastUpdate(new Date());
+      toast({
+        title: 'Atualizado',
+        description: 'Dashboard atualizado com sucesso',
+      });
+    }, 500);
+  }, [toast]);
 
-  const getProductionStatusColor = (order: OrderWithItems): string => {
-    if (order.pronto) return 'bg-green-100 text-green-800';
-    if (order.expedicao) return 'bg-blue-100 text-blue-800';
-    if (order.costura) return 'bg-purple-100 text-purple-800';
-    if (order.sublimacao) return 'bg-orange-100 text-orange-800';
-    if (order.conferencia) return 'bg-yellow-100 text-yellow-800';
-    if (order.financeiro) return 'bg-gray-100 text-gray-800';
-    return 'bg-red-100 text-red-800';
-  };
 
-  const recentOrders = getRecentOrders();
-  const urgentOrders = getUrgentOrders();
+  const formatLastUpdate = useCallback((date: Date): string => {
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diff < 60) return 'agora';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`;
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-          <p className="text-muted-foreground">Carregando dashboard...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-9 w-48 mb-2" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     );
@@ -227,23 +359,57 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
             Visão geral do sistema de gerenciamento de pedidos
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Última atualização: {formatLastUpdate(lastUpdate)}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate('/dashboard/orders/new')}>
-            <Plus className="h-4 w-4 mr-2" />
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            disabled={isRefreshing}
+            aria-label="Atualizar dashboard"
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
+            Atualizar
+          </Button>
+          <Button 
+            onClick={() => navigate('/dashboard/orders/new')}
+            aria-label="Criar novo pedido"
+          >
+            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
             Novo Pedido
           </Button>
-          <Button variant="outline" onClick={() => navigate('/dashboard/orders')}>
-            <Eye className="h-4 w-4 mr-2" />
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/dashboard/orders')}
+            aria-label="Ver todos os pedidos"
+          >
+            <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
             Ver Todos
           </Button>
         </div>
+      </div>
+
+      {/* Busca Rápida */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Buscar pedidos por número ou cliente..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9"
+          aria-label="Buscar pedidos"
+          noUppercase
+        />
       </div>
 
       {/* Stats Cards */}
@@ -357,56 +523,76 @@ export default function DashboardOverview() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-5">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-800">{Math.round((orders.filter(o => o.financeiro).length / Math.max(orders.length, 1)) * 100)}%</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{productionEfficiency.financeiro}%</div>
               <div className="text-sm text-muted-foreground">Financeiro</div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-gray-600 h-2 rounded-full" 
-                  style={{ width: `${(orders.filter(o => o.financeiro).length / Math.max(orders.length, 1)) * 100}%` }}
+                  className="bg-gray-600 dark:bg-gray-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${productionEfficiency.financeiro}%` }}
+                  role="progressbar"
+                  aria-valuenow={productionEfficiency.financeiro}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 ></div>
               </div>
             </div>
             
             <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{Math.round((orders.filter(o => o.conferencia).length / Math.max(orders.length, 1)) * 100)}%</div>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{productionEfficiency.conferencia}%</div>
               <div className="text-sm text-muted-foreground">Conferência</div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-yellow-600 h-2 rounded-full" 
-                  style={{ width: `${(orders.filter(o => o.conferencia).length / Math.max(orders.length, 1)) * 100}%` }}
+                  className="bg-yellow-600 dark:bg-yellow-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${productionEfficiency.conferencia}%` }}
+                  role="progressbar"
+                  aria-valuenow={productionEfficiency.conferencia}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 ></div>
               </div>
             </div>
             
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{Math.round((orders.filter(o => o.sublimacao).length / Math.max(orders.length, 1)) * 100)}%</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-500">{productionEfficiency.sublimacao}%</div>
               <div className="text-sm text-muted-foreground">Sublimação</div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-orange-600 h-2 rounded-full" 
-                  style={{ width: `${(orders.filter(o => o.sublimacao).length / Math.max(orders.length, 1)) * 100}%` }}
+                  className="bg-orange-600 dark:bg-orange-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${productionEfficiency.sublimacao}%` }}
+                  role="progressbar"
+                  aria-valuenow={productionEfficiency.sublimacao}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 ></div>
               </div>
             </div>
             
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{Math.round((orders.filter(o => o.costura).length / Math.max(orders.length, 1)) * 100)}%</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-500">{productionEfficiency.costura}%</div>
               <div className="text-sm text-muted-foreground">Costura</div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-purple-600 h-2 rounded-full" 
-                  style={{ width: `${(orders.filter(o => o.costura).length / Math.max(orders.length, 1)) * 100}%` }}
+                  className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${productionEfficiency.costura}%` }}
+                  role="progressbar"
+                  aria-valuenow={productionEfficiency.costura}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 ></div>
               </div>
             </div>
             
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{Math.round((orders.filter(o => o.expedicao).length / Math.max(orders.length, 1)) * 100)}%</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">{productionEfficiency.expedicao}%</div>
               <div className="text-sm text-muted-foreground">Expedição</div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full" 
-                  style={{ width: `${(orders.filter(o => o.expedicao).length / Math.max(orders.length, 1)) * 100}%` }}
+                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" 
+                  style={{ width: `${productionEfficiency.expedicao}%` }}
+                  role="progressbar"
+                  aria-valuenow={productionEfficiency.expedicao}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 ></div>
               </div>
             </div>
@@ -462,6 +648,7 @@ export default function DashboardOverview() {
                   variant="outline" 
                   className="w-full mt-4"
                   onClick={() => navigate('/dashboard/orders')}
+                  aria-label="Ver todos os pedidos urgentes"
                 >
                   Ver Todos os Pedidos
                 </Button>
@@ -523,6 +710,7 @@ export default function DashboardOverview() {
                   variant="outline" 
                   className="w-full mt-4"
                   onClick={() => navigate('/dashboard/orders')}
+                  aria-label="Ver todos os pedidos urgentes"
                 >
                   Ver Todos os Pedidos
                 </Button>

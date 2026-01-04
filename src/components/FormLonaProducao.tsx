@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
+import { resizeImage } from '@/utils/imageResizer';
 
 const normalizeDecimal = (value: string | number): string => {
   const str = String(value ?? '').trim();
@@ -267,28 +268,63 @@ export function FormLonaProducao({
             <Input
               type="file"
               accept="image/*"
-              onChange={(event) => {
+              onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  onDataChange('imagem', reader.result as string);
-                };
-                reader.readAsDataURL(file);
+                try {
+                  const resizedImage = await resizeImage(file);
+                  onDataChange('imagem', resizedImage);
+                } catch (error) {
+                  console.error('Erro ao redimensionar imagem:', error);
+                  // Fallback: usar imagem original se redimensionamento falhar
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    onDataChange('imagem', reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }
               }}
               className="hidden"
               id={`upload-imagem-lona-${tabId}`}
             />
             <label
               htmlFor={`upload-imagem-lona-${tabId}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files?.[0];
+                if (file && file.type.startsWith('image/')) {
+                  try {
+                    const resizedImage = await resizeImage(file);
+                    onDataChange('imagem', resizedImage);
+                  } catch (error) {
+                    console.error('Erro ao redimensionar imagem:', error);
+                    // Fallback: usar imagem original se redimensionamento falhar
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      onDataChange('imagem', reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }
+              }}
               className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
             >
               {tabData?.imagem ? (
-                <div className="relative w-full h-full flex items-center justify-center">
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
                   <img
                     src={tabData?.imagem}
                     alt="Preview lona"
                     className="max-w-full max-h-full object-contain p-2"
+                    style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
                   />
                   <button
                     type="button"

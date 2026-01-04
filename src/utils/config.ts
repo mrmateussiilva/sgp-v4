@@ -1,5 +1,5 @@
 import { mkdir, readTextFile, writeTextFile, remove } from '@tauri-apps/plugin-fs';
-import { appConfigDir, join, dirname } from '@tauri-apps/api/path';
+import { appDataDir, join, dirname } from '@tauri-apps/api/path';
 
 const CONFIG_FILENAME = 'api_config.json';
 
@@ -8,7 +8,7 @@ export interface AppConfig {
 }
 
 async function getConfigPath(): Promise<string> {
-  const dir = await appConfigDir();
+  const dir = await appDataDir();
   return await join(dir, CONFIG_FILENAME);
 }
 

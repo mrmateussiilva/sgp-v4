@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OrderWithItems } from '../types';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -8,6 +9,8 @@ import { formatDateForDisplay } from '@/utils/date';
 import { printEnvioReport } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
+import { Settings } from 'lucide-react';
 
 interface RelatorioEnvio {
   forma_envio: string;
@@ -15,6 +18,8 @@ interface RelatorioEnvio {
 }
 
 export default function RelatoriosEnvios() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuthStore();
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [relatorio, setRelatorio] = useState<RelatorioEnvio[]>([]);
@@ -151,9 +156,21 @@ export default function RelatoriosEnvios() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Relatório de Envios</h1>
-        <p className="text-muted-foreground">Gere relatórios de envios por data de entrega</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Relatório de Envios</h1>
+          <p className="text-muted-foreground">Gere relatórios de envios por data de entrega</p>
+        </div>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard/admin/template-relatorios')}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Editar Template
+          </Button>
+        )}
       </div>
       
       <Card>

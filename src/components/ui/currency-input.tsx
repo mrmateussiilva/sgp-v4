@@ -11,60 +11,132 @@ const DEFAULT_VALUE = '0,00';
 
 export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onValueChange, onBlur, ...props }, ref) => {
-    const displayValue = value ?? DEFAULT_VALUE;
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [localValue, setLocalValue] = React.useState<string>('');
+    const [isFocused, setIsFocused] = React.useState(false);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = event.target.value;
-      
-      // Remove tudo exceto dígitos, vírgula e ponto
-      const cleaned = inputValue.replace(/[^\d,.-]/g, '');
-      
-      // Se estiver vazio, retorna valor padrão
-      if (!cleaned || cleaned.trim().length === 0) {
-        onValueChange(DEFAULT_VALUE);
-        return;
+    // Combina refs
+    React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
+
+    // Inicializa quando value muda externamente (quando não está focado)
+    React.useEffect(() => {
+      if (!isFocused) {
+        setLocalValue(value || DEFAULT_VALUE);
+      }
+    }, [value, isFocused]);
+
+    // Função para extrair apenas dígitos
+    const extractDigits = (str: string): string => {
+      return str.replace(/\D/g, '');
+    };
+
+    // Função para formatar valor como moeda brasileira
+    const formatCurrency = (digits: string): string => {
+      if (!digits || digits === '0' || digits === '') {
+        return DEFAULT_VALUE;
       }
 
-      // Normaliza para formato numérico (substitui vírgula por ponto)
-      let normalized = cleaned;
-      if (cleaned.includes(',') && cleaned.includes('.')) {
-        // Se tem ambos, remove pontos e mantém vírgula como separador decimal
-        normalized = cleaned.replace(/\./g, '').replace(',', '.');
-      } else if (cleaned.includes(',')) {
-        // Se só tem vírgula, substitui por ponto
-        normalized = cleaned.replace(',', '.');
-      }
-
-      // Parse do valor numérico
-      const numericValue = parseFloat(normalized);
+      // Converte para número (tratando como centavos)
+      const numValue = parseInt(digits, 10) / 100;
       
-      // Se não for um número válido, retorna valor padrão
-      if (isNaN(numericValue)) {
-        onValueChange(DEFAULT_VALUE);
-        return;
-      }
-
-      // Formata como moeda brasileira (sem dividir por 100 - já está em reais)
-      const formattedValue = numericValue.toLocaleString('pt-BR', {
+      // Formata como moeda brasileira
+      return numValue.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
+    };
 
-      onValueChange(formattedValue);
+    // Função para calcular nova posição do cursor após formatação
+    const calculateCursorPosition = (
+      oldValue: string,
+      newValue: string,
+      oldCursorPos: number
+    ): number => {
+      // Conta quantos dígitos existem antes do cursor na string antiga
+      const digitsBeforeCursor = extractDigits(oldValue.substring(0, oldCursorPos)).length;
+      
+      // Encontra a posição no novo valor formatado que corresponde a esses dígitos
+      let digitCount = 0;
+      for (let i = 0; i < newValue.length; i++) {
+        if (/\d/.test(newValue[i])) {
+          digitCount++;
+          if (digitCount >= digitsBeforeCursor) {
+            return i + 1;
+          }
+        }
+      }
+      
+      // Se não encontrou, retorna o final
+      return newValue.length;
+    };
+
+    const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(true);
+      // Mantém o valor formatado quando foca
+      setLocalValue(value || DEFAULT_VALUE);
+      props.onFocus?.(event);
+    };
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = event.target.value;
+      const cursorPosition = event.target.selectionStart || 0;
+      
+      // Extrai apenas dígitos
+      const digitsOnly = extractDigits(inputValue);
+      
+      // Se não há dígitos, usa valor padrão
+      if (!digitsOnly || digitsOnly === '0') {
+        setLocalValue(DEFAULT_VALUE);
+        onValueChange(DEFAULT_VALUE);
+        // Reposiciona cursor no final
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(DEFAULT_VALUE.length, DEFAULT_VALUE.length);
+          }
+        }, 0);
+        return;
+      }
+
+      // Formata o valor
+      const formatted = formatCurrency(digitsOnly);
+      setLocalValue(formatted);
+      onValueChange(formatted);
+
+      // Calcula e restaura a posição do cursor
+      setTimeout(() => {
+        if (inputRef.current) {
+          const newPosition = calculateCursorPosition(inputValue, formatted, cursorPosition);
+          inputRef.current.setSelectionRange(newPosition, newPosition);
+        }
+      }, 0);
     };
 
     const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
-      if (!displayValue || displayValue.trim().length === 0) {
-        onValueChange(DEFAULT_VALUE);
+      setIsFocused(false);
+      
+      // Garante que o valor está formatado quando perde o foco
+      const digits = extractDigits(localValue);
+      if (!digits || digits === '0') {
+        const formatted = DEFAULT_VALUE;
+        setLocalValue(formatted);
+        onValueChange(formatted);
+      } else {
+        const formatted = formatCurrency(digits);
+        setLocalValue(formatted);
+        onValueChange(formatted);
       }
+      
       onBlur?.(event);
     };
 
+    const displayValue = isFocused ? localValue : (value || DEFAULT_VALUE);
+
     return (
       <input
-        ref={ref}
+        ref={inputRef}
         value={displayValue}
         onChange={handleChange}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         inputMode="decimal"
         className={cn(

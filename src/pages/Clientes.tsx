@@ -1,7 +1,12 @@
 import { useState, useEffect, ChangeEvent } from 'react';
 import { Plus, Search, Pencil, Trash2, Eye, Upload } from 'lucide-react';
-import Papa from 'papaparse';
 import { api } from '../services/api';
+
+// Lazy load de papaparse
+const loadPapa = async () => {
+  const module = await import('papaparse');
+  return module.default;
+};
 import {
   BulkClienteImportItem,
   BulkClienteImportResult,
@@ -156,7 +161,7 @@ export default function Clientes() {
     return transform ? transform(normalized) : normalized;
   };
 
-  const handleCsvFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleCsvFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -169,6 +174,7 @@ export default function Clientes() {
     setCsvRows([]);
     setImportSummary(null);
 
+    const Papa = await loadPapa();
     Papa.parse<Record<string, unknown>>(file, {
       header: true,
       skipEmptyLines: true,

@@ -84,9 +84,9 @@ export const testOrderData: OrderWithItems = {
 };
 
 // Função para testar a geração da ficha de serviço
-export const testServiceForm = () => {
+export const testServiceForm = async () => {
   console.log('Testando geração da ficha de serviço...');
-  printOrderServiceForm(testOrderData);
+  await printOrderServiceForm(testOrderData);
 };
 
 // Função para testar no console do navegador

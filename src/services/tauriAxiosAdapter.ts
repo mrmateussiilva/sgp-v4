@@ -23,164 +23,76 @@ function resolveUrl(config: AxiosRequestConfig): string {
   return url;
 }
 
-function buildBody(data: unknown): BodyInit | undefined {
-  if (data === undefined || data === null) {
-    return undefined;
+async function getResponseData(response: Response, responseType?: AxiosRequestConfig['responseType']): Promise<any> {
+  switch (responseType) {
+    case 'arraybuffer':
+      return await response.arrayBuffer();
+    case 'blob':
+      return await response.blob();
+    case 'text':
+      return await response.text();
+    case 'json':
+    default:
+      return await response.json();
   }
-
-  if (typeof data === 'string') {
-    return data;
-  }
-
-  if (data instanceof ArrayBuffer) {
-    return data;
-  }
-
-  if (data instanceof Uint8Array) {
-    // Converter Uint8Array para ArrayBuffer para compatibilidade com BodyInit
-    // Criar uma cópia para garantir que é um ArrayBuffer válido
-    return new Uint8Array(data).buffer;
-  }
-
-  if (data instanceof FormData || data instanceof Blob) {
-    return data;
-  }
-
-  // Para objetos, converter para JSON string
-  return JSON.stringify(data);
 }
 
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
   const method = (config.method ?? 'GET').toUpperCase();
 
-  console.log(`🌐 [Tauri Adapter] Fazendo requisição: ${method} ${url}`);
+  const headers = new Headers();
+  if (config.headers) {
+    const headerObj = (config.headers && typeof (config.headers as any).toJSON === 'function')
+      ? (config.headers as any).toJSON()
+      : { ...(config.headers as Record<string, string> | undefined) };
+    
+    Object.entries(headerObj).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        headers.set(key, String(value));
+      }
+    });
+  }
 
-  const headers = (config.headers && typeof (config.headers as Record<string, unknown>).toJSON === 'function')
-    ? (config.headers as { toJSON: () => Record<string, string> }).toJSON()
-    : { ...(config.headers as Record<string, string> | undefined) };
+  const fetchOptions: RequestInit = {
+    method,
+    headers,
+  };
 
-  // Se não houver Content-Type e os dados forem um objeto, definir como application/json
-  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData) && !(config.data instanceof Blob) && !(config.data instanceof ArrayBuffer) && !(config.data instanceof Uint8Array)) {
-    if (!headers['Content-Type'] && !headers['content-type']) {
-      headers['Content-Type'] = 'application/json';
+  if (config.data !== undefined && config.data !== null) {
+    if (typeof config.data === 'string') {
+      fetchOptions.body = config.data;
+    } else if (config.data instanceof ArrayBuffer) {
+      fetchOptions.body = config.data;
+    } else if (config.data instanceof Uint8Array) {
+      // Converter Uint8Array para ArrayBuffer para compatibilidade
+      fetchOptions.body = config.data.buffer.slice(
+        config.data.byteOffset,
+        config.data.byteOffset + config.data.byteLength
+      ) as ArrayBuffer;
+    } else if (config.data instanceof FormData || config.data instanceof Blob) {
+      fetchOptions.body = config.data;
+    } else {
+      fetchOptions.body = JSON.stringify(config.data);
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
     }
   }
 
-  // Construir Origin header baseado na URL de destino (protocol://host)
-  // O plugin HTTP rejeita requisições sem um Origin HTTP/HTTPS válido
-  const requestOrigin = (() => {
-    try {
-      return new URL(url).origin;
-    } catch {
-      return 'tauri://localhost';
-    }
-  })();
-
-  const finalHeaders: Record<string, string> = {
-    ...headers,
-    'Origin': requestOrigin,
-  };
-
-  const fetchOptions: RequestInit & { timeout?: number } = {
-    method,
-    headers: finalHeaders,
-    body: buildBody(config.data),
-  };
-
-  // timeout pode não estar disponível em todas as versões do plugin
-  if (config.timeout !== undefined) {
-    (fetchOptions as { timeout?: number }).timeout = config.timeout;
-  }
-
-  console.log(`🌐 [Tauri Adapter] Opções de fetch:`, {
-    method,
-    url,
-    hasHeaders: !!headers,
-    hasBody: !!fetchOptions.body,
-    timeout: fetchOptions.timeout,
+  const response = await fetch(url, {
+    ...fetchOptions,
+    connectTimeout: config.timeout,
   });
 
-  let response: Response;
-  try {
-    response = await fetch(url, fetchOptions);
-    console.log(`✅ [Tauri Adapter] Resposta recebida:`, {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      url: response.url,
-    });
-  } catch (error) {
-    // Tratamento específico para erros do plugin HTTP do Tauri
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isPluginError = errorMessage.includes('plugin:http') || errorMessage.includes('ipc.localhost');
-    const missingOrigin = errorMessage.includes('missing Origin header');
-    
-    console.error(`❌ [Tauri Adapter] Erro na requisição:`, {
-      url,
-      method,
-      error: errorMessage,
-      isPluginError,
-      missingOrigin,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+  const requestInfo = { url, method, headers: Object.fromEntries(headers.entries()) };
 
-    if (missingOrigin) {
-      console.error(
-        'ℹ️ O WebView não enviou o header Origin para o IPC do Tauri. ' +
-        'Verifique se o app foi instalado com useHttpsScheme=true, se o runtime WebView2 está atualizado e se window.location.origin retorna https://<app>.localhost.'
-      );
-    }
-    
-    // Se for erro do plugin, criar um erro Axios mais descritivo
-    if (isPluginError) {
-      throw new AxiosError(
-        `Erro no plugin HTTP do Tauri: ${errorMessage}`,
-        AxiosError.ERR_NETWORK,
-        config,
-        { url, method, headers: finalHeaders },
-        undefined
-      );
-    }
-    
-    throw error;
-  }
-
-  const requestInfo = { url, method, headers };
-
-  // Processar a resposta baseado no responseType do Axios
-  let responseData: unknown;
-  const responseType = config.responseType || 'json';
-
-  try {
-    switch (responseType) {
-      case 'arraybuffer':
-        responseData = await response.arrayBuffer();
-        break;
-      case 'blob':
-        responseData = await response.blob();
-        break;
-      case 'text':
-        responseData = await response.text();
-        break;
-      case 'json':
-      default:
-        responseData = await response.json();
-        break;
-    }
-  } catch (error) {
-    // Se falhar ao parsear JSON, tentar como texto
-    if (responseType === 'json') {
-      responseData = await response.text();
-    } else {
-      throw error;
-    }
-  }
+  const data = await getResponseData(response, config.responseType);
 
   const axiosResponse: AxiosResponse = {
-    data: responseData,
+    data,
     status: response.status,
-    statusText: response.statusText || (response.ok ? 'OK' : ''),
+    statusText: response.statusText,
     headers: Object.fromEntries(response.headers.entries()),
     config,
     request: requestInfo,

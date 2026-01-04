@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox } from 'lucide-react';
+import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
-import { OrderWithItems, OrderItem, UpdateOrderStatusRequest, OrderStatus } from '../types';
+import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
-import { AutoRefreshStatus } from './AutoRefreshStatus';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
+import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
+import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
-import { formatDateForDisplay, ensureDateInputValue } from '@/utils/date';
-import { getCachedOrFetch, STATIC_TTL } from '@/utils/cache';
-import { useDebounce } from '@/hooks/useDebounce';
+import { OrderKanbanBoard } from './OrderKanbanBoard';
+import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,9 +44,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -53,17 +53,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
+import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { isValidImagePath } from '@/utils/path';
+import { isTauri } from '@/utils/isTauri';
 
 export default function OrderList() {
   const navigate = useNavigate();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
-  
-  // Sistema de sincronização em tempo real via eventos Tauri
-  const [isRealtimeActive, setIsRealtimeActive] = useState(true);
-  const [lastSync, setLastSync] = useState<Date | undefined>();
-  const [syncCount, setSyncCount] = useState(0);
   
   // Configurar sincronização automática via eventos
   useOrderAutoSync({
@@ -72,25 +71,8 @@ export default function OrderList() {
     removeOrder,
   });
   
-  // Função para forçar sincronização manual (recarregar lista completa)
-  const handleForceSync = async () => {
-    console.log('🔄 Forçando sincronização manual...');
-    await loadOrders();
-    setLastSync(new Date());
-    setSyncCount(prev => prev + 1);
-  };
-  
-  const toggleRealtime = () => {
-    setIsRealtimeActive(!isRealtimeActive);
-    if (!isRealtimeActive) {
-      setLastSync(new Date());
-    }
-  };
-  
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  // Debounce da busca para reduzir requisições durante digitação
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -104,7 +86,7 @@ export default function OrderList() {
   const [selectedVendedor, setSelectedVendedor] = useState<string>('');
   const [selectedDesigner, setSelectedDesigner] = useState<string>('');
   const [selectedCidade, setSelectedCidade] = useState<string>('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
@@ -122,6 +104,9 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
+  // Desativado temporariamente: botões de alternância entre tabela e kanban
+  const [viewMode] = useState<'table' | 'kanban'>('table');
+  // const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -135,29 +120,37 @@ export default function OrderList() {
     novoValor: false,
     nomeSetor: '',
   });
-  const [sublimationModal, setSublimationModal] = useState<{
-    show: boolean;
-    pedidoId: number;
-    machine: string;
-    printDate: string;
-  }>({
-    show: false,
-    pedidoId: 0,
-    machine: '',
-    printDate: '',
-  });
-  const [sublimationError, setSublimationError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Carregar dados para filtros (vendedores + designers) com cache
+  // Adicionar notificações toast para eventos de pedidos
+  // IMPORTANTE: Este useEffect deve vir DEPOIS da declaração de toast
+  useEffect(() => {
+    const unsubscribe = subscribeToOrderEvents({
+      onOrderCreated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
+      },
+      onOrderUpdated: async (orderId) => {
+        // useOrderAutoSync já atualiza a lista, apenas logar
+        console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
+      },
+      onOrderCanceled: async (orderId) => {
+        // useOrderAutoSync já remove o pedido, apenas logar
+        console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
+      },
+    }, true, toast); // showToast = true, passar função toast
+    
+    return unsubscribe;
+  }, [toast]);
+
+  // Carregar dados para filtros (vendedores + designers)
   useEffect(() => {
     let isMounted = true;
     const loadFilterData = async () => {
       try {
-        // Usar cache com TTL estendido para dados estáticos
         const [vendedoresData, designersData] = await Promise.all([
-          getCachedOrFetch('vendedores_ativos', () => api.getVendedoresAtivos(), STATIC_TTL),
-          getCachedOrFetch('designers_ativos', () => api.getDesignersAtivos(), STATIC_TTL),
+          api.getVendedoresAtivos(),
+          api.getDesignersAtivos(),
         ]);
         if (!isMounted) {
           return;
@@ -178,20 +171,16 @@ export default function OrderList() {
     };
   }, []);
 
-  // Otimização: usar useMemo para calcular cidades únicas
-  const uniqueCidades = useMemo(() => {
-    return Array.from(
+  useEffect(() => {
+    const uniqueCidades = Array.from(
       new Set(
         orders
           .map((order) => order.cidade_cliente)
           .filter((cidade): cidade is string => Boolean(cidade)),
       ),
     ).sort();
-  }, [orders]);
-
-  useEffect(() => {
     setCidades(uniqueCidades);
-  }, [uniqueCidades]);
+  }, [orders]);
 
   const extractErrorMessage = (error: unknown): string => {
     if (error instanceof Error) {
@@ -221,51 +210,59 @@ export default function OrderList() {
     order: OrderWithItems,
     campo: string,
     novoValor: boolean,
-    extra?: { machine?: string; date?: string | null },
   ): UpdateOrderStatusRequest => {
     // CRÍTICO: Não incluir campo financeiro no payload quando não está sendo alterado
     // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
     // O campo financeiro só deve ser incluído quando está sendo explicitamente alterado
     
-    // Usar valor atual do pedido para cálculos internos, mas não incluir no payload se não está sendo alterado
+    // Usar valor atual do pedido para cálculos internos
     const financeiroAtual = order.financeiro === true;
     
-    // Construir payload - financeiro será incluído apenas se estiver sendo alterado
-    // Para cálculos internos, usar valor atual; para envio, só incluir se mudou
+    // Construir payload - NÃO incluir financeiro se não está sendo alterado
     const payload: UpdateOrderStatusRequest = {
       id: order.id,
-      // Incluir financeiro APENAS se o campo sendo alterado é 'financeiro'
-      // Caso contrário, usar valor atual para cálculos, mas buildStatusPayload vai remover do payload final
-      financeiro: campo === 'financeiro' ? novoValor : financeiroAtual,
       conferencia: campo === 'conferencia' ? novoValor : order.conferencia === true,
       sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
       costura: campo === 'costura' ? novoValor : order.costura === true,
       expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
     };
     
-    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir
-    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
+    // Incluir financeiro APENAS se está sendo explicitamente alterado
+    if (campo === 'financeiro') {
+      payload.financeiro = novoValor;
+      // Marcar flag para buildStatusPayload saber que pode incluir
+      (payload as any)._isFinanceiroUpdate = true;
+    } else {
+      // NÃO incluir financeiro no payload quando não está sendo alterado
+      // Usar valor atual apenas para cálculos internos
+      (payload as any)._isFinanceiroUpdate = false;
+    }
 
+    // Manter valores existentes de máquina e data de impressão quando não está alterando sublimação
+    // Quando desmarcar sublimação, limpar esses campos
     const existingMachine = order.sublimacao_maquina ?? null;
     const existingDate = order.sublimacao_data_impressao ?? null;
 
     if (campo === 'sublimacao') {
-      if (novoValor) {
-        payload.sublimacao_maquina =
-          extra?.machine !== undefined ? extra.machine : existingMachine;
-        payload.sublimacao_data_impressao =
-          extra?.date !== undefined ? extra.date : existingDate;
-      } else {
+      if (!novoValor) {
+        // Ao desmarcar, limpar máquina e data
         payload.sublimacao_maquina = null;
         payload.sublimacao_data_impressao = null;
+      } else {
+        // Ao marcar, manter valores existentes se houver, senão deixar null
+        payload.sublimacao_maquina = existingMachine;
+        payload.sublimacao_data_impressao = existingDate;
       }
     } else {
+      // Para outros campos, manter valores existentes
       payload.sublimacao_maquina = existingMachine;
       payload.sublimacao_data_impressao = existingDate;
     }
 
+    // Para cálculo de "pronto", usar valor atual do pedido se financeiro não está sendo alterado
+    const financeiroParaCalculo = campo === 'financeiro' ? novoValor : financeiroAtual;
     const allComplete =
-      payload.financeiro && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
+      financeiroParaCalculo && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
 
     payload.pronto = allComplete;
     if (allComplete) {
@@ -275,7 +272,8 @@ export default function OrderList() {
         order.status === OrderStatus.Concluido ? OrderStatus.EmProcessamento : order.status;
     }
 
-    if (!payload.financeiro) {
+    // Se financeiro está sendo desmarcado, resetar todos os outros status
+    if (campo === 'financeiro' && !novoValor) {
       payload.conferencia = false;
       payload.sublimacao = false;
       payload.costura = false;
@@ -287,10 +285,6 @@ export default function OrderList() {
         payload.status = OrderStatus.EmProcessamento;
       }
     }
-
-    // Marcar se financeiro está sendo alterado para buildStatusPayload saber se deve incluir no payload final
-    // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
-    (payload as any)._isFinanceiroUpdate = campo === 'financeiro';
 
     return payload;
   };
@@ -312,7 +306,7 @@ export default function OrderList() {
               : productionStatusFilter === 'pending'
                 ? OrderStatus.Pendente
                 : OrderStatus.Concluido,
-          cliente: debouncedSearchTerm || undefined,
+          cliente: searchTerm || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
           page: currentPage + 1,
@@ -375,7 +369,7 @@ export default function OrderList() {
         setLoading(false);
       }
     }
-  }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, debouncedSearchTerm, toast, logout, navigate]);
+  }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, searchTerm, toast, logout, navigate]);
 
   useEffect(() => {
     loadOrders();
@@ -383,12 +377,12 @@ export default function OrderList() {
 
   useEffect(() => {
     setPage(0);
-  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, debouncedSearchTerm, rowsPerPage]);
+  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, searchTerm, rowsPerPage]);
 
   const handleEdit = (order: OrderWithItems) => {
-    setEditOrderId(order.id);
-    setSelectedOrder(order);
-    setEditDialogOpen(true);
+    // Navegar para a página de edição completa usando a nova rota
+    // Como o Dashboard está em /dashboard/*, precisamos incluir o prefixo
+    navigate(`/dashboard/pedido/editar/${order.id}`);
   };
 
   const handleView = (order: OrderWithItems) => {
@@ -412,9 +406,9 @@ export default function OrderList() {
         await api.deleteOrder(orderToDelete);
         removeOrder(orderToDelete);
         toast({
-          title: "Sucesso",
-          description: "Pedido excluído com sucesso!",
-          variant: "success",
+          title: "Pedido excluído",
+          description: "O pedido foi excluído com sucesso!",
+          variant: "info",
         });
       } catch (error: any) {
         const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível excluir o pedido.";
@@ -432,6 +426,242 @@ export default function OrderList() {
     }
     setDeleteDialogOpen(false);
     setOrderToDelete(null);
+  };
+
+  const handleQuickShare = async (order: OrderWithItems) => {
+    try {
+      // Buscar pedido completo se não tiver itens carregados
+      let orderWithItems = order;
+      if (!order.items || order.items.length === 0) {
+        orderWithItems = await api.getOrderById(order.id);
+      }
+
+      if (!orderWithItems.items || orderWithItems.items.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "Este pedido não possui itens para compartilhar.",
+          variant: "warning",
+        });
+        return;
+      }
+
+      // Criar div temporário off-screen
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '600px';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.padding = '20px';
+      tempDiv.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      tempDiv.style.color = '#000';
+      
+      // Título do pedido
+      const titleDiv = document.createElement('div');
+      titleDiv.style.marginBottom = '20px';
+      titleDiv.style.fontSize = '18px';
+      titleDiv.style.fontWeight = 'bold';
+      titleDiv.textContent = `Pedido #${orderWithItems.numero || orderWithItems.id} - ${orderWithItems.cliente || orderWithItems.customer_name || 'Cliente'}`;
+      tempDiv.appendChild(titleDiv);
+
+      // Container para itens
+      const itemsContainer = document.createElement('div');
+      itemsContainer.style.display = 'flex';
+      itemsContainer.style.flexDirection = 'column';
+      itemsContainer.style.gap = '30px';
+
+      // Carregar e renderizar cada item
+      for (const item of orderWithItems.items) {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.display = 'flex';
+        itemDiv.style.flexDirection = 'column';
+        itemDiv.style.gap = '10px';
+        itemDiv.style.borderBottom = '1px solid #e5e5e5';
+        itemDiv.style.paddingBottom = '20px';
+
+        // Nome do item
+        if (item.item_name) {
+          const itemNameDiv = document.createElement('div');
+          itemNameDiv.style.fontSize = '16px';
+          itemNameDiv.style.fontWeight = '600';
+          itemNameDiv.textContent = item.item_name;
+          itemDiv.appendChild(itemNameDiv);
+        }
+
+        // Imagem do item (se existir)
+        if (item.imagem && isValidImagePath(item.imagem)) {
+          try {
+            const imageUrl = await loadAuthenticatedImage(item.imagem);
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.borderRadius = '8px';
+            img.style.marginTop = '10px';
+            img.style.marginBottom = '10px';
+            
+            // Aguardar carregamento da imagem
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              // Timeout de segurança
+              setTimeout(() => {
+                if (!img.complete) {
+                  reject(new Error('Timeout ao carregar imagem'));
+                }
+              }, 10000);
+            });
+            
+            itemDiv.appendChild(img);
+          } catch (error) {
+            console.error('Erro ao carregar imagem do item:', error);
+            // Continuar mesmo se a imagem falhar
+          }
+        }
+
+        // Legenda/Observação
+        const caption = item.legenda_imagem || item.observacao;
+        if (caption) {
+          const captionDiv = document.createElement('div');
+          captionDiv.style.fontSize = '14px';
+          captionDiv.style.color = '#333';
+          captionDiv.style.lineHeight = '1.5';
+          captionDiv.style.whiteSpace = 'pre-wrap';
+          captionDiv.textContent = caption;
+          itemDiv.appendChild(captionDiv);
+        }
+
+        itemsContainer.appendChild(itemDiv);
+      }
+
+      tempDiv.appendChild(itemsContainer);
+      document.body.appendChild(tempDiv);
+
+      // Aguardar um pouco para garantir que tudo foi renderizado
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Capturar screenshot
+      const canvas = await html2canvas(tempDiv, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Melhor qualidade
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+      });
+
+      // Converter canvas para blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
+      });
+
+      if (!blob) {
+        throw new Error('Não foi possível gerar a imagem');
+      }
+
+      // Tentar copiar para clipboard usando Tauri (se disponível) ou fallback para download
+      if (isTauri()) {
+        try {
+          // Usar plugin de clipboard do Tauri
+          const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
+          
+          // Converter blob para Uint8Array (bytes do arquivo PNG)
+          const arrayBuffer = await blob.arrayBuffer();
+          const imageBytes = new Uint8Array(arrayBuffer);
+          
+          await writeImage(imageBytes);
+          
+          toast({
+            title: "Copiado!",
+            description: "Cole no WhatsApp",
+            variant: "success",
+          });
+        } catch (tauriError) {
+          console.error('Erro ao copiar via Tauri:', tauriError);
+          // Fallback para download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(a)) {
+              document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+          }, 100);
+          
+          toast({
+            title: "Imagem salva",
+            description: "A imagem foi baixada. Anexe ao WhatsApp.",
+            variant: "info",
+          });
+        }
+      } else {
+        // Ambiente web: tentar clipboard do navegador primeiro
+        let copied = false;
+        try {
+          if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            copied = true;
+          }
+        } catch (clipboardError) {
+          console.warn('Erro ao copiar para clipboard:', clipboardError);
+        }
+
+        if (copied) {
+          toast({
+            title: "Copiado!",
+            description: "Cole no WhatsApp",
+            variant: "success",
+          });
+        } else {
+          // Fallback para download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(a)) {
+              document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+          }, 100);
+          
+          toast({
+            title: "Imagem salva",
+            description: "A imagem foi baixada. Anexe ao WhatsApp.",
+            variant: "info",
+          });
+        }
+      }
+      
+      // Limpar div temporário
+      if (document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar screenshot:', error);
+      
+      // Limpar div temporário se ainda existir
+      const tempDiv = document.querySelector('div[style*="-9999px"]');
+      if (tempDiv && document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
+      
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar a imagem. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Função para lidar com ordenação
@@ -461,7 +691,113 @@ export default function OrderList() {
     setSearchTerm('');
     setDateFrom('');
     setDateTo('');
+    setProductionStatusFilter('pending');
   };
+
+  // Formatar data para exibição
+  const formatDateFilter = (date: string) => {
+    if (!date) return '';
+    const [year, month, day] = date.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // Calcular estado de urgência do pedido baseado na data de entrega
+  const getOrderUrgency = useCallback((dataEntrega: string | null | undefined) => {
+    if (!dataEntrega) return { type: 'no-date', days: null };
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const deliveryDate = new Date(dataEntrega);
+    deliveryDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deliveryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { type: 'overdue', days: Math.abs(diffDays) };
+    } else if (diffDays === 0) {
+      return { type: 'today', days: 0 };
+    } else if (diffDays === 1) {
+      return { type: 'tomorrow', days: 1 };
+    } else if (diffDays <= 3) {
+      return { type: 'soon', days: diffDays };
+    } else {
+      return { type: 'ok', days: diffDays };
+    }
+  }, []);
+
+  // Obter lista de filtros ativos para exibição
+  const activeFiltersList = useMemo(() => {
+    const filters: Array<{ label: string; onRemove: () => void }> = [];
+    
+    if (productionStatusFilter !== 'pending') {
+      filters.push({
+        label: productionStatusFilter === 'ready' ? 'Prontos' : 'Todos',
+        onRemove: () => setProductionStatusFilter('pending'),
+      });
+    }
+    
+    if (dateFrom || dateTo) {
+      const dateLabel = dateFrom && dateTo
+        ? `${formatDateFilter(dateFrom)} a ${formatDateFilter(dateTo)}`
+        : dateFrom
+        ? `A partir de ${formatDateFilter(dateFrom)}`
+        : `Até ${formatDateFilter(dateTo)}`;
+      filters.push({
+        label: `Período: ${dateLabel}`,
+        onRemove: () => {
+          setDateFrom('');
+          setDateTo('');
+        },
+      });
+    }
+    
+    if (searchTerm) {
+      filters.push({
+        label: `Busca: "${searchTerm}"`,
+        onRemove: () => setSearchTerm(''),
+      });
+    }
+    
+    selectedStatuses.forEach(status => {
+      const statusLabels: Record<string, string> = {
+        financeiro: 'Financeiro',
+        conferencia: 'Conferência',
+        sublimacao: 'Sublimação',
+        costura: 'Costura',
+        expedicao: 'Expedição',
+        pronto: 'Pronto',
+      };
+      filters.push({
+        label: statusLabels[status] || status,
+        onRemove: () => setSelectedStatuses(selectedStatuses.filter(s => s !== status)),
+      });
+    });
+    
+    if (selectedVendedor) {
+      filters.push({
+        label: `Vendedor: ${selectedVendedor}`,
+        onRemove: () => setSelectedVendedor(''),
+      });
+    }
+    
+    if (selectedDesigner) {
+      filters.push({
+        label: `Designer: ${selectedDesigner}`,
+        onRemove: () => setSelectedDesigner(''),
+      });
+    }
+    
+    if (selectedCidade) {
+      filters.push({
+        label: `Cidade: ${selectedCidade}`,
+        onRemove: () => setSelectedCidade(''),
+      });
+    }
+    
+    return filters;
+  }, [productionStatusFilter, dateFrom, dateTo, searchTerm, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade]);
 
   // Contar filtros ativos
   const activeFiltersCount = useMemo(() => {
@@ -614,7 +950,7 @@ export default function OrderList() {
     }
   }, [filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
 
-  const handlePrintSelected = () => {
+  const handlePrintSelected = async () => {
     if (selectedOrderIdsForPrint.length === 0) {
       return;
     }
@@ -633,484 +969,36 @@ export default function OrderList() {
       return;
     }
 
-    printSelectedOrders(ordersToPrint);
+    await printSelectedOrders(ordersToPrint);
+  };
+
+  const printSelectedOrders = async (orders: OrderWithItems[]) => {
+    try {
+      // Mostrar loading enquanto processa
     toast({
-      title: "Impressão",
-      description: `Abrindo visualização de impressão de ${ordersToPrint.length} pedido(s).`,
-      variant: "info",
+      title: "Preparando impressão",
+        description: "Gerando fichas usando templates da API...",
     });
-  };
 
-  const printSelectedOrders = (orders: OrderWithItems[]) => {
-    const printContent = generatePrintList(orders);
+      // Usar templates da API para impressão múltipla (template resumo para impressão em lote)
+      const printContent = await printMultipleOrdersServiceForm(orders, 'resumo');
     
-    // Criar iframe para impressão
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) {
-      document.body.removeChild(iframe);
-      return;
+    // Usar a função universal de visualização
+    const { openInViewer } = await import('../utils/exportUtils');
+    await openInViewer({ 
+      type: 'html', 
+      html: printContent, 
+        title: `Fichas de Serviço - ${orders.length} pedido(s)` 
+      });
+        } catch (error) {
+      console.error('Erro ao imprimir múltiplos pedidos:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao preparar impressão.';
+      toast({
+        title: "Erro ao imprimir",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
-
-    iframeDoc.open();
-    iframeDoc.write(printContent);
-    iframeDoc.close();
-
-    // Aguardar carregamento das imagens antes de imprimir
-    iframe.contentWindow?.focus();
-    
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      
-      // Remover iframe após impressão
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 500);
-  };
-
-  const collectOrderData = (item: OrderItem): { basic: string[], details: string[] } => {
-    const basic: string[] = [];
-    const details: string[] = [];
-    const itemRecord = item as unknown as Record<string, unknown>;
-
-    // Funções auxiliares (iguais ao modal)
-    const hasTextValue = (value?: string | null, options?: { disallow?: string[] }) => {
-      if (!value) return false;
-      const trimmed = value.trim();
-      if (!trimmed) return false;
-      const lower = trimmed.toLowerCase();
-      if (options?.disallow?.some((entry) => lower === entry)) {
-        return false;
-      }
-      return true;
-    };
-
-    const hasPositiveNumber = (value?: string | number | null) => {
-      if (typeof value === 'number') return value > 0;
-      if (!value) return false;
-      const normalized = value
-        .toString()
-        .trim()
-        .replace(/\s/g, '')
-        .replace(/\./g, '')
-        .replace(',', '.');
-      const parsed = parseFloat(normalized);
-      return !Number.isNaN(parsed) && parsed > 0;
-    };
-
-    const hasQuantityValue = (value?: string | null) => {
-      if (!value) return false;
-      const parsed = parseFloat(value.toString().replace(/\D/g, ''));
-      if (!Number.isNaN(parsed)) {
-        return parsed > 0;
-      }
-      return hasTextValue(value);
-    };
-
-    const isTrue = (value: unknown) => {
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'number') return value === 1;
-      if (typeof value === 'string') {
-        const normalized = value.trim().toLowerCase();
-        return ['true', '1', 'sim', 'yes'].includes(normalized);
-      }
-      return false;
-    };
-
-
-    // Dados básicos (cards destacados no modal)
-    const tipo = item.tipo_producao || '';
-    const descricao = item.descricao || '';
-    const painelQuantidade = item.quantidade_paineis || '';
-    const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
-    const quantidadeDisplay = painelQuantidade || itemQuantidade;
-
-    if (tipo) basic.push(`Tipo: ${tipo.toUpperCase()}`);
-    if (descricao) basic.push(`Desc: ${descricao}`);
-    if (quantidadeDisplay) basic.push(`Qtd: ${quantidadeDisplay}`);
-
-    const vendedor = item.vendedor || '';
-    const designer = item.designer || '';
-    if (vendedor || designer) {
-      const equipe = [vendedor && `Vendedor: ${vendedor}`, designer && `Designer: ${designer}`].filter(Boolean).join(' | ');
-      basic.push(`Equipe: ${equipe}`);
-    }
-
-    const largura = item.largura || '';
-    const altura = item.altura || '';
-    const area = item.metro_quadrado || '';
-    if (largura || altura || area) {
-      const dimensoes = [largura && `${largura}m`, altura && `${altura}m`, area && `${area}m²`].filter(Boolean).join(' × ');
-      basic.push(`Dimensões: ${dimensoes}`);
-    }
-
-    const materialLabel = tipo.toLowerCase().includes('totem') ? 'Material' : tipo.toLowerCase().includes('adesivo') ? 'Tipo de Adesivo' : 'Tecido';
-    const tecido = item.tecido || '';
-    if (tecido) {
-      basic.push(`${materialLabel}: ${tecido}`);
-    }
-
-    // Dados técnicos detalhados (seção de detalhes no modal)
-    // Acabamentos básicos
-    if (item.overloque) details.push('Overloque');
-    if (item.elastico) details.push('Elástico');
-
-    if (hasTextValue(item.tipo_acabamento, { disallow: ['nenhum'] })) {
-      details.push(`Acabamento: ${item.tipo_acabamento}`);
-    }
-
-    // Ilhós
-    if (hasQuantityValue(item.quantidade_ilhos)) {
-      details.push(`Ilhós: ${item.quantidade_ilhos} un`);
-    }
-
-    if (hasTextValue(item.espaco_ilhos || null)) {
-      const espaco = (item.espaco_ilhos || '').includes('cm') ? (item.espaco_ilhos || '') : `${item.espaco_ilhos || ''} cm`;
-      details.push(`Espaço Ilhós: ${espaco}`);
-    }
-
-    if (hasPositiveNumber(item.valor_ilhos)) {
-      details.push(`Valor Ilhós: R$ ${item.valor_ilhos}`);
-    }
-
-    // Cordinha
-    if (hasQuantityValue(item.quantidade_cordinha)) {
-      details.push(`Cordinha: ${item.quantidade_cordinha} un`);
-    }
-
-    if (hasTextValue(item.espaco_cordinha || null)) {
-      const espaco = (item.espaco_cordinha || '').includes('cm') ? (item.espaco_cordinha || '') : `${item.espaco_cordinha || ''} cm`;
-      details.push(`Espaço Cordinha: ${espaco}`);
-    }
-
-    if (hasPositiveNumber(item.valor_cordinha)) {
-      details.push(`Valor Cordinha: R$ ${item.valor_cordinha}`);
-    }
-
-    // Dados específicos por tipo
-    if (tipo.toLowerCase().includes('lona')) {
-      const terceirizado = itemRecord.terceirizado;
-      if (typeof terceirizado === 'boolean' && terceirizado) {
-        details.push('Terceirizado');
-      }
-
-      const acabamentoLonaRaw = itemRecord.acabamento_lona;
-      if (acabamentoLonaRaw && hasTextValue(String(acabamentoLonaRaw))) {
-        const acabamentoLabel = String(acabamentoLonaRaw)
-          .split(/[_-]/)
-          .map((segment: string) => segment.charAt(0).toUpperCase() + segment.slice(1))
-          .join(' ');
-        details.push(`Acabamento Lona: ${acabamentoLabel}`);
-      }
-
-      if (hasPositiveNumber(itemRecord.valor_lona as string | number | null)) {
-        details.push(`Valor Base Lona: R$ ${itemRecord.valor_lona}`);
-      }
-
-      if (hasPositiveNumber(itemRecord.outros_valores_lona as string | number | null)) {
-        details.push(`Outros Valores Lona: R$ ${itemRecord.outros_valores_lona}`);
-      }
-    }
-
-    if (isTrue(itemRecord.ziper)) {
-      details.push('Com zíper');
-    }
-
-    if (isTrue(itemRecord.cordinha_extra)) {
-      details.push('Cordinha adicional');
-    }
-
-    if (isTrue(itemRecord.alcinha)) {
-      details.push('Inclui alcinha');
-    }
-
-    if (isTrue(itemRecord.toalha_pronta)) {
-      details.push('Toalha pronta');
-    }
-
-    if (tipo.toLowerCase().includes('adesivo')) {
-      const tipoAdesivo = itemRecord.tipo_adesivo;
-      if (tipoAdesivo && hasTextValue(String(tipoAdesivo))) {
-        details.push(`Tipo Adesivo: ${tipoAdesivo}`);
-      }
-
-      if (hasPositiveNumber(itemRecord.valor_adesivo as string | number | null)) {
-        details.push(`Valor Adesivo: R$ ${itemRecord.valor_adesivo}`);
-      }
-
-      if (hasPositiveNumber(itemRecord.outros_valores_adesivo as string | number | null)) {
-        details.push(`Outros Valores Adesivo: R$ ${itemRecord.outros_valores_adesivo}`);
-      }
-
-      const quantidadeAdesivo = itemRecord.quantidade_adesivo;
-      if (quantidadeAdesivo && hasTextValue(String(quantidadeAdesivo))) {
-        details.push(`Qtd Adesivos: ${quantidadeAdesivo}`);
-      }
-    }
-
-    // Emenda
-    const emendaTipoRaw = itemRecord.emenda;
-    if (emendaTipoRaw && hasTextValue(String(emendaTipoRaw), { disallow: ['sem-emenda'] })) {
-      const emendaTipo = String(emendaTipoRaw)
-        .split(/[-_]/)
-        .map((segment: string) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join(' ');
-
-      details.push(`Emenda: ${emendaTipo}`);
-
-      const emendaQtd = itemRecord.emenda_qtd || itemRecord.emendaQtd;
-      if (emendaQtd && hasQuantityValue(String(emendaQtd))) {
-        const emendaQtdNumber = parseFloat(String(emendaQtd).replace(/\D/g, ''));
-        const emendaQtdLabel = emendaQtdNumber === 1 ? '1 emenda' : `${emendaQtdNumber} emendas`;
-        details.push(`Qtd Emendas: ${emendaQtdLabel}`);
-      }
-    }
-
-    return { basic, details };
-  };
-
-  const generatePrintList = (orders: OrderWithItems[]): string => {
-    const styles = `
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-
-        @page {
-          size: A4 portrait;
-          margin: 8mm;
-        }
-
-        body {
-          font-family: Arial, sans-serif;
-          font-size: 9pt;
-          line-height: 1.2;
-          color: #000;
-          background: #fff;
-        }
-
-        .order-item {
-          border: 2px solid #2563eb;
-          padding: 5mm;
-          margin-bottom: 5mm;
-          page-break-inside: avoid;
-          display: grid;
-          grid-template-columns: 1.25fr 0.75fr;
-          gap: 4mm;
-          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          border-radius: 6px;
-        }
-
-        .order-item:last-child {
-          margin-bottom: 0;
-        }
-
-        .left-column {
-          display: flex;
-          flex-direction: column;
-          gap: 2mm;
-        }
-
-        .right-column {
-          display: flex;
-          flex-direction: column;
-          gap: 2mm;
-        }
-
-        .header-info {
-          font-size: 8pt;
-          color: #475569;
-          margin-bottom: 3mm;
-          line-height: 1.3;
-          background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
-          color: white;
-          padding: 2mm 3mm;
-          border-radius: 4px;
-          font-weight: 600;
-        }
-
-        .header-info strong {
-          color: #fbbf24;
-          font-weight: 700;
-        }
-
-        .section-title {
-          font-size: 11pt;
-          font-weight: 800;
-          margin-bottom: 2mm;
-          color: #1e40af;
-          border-bottom: 2px solid #3b82f6;
-          padding-bottom: 1mm;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .item-details {
-          font-size: 9pt;
-          line-height: 1.4;
-          color: #334155;
-          background: #f1f5f9;
-          padding: 2mm;
-          border-radius: 4px;
-          border-left: 3px solid #3b82f6;
-        }
-
-        .item-image-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid #e2e8f0;
-          padding: 3mm;
-          min-height: 110px;
-          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-          border-radius: 6px;
-          box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .item-image-container img {
-          max-width: 100%;
-          max-height: 180px;
-          object-fit: contain;
-          border-radius: 4px;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        }
-
-        .no-image {
-          color: #64748b;
-          font-style: italic;
-          font-size: 8pt;
-          font-weight: 500;
-        }
-
-        .priority-high {
-          color: #dc2626;
-          font-weight: 800;
-          text-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
-        }
-
-        .priority-normal {
-          color: #059669;
-          font-weight: 600;
-        }
-
-        /* Otimização para 3 pedidos por página */
-        .order-item {
-          break-inside: avoid;
-          max-height: 90mm; /* Aproximadamente 1/3 de uma página A4 */
-        }
-
-        @media print {
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-
-          .order-item {
-            page-break-inside: avoid;
-            box-shadow: none;
-            border: 2px solid #000;
-          }
-
-          .header-info {
-            background: #f0f0f0 !important;
-            color: #000 !important;
-          }
-
-          .section-title {
-            color: #000 !important;
-            border-bottom-color: #000 !important;
-          }
-
-          .item-details {
-            background: #f9f9f9 !important;
-            border-left-color: #666 !important;
-          }
-
-          .item-image-container {
-            background: #f5f5f5 !important;
-            border-color: #ccc !important;
-          }
-        }
-      </style>
-    `;
-
-    const ordersHtml = orders.map(order => {
-      const items = Array.isArray(order.items) ? order.items : [];
-      
-      return items.map(item => {
-        // Coletar dados usando a mesma lógica do modal
-        const orderData = collectOrderData(item);
-
-        const basicText = orderData.basic.length > 0
-          ? orderData.basic.join(' • ')
-          : '';
-
-        const detailsText = orderData.details.length > 0
-          ? orderData.details.join(' • ')
-          : 'Nenhum detalhe técnico informado';
-
-        const imageUrl = item.imagem?.trim();
-
-        return `
-          <div class="order-item">
-            <div class="left-column">
-              <div class="header-info">
-                <strong>#${order.numero || order.id}</strong> • ${order.cliente || order.customer_name || '-'} • ${order.telefone_cliente || '-'} • ${order.cidade_cliente || '-'} / ${order.estado_cliente || '-'} • ${order.forma_envio || '-'} • <span class="${order.prioridade === 'ALTA' ? 'priority-high' : 'priority-normal'}">${order.prioridade || 'NORMAL'}</span>
-              </div>
-
-              ${basicText ? `
-                <div class="section-title">📋 Informações do Item</div>
-                <div class="item-details">
-                  <strong>${basicText}</strong>
-                </div>
-              ` : ''}
-
-              <div class="section-title">🔧 Especificações Técnicas</div>
-              <div class="item-details">
-                <strong>${detailsText}</strong>
-              </div>
-            </div>
-
-            <div class="right-column">
-              <div class="section-title" style="text-align: center; margin-bottom: 2mm;">🖼️ Visual do Item</div>
-              <div class="item-image-container">
-                ${imageUrl
-                  ? `<img src="${imageUrl}" alt="Imagem do item" />`
-                  : '<span class="no-image">Imagem não disponível</span>'
-                }
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }).join('');
-
-    return `
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Lista de Produção</title>
-        ${styles}
-      </head>
-      <body>
-        ${ordersHtml}
-      </body>
-      </html>
-    `;
   };
 
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
@@ -1129,20 +1017,6 @@ export default function OrderList() {
       return;
     }
 
-    if (campo === 'sublimacao' && !valorAtual) {
-      const defaultDate =
-        ensureDateInputValue(targetOrder.sublimacao_data_impressao ?? null) ||
-        new Date().toISOString().slice(0, 10);
-      setSublimationModal({
-        show: true,
-        pedidoId,
-        machine: targetOrder.sublimacao_maquina ?? '',
-        printDate: defaultDate,
-      });
-      setSublimationError(null);
-      return;
-    }
-
     setStatusConfirmModal({
       show: true,
       pedidoId,
@@ -1154,6 +1028,19 @@ export default function OrderList() {
 
   const handleConfirmStatusChange = async () => {
     const { pedidoId, campo, novoValor } = statusConfirmModal;
+    
+    // PROTEÇÃO CRÍTICA: Verificar se é tentativa de alterar financeiro sem permissão de admin
+    // Esta é uma camada extra de segurança além da verificação no handleStatusClick
+    if (campo === 'financeiro' && !isAdmin) {
+      toast({
+        title: "Acesso negado",
+        description: "Somente administradores podem alterar o status financeiro.",
+        variant: "destructive",
+      });
+      setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
+      return;
+    }
+    
     const targetOrder = orders.find((order) => order.id === pedidoId);
 
     if (!targetOrder) {
@@ -1162,6 +1049,11 @@ export default function OrderList() {
     }
 
     const payload = buildStatusUpdatePayload(targetOrder, campo, novoValor);
+
+    // Debug: verificar se financeiro está no payload quando não deveria
+    if (campo !== 'financeiro' && 'financeiro' in payload) {
+      console.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
+    }
 
     try {
       const updatedOrder = await api.updateOrderStatus(payload);
@@ -1221,309 +1113,413 @@ export default function OrderList() {
     }
   };
 
-  const handleCloseSublimationModal = () => {
-    setSublimationModal({ show: false, pedidoId: 0, machine: '', printDate: '' });
-    setSublimationError(null);
-  };
+  const handleKanbanStatusChange = async (orderId: number, newStatus: string) => {
+    const targetOrder = orders.find((order) => order.id === orderId);
+    if (!targetOrder) return;
 
-  const handleConfirmSublimation = async () => {
-    if (!sublimationModal.show) {
-      return;
-    }
-    const targetOrder = orders.find((order) => order.id === sublimationModal.pedidoId);
-    if (!targetOrder) {
-      handleCloseSublimationModal();
-      return;
-    }
+    // Mapear nomes de status para campos
+    const statusLabels: Record<string, string> = {
+      financeiro: 'Financeiro',
+      conferencia: 'Conferência',
+      sublimacao: 'Sublimação',
+      costura: 'Costura',
+      expedicao: 'Expedição',
+      pronto: 'Pronto',
+    };
 
-    const machine = sublimationModal.machine.trim();
-    const printDateRaw = sublimationModal.printDate.trim();
-    const normalizedDate = ensureDateInputValue(printDateRaw);
+    // Ordem dos status (do primeiro ao último)
+    const statusOrder = ['financeiro', 'conferencia', 'sublimacao', 'costura', 'expedicao', 'pronto'];
+    const newStatusIndex = statusOrder.indexOf(newStatus);
 
-    if (!machine) {
-      setSublimationError('Informe o nome da máquina.');
-      return;
-    }
-    if (!normalizedDate) {
-      setSublimationError('Informe a data de impressão.');
-      return;
-    }
+    // Se está movendo para uma coluna mais avançada, garantir que todos os status anteriores também sejam marcados
+    // Construir payload baseado no status atual e novo status
+    const payload = buildStatusUpdatePayload(
+      targetOrder,
+      newStatus,
+      true // sempre marcar como true ao mover para a coluna
+    );
 
-    const payload = buildStatusUpdatePayload(targetOrder, 'sublimacao', true, {
-      machine,
-      date: normalizedDate,
-    });
+    // Garantir que todos os status anteriores ao novo status também estejam marcados
+    for (let i = 0; i < newStatusIndex; i++) {
+      const prevStatus = statusOrder[i];
+      if (prevStatus === 'financeiro') {
+        payload.financeiro = true;
+      } else if (prevStatus === 'conferencia') {
+        payload.conferencia = true;
+      } else if (prevStatus === 'sublimacao') {
+        payload.sublimacao = true;
+      } else if (prevStatus === 'costura') {
+        payload.costura = true;
+      } else if (prevStatus === 'expedicao') {
+        payload.expedicao = true;
+      }
+    }
 
     try {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
-      const allCompleted =
-        updatedOrder.pronto && updatedOrder.status === OrderStatus.Concluido;
-
       toast({
-        title: allCompleted ? 'Pedido concluído' : 'Sublimação marcada',
-        description: allCompleted
-          ? `Todos os setores foram concluídos. Pedido marcado como pronto em ${formatDateForDisplay(normalizedDate, '-')}.`
-          : `Sublimação confirmada com máquina ${machine} em ${formatDateForDisplay(normalizedDate, '-')}.`,
+        title: "Status atualizado",
+        description: `Pedido movido para ${statusLabels[newStatus] || newStatus}`,
         variant: "success",
       });
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status de sublimação.';
-      const isForbidden = error?.response?.status === 403;
-      
-      if (isForbidden) {
-        toast({
-          title: '⚠️ Problema de permissão no servidor',
-          description: 'O servidor está bloqueando a atualização de "Sublimação" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Erro',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-      }
-      
-      // Log apenas em desenvolvimento para não poluir o console em produção
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error updating sublimation status:', error);
-      }
-    } finally {
-      handleCloseSublimationModal();
+      const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
-  return (
-    <div className="flex flex-col h-full space-y-6 min-h-screen">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Filtros</CardTitle>
-              <CardDescription>Busque e filtre os pedidos</CardDescription>
-            </div>
-            <AutoRefreshStatus 
-              isActive={isRealtimeActive}
-              isRefreshing={false}
-              lastRefresh={lastSync}
-              refreshCount={syncCount}
-              onToggle={toggleRealtime}
-              onForceRefresh={handleForceSync}
-            />
+  // Se estiver no modo kanban, renderizar layout full-screen limpo
+  if (viewMode === 'kanban') {
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
+        {/* Header minimalista */}
+        <div className="flex items-center justify-between px-8 py-5 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Pedidos</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Arraste os cards entre as colunas para atualizar o status</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente ou ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select
-              value={productionStatusFilter}
-              onValueChange={(value) =>
-                setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
-              }
+          {/* Botões de alternância desativados temporariamente */}
+          {/* <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Status de Produção" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pendentes</SelectItem>
-                <SelectItem value="ready">Prontos</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                placeholder="Data inicial"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full sm:w-[150px]"
-              />
-              <Input
-                type="date"
-                placeholder="Data final"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full sm:w-[150px]"
-              />
-            </div>
-              <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filtros Avançados
-                    {activeFiltersCount > 0 && (
-                      <Badge variant="secondary" className="ml-1">
-                        {activeFiltersCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold">Filtros Avançados</h4>
-                      {activeFiltersCount > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearAllFilters}
-                          className="h-7 text-xs"
-                        >
-                          Limpar todos
-                        </Button>
-                      )}
+              <Table2 className="h-4 w-4 mr-2" />
+              Tabela
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Kanban
+            </Button>
+          </div> */}
+        </div>
+
+        {/* Área do Kanban - ocupa todo o espaço restante */}
+        <div className="flex-1 overflow-hidden p-8">
+          <OrderKanbanBoard
+            orders={paginatedOrders}
+            onStatusChange={handleKanbanStatusChange}
+            onEdit={handleEdit}
+            onView={handleView}
+            onViewOrder={handleViewOrder}
+            onDelete={handleDeleteClick}
+            isAdmin={isAdmin}
+            loading={loading}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Modo tabela - layout original
+  return (
+    <div className="flex flex-col h-full space-y-4 min-h-screen">
+      {viewMode === 'table' && (
+        <>
+          {/* Barra de Filtros Principais - Sempre Visível */}
+          <Card className="border-2">
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4">
+                {/* Linha 1: Busca e Status */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Busca - Prioridade 1 */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-10"
+                    />
+                  </div>
+                  
+                  {/* Status - Prioridade 1 */}
+                  <div className="w-full sm:w-[180px]">
+                    <Select
+                      value={productionStatusFilter}
+                      onValueChange={(value) =>
+                        setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+                      }
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Status de produção" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
+                        <SelectItem value="ready">Prontos para entrega</SelectItem>
+                        <SelectItem value="all">Todos os pedidos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Data de Entrega - Prioridade 1 */}
+                  <div className="flex gap-2 flex-1 sm:flex-initial">
+                    <div className="flex-1 sm:w-[160px] relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="date"
+                        placeholder="Data inicial de entrega"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="pl-10 h-10"
+                        title="Data inicial de entrega"
+                      />
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Status de Produção</Label>
-                      <div className="space-y-2">
-                        {[
-                          { value: 'financeiro', label: 'Financeiro' },
-                          { value: 'conferencia', label: 'Conferência' },
-                          { value: 'sublimacao', label: 'Sublimação' },
-                          { value: 'costura', label: 'Costura' },
-                          { value: 'expedicao', label: 'Expedição' },
-                          { value: 'pronto', label: 'Pronto' },
-                        ].map((status) => (
-                          <div key={status.value} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`status-${status.value}`}
-                              checked={selectedStatuses.includes(status.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedStatuses([...selectedStatuses, status.value]);
-                                } else {
-                                  setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
-                                }
-                              }}
-                            />
-                            <Label
-                              htmlFor={`status-${status.value}`}
-                              className="text-sm font-normal cursor-pointer"
+                    <div className="flex-1 sm:w-[160px] relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="date"
+                        placeholder="Data final de entrega"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="pl-10 h-10"
+                        title="Data final de entrega"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha 2: Filtros Ativos e Controles - Sempre visível quando há filtros */}
+                {activeFiltersList.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">Mostrando:</span>
+                        {activeFiltersList.map((filter, index) => (
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="gap-1.5 px-2.5 py-1 text-sm font-medium"
+                          >
+                            <span>{filter.label}</span>
+                            <button
+                              onClick={filter.onRemove}
+                              className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5 transition-colors"
+                              aria-label={`Remover filtro ${filter.label}`}
                             >
-                              {status.label}
-                            </Label>
-                          </div>
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
                         ))}
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vendedor-filter" className="text-sm font-medium">Vendedor</Label>
-                      <Select 
-                        value={selectedVendedor || "all"} 
-                        onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="vendedor-filter">
-                          <SelectValue placeholder="Selecione um vendedor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          {vendedores.filter(v => v.nome).map((v) => (
-                            <SelectItem key={v.id} value={v.nome}>
-                              {v.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="designer-filter" className="text-sm font-medium">Designer</Label>
-                      <Select 
-                        value={selectedDesigner || "all"} 
-                        onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="designer-filter">
-                          <SelectValue placeholder="Selecione um designer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos</SelectItem>
-                          {designers.filter(d => d.nome).map((d) => (
-                            <SelectItem key={d.id} value={d.nome}>
-                              {d.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cidade-filter" className="text-sm font-medium">Cidade</Label>
-                      <Select 
-                        value={selectedCidade || "all"} 
-                        onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
-                      >
-                        <SelectTrigger id="cidade-filter">
-                          <SelectValue placeholder="Selecione uma cidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          {cidades.filter(c => c && c.trim()).map((cidade) => (
-                            <SelectItem key={cidade} value={cidade}>
-                              {cidade}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                      className="h-8 gap-1.5 font-medium"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Limpar todos os filtros
+                    </Button>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            {selectedOrderIdsForPrint.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedOrderIdsForPrint([])}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Limpar
-                  </Button>
+                )}
+                
+                {/* Indicador quando não há filtros */}
+                {activeFiltersList.length === 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Use os filtros acima para buscar pedidos. Todos os filtros são aplicados instantaneamente.
+                    </p>
+                  </div>
+                )}
+
+                {/* Linha 3: Filtros Avançados (Colapsáveis) */}
+                <div className="border-t pt-3">
                   <Button
                     type="button"
-                    variant="default"
+                    variant="ghost"
                     size="sm"
-              onClick={handlePrintSelected}
-            >
-                    <Printer className="h-4 w-4 mr-1" />
-                    Imprimir Selecionados
-            </Button>
+                    onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+                    className="w-full justify-between h-9"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Filtros Adicionais
+                      {activeFiltersCount > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {activeFiltersCount}
+                        </Badge>
+                      )}
+                    </span>
+                    {advancedFiltersOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                  
+                  {advancedFiltersOpen && (
+                    <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Status de Produção */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Status de Produção</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { value: 'financeiro', label: 'Financeiro' },
+                              { value: 'conferencia', label: 'Conferência' },
+                              { value: 'sublimacao', label: 'Sublimação' },
+                              { value: 'costura', label: 'Costura' },
+                              { value: 'expedicao', label: 'Expedição' },
+                              { value: 'pronto', label: 'Pronto' },
+                            ].map((status) => (
+                              <div key={status.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`status-${status.value}`}
+                                  checked={selectedStatuses.includes(status.value)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedStatuses([...selectedStatuses, status.value]);
+                                    } else {
+                                      setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
+                                    }
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`status-${status.value}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {status.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Filtros Secundários */}
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="vendedor-filter" className="text-sm font-semibold">Vendedor</Label>
+                            <Select 
+                              value={selectedVendedor || "all"} 
+                              onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="vendedor-filter" className="h-9">
+                                <SelectValue placeholder="Todos os vendedores" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {vendedores.filter(v => v.nome).map((v) => (
+                                  <SelectItem key={v.id} value={v.nome}>
+                                    {v.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="designer-filter" className="text-sm font-semibold">Designer</Label>
+                            <Select 
+                              value={selectedDesigner || "all"} 
+                              onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="designer-filter" className="h-9">
+                                <SelectValue placeholder="Todos os designers" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {designers.filter(d => d.nome).map((d) => (
+                                  <SelectItem key={d.id} value={d.nome}>
+                                    {d.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="cidade-filter" className="text-sm font-semibold">Cidade</Label>
+                            <Select 
+                              value={selectedCidade || "all"} 
+                              onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="cidade-filter" className="h-9">
+                                <SelectValue placeholder="Todas as cidades" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                {cidades.filter(c => c && c.trim()).map((cidade) => (
+                                  <SelectItem key={cidade} value={cidade}>
+                                    {cidade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Barra de Seleção de Pedidos para Impressão */}
+          {selectedOrderIdsForPrint.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">
+                  {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedOrderIdsForPrint([])}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={handlePrintSelected}
+                >
+                  <Printer className="h-4 w-4 mr-1" />
+                  Imprimir Selecionados
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
-            <SmoothTableWrapper>
-              <Table className="w-full max-w-full">
+          {viewMode === 'table' ? (
+            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden relative">
+              {/* Indicador de loading sutil */}
+              {loading && paginatedOrders.length > 0 && (
+                <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
+                  <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
+                </div>
+              )}
+              <SmoothTableWrapper>
+                <Table className="w-full">
               <TableHeader>
             <TableRow>
-                  <TableHead className="w-[44px] sticky left-0 z-10 bg-background border-r">
+                  <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                     <Checkbox
                       checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
                       onCheckedChange={(checked) => {
@@ -1536,72 +1532,72 @@ export default function OrderList() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="w-[72px] sticky left-[44px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
                     onClick={() => handleSort('id')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       ID
                       {getSortIcon('id')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4"
                     onClick={() => handleSort('cliente')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Nome Cliente
                       {getSortIcon('cliente')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[110px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('data_entrega')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Data Entrega
                       {getSortIcon('data_entrega')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[88px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('prioridade')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Prioridade
                       {getSortIcon('prioridade')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="w-[140px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('cidade')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
                       Cidade/UF
                       {getSortIcon('cidade')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Fin.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Conf.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Subl.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Cost.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Exp.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l">Ações</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Fin.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Conf.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
+                  <TableHead className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
-            {loading ? (
+            {loading && paginatedOrders.length === 0 ? (
               <>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
-                    <TableCell className="sticky left-0 z-10 bg-background border-r">
+                    <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                       <Skeleton className="h-4 w-4" />
                     </TableCell>
-                    <TableCell className="sticky left-[44px] z-10 bg-background border-r">
-                      <Skeleton className="h-4 w-16" />
+                    <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2">
+                      <Skeleton className="h-4 w-12 lg:w-16" />
                     </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-32" />
+                    <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
+                      <Skeleton className="h-4 w-24 lg:w-32" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-4 w-24" />
@@ -1634,6 +1630,8 @@ export default function OrderList() {
                       <div className="flex justify-end gap-2">
                         <Skeleton className="h-8 w-8" />
                         <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1651,9 +1649,30 @@ export default function OrderList() {
               </TableRow>
             ) : (
                   paginatedOrders.map((order: OrderWithItems) => {
+                    const urgency = getOrderUrgency(order.data_entrega);
+                    const isOverdue = urgency.type === 'overdue';
+                    const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
+                    const isHighPriority = order.prioridade === 'ALTA';
+                    const isDelayed = isOverdue && !order.pronto;
+                    
+                    // Classe base da linha com destaque visual baseado em urgência e prioridade
+                    const rowClassName = `
+                      hover:bg-muted/50 transition-all duration-200
+                      ${isDelayed ? 'bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''}
+                      ${isOverdue && order.pronto ? 'bg-orange-50/30 dark:bg-orange-950/10 border-l-2 border-l-orange-400' : ''}
+                      ${isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/40 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : ''}
+                      ${isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''}
+                    `.trim().replace(/\s+/g, ' ');
+
                     return (
-                      <TableRow key={order.id} className="hover:bg-muted/50">
-                        <TableCell className="text-center sticky left-0 z-10 bg-background border-r">
+                      <TableRow 
+                        key={order.id} 
+                        className={rowClassName}
+                        data-overdue={isDelayed}
+                        data-urgent={isUrgent}
+                        data-priority={order.prioridade}
+                      >
+                        <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                           <Checkbox
                             checked={selectedOrderIdsForPrint.includes(order.id)}
                             onCheckedChange={(checked) => {
@@ -1665,24 +1684,59 @@ export default function OrderList() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[44px] z-10 bg-background border-r">
-                          #{order.numero || order.id}
+                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                          <div className="flex items-center gap-1 lg:gap-2">
+                            #{order.numero || order.id}
+                            <EditingIndicator orderId={order.id} />
+                          </div>
                         </TableCell>
-                        <TableCell className="font-medium max-w-[220px] truncate">
+                        <TableCell className={`
+                          font-medium min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] truncate px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base
+                          ${isDelayed ? 'font-semibold' : ''}
+                          ${isUrgent && !order.pronto ? 'font-semibold' : ''}
+                        `}>
                           {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {formatDateForDisplay(order.data_entrega, '-')}
+                        <TableCell className="whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                          <div className="flex items-center gap-1.5">
+                            {urgency.type === 'overdue' && (
+                              <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" aria-hidden="true" />
+                            )}
+                            {urgency.type === 'today' && (
+                              <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" aria-hidden="true" />
+                            )}
+                            {urgency.type === 'tomorrow' && (
+                              <Clock className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" aria-hidden="true" />
+                            )}
+                            <span className={`
+                              font-medium
+                              ${urgency.type === 'overdue' ? 'text-red-600 dark:text-red-400' : ''}
+                              ${urgency.type === 'today' ? 'text-orange-600 dark:text-orange-400' : ''}
+                              ${urgency.type === 'tomorrow' ? 'text-yellow-600 dark:text-yellow-500' : ''}
+                              ${urgency.type === 'soon' ? 'text-amber-600 dark:text-amber-400' : ''}
+                            `}>
+                              {formatDateForDisplay(order.data_entrega, '-')}
+                            </span>
+                            {urgency.type === 'overdue' && (
+                              <span className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400" title={`Atrasado há ${urgency.days} dia(s)`}>
+                                ({urgency.days}d)
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
                           <Badge 
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
-                            className="text-xs"
+                            className={`
+                              text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
+                              ${order.prioridade === 'ALTA' ? 'animate-pulse' : ''}
+                              ${order.prioridade === 'ALTA' && isDelayed ? 'ring-2 ring-red-400 ring-offset-1' : ''}
+                            `}
                           >
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[180px] truncate">
+                        <TableCell className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           {order.cidade_cliente && order.estado_cliente 
                             ? `${order.cidade_cliente}/${order.estado_cliente}`
                             : order.cidade_cliente || '-'}
@@ -1690,7 +1744,7 @@ export default function OrderList() {
                         
                         {/* Checkboxes de Status */}
                         {/* Financeiro - Apenas admins podem alterar */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1699,7 +1753,11 @@ export default function OrderList() {
                                     checked={order.financeiro === true}
                                     disabled={!isAdmin}
                                     onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
-                                    className={!isAdmin ? "opacity-50 cursor-not-allowed" : ""}
+                                    className={`
+                                      transition-all duration-150
+                                      ${!isAdmin ? "opacity-50 cursor-not-allowed" : ""}
+                                      ${order.financeiro ? "scale-110" : ""}
+                                    `}
                                   />
                                 </div>
                               </TooltipTrigger>
@@ -1713,24 +1771,26 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.conferencia === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
+                            className="transition-all duration-150 data-[state=checked]:scale-110"
                           />
                         </TableCell>
                         
                         {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.sublimacao === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
+                            className="transition-all duration-150 data-[state=checked]:scale-110"
                           />
                           {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
-                            <div className="mt-1 text-[10px] text-muted-foreground leading-tight text-center">
-                              {order.sublimacao_maquina && <div>{order.sublimacao_maquina}</div>}
+                            <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
+                              {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
                               {order.sublimacao_data_impressao && (
                                 <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
                               )}
@@ -1739,68 +1799,96 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.costura === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
+                            className="transition-all duration-150 data-[state=checked]:scale-110"
                           />
                   </TableCell>
                         
                         {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                        <TableCell className="text-center whitespace-nowrap">
+                        <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
                           <Checkbox
                             checked={order.expedicao === true}
                             disabled={!order.financeiro}
                             onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
+                            className="transition-all duration-150 data-[state=checked]:scale-110"
                           />
                         </TableCell>
                         
                         {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                        <TableCell className="text-center whitespace-nowrap">
-                          <Badge 
-                            variant={order.pronto ? 'success' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {order.pronto ? 'Pronto' : 'Em Andamento'}
-                          </Badge>
+                        <TableCell className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {order.pronto && (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
+                            )}
+                            <Badge 
+                              variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
+                              className={`
+                                text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
+                                ${order.pronto ? '' : isDelayed ? 'animate-pulse' : ''}
+                              `}
+                            >
+                              {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                            </Badge>
+                          </div>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l">
-                        <div className="flex justify-end gap-1">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                        <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleQuickShare(order)}
+                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                  title="Ação Rápida: Copiar itens para WhatsApp"
+                                >
+                                  <Camera className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copiar itens do pedido para WhatsApp</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleViewOrder(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                             title="Visualizar Pedido"
                           >
-                            <FileText className="h-4 w-4" />
+                            <FileText className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleView(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                             title="Detalhes"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
                             onClick={() => handleEdit(order)}
-                            className="h-8 w-8"
+                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
                           {isAdmin && (
                             <Button
                               size="icon"
                               variant="ghost"
                               onClick={() => handleDeleteClick(order.id)}
-                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-destructive hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                             </Button>
                           )}
                         </div>
@@ -1813,6 +1901,7 @@ export default function OrderList() {
         </Table>
             </SmoothTableWrapper>
           </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -1906,59 +1995,6 @@ export default function OrderList() {
             <Button variant="destructive" onClick={handleDeleteConfirm}>
               Excluir
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Confirmação de Status */}
-      <Dialog
-        open={sublimationModal.show}
-        onOpenChange={(open) => {
-          if (!open) {
-            handleCloseSublimationModal();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Sublimação</DialogTitle>
-            <DialogDescription>
-              Informe os detalhes da impressão antes de marcar a sublimação como concluída.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="sublimation-machine">Máquina</Label>
-              <Input
-                id="sublimation-machine"
-                value={sublimationModal.machine}
-                onChange={(event) =>
-                  setSublimationModal((prev) => ({ ...prev, machine: event.target.value }))
-                }
-                placeholder="Ex: Epson SureColor F570"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sublimation-date">Data da impressão</Label>
-              <Input
-                id="sublimation-date"
-                type="date"
-                value={sublimationModal.printDate}
-                onChange={(event) =>
-                  setSublimationModal((prev) => ({ ...prev, printDate: event.target.value }))
-                }
-              />
-            </div>
-            {sublimationError && (
-              <p className="text-sm text-destructive">{sublimationError}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseSublimationModal}>
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmSublimation}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

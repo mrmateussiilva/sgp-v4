@@ -127,13 +127,36 @@ const numberFromValue = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value !== 'string') return null;
-  const numeric = parseFloat(
-    value
-      .trim()
-      .replace(/\s+/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-  );
+
+  const compact = value.trim().replace(/\s+/g, '');
+  if (!compact) return null;
+
+  // Mantém apenas dígitos, vírgula, ponto e sinal
+  const cleaned = compact.replace(/[^\d,.-]/g, '');
+
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+
+  let normalized = cleaned;
+
+  if (lastComma > -1 && lastDot > -1) {
+    // Tem vírgula e ponto: o separador decimal é o que aparece por último
+    if (lastComma > lastDot) {
+      // Formato pt-BR: vírgula decimal, ponto milhar  (ex: 9.000,00)
+      normalized = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato en-US: ponto decimal, vírgula milhar (ex: 9,000.00)
+      normalized = cleaned.replace(/,/g, '');
+    }
+  } else if (lastComma > -1) {
+    // Só vírgula: tratar como decimal
+    normalized = cleaned.replace(',', '.');
+  } else if (lastDot > -1) {
+    // Só ponto: tratar como decimal (não remover)
+    normalized = cleaned;
+  }
+
+  const numeric = Number.parseFloat(normalized);
   return Number.isFinite(numeric) ? numeric : null;
 };
 

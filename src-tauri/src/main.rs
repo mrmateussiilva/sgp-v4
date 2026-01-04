@@ -3,7 +3,7 @@
 mod commands;
 
 use tauri::Manager;
-use tracing::info;
+use tracing::{info, warn};
 use commands::devtools::{
     close_devtools,
     is_devtools_open,
@@ -11,27 +11,46 @@ use commands::devtools::{
     test_devtools_system,
     toggle_devtools,
 };
+use commands::update::get_app_version;
+use commands::manual_updater::{
+    check_update_manual,
+    download_update_manual,
+    install_update_manual,
+};
 
 fn main() {
     setup_tracing();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             open_devtools,
             close_devtools,
             toggle_devtools,
             is_devtools_open,
-            test_devtools_system
+            test_devtools_system,
+            get_app_version,
+            check_update_manual,
+            download_update_manual,
+            install_update_manual
         ])
         .setup(|app| {
-            info!(
-                "Janela principal pronta: {:?}",
-                app.get_webview_window("main").is_some()
-            );
+            // Atualizar título da janela com a versão
+            let version = env!("CARGO_PKG_VERSION");
+            let title = format!("SGP - Sistema de Gerenciamento de Pedidos v{}", version);
+            
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_title(&title).unwrap_or_else(|e| {
+                    warn!("Erro ao definir título da janela: {}", e);
+                });
+                info!("Título da janela definido: {}", title);
+            }
+            
+            info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
             info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");
             Ok(())
         })

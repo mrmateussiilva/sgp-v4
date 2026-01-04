@@ -59,6 +59,8 @@ export interface OrderItem {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+  data_impressao?: string;
+  rip_maquina?: string;
 }
 
 export interface OrderWithItems {
@@ -229,7 +231,7 @@ export interface UpdateOrderItemRequest {
 
 export interface UpdateOrderStatusRequest {
   id: number;
-  financeiro: boolean;
+  financeiro?: boolean;
   conferencia: boolean;
   sublimacao: boolean;
   costura: boolean;
@@ -426,7 +428,11 @@ export type ReportTypeKey =
   | 'analitico_designer_painel'
   | 'analitico_entrega_painel'
   | 'sintetico_data'
+  | 'sintetico_data_entrada'
+  | 'sintetico_data_entrega'
   | 'sintetico_designer'
+  | 'sintetico_vendedor'
+  | 'sintetico_vendedor_designer'
   | 'sintetico_cliente'
   | 'sintetico_entrega';
 
@@ -435,6 +441,23 @@ export interface ReportRequestPayload {
   start_date?: string;
   end_date?: string;
   status?: string;
+  /**
+   * Define qual campo de data será usado como referência nos filtros e nos agrupamentos por data.
+   * - 'entrada': usa sempre `data_entrada`
+   * - 'entrega': usa sempre `data_entrega`
+   * - undefined: mantém o comportamento anterior (fallback entrega -> entrada -> created_at)
+   */
+  date_mode?: 'entrada' | 'entrega';
+  /**
+   * Filtro opcional por vendedor (parcial, case-insensitive).
+   * Usado para fechamento de comissão por vendedor.
+   */
+  vendedor?: string;
+  /**
+   * Filtro opcional por designer (parcial, case-insensitive).
+   * Usado para fechamento de comissão por designer.
+   */
+  designer?: string;
 }
 
 export interface ReportTotals {
@@ -539,4 +562,103 @@ export interface OrderItemFicha {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+}
+
+export type TemplateFieldType =
+  | 'text'
+  | 'date'
+  | 'number'
+  | 'currency'
+  | 'table'
+  | 'custom'
+  | 'image';
+
+export interface TemplateFieldConfig {
+  id: string;
+  type: TemplateFieldType;
+  label: string;
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize?: number;
+  bold?: boolean;
+  visible?: boolean;
+  editable?: boolean;
+  imageUrl?: string;
+}
+
+export type TemplateType = 'geral' | 'resumo';
+
+export interface FichaTemplateConfig {
+  title: string;
+  width: number;
+  height: number;
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  fields: TemplateFieldConfig[];
+  templateType?: TemplateType;
+  updatedAt?: string;
+}
+
+export interface FichaTemplatesConfig {
+  geral: FichaTemplateConfig;
+  resumo: FichaTemplateConfig;
+}
+
+// ========================================
+// Templates de Relatórios
+// ========================================
+
+export type RelatorioTemplateType = 'envios' | 'fechamentos';
+
+export interface RelatorioTemplateConfig {
+  title: string;
+  // Campos de cabeçalho editáveis
+  headerFields: {
+    title?: string;
+    subtitle?: string;
+    periodoLabel?: string;
+    dataGeracaoLabel?: string;
+    totalPedidosLabel?: string;
+    [key: string]: string | undefined;
+  };
+  // Estilos
+  styles: {
+    fontFamily?: string;
+    fontSize?: number;
+    titleSize?: number;
+    subtitleSize?: number;
+    textColor?: string;
+    headerColor?: string;
+    borderColor?: string;
+    backgroundColor?: string;
+  };
+  // Configurações de tabela/lista
+  tableConfig?: {
+    showHeader?: boolean;
+    headerStyle?: {
+      backgroundColor?: string;
+      textColor?: string;
+      bold?: boolean;
+    };
+    alternatingRows?: boolean;
+    cellPadding?: number;
+  };
+  // Configurações de página
+  pageConfig?: {
+    marginTop?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+    marginRight?: number;
+  };
+  updatedAt?: string;
+}
+
+export interface RelatorioTemplatesConfig {
+  envios: RelatorioTemplateConfig;
+  fechamentos: RelatorioTemplateConfig;
 }

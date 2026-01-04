@@ -8,12 +8,15 @@ import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Loader2 } from 'lucide-react';
 import { useNotifications } from './hooks/useNotifications';
+import { useAutoUpdateCheck } from './hooks/useAutoUpdateCheck';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
+import { AlertProvider } from './contexts/AlertContext';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
 const ConfigApi = lazy(() => import('./pages/ConfigApi'));
+const UpdateStatus = lazy(() => import('./pages/UpdateStatus'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -22,10 +25,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-      <div className="text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-        <p>Carregando página...</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+        <p className="text-slate-700">Carregando...</p>
       </div>
     </div>
   );
@@ -39,6 +42,9 @@ function App() {
 
   // Hook de notificações (só funciona quando API está configurada)
   useNotifications();
+
+  // Hook de verificação automática de atualizações
+  useAutoUpdateCheck();
 
   useEffect(() => {
     const verifyConfig = async () => {
@@ -108,10 +114,10 @@ function App() {
 
   if (isCheckingConnection) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p>Verificando conexão com a API...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+          <p className="text-slate-700">Verificando conexão...</p>
         </div>
       </div>
     );
@@ -119,37 +125,47 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <Suspense fallback={<LoadingFallback />}>
-        {showFallback || !apiUrl ? (
-          <div className="bg-background text-foreground min-h-screen">
-            <ConfigApi
-              onConfigured={(url) => {
-                const normalizedUrl = normalizeApiUrl(url);
-                applyApiUrl(normalizedUrl);
-                setApiUrl(normalizedUrl);
-                setShowFallback(false);
-              }}
-            />
-            <Toaster />
-          </div>
-        ) : (
-          <HashRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/dashboard/*"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
+      <AlertProvider>
+        <Suspense fallback={<LoadingFallback />}>
+          {showFallback || !apiUrl ? (
+            <div className="bg-background text-foreground min-h-screen">
+              <ConfigApi
+                onConfigured={(url) => {
+                  const normalizedUrl = normalizeApiUrl(url);
+                  applyApiUrl(normalizedUrl);
+                  setApiUrl(normalizedUrl);
+                  setShowFallback(false);
+                }}
               />
-              <Route path="/" element={<Navigate to="/dashboard" />} />
-            </Routes>
-            <Toaster />
-          </HashRouter>
-        )}
-      </Suspense>
+              <Toaster />
+            </div>
+          ) : (
+            <HashRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/dashboard/*"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/update-status"
+                  element={
+                    <PrivateRoute>
+                      <UpdateStatus />
+                    </PrivateRoute>
+                  }
+                />
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+              </Routes>
+              <Toaster />
+            </HashRouter>
+          )}
+        </Suspense>
+      </AlertProvider>
     </ThemeProvider>
   );
 }
