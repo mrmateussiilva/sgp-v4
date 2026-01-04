@@ -1,89 +1,78 @@
-# Gerenciamento Local de Imagens - Fase 1
+# Gerenciamento Local de Imagens - Status Completo
 
 ## 📋 Objetivo
 
 Implementar infraestrutura para persistência local de imagens de pedidos, eliminando dependência de base64 em estado e blobs temporários.
 
-## ✅ Implementação Fase 1
+## ✅ Implementações Concluídas
 
-### Comandos Rust Implementados
+### Fase 1: Infraestrutura ✅
 
-Localização: `src-tauri/src/commands/images.rs`
+**Comandos Rust** (`src-tauri/src/commands/images.rs`):
+- ✅ `save_image_locally` - Salva imagem no diretório do app
+- ✅ `get_local_image_path` - Busca imagem em cache local
+- ✅ `load_local_image_as_base64` - Carrega para preview (não para estado)
+- ✅ `read_image_file` - Lê bytes para upload
+- ✅ `cache_image_from_url` - Cacheia imagens baixadas
+- ✅ `process_and_save_image` - Processa e redimensiona imagens
 
-#### 1. `save_image_locally`
-Salva uma imagem localmente no diretório de dados do app.
+**Utilitários TypeScript**:
+- ✅ `localImageManager.ts` - Funções para gerenciar imagens locais
+- ✅ `imagePreview.ts` - Helper para preview compatível (base64 + local_path)
+- ✅ `imageUploadHelper.ts` - Helper reutilizável para upload
 
-**Parâmetros:**
-- `image_data: Vec<u8>` - Bytes da imagem (não base64)
-- `mime_type: String` - Tipo MIME da imagem
+### Fase 2: Migração dos Formulários ✅
 
-**Retorna:** `ImageMetadata` com informações da imagem salva
+**Formulários Migrados**:
+- ✅ `FormPainelCompleto` - Usa `saveImageLocally` e armazena `local_path`
+- ✅ `FormLonaProducao` - Usa `saveImageLocally` e armazena `local_path`
+- ✅ `FormTotemProducao` - Usa `saveImageLocally` e armazena `local_path`
+- ✅ `FormAdesivoProducao` - Usa `saveImageLocally` e armazena `local_path`
 
-**Uso:**
-```typescript
-const metadata = await saveImageLocally(file);
-// metadata.local_path contém o caminho local
-```
+**Mudanças Aplicadas**:
+- ✅ Substituição de `resizeImage` por `processAndSaveImage`
+- ✅ Armazenamento de `local_path` no estado (não base64)
+- ✅ Preview via `getImagePreviewUrl` (compatível com base64 e local_path)
+- ✅ Loading states durante processamento
+- ✅ Compatibilidade com base64 existente (fallback)
+- ✅ Fallback para ambiente web (não Tauri)
 
-#### 2. `get_local_image_path`
-Obtém o caminho local de uma imagem (cache ou caminho direto).
+### Prioridade 1: Cache Local no imageLoader ✅
 
-**Parâmetros:**
-- `image_reference: String` - Referência da imagem (caminho local ou referência do servidor)
+**Melhorias Implementadas**:
+- ✅ Verificar cache local antes de fazer requisições HTTP
+- ✅ Cachear automaticamente imagens baixadas via HTTP
+- ✅ Melhorar UX ao abrir pedidos existentes
+- ✅ Reduzir dependência de rede para renderização
 
-**Retorna:** `Option<String>` - Caminho local se encontrado
+**Fluxo**:
+1. Verifica cache local primeiro
+2. Se encontrar, carrega do cache
+3. Se não encontrar, baixa via HTTP
+4. Cacheia automaticamente após download
 
-#### 3. `load_local_image_as_base64`
-Carrega imagem local como base64 (apenas para preview/impressão).
+### Prioridade 2: Upload Assíncrono ✅
 
-**⚠️ IMPORTANTE:** NÃO usar para armazenar em estado, apenas para renderização temporária.
+**Implementações**:
+- ✅ `imageUploader.ts` - Utilitário para upload de imagens
+- ✅ `uploadImageToServer` - Faz upload de imagem local para API
+- ✅ `uploadMultipleImages` - Upload em paralelo
+- ✅ `needsUpload` - Detecta se imagem precisa upload
 
-**Parâmetros:**
-- `local_path: String` - Caminho local da imagem
+**Integração em CreateOrderComplete**:
+- ✅ Upload assíncrono após salvar pedido
+- ✅ Não bloqueia fluxo principal
+- ✅ Atualiza referências no banco após upload bem-sucedido
+- ✅ Tratamento de erros sem quebrar UX
 
-**Retorna:** Data URL base64 da imagem
+### Prioridade 3: Integração CreateOrderComplete ✅
 
-#### 4. `read_image_file`
-Lê arquivo de imagem como array de bytes (útil para upload).
-
-**Parâmetros:**
-- `local_path: String` - Caminho local da imagem
-
-**Retorna:** `Vec<u8>` - Bytes da imagem
-
-#### 5. `cache_image_from_url`
-Cacheia uma imagem baixada da URL no diretório local.
-
-**Parâmetros:**
-- `image_url: String` - URL da imagem
-- `image_data: Vec<u8>` - Dados binários da imagem
-
-**Retorna:** `ImageMetadata` da imagem cacheada
-
-#### 6. `process_and_save_image`
-Processa e salva uma imagem (redimensiona se necessário).
-
-**Parâmetros:**
-- `image_data: Vec<u8>` - Dados binários da imagem
-- `max_width: Option<u32>` - Largura máxima
-- `max_height: Option<u32>` - Altura máxima
-- `quality: Option<u8>` - Qualidade JPEG (0-100)
-
-**Retorna:** `ImageMetadata` da imagem processada
-
-### Utilitário TypeScript
-
-Localização: `src/utils/localImageManager.ts`
-
-#### Funções Disponíveis
-
-- `saveImageLocally(file: File): Promise<LocalImageMetadata>`
-- `getLocalImagePath(imageReference: string): Promise<string | null>`
-- `loadLocalImageAsBase64(localPath: string): Promise<string>`
-- `readImageFile(localPath: string): Promise<Uint8Array>`
-- `cacheImageFromUrl(imageUrl: string, imageData: Uint8Array): Promise<LocalImageMetadata>`
-- `processAndSaveImage(...): Promise<LocalImageMetadata>`
-- `imageExistsLocally(imageReference: string): Promise<boolean>`
+**Mudanças**:
+- ✅ Função `uploadImagesAsync` para gerenciar uploads
+- ✅ Detecção automática de imagens que precisam upload
+- ✅ Upload em paralelo de múltiplas imagens
+- ✅ Atualização de referências no banco após sucesso
+- ✅ Compatibilidade com base64 existente
 
 ## 📁 Estrutura de Diretórios
 
@@ -98,11 +87,61 @@ As imagens são salvas em:
 - Não é possível acessar arquivos fora do diretório de imagens do app
 - Validação de tipos MIME
 
-## 📝 Próximos Passos (Fase 2)
+## 🔄 Fluxo Completo
 
-1. Modificar `FormPainelCompleto` para usar `saveImageLocally` em vez de base64
-2. Armazenar `local_path` no estado em vez de base64
-3. Manter compatibilidade com base64 durante transição
+### Criação/Edição de Pedido
+
+1. **Usuário seleciona imagem** → Salva localmente via `processAndSaveImage`
+2. **Armazena `local_path` no estado** (não base64)
+3. **Preview temporário** via `getImagePreviewUrl` (base64 apenas para exibição)
+4. **Salva pedido** → API recebe `local_path` temporariamente
+5. **Upload assíncrono** → Envia imagens para servidor em background
+6. **Atualiza referências** → Substitui `local_path` por referência do servidor
+
+### Visualização de Pedido
+
+1. **Carrega pedido** → Recebe referência de imagem (URL ou local_path)
+2. **Verifica cache local** → Se encontrar, carrega do cache
+3. **Se não encontrar** → Baixa via HTTP e cacheia
+4. **Exibe imagem** → Usa blob URL temporária para renderização
+
+## ⚠️ Diretrizes Importantes
+
+1. **NUNCA** armazenar base64 em estado do React
+2. **SEMPRE** salvar localmente antes de qualquer upload
+3. **SEMPRE** usar `local_path` no estado, não base64
+4. Base64 apenas para preview temporário ou impressão
+5. Upload assíncrono após salvar pedido (não bloqueia UX)
+
+## 🎯 Benefícios Alcançados
+
+1. ✅ **Sem base64 em estado** - Apenas `local_path`
+2. ✅ **Processamento no cliente** - Redimensionamento em Rust
+3. ✅ **Preview compatível** - Funciona com imagens antigas (base64) e novas (local_path)
+4. ✅ **UX melhorada** - Loading states e feedback visual
+5. ✅ **Compatibilidade** - Não quebra funcionalidades existentes
+6. ✅ **Cache local** - Reduz requisições HTTP
+7. ✅ **Upload assíncrono** - Não bloqueia salvamento de pedidos
+8. ✅ **Confiabilidade** - Falhas de upload não quebram o fluxo
+
+## 📝 Próximos Passos (Opcional)
+
+### Melhorias Futuras
+
+1. **Sistema de fila para uploads pendentes**
+   - Persistir uploads pendentes em caso de falha
+   - Retry automático
+   - Indicador de status de upload
+
+2. **Otimizações adicionais**
+   - Compressão mais agressiva
+   - Lazy loading de imagens
+   - Limpeza automática de cache antigo
+
+3. **Monitoramento**
+   - Logs de upload
+   - Métricas de sucesso/falha
+   - Dashboard de status
 
 ## 🧪 Testes
 
@@ -110,6 +149,7 @@ Para testar a funcionalidade:
 
 ```typescript
 import { saveImageLocally, loadLocalImageAsBase64 } from '@/utils/localImageManager';
+import { uploadImageToServer } from '@/utils/imageUploader';
 
 // Em um componente de teste
 const handleFileSelect = async (file: File) => {
@@ -120,18 +160,15 @@ const handleFileSelect = async (file: File) => {
   // Carregar para preview (temporário)
   const preview = await loadLocalImageAsBase64(metadata.local_path);
   // Usar preview apenas para exibição, não para estado
+  
+  // Upload assíncrono (após salvar pedido)
+  const result = await uploadImageToServer(metadata.local_path, orderItemId);
+  if (result.success) {
+    console.log('Imagem enviada:', result.server_reference);
+  }
 };
 ```
 
-## ⚠️ Diretrizes Importantes
-
-1. **NUNCA** armazenar base64 em estado do React
-2. **SEMPRE** salvar localmente antes de qualquer upload
-3. **SEMPRE** usar `local_path` no estado, não base64
-4. Base64 apenas para preview temporário ou impressão
-5. Upload assíncrono após salvar pedido
-
 ## 🔄 Migração Gradual
 
-A Fase 1 não quebra funcionalidades existentes. O sistema atual continua funcionando enquanto preparamos a Fase 2.
-
+Todas as fases foram implementadas sem quebrar funcionalidades existentes. O sistema atual continua funcionando enquanto o novo sistema é usado gradualmente.
