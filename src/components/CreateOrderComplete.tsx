@@ -32,6 +32,7 @@ import { FormTotemProducao } from '@/components/FormTotemProducao';
 import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
+import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -1502,6 +1503,89 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   };
 
+  /**
+   * Faz upload assíncrono de imagens locais após salvar pedido
+   * Atualiza referências no banco após upload bem-sucedido
+   */
+  const uploadImagesAsync = async (
+    orderId: number,
+    items: NormalizedItem[]
+  ): Promise<void> => {
+    const uploads: Array<{ localPath: string; orderItemId: number }> = [];
+    
+    // Coletar todas as imagens que precisam upload
+    for (const item of items) {
+      if (item.imagem && needsUpload(item.imagem) && item.orderItemId) {
+        uploads.push({
+          localPath: item.imagem,
+          orderItemId: item.orderItemId,
+        });
+      }
+    }
+    
+    if (uploads.length === 0) {
+      return; // Nenhuma imagem para upload
+    }
+    
+    console.log(`[uploadImagesAsync] Iniciando upload de ${uploads.length} imagens para pedido ${orderId}`);
+    
+    // Fazer uploads em paralelo
+    const results = await Promise.allSettled(
+      uploads.map(({ localPath, orderItemId }) =>
+        uploadImageToServer(localPath, orderItemId)
+      )
+    );
+    
+    // Processar resultados e atualizar referências
+    const updates: Array<{ itemId: number; serverReference: string }> = [];
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.success) {
+        updates.push({
+          itemId: uploads[index].orderItemId,
+          serverReference: result.value.server_reference!,
+        });
+      } else {
+        const error = result.status === 'rejected' 
+          ? result.reason 
+          : result.value.error;
+        console.warn(`[uploadImagesAsync] Falha no upload da imagem ${index + 1}:`, error);
+      }
+    });
+    
+    // Atualizar referências no banco se houver sucessos
+    if (updates.length > 0) {
+      try {
+        // Buscar pedido atualizado para obter itens
+        const updatedOrder = await api.getOrderById(orderId);
+        
+        // Criar payload de atualização apenas com referências de imagem
+        const itemsToUpdate = updatedOrder.items
+          .filter((item) => updates.some((u) => u.itemId === item.id))
+          .map((item) => {
+            const update = updates.find((u) => u.itemId === item.id);
+            return {
+              id: item.id,
+              imagem: update?.serverReference || item.imagem,
+            };
+          });
+        
+        if (itemsToUpdate.length > 0) {
+          // Atualizar apenas as referências de imagem
+          await api.updateOrder({
+            id: orderId,
+            items: itemsToUpdate as any,
+          });
+          
+          console.log(`[uploadImagesAsync] ✅ ${updates.length} imagens atualizadas no banco`);
+        }
+      } catch (error) {
+        console.error('[uploadImagesAsync] Erro ao atualizar referências no banco:', error);
+        // Não falhar silenciosamente, mas não bloquear o fluxo
+      }
+    }
+  };
+
   const handleConfirmSave = async () => {
     setIsSaving(true);
 
@@ -1757,6 +1841,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setCurrentOrder(finalOrder);
         populateFormFromOrder(finalOrder);
         updateOrderInStore(finalOrder);
+        
+        // Upload assíncrono de imagens locais em background
+        uploadImagesAsync(finalOrder.id, normalizedItems).catch((error) => {
+          console.error('Erro no upload assíncrono de imagens:', error);
+          // Não bloquear o fluxo, apenas logar
+        });
+        
         navigate('/dashboard/orders');
         return;
       }
@@ -1789,6 +1880,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
       const createdOrder = await api.createOrder(createOrderRequest);
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
+
+      // Upload assíncrono de imagens locais em background
+      // Mapear items criados com seus IDs retornados
+      const itemsWithIds = normalizedItems.map((item, index) => ({
+        ...item,
+        orderItemId: createdOrder.items[index]?.id,
+      }));
+      
+      uploadImagesAsync(createdOrder.id, itemsWithIds).catch((error) => {
+        console.error('Erro no upload assíncrono de imagens:', error);
+        // Não bloquear o fluxo, apenas logar
+      });
 
       toast({
         title: 'Pedido criado!',
