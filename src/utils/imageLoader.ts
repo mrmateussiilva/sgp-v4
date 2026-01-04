@@ -13,6 +13,32 @@ const blobUrlCache = new Map<string, string>();
 const blobCache = new Map<string, Blob>();
 
 /**
+ * Detecta se é um local_path de outro sistema (não do sistema atual)
+ * @param path - Caminho a verificar
+ * @returns true se for local_path de outro sistema
+ */
+function isOtherSystemLocalPath(path: string): boolean {
+  // Se contém caminho absoluto do Windows (C:\, D:\, etc)
+  if (/^[A-Z]:[\\/]/.test(path)) {
+    return true;
+  }
+  // Se contém caminho absoluto do Linux/Mac começando com /
+  // mas não é URL
+  if (path.startsWith('/') && !path.startsWith('http')) {
+    // Verificar se é um caminho de sistema (não relativo da API)
+    const systemPaths = [
+      /^\/Users\//,
+      /^\/home\//,
+      /^\/root\//,
+      /^C:[\\/]/,
+      /^D:[\\/]/,
+    ];
+    return systemPaths.some(regex => regex.test(path));
+  }
+  return false;
+}
+
+/**
  * Normaliza uma URL de imagem, substituindo localhost pela URL da API configurada
  * @param imagePath - Caminho ou URL da imagem
  * @returns URL normalizada
@@ -27,6 +53,20 @@ function normalizeImageUrl(imagePath: string): string {
 
   // Normalizar o caminho
   let normalized = imagePath.replace(/\\/g, '/').trim();
+  
+  // Se for local_path de outro sistema, extrair apenas o nome do arquivo
+  // e tentar buscar no servidor (assumindo que o servidor salva pelo nome do arquivo)
+  if (isOtherSystemLocalPath(normalized)) {
+    console.warn('[normalizeImageUrl] ⚠️ Local path de outro sistema detectado:', normalized);
+    // Extrair apenas o nome do arquivo
+    const fileName = normalized.split(/[\\/]/).pop();
+    if (fileName) {
+      // Tentar buscar como caminho relativo da API
+      // Ajustar conforme a estrutura de diretórios da API
+      normalized = `/images/${fileName}`; // ou o caminho correto da API
+      console.log('[normalizeImageUrl] 🔄 Convertendo para caminho do servidor:', normalized);
+    }
+  }
   
   // Se for protocolo tauri://localhost, converter para http usando a API configurada
   if (normalized.startsWith('tauri://localhost/') && apiUrl) {
@@ -94,7 +134,8 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     }
 
     // NOVO: Se estiver em Tauri, verificar cache local primeiro
-    if (isTauri()) {
+    // Mas apenas se NÃO for local_path de outro sistema
+    if (isTauri() && !isOtherSystemLocalPath(normalized)) {
       const localPath = await getLocalImagePath(normalized);
       if (localPath) {
         console.log('[loadAuthenticatedImage] ✅ Imagem encontrada no cache local:', localPath);
