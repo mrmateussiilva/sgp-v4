@@ -1,4 +1,5 @@
 import { loadLocalImageAsBase64 } from './localImageManager';
+import { loadAuthenticatedImage } from './imageLoader';
 import { isTauri } from './isTauri';
 
 /**
@@ -21,9 +22,9 @@ function isLocalPath(str: string): boolean {
 
 /**
  * Obtém URL para preview de imagem
- * Suporta base64 (compatibilidade) e local_path (novo sistema)
+ * Suporta base64 (compatibilidade), local_path (novo sistema) e referências do servidor
  * 
- * @param imageReference - Pode ser base64, local_path ou URL
+ * @param imageReference - Pode ser base64, local_path ou URL do servidor
  * @returns Promise com URL para usar em src de <img>
  */
 export async function getImagePreviewUrl(
@@ -38,11 +39,6 @@ export async function getImagePreviewUrl(
     return imageReference;
   }
 
-  // Se for URL HTTP/HTTPS, retornar diretamente
-  if (imageReference.startsWith('http://') || imageReference.startsWith('https://')) {
-    return imageReference;
-  }
-
   // Se for caminho local e estiver em Tauri, carregar como base64 temporário
   if (isTauri() && isLocalPath(imageReference)) {
     try {
@@ -54,8 +50,28 @@ export async function getImagePreviewUrl(
     }
   }
 
-  // Fallback: retornar como está (pode ser referência do servidor)
-  return imageReference;
+  // Se for URL HTTP/HTTPS ou caminho relativo do servidor, usar loadAuthenticatedImage
+  // Isso carrega a imagem com autenticação e retorna uma blob URL
+  if (imageReference.startsWith('http://') || 
+      imageReference.startsWith('https://') || 
+      imageReference.startsWith('/')) {
+    try {
+      const blobUrl = await loadAuthenticatedImage(imageReference);
+      return blobUrl;
+    } catch (error) {
+      console.error('Erro ao carregar imagem do servidor para preview:', error);
+      return null;
+    }
+  }
+
+  // Fallback: tentar carregar como referência do servidor
+  try {
+    const blobUrl = await loadAuthenticatedImage(imageReference);
+    return blobUrl;
+  } catch (error) {
+    console.error('Erro ao carregar imagem para preview:', error);
+    return null;
+  }
 }
 
 // Versão síncrona para casos simples (retorna base64 se já for, ou null)
