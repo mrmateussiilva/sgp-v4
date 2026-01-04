@@ -1571,10 +1571,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           });
         
         if (itemsToUpdate.length > 0) {
-          // Atualizar apenas as referências de imagem
+          // Buscar pedido atual para obter dados necessários
+          const currentOrder = await api.getOrderById(orderId);
+          
+          // Atualizar apenas as referências de imagem, mantendo outros dados
           await api.updateOrder({
             id: orderId,
+            customer_name: currentOrder.customer_name || currentOrder.cliente || '',
+            address: currentOrder.address || currentOrder.cidade_cliente || '',
+            cidade_cliente: currentOrder.cidade_cliente || '',
+            status: currentOrder.status,
             items: itemsToUpdate as any,
+            valor_frete: currentOrder.valor_frete,
           });
           
           console.log(`[uploadImagesAsync] ✅ ${updates.length} imagens atualizadas no banco`);
