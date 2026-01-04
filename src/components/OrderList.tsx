@@ -471,7 +471,7 @@ export default function OrderList() {
       titleDiv.style.marginBottom = '20px';
       titleDiv.style.fontSize = '18px';
       titleDiv.style.fontWeight = 'bold';
-      titleDiv.textContent = `Pedido #${orderWithItems.numero || orderWithItems.id} - ${orderWithItems.cliente || orderWithItems.customer_name || 'Cliente'}`;
+      titleDiv.textContent = `Pedido #${formatOrderNumber(orderWithItems.numero, orderWithItems.id)} - ${orderWithItems.cliente || orderWithItems.customer_name || 'Cliente'}`;
       tempDiv.appendChild(titleDiv);
 
       // Container para itens
@@ -591,7 +591,7 @@ export default function OrderList() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.download = `pedido-${formatOrderNumber(orderWithItems.numero, orderWithItems.id)}.png`;
           a.style.display = 'none';
           document.body.appendChild(a);
           a.click();
@@ -633,7 +633,7 @@ export default function OrderList() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `pedido-${orderWithItems.numero || orderWithItems.id}.png`;
+          a.download = `pedido-${formatOrderNumber(orderWithItems.numero, orderWithItems.id)}.png`;
           a.style.display = 'none';
           document.body.appendChild(a);
           a.click();
@@ -709,6 +709,16 @@ export default function OrderList() {
     if (!date) return '';
     const [year, month, day] = date.split('-');
     return `${day}/${month}/${year}`;
+  };
+
+  // Remover zeros à esquerda do número do pedido
+  const formatOrderNumber = (numero: string | number | null | undefined, id: number): string => {
+    if (numero) {
+      // Converte para string e remove zeros à esquerda, mantém o valor original se for 0
+      const numStr = String(numero).replace(/^0+/, '');
+      return numStr || '0';
+    }
+    return String(id);
   };
 
   // Calcular estado de urgência do pedido baseado na data de entrega
@@ -1673,7 +1683,7 @@ export default function OrderList() {
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           {viewMode === 'table' ? (
-            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-hidden relative">
+            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
               {/* Indicador de loading sutil */}
               {loading && paginatedOrders.length > 0 && (
                 <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
@@ -1697,7 +1707,7 @@ export default function OrderList() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
+                    className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] 2xl:w-[90px] 2xl:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] 2xl:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
                     onClick={() => handleSort('id')}
                   >
                     <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
@@ -1715,7 +1725,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                    className="hidden sm:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('data_entrega')}
                   >
                     <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
@@ -1724,7 +1734,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                    className="hidden md:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('prioridade')}
                   >
                     <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
@@ -1733,7 +1743,7 @@ export default function OrderList() {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                    className="hidden 2xl:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
                     onClick={() => handleSort('cidade')}
                   >
                     <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
@@ -1746,8 +1756,8 @@ export default function OrderList() {
                   <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
                   <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
                   <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
-                  <TableHead className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
+                  <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] 2xl:min-w-[190px] 2xl:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
             </TableRow>
               </TableHeader>
           <TableBody>
@@ -1758,19 +1768,19 @@ export default function OrderList() {
                     <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                       <Skeleton className="h-4 w-4" />
                     </TableCell>
-                    <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2">
-                      <Skeleton className="h-4 w-12 lg:w-16" />
+                    <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] 2xl:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] 2xl:w-[90px] 2xl:min-w-[90px] px-1 lg:px-2">
+                      <Skeleton className="h-4 w-10 lg:w-12 xl:w-14 2xl:w-16" />
                     </TableCell>
                     <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
                       <Skeleton className="h-4 w-24 lg:w-32" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Skeleton className="h-4 w-24" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <Skeleton className="h-4 w-20" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden 2xl:table-cell">
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
                     <TableCell>
@@ -1788,10 +1798,10 @@ export default function OrderList() {
                     <TableCell>
                       <Skeleton className="h-4 w-24" />
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="hidden sm:table-cell text-center">
                       <Skeleton className="h-5 w-16 mx-auto" />
                     </TableCell>
-                    <TableCell className="text-right sticky right-0 z-10 bg-background border-l">
+                    <TableCell className="text-right sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] 2xl:min-w-[190px] 2xl:max-w-[210px] px-1 lg:px-2 xl:px-3">
                       <div className="flex justify-end gap-2">
                         <Skeleton className="h-8 w-8" />
                         <Skeleton className="h-8 w-8" />
@@ -1855,9 +1865,9 @@ export default function OrderList() {
                             }}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] z-10 bg-background border-r w-[65px] min-w-[65px] lg:w-[80px] lg:min-w-[80px] xl:w-[90px] xl:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                        <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] 2xl:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] 2xl:w-[90px] 2xl:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           <div className="flex items-center gap-1 lg:gap-2">
-                            #{order.numero || order.id}
+                            #{formatOrderNumber(order.numero, order.id)}
                             <EditingIndicator orderId={order.id} />
                           </div>
                         </TableCell>
@@ -1868,7 +1878,7 @@ export default function OrderList() {
                         `}>
                           {order.cliente || order.customer_name}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                        <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           <div className="flex items-center gap-1.5">
                             {urgency.type === 'overdue' && (
                               <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" aria-hidden="true" />
@@ -1895,7 +1905,7 @@ export default function OrderList() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
+                        <TableCell className="hidden md:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
                           <Badge 
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
                             className={`
@@ -1907,7 +1917,7 @@ export default function OrderList() {
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                        <TableCell className="hidden 2xl:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                           {order.cidade_cliente && order.estado_cliente 
                             ? `${order.cidade_cliente}/${order.estado_cliente}`
                             : order.cidade_cliente || '-'}
@@ -1990,7 +2000,7 @@ export default function OrderList() {
                         </TableCell>
                         
                         {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                        <TableCell className="text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
+                        <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
                           <div className="flex items-center justify-center gap-1.5">
                             {order.pronto && (
                               <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
@@ -2006,7 +2016,7 @@ export default function OrderList() {
                             </Badge>
                           </div>
                         </TableCell>
-                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[140px] max-w-[160px] lg:min-w-[170px] lg:max-w-[190px] xl:min-w-[190px] xl:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                      <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] 2xl:min-w-[190px] 2xl:max-w-[210px] px-1 lg:px-2 xl:px-3">
                         <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
                           <TooltipProvider>
                             <Tooltip>
