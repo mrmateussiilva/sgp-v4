@@ -37,13 +37,25 @@ export async function uploadImageToServer(
     const imageData = await readImageFile(localPath);
     
     // Converter para FormData
-    const blob = new Blob([imageData]);
+    // NÃO especificar Content-Type manualmente - o navegador define automaticamente com boundary
+    // Detectar tipo MIME baseado na extensão do arquivo local
+    const localPathLower = localPath.toLowerCase();
+    let mimeType = 'image/jpeg'; // padrão
+    if (localPathLower.endsWith('.png')) {
+      mimeType = 'image/png';
+    } else if (localPathLower.endsWith('.gif')) {
+      mimeType = 'image/gif';
+    } else if (localPathLower.endsWith('.webp')) {
+      mimeType = 'image/webp';
+    }
+    
+    const blob = new Blob([imageData], { type: mimeType });
     const formData = new FormData();
     
     // Gerar nome de arquivo baseado no orderItemId ou timestamp
     const fileName = orderItemId 
-      ? `item_${orderItemId}_${Date.now()}.jpg`
-      : `image_${Date.now()}.jpg`;
+      ? `item_${orderItemId}_${Date.now()}${localPathLower.endsWith('.png') ? '.png' : '.jpg'}`
+      : `image_${Date.now()}${localPathLower.endsWith('.png') ? '.png' : '.jpg'}`;
     
     formData.append('image', blob, fileName);
     
@@ -53,9 +65,8 @@ export async function uploadImageToServer(
     
     // Upload para API
     // O router de pedidos tem prefixo /pedidos, então o endpoint é /pedidos/order-items/upload-image
-    const response = await apiClient.post('/pedidos/order-items/upload-image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // NÃO definir Content-Type manualmente - axios/navegador define automaticamente com boundary
+    const response = await apiClient.post('/pedidos/order-items/upload-image', formData);
     
     return {
       success: true,
