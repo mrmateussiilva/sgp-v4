@@ -229,6 +229,13 @@ export const createOrderDataMap = (
     // Campos adicionais do item
     overloque: item?.overloque ? 'Sim' : 'Não',
     elastico: item?.elastico ? 'Sim' : 'Não',
+    // Debug: verificar valores mapeados
+    ...(item?.tipo_producao === 'painel' || item?.tipo_producao === 'tecido' ? {
+      _debug_overloque: item?.overloque,
+      _debug_elastico: item?.elastico,
+      _debug_emenda: item?.emenda,
+      _debug_emenda_qtd: item?.emenda_qtd
+    } : {}),
     tipo_acabamento: item?.tipo_acabamento || '',
     quantidade_ilhos: item?.quantidade_ilhos || '',
     espaco_ilhos: item?.espaco_ilhos || '',
@@ -236,7 +243,7 @@ export const createOrderDataMap = (
     quantidade_cordinha: item?.quantidade_cordinha || '',
     espaco_cordinha: item?.espaco_cordinha || '',
     valor_cordinha: '', // Valor monetário removido
-    emenda: item?.emenda || '',
+    emenda: item?.emenda ? (item.emenda === 'vertical' ? 'Vertical' : item.emenda === 'horizontal' ? 'Horizontal' : item.emenda) : '',
     emenda_qtd: item?.emenda_qtd || item?.emendaQtd || '',
     
     // Campos de painéis
@@ -495,6 +502,9 @@ const processTemplateHTML = (
       
       // Substituir variáveis no formato {{variavel}}
       for (const [key, value] of Object.entries(itemDataMap)) {
+        // Ignorar campos de debug
+        if (key.startsWith('_debug_')) continue;
+        
         let replacementValue = String(value || '');
         
         // Se for a variável de imagem, usar base64 se disponível
@@ -513,7 +523,14 @@ const processTemplateHTML = (
         if (key === 'imagem') {
           itemHtml = itemHtml.replace(regex, replacementValue);
         } else {
-          itemHtml = itemHtml.replace(regex, escapeHtml(replacementValue));
+          const escapedValue = escapeHtml(replacementValue);
+          itemHtml = itemHtml.replace(regex, escapedValue);
+          
+          // Debug: verificar substituição de campos importantes para painel/tecido
+          if ((key === 'overloque' || key === 'elastico' || key === 'emenda' || key === 'emenda_qtd') && 
+              (itemDataMap.tipo_producao === 'painel' || itemDataMap.tipo_producao === 'tecido')) {
+            console.log(`[templateProcessor] Substituído ${key}: "${replacementValue}" -> "${escapedValue}"`);
+          }
         }
       }
       
@@ -576,19 +593,65 @@ const processTemplateHTML = (
         // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
         itemHtml = itemHtml.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-        // Painel/Tecido: remover apenas campos de totem, lona e adesivo
-        // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
+        // Painel/Tecido: remover APENAS campos de outros tipos (totem, lona, adesivo)
+        // NÃO remover campos vazios ou com "Não" - deixar todos os campos aparecerem
+        // O CSS vai esconder os campos com "Não" depois de forma mais confiável
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // NÃO remover linhas vazias para painel/tecido - mostrar todas as informações técnicas
+        // NÃO aplicar regex de remoção de campos vazios para painel/tecido
+        // Todos os campos de painel/tecido serão preservados e o CSS vai controlar a visibilidade
+        
+        // Debug: verificar campos preservados
+        const hasOverloque = itemHtml.includes('Overloque');
+        const hasElastico = itemHtml.includes('Elástico') || itemHtml.includes('Elastico');
+        const hasEmenda = itemHtml.includes('Emenda');
+        console.log(`[templateProcessor] Painel/Tecido - Campos preservados (sem remoção):`, {
+          overloque: hasOverloque,
+          elastico: hasElastico,
+          emenda: hasEmenda,
+          tipoProducao,
+          htmlSample: itemHtml.substring(itemHtml.indexOf('Overloque') || 0, (itemHtml.indexOf('Overloque') || 0) + 200)
+        });
       } else {
         // Para outros tipos, remover linhas vazias
         itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
       }
       
+      // Para painel/tecido, adicionar classe CSS "hidden-empty" em campos com "Não" ou vazio
+      let finalHtml = itemHtml;
+      if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
+        // Adicionar classe hidden-empty em campos com "Não", vazio ou "0" após os dois pontos
+        // Substituir class="..." por class="... hidden-empty" quando encontrar ": Não", ": 0" ou ": "
+        finalHtml = finalHtml.replace(
+          /(class="([^"]*spec-item[^"]*spec-painel[^"]*))"/gi,
+          (match, p1, p2, offset) => {
+            // Verificar o conteúdo após este elemento
+            const afterMatch = finalHtml.substring(offset + match.length);
+            const nextDivEnd = afterMatch.indexOf('</div>');
+            const content = afterMatch.substring(0, nextDivEnd);
+            if (content.match(/: (Não|0| )\s*$/)) {
+              return `${p1} hidden-empty"`;
+            }
+            return match;
+          }
+        );
+        finalHtml = finalHtml.replace(
+          /(class="([^"]*spec-item[^"]*spec-tecido[^"]*))"/gi,
+          (match, p1, p2, offset) => {
+            const afterMatch = finalHtml.substring(offset + match.length);
+            const nextDivEnd = afterMatch.indexOf('</div>');
+            const content = afterMatch.substring(0, nextDivEnd);
+            if (content.match(/: (Não|0| )\s*$/)) {
+              return `${p1} hidden-empty"`;
+            }
+            return match;
+          }
+        );
+      }
+      
       // Envolver cada item em item-container com estilos inline para garantir altura fixa
-      return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${itemHtml}</div>`;
+      return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${finalHtml}</div>`;
     });
     
     // Agrupar itens em pares (2 por página) - FORÇAR exatamente 2 itens por página com estilos inline
@@ -689,12 +752,26 @@ const processTemplateHTML = (
     // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
     processed = processed.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-    // Painel/Tecido: remover apenas campos de totem, lona e adesivo
-    // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
+    // Painel/Tecido: remover APENAS campos de outros tipos (totem, lona, adesivo)
+    // NÃO remover campos vazios ou com "Não" - deixar todos os campos aparecerem
+    // O CSS vai esconder os campos com "Não" depois de forma mais confiável
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // NÃO remover linhas vazias para painel/tecido - mostrar todas as informações técnicas
+    // NÃO aplicar regex de remoção de campos vazios para painel/tecido
+    // Todos os campos de painel/tecido serão preservados e o CSS vai controlar a visibilidade
+    
+    // Debug: verificar campos preservados
+    const hasOverloque = processed.includes('Overloque');
+    const hasElastico = processed.includes('Elástico') || processed.includes('Elastico');
+    const hasEmenda = processed.includes('Emenda');
+    console.log(`[templateProcessor] Painel/Tecido (processTemplateHTML) - Campos preservados (sem remoção):`, {
+      overloque: hasOverloque,
+      elastico: hasElastico,
+      emenda: hasEmenda,
+      tipoProducao,
+      htmlSample: processed.substring(processed.indexOf('Overloque') || 0, (processed.indexOf('Overloque') || 0) + 200)
+    });
   } else {
     // Para outros tipos, remover linhas vazias
     processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
