@@ -15,7 +15,10 @@ import {
   Truck,
   Target,
   RefreshCw,
-  Search
+  Search,
+  Edit,
+  DollarSign,
+  TrendingUp
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -40,6 +43,9 @@ interface DashboardStats {
   avgDelayTime: number;
   todayOrders: number;
   efficiencyRate: number;
+  totalPendingValue: number;
+  totalCompletedValue: number;
+  averageTicket: number;
 }
 
 interface RecentOrder extends OrderWithItems {
@@ -164,6 +170,9 @@ export default function DashboardOverview() {
           avgDelayTime: 0,
           todayOrders: 0,
           efficiencyRate: 0,
+          totalPendingValue: 0,
+          totalCompletedValue: 0,
+          averageTicket: 0,
         };
       }
       
@@ -244,6 +253,35 @@ export default function DashboardOverview() {
         ? Math.round((onTimeOrders / completedOrders) * 100) 
         : 0;
 
+      // Calcular valores financeiros
+      const parseValue = (value: number | string | undefined): number => {
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+          const parsed = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+      };
+
+      const pendingOrdersList = validOrders.filter(order => !order.pronto);
+      const completedOrdersList = validOrders.filter(order => order.pronto);
+
+      const totalPendingValue = pendingOrdersList.reduce((sum, order) => {
+        return sum + parseValue(order.total_value || order.valor_total || 0);
+      }, 0);
+
+      const totalCompletedValue = completedOrdersList.reduce((sum, order) => {
+        return sum + parseValue(order.total_value || order.valor_total || 0);
+      }, 0);
+
+      const totalValue = validOrders.reduce((sum, order) => {
+        return sum + parseValue(order.total_value || order.valor_total || 0);
+      }, 0);
+
+      const averageTicket = totalOrders > 0 
+        ? Math.round(totalValue / totalOrders) 
+        : 0;
+
       return {
         totalOrders,
         pendingOrders,
@@ -254,6 +292,9 @@ export default function DashboardOverview() {
         avgDelayTime,
         todayOrders,
         efficiencyRate,
+        totalPendingValue,
+        totalCompletedValue,
+        averageTicket,
       };
     } catch (error) {
       console.error('Erro ao calcular estatísticas:', error);
@@ -272,6 +313,9 @@ export default function DashboardOverview() {
         avgDelayTime: 0,
         todayOrders: 0,
         efficiencyRate: 0,
+        totalPendingValue: 0,
+        totalCompletedValue: 0,
+        averageTicket: 0,
       };
     }
   }, [validOrders, toast]);
@@ -392,6 +436,42 @@ export default function DashboardOverview() {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }, []);
 
+  const formatCurrency = useCallback((value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }, []);
+
+  const handleCardClick = useCallback((filterType: 'all' | 'pending' | 'completed' | 'overdue' | 'urgent') => {
+    const params = new URLSearchParams();
+    switch (filterType) {
+      case 'pending':
+        params.set('status', 'pending');
+        break;
+      case 'completed':
+        params.set('status', 'ready');
+        break;
+      case 'overdue':
+        params.set('overdue', 'true');
+        break;
+      case 'urgent':
+        params.set('priority', 'ALTA');
+        break;
+    }
+    navigate(`/dashboard/orders?${params.toString()}`);
+  }, [navigate]);
+
+  const handleViewOrder = useCallback((order: OrderWithItems) => {
+    navigate(`/dashboard/pedido/editar/${order.id}`);
+  }, [navigate]);
+
+  const handleEditOrder = useCallback((order: OrderWithItems) => {
+    navigate(`/dashboard/pedido/editar/${order.id}`);
+  }, [navigate]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -506,7 +586,10 @@ export default function DashboardOverview() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('all')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Pedidos</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -519,7 +602,10 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('pending')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -532,7 +618,10 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('completed')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -545,7 +634,10 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('overdue')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Atrasados</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -554,6 +646,54 @@ export default function DashboardOverview() {
             <div className="text-2xl font-bold text-red-600">{stats.overdueOrders}</div>
             <p className="text-xs text-muted-foreground">
               Fora do prazo
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Financial Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('pending')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valor Pendente</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{formatCurrency(stats.totalPendingValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.pendingOrders} pedidos em produção
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:bg-accent transition-colors"
+          onClick={() => handleCardClick('completed')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valor Concluído</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalCompletedValue)}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.completedOrders} pedidos prontos
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.averageTicket)}</div>
+            <p className="text-xs text-muted-foreground">
+              Por pedido
             </p>
           </CardContent>
         </Card>
@@ -714,7 +854,7 @@ export default function DashboardOverview() {
             ) : (
               <div className="space-y-3">
                 {urgentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">#{order.numero || order.id}</span>
@@ -729,10 +869,38 @@ export default function DashboardOverview() {
                         Entrega: {formatDateForDisplay(order.data_entrega, '-')}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <Badge className={cn("text-xs", getProductionStatusColor(order))}>
-                        {getProductionStatus(order)}
-                      </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right mr-2">
+                        <Badge className={cn("text-xs", getProductionStatusColor(order))}>
+                          {getProductionStatus(order)}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewOrder(order);
+                          }}
+                          aria-label="Visualizar pedido"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditOrder(order);
+                          }}
+                          aria-label="Editar pedido"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -769,7 +937,7 @@ export default function DashboardOverview() {
             ) : (
               <div className="space-y-3">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">#{order.numero || order.id}</span>
@@ -791,10 +959,38 @@ export default function DashboardOverview() {
                         {formatDateForDisplay(order.data_entrada || order.created_at, '-')}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <Badge className={cn("text-xs", getProductionStatusColor(order))}>
-                        {getProductionStatus(order)}
-                      </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right mr-2">
+                        <Badge className={cn("text-xs", getProductionStatusColor(order))}>
+                          {getProductionStatus(order)}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewOrder(order);
+                          }}
+                          aria-label="Visualizar pedido"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditOrder(order);
+                          }}
+                          aria-label="Editar pedido"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
