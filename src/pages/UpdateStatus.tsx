@@ -140,9 +140,23 @@ export default function UpdateStatus() {
         variant: 'info',
       });
 
-      setInstallProgress('Executando instalador...');
+      setInstallProgress('Executando instalador (modo per-user, sem admin)...');
+      
+      // Adicionar timeout no frontend também
+      const installTimeout = setTimeout(() => {
+        setIsInstalling(false);
+        toast({
+          title: '⏱️ Instalação demorando mais que o esperado',
+          description: 'A instalação está demorando. Isso pode acontecer se o Windows estiver processando a instalação. Verifique se há alguma janela aberta. Os logs estão sendo salvos em arquivo.',
+          variant: 'default',
+          duration: 10000,
+        });
+      }, 65000); // 65 segundos (um pouco mais que o timeout do Rust)
+      
       // O comando Rust espera `filePath` (camelCase, consistente com outros comandos)
       const message = await invoke<string>('install_update_manual', { filePath: filePath });
+      
+      clearTimeout(installTimeout);
 
       setInstallProgress('Instalação concluída!');
       

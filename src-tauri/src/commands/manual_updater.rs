@@ -3,6 +3,8 @@ use tauri::async_runtime;
 use std::collections::HashMap;
 use std::process::Command;
 use std::path::PathBuf;
+use std::io::Write;
+use std::fs::OpenOptions;
 use tracing::{info, warn};
 use serde::{Deserialize, Serialize};
 
@@ -137,6 +139,18 @@ pub async fn download_update_manual(
     std::fs::create_dir_all(&downloads_dir)
         .map_err(|e| format!("Erro ao criar diretório de downloads: {}", e))?;
 
+    // Criar log de download
+    let download_log_file = downloads_dir.join("update_download.log");
+    write_log(&download_log_file, &format!(
+        "═══════════════════════════════════════════════════════════\n\
+        INÍCIO DO DOWNLOAD\n\
+        ═══════════════════════════════════════════════════════════\n\
+        URL: {}\n\
+        Data/Hora: {}\n",
+        updateUrl,
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+    ));
+
     // Extrair nome do arquivo da URL
     let filename = updateUrl
         .split('/')
@@ -146,39 +160,56 @@ pub async fn download_update_manual(
     let file_path = downloads_dir.join(filename);
 
     info!("💾 Baixando para: {:?}", file_path);
+    write_log(&download_log_file, &format!("Arquivo de destino: {:?}", file_path));
 
     // Validar URL antes de tentar baixar
     if updateUrl.is_empty() {
+        write_log(&download_log_file, "❌ ERRO: URL de atualização vazia");
         return Err("URL de atualização vazia".to_string());
     }
 
     // Verificar se a URL é válida
     if !updateUrl.starts_with("http://") && !updateUrl.starts_with("https://") {
+        write_log(&download_log_file, &format!("❌ ERRO: URL inválida: {}", updateUrl));
         return Err(format!("URL inválida: {}", updateUrl));
     }
 
     info!("🔗 URL de atualização validada: {}", updateUrl);
+    write_log(&download_log_file, "✅ URL validada com sucesso");
 
     // Baixar arquivo usando reqwest
     info!("📡 Iniciando download de: {}", updateUrl);
+    write_log(&download_log_file, "Conectando ao servidor...");
+    
+    let download_start = std::time::Instant::now();
     let response = reqwest::get(&updateUrl)
         .await
-        .map_err(|e| format!("Erro ao conectar com servidor: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("Erro ao conectar com servidor: {}", e);
+            write_log(&download_log_file, &format!("❌ ERRO: {}", error_msg));
+            error_msg
+        })?;
+
+    write_log(&download_log_file, &format!("✅ Conectado ao servidor (Status: {})", response.status()));
 
     if !response.status().is_success() {
         let status = response.status();
         if status == 404 {
-            return Err(format!(
+            let error_msg = format!(
                 "Erro HTTP 404: Arquivo não encontrado no servidor.\n\nURL tentada: {}\n\nVerifique se:\n• O arquivo MSI existe no servidor neste caminho\n• O servidor está configurado para servir arquivos estáticos\n• O caminho do arquivo está correto\n\n💡 Acesse a URL acima no navegador para verificar se o arquivo está disponível.",
                 updateUrl
-            ));
+            );
+            write_log(&download_log_file, &format!("❌ ERRO: {}", error_msg));
+            return Err(error_msg);
         }
-        return Err(format!(
+        let error_msg = format!(
             "Erro HTTP {} ao baixar: {} - URL: {}\n\nVerifique se o arquivo existe no servidor e está acessível.",
             status,
             status.canonical_reason().unwrap_or("Unknown"),
             updateUrl
-        ));
+        );
+        write_log(&download_log_file, &format!("❌ ERRO: {}", error_msg));
+        return Err(error_msg);
     }
 
     // Obter tamanho do arquivo se disponível
@@ -186,25 +217,80 @@ pub async fn download_update_manual(
     if let Some(size) = content_length {
         let size_mb = size as f64 / 1_048_576.0;
         info!("📦 Tamanho do arquivo: {:.2} MB", size_mb);
+        write_log(&download_log_file, &format!("Tamanho do arquivo: {:.2} MB", size_mb));
     }
 
     info!("⬇️ Baixando dados...");
+    write_log(&download_log_file, "Iniciando download dos dados...");
+    
     let bytes = response
         .bytes()
         .await
-        .map_err(|e| format!("Erro ao baixar dados: {}. Verifique sua conexão com a internet.", e))?;
+        .map_err(|e| {
+            let error_msg = format!("Erro ao baixar dados: {}. Verifique sua conexão com a internet.", e);
+            write_log(&download_log_file, &format!("❌ ERRO: {}", error_msg));
+            error_msg
+        })?;
 
     let downloaded_size = bytes.len();
     let size_mb = downloaded_size as f64 / 1_048_576.0;
+    let download_duration = download_start.elapsed();
+    let speed_mbps = if download_duration.as_secs_f64() > 0.0 {
+        size_mb / download_duration.as_secs_f64()
+    } else {
+        0.0
+    };
+    
     info!("💾 Salvando arquivo ({:.2} MB)...", size_mb);
+    write_log(&download_log_file, &format!(
+        "Download concluído\n\
+        Tamanho baixado: {:.2} MB\n\
+        Tempo decorrido: {:.2} segundos\n\
+        Velocidade média: {:.2} MB/s",
+        size_mb,
+        download_duration.as_secs_f64(),
+        speed_mbps
+    ));
 
     // Salvar arquivo
+    write_log(&download_log_file, "Salvando arquivo em disco...");
     std::fs::write(&file_path, &bytes)
-        .map_err(|e| format!("Erro ao salvar arquivo em disco: {}", e))?;
+        .map_err(|e| {
+            let error_msg = format!("Erro ao salvar arquivo em disco: {}", e);
+            write_log(&download_log_file, &format!("❌ ERRO: {}", error_msg));
+            error_msg
+        })?;
 
     info!("✅ Arquivo baixado com sucesso: {:?} ({:.2} MB)", file_path, size_mb);
+    write_log(&download_log_file, &format!(
+        "═══════════════════════════════════════════════════════════\n\
+        DOWNLOAD CONCLUÍDO COM SUCESSO\n\
+        ═══════════════════════════════════════════════════════════\n\
+        Arquivo: {:?}\n\
+        Tamanho: {:.2} MB\n\
+        Tempo total: {:.2} segundos\n\
+        Velocidade média: {:.2} MB/s\n\
+        Data/Hora: {}\n",
+        file_path,
+        size_mb,
+        download_duration.as_secs_f64(),
+        speed_mbps,
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+    ));
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Função auxiliar para escrever logs em arquivo TXT
+fn write_log(log_file: &PathBuf, message: &str) {
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_file)
+    {
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+        let _ = writeln!(file, "[{}] {}", timestamp, message);
+    }
 }
 
 /// Comando para instalar atualização baixada manualmente
@@ -243,68 +329,239 @@ pub async fn install_update_manual(
 
 #[cfg(target_os = "windows")]
 fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), String> {
-    info!("🔧 Instalando atualização Windows...");
+    info!("🔧 Instalando atualização Windows (modo per-user, sem admin)...");
 
     // Para Windows, executar o MSI
     if path.extension().and_then(|s| s.to_str()) == Some("msi") {
-        // Usar parâmetros que ignoram validações de chave/produto
-        // /qn = quiet mode sem UI
-        // /norestart = não reiniciar automaticamente
-        // /L*v = log verbose para debug
-        let log_file = path.parent().unwrap().join("msi_install.log");
+        let parent_dir = path.parent().unwrap();
         
-        let output = Command::new("msiexec")
+        // Log do MSI (gerado pelo msiexec)
+        let msi_log_file = parent_dir.join("msi_install.log");
+        
+        // Log detalhado da aplicação (nosso controle)
+        let app_log_file = parent_dir.join("update_install.log");
+        
+        write_log(&app_log_file, &format!(
+            "═══════════════════════════════════════════════════════════\n\
+            INÍCIO DA INSTALAÇÃO\n\
+            ═══════════════════════════════════════════════════════════\n\
+            Arquivo MSI: {:?}\n\
+            Modo: Per-User (sem permissões de administrador)\n\
+            Data/Hora: {}\n",
+            path,
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+        ));
+
+        write_log(&app_log_file, "Preparando comando msiexec...");
+        
+        // Executar em background (spawn) para não bloquear e permitir timeout
+        let mut child = Command::new("msiexec")
             .args(&[
                 "/i",
                 path.to_string_lossy().as_ref(),
                 "/qn",  // Quiet mode sem UI
-                "/norestart",  // Não reiniciar
-                "/L*v",  // Log verbose
-                log_file.to_string_lossy().as_ref(),
+                "/norestart",  // Não reiniciar automaticamente
+                "/L*v",  // Log verbose do MSI
+                msi_log_file.to_string_lossy().as_ref(),
+                "/ALLUSERS=\"\"",  // Forçar instalação per-user (sem admin)
             ])
-            .output()
-            .map_err(|e| format!("Erro ao executar msiexec: {}", e))?;
+            .spawn()
+            .map_err(|e| {
+                let error_msg = format!("Erro ao executar msiexec: {}", e);
+                write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+                error_msg
+            })?;
 
-        // Ler o log para debug se houver erro
-        let log_content = if log_file.exists() {
-            std::fs::read_to_string(&log_file).unwrap_or_default()
-        } else {
-            String::new()
-        };
+        write_log(&app_log_file, "✅ Processo msiexec iniciado em background");
+        write_log(&app_log_file, "Aguardando conclusão da instalação...");
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            
-            // Extrair informações úteis do log
-            let error_msg = if log_content.contains("error") || log_content.contains("Error") {
-                let error_lines: Vec<&str> = log_content
-                    .lines()
-                    .filter(|l| l.to_lowercase().contains("error") || l.to_lowercase().contains("failed"))
-                    .take(5)
-                    .collect();
-                format!("Erros do log MSI: {}", error_lines.join("; "))
-            } else {
-                format!("Stderr: {} | Stdout: {}", stderr, stdout)
-            };
-            
-            warn!("Erro ao instalar MSI. Log disponível em: {:?}", log_file);
-            return Err(format!("Erro ao instalar MSI: {}. Verifique o log em {:?}", error_msg, log_file));
-        }
-
-        info!("✅ MSI instalado com sucesso");
+        // Aguardar com timeout (60 segundos)
+        let timeout = std::time::Duration::from_secs(60);
+        let start = std::time::Instant::now();
+        let check_interval = std::time::Duration::from_millis(500);
         
-        // Reiniciar aplicação após um delay
-        let app_handle_clone = app_handle.clone();
-        async_runtime::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            app_handle_clone.restart();
-        });
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    let elapsed = start.elapsed();
+                    write_log(&app_log_file, &format!(
+                        "Processo msiexec finalizado\n\
+                        Tempo decorrido: {:.2} segundos\n\
+                        Código de saída: {}",
+                        elapsed.as_secs_f64(),
+                        status.code().unwrap_or(-1)
+                    ));
+
+                    if status.success() {
+                        write_log(&app_log_file, "✅ Instalação concluída com sucesso!");
+                        
+                        // Ler e resumir o log do MSI
+                        if msi_log_file.exists() {
+                            if let Ok(msi_log_content) = std::fs::read_to_string(&msi_log_file) {
+                                let lines: Vec<&str> = msi_log_content.lines().collect();
+                                write_log(&app_log_file, &format!(
+                                    "Log MSI contém {} linhas",
+                                    lines.len()
+                                ));
+                                
+                                // Procurar por erros no log do MSI
+                                let errors: Vec<&str> = lines
+                                    .iter()
+                                    .filter(|l| {
+                                        let lower = l.to_lowercase();
+                                        lower.contains("error") || lower.contains("failed") || lower.contains("exception")
+                                    })
+                                    .take(10)
+                                    .copied()
+                                    .collect();
+                                
+                                if !errors.is_empty() {
+                                    write_log(&app_log_file, "⚠️ Avisos encontrados no log MSI:");
+                                    for error in &errors {
+                                        write_log(&app_log_file, &format!("  - {}", error));
+                                    }
+                                }
+                            }
+                        }
+                        
+                        write_log(&app_log_file, &format!(
+                            "═══════════════════════════════════════════════════════════\n\
+                            INSTALAÇÃO CONCLUÍDA COM SUCESSO\n\
+                            ═══════════════════════════════════════════════════════════\n\
+                            A aplicação será reiniciada em 2 segundos...\n\
+                            Data/Hora: {}\n",
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+                        ));
+                        
+                        info!("✅ MSI instalado com sucesso (per-user)");
+                        
+                        // Reiniciar aplicação após um delay
+                        let app_handle_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_secs(2));
+                            let _ = app_handle_clone.restart();
+                        });
+                        
+                        return Ok(());
+                    } else {
+                        // Ler log do MSI para debug
+                        let msi_log_content = if msi_log_file.exists() {
+                            std::fs::read_to_string(&msi_log_file).unwrap_or_default()
+                        } else {
+                            String::new()
+                        };
+                        
+                        write_log(&app_log_file, "❌ ERRO: Instalação falhou");
+                        
+                        // Extrair informações úteis do log
+                        let error_msg = if msi_log_content.contains("error") || msi_log_content.contains("Error") {
+                            let error_lines: Vec<&str> = msi_log_content
+                                .lines()
+                                .filter(|l| {
+                                    let lower = l.to_lowercase();
+                                    lower.contains("error") || lower.contains("failed") || lower.contains("exception")
+                                })
+                                .take(10)
+                                .collect();
+                            
+                            write_log(&app_log_file, "Erros encontrados no log MSI:");
+                            for error in &error_lines {
+                                write_log(&app_log_file, &format!("  - {}", error));
+                            }
+                            
+                            format!("Erros do log MSI: {}", error_lines.join("; "))
+                        } else {
+                            format!("MSI retornou código de erro: {}", status.code().unwrap_or(-1))
+                        };
+                        
+                        write_log(&app_log_file, &format!(
+                            "═══════════════════════════════════════════════════════════\n\
+                            INSTALAÇÃO FALHOU\n\
+                            ═══════════════════════════════════════════════════════════\n\
+                            Erro: {}\n\
+                            Log MSI disponível em: {:?}\n\
+                            Log da aplicação disponível em: {:?}\n\
+                            Data/Hora: {}\n",
+                            error_msg,
+                            msi_log_file,
+                            app_log_file,
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+                        ));
+                        
+                        warn!("Erro ao instalar MSI. Logs disponíveis em: {:?} e {:?}", msi_log_file, app_log_file);
+                        return Err(format!(
+                            "Erro ao instalar MSI: {}\n\nLogs disponíveis em:\n• {:?}\n• {:?}",
+                            error_msg,
+                            msi_log_file,
+                            app_log_file
+                        ));
+                    }
+                }
+                Ok(None) => {
+                    // Processo ainda rodando
+                    let elapsed = start.elapsed();
+                    
+                    // Log de progresso a cada 5 segundos
+                    if elapsed.as_secs() % 5 == 0 && elapsed.as_secs() > 0 {
+                        write_log(&app_log_file, &format!(
+                            "⏳ Instalação em andamento... ({:.0} segundos)",
+                            elapsed.as_secs_f64()
+                        ));
+                    }
+                    
+                    if elapsed > timeout {
+                        // Timeout - matar processo
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        
+                        write_log(&app_log_file, &format!(
+                            "❌ TIMEOUT: Instalação demorou mais de {} segundos\n\
+                            Processo foi finalizado forçadamente",
+                            timeout.as_secs()
+                        ));
+                        
+                        write_log(&app_log_file, &format!(
+                            "═══════════════════════════════════════════════════════════\n\
+                            INSTALAÇÃO FALHOU - TIMEOUT\n\
+                            ═══════════════════════════════════════════════════════════\n\
+                            Tempo limite excedido: {} segundos\n\
+                            Log MSI disponível em: {:?}\n\
+                            Log da aplicação disponível em: {:?}\n\
+                            Data/Hora: {}\n",
+                            timeout.as_secs(),
+                            msi_log_file,
+                            app_log_file,
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+                        ));
+                        
+                        return Err(format!(
+                            "Timeout ao instalar MSI (mais de {} segundos).\n\n\
+                            Possíveis causas:\n\
+                            • O instalador está esperando alguma confirmação\n\
+                            • Problemas de permissão (mesmo em modo per-user)\n\
+                            • O MSI pode estar corrompido\n\n\
+                            Verifique os logs em:\n\
+                            • {:?}\n\
+                            • {:?}",
+                            timeout.as_secs(),
+                            msi_log_file,
+                            app_log_file
+                        ));
+                    }
+                    
+                    // Aguardar antes de verificar novamente
+                    std::thread::sleep(check_interval);
+                }
+                Err(e) => {
+                    let error_msg = format!("Erro ao verificar status do MSI: {}", e);
+                    write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+                    return Err(error_msg);
+                }
+            }
+        }
     } else {
         return Err("Formato de arquivo não suportado para Windows. Use .msi".to_string());
     }
-
-    Ok(())
 }
 
 #[cfg(target_os = "linux")]
