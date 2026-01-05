@@ -3,7 +3,7 @@ use tauri::async_runtime;
 use std::collections::HashMap;
 use std::process::Command;
 use std::path::PathBuf;
-use std::io::Write;
+use std::io::{Write, Read};
 use std::fs::OpenOptions;
 use tracing::{info, warn};
 use serde::{Deserialize, Serialize};
@@ -352,6 +352,68 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
             chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
         ));
 
+        // Verificações pré-instalação
+        write_log(&app_log_file, "Realizando verificações pré-instalação...");
+        
+        // 1. Verificar se o arquivo existe
+        if !path.exists() {
+            let error_msg = format!("Arquivo MSI não encontrado: {:?}", path);
+            write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+            return Err(error_msg);
+        }
+        write_log(&app_log_file, "✅ Arquivo existe");
+
+        // 2. Verificar tamanho do arquivo (MSI válido deve ter pelo menos alguns KB)
+        let metadata = std::fs::metadata(path)
+            .map_err(|e| {
+                let error_msg = format!("Erro ao ler metadados do arquivo: {}", e);
+                write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+                error_msg
+            })?;
+        
+        let file_size = metadata.len();
+        let file_size_mb = file_size as f64 / 1_048_576.0;
+        write_log(&app_log_file, &format!("Tamanho do arquivo: {:.2} MB ({} bytes)", file_size_mb, file_size));
+        
+        if file_size == 0 {
+            let error_msg = "Arquivo MSI está vazio (0 bytes). O download pode ter falhado.";
+            write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+            return Err(error_msg.to_string());
+        }
+        
+        if file_size < 1024 {
+            let warning_msg = format!("Arquivo MSI muito pequeno ({} bytes). Pode estar corrompido.", file_size);
+            write_log(&app_log_file, &format!("⚠️ AVISO: {}", warning_msg));
+        }
+
+        // 3. Verificar se é um MSI válido (verificar assinatura do arquivo)
+        // MSI válido começa com bytes específicos
+        let mut file = std::fs::File::open(path)
+            .map_err(|e| {
+                let error_msg = format!("Erro ao abrir arquivo para verificação: {}", e);
+                write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+                error_msg
+            })?;
+        
+        let mut header = [0u8; 8];
+        if let Ok(_) = file.read_exact(&mut header) {
+            // MSI válido começa com "D0 CF 11 E0 A1 B1 1A E1" (OLE2 compound document)
+            if header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0 {
+                write_log(&app_log_file, "✅ Arquivo MSI parece válido (assinatura OLE2 detectada)");
+            } else {
+                let error_msg = format!(
+                    "Arquivo não parece ser um MSI válido. Cabeçalho: {:02X?}\n\
+                    Um MSI válido deve começar com D0 CF 11 E0 (OLE2 compound document).\n\
+                    O arquivo pode estar corrompido ou não ser um MSI.",
+                    header
+                );
+                write_log(&app_log_file, &format!("❌ ERRO: {}", error_msg));
+                return Err(error_msg);
+            }
+        } else {
+            write_log(&app_log_file, "⚠️ AVISO: Não foi possível verificar assinatura do arquivo");
+        }
+
         write_log(&app_log_file, "Preparando comando msiexec...");
         
         // Executar em background (spawn) para não bloquear e permitir timeout
@@ -384,12 +446,14 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
             match child.try_wait() {
                 Ok(Some(status)) => {
                     let elapsed = start.elapsed();
+                    let exit_code = status.code().unwrap_or(-1);
+                    
                     write_log(&app_log_file, &format!(
                         "Processo msiexec finalizado\n\
                         Tempo decorrido: {:.2} segundos\n\
                         Código de saída: {}",
                         elapsed.as_secs_f64(),
-                        status.code().unwrap_or(-1)
+                        exit_code
                     ));
 
                     if status.success() {
@@ -453,8 +517,54 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
                         
                         write_log(&app_log_file, "❌ ERRO: Instalação falhou");
                         
-                        // Extrair informações úteis do log
-                        let error_msg = if msi_log_content.contains("error") || msi_log_content.contains("Error") {
+                        // Obter informações do arquivo para mensagens de erro
+                        let file_info = if let Ok(metadata) = std::fs::metadata(path) {
+                            let size = metadata.len();
+                            let size_mb = size as f64 / 1_048_576.0;
+                            format!("{:.2} MB ({} bytes)", size_mb, size)
+                        } else {
+                            "N/A".to_string()
+                        };
+                        
+                        // Tratamento específico para códigos de erro comuns
+                        let error_msg = match exit_code {
+                            1639 => {
+                                format!(
+                                    "Erro MSI 1639: Este pacote de instalação não pôde ser aberto.\n\n\
+                                    Possíveis causas:\n\
+                                    • O arquivo MSI está corrompido ou incompleto\n\
+                                    • O arquivo não é um MSI válido\n\
+                                    • Problemas de permissão ao acessar o arquivo\n\
+                                    • O download pode ter falhado parcialmente\n\n\
+                                    Verificações realizadas:\n\
+                                    • Arquivo existe: Sim\n\
+                                    • Tamanho: {}\n\
+                                    • Caminho: {:?}\n\n\
+                                    💡 Soluções:\n\
+                                    1. Tente baixar novamente a atualização\n\
+                                    2. Verifique se há espaço em disco suficiente\n\
+                                    3. Verifique se o arquivo não está bloqueado por antivírus\n\
+                                    4. Tente executar o MSI manualmente para verificar se está válido",
+                                    file_info,
+                                    path
+                                )
+                            }
+                            1603 => {
+                                format!(
+                                    "Erro MSI 1603: Erro fatal durante a instalação.\n\n\
+                                    Possíveis causas:\n\
+                                    • Conflito com outra instalação em andamento\n\
+                                    • Arquivos bloqueados por outro processo\n\
+                                    • Problemas de permissão\n\n\
+                                    💡 Soluções:\n\
+                                    1. Feche outras aplicações\n\
+                                    2. Reinicie o computador e tente novamente\n\
+                                    3. Execute como administrador (se necessário)"
+                                )
+                            }
+                            _ => {
+                                // Extrair informações úteis do log
+                                if msi_log_content.contains("error") || msi_log_content.contains("Error") {
                             let error_lines: Vec<&str> = msi_log_content
                                 .lines()
                                 .filter(|l| {
@@ -469,19 +579,23 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
                                 write_log(&app_log_file, &format!("  - {}", error));
                             }
                             
-                            format!("Erros do log MSI: {}", error_lines.join("; "))
-                        } else {
-                            format!("MSI retornou código de erro: {}", status.code().unwrap_or(-1))
+                                    format!("Erros do log MSI: {}", error_lines.join("; "))
+                                } else {
+                                    format!("MSI retornou código de erro: {}", exit_code)
+                                }
+                            }
                         };
                         
                         write_log(&app_log_file, &format!(
                             "═══════════════════════════════════════════════════════════\n\
                             INSTALAÇÃO FALHOU\n\
                             ═══════════════════════════════════════════════════════════\n\
+                            Código de erro: {}\n\
                             Erro: {}\n\
                             Log MSI disponível em: {:?}\n\
                             Log da aplicação disponível em: {:?}\n\
                             Data/Hora: {}\n",
+                            exit_code,
                             error_msg,
                             msi_log_file,
                             app_log_file,
