@@ -48,7 +48,8 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
       : { ...(config.headers as Record<string, string> | undefined) };
     
     Object.entries(headerObj).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      // Não definir Content-Type para FormData - o fetch/Tauri define automaticamente
+      if (value !== undefined && value !== null && !(key.toLowerCase() === 'content-type' && config.data instanceof FormData)) {
         headers.set(key, String(value));
       }
     });
@@ -70,7 +71,13 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
         config.data.byteOffset,
         config.data.byteOffset + config.data.byteLength
       ) as ArrayBuffer;
-    } else if (config.data instanceof FormData || config.data instanceof Blob) {
+    } else if (config.data instanceof FormData) {
+      // FormData: o Tauri HTTP plugin precisa que seja passado diretamente
+      // Não definir Content-Type - o fetch/Tauri define automaticamente com boundary
+      fetchOptions.body = config.data;
+      // Remover Content-Type se foi definido manualmente (não deve ter sido)
+      // O fetch/Tauri define automaticamente multipart/form-data com boundary
+    } else if (config.data instanceof Blob) {
       fetchOptions.body = config.data;
     } else {
       fetchOptions.body = JSON.stringify(config.data);

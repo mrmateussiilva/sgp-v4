@@ -32,6 +32,7 @@ import { FormTotemProducao } from '@/components/FormTotemProducao';
 import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
+import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -108,6 +109,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
   const { updateOrder: updateOrderInStore } = useOrderStore();
+  
 
   console.log('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
 
@@ -413,6 +415,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           return acc;
         }, {})
       );
+      // Salvar estado inicial para comparação
+      setInitialFormData(formData);
+      setInitialTabsData(data);
     } catch (error) {
       console.error('Erro ao popular formulário com dados do pedido:', error);
       toast({
@@ -448,6 +453,59 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   // Estado para gerenciar mudanças não salvas de cada item
   const [itemHasUnsavedChanges, setItemHasUnsavedChanges] = useState<Record<string, boolean>>({});
+  
+  // Estado para rastrear dados iniciais (para detectar mudanças)
+  const [initialFormData, setInitialFormData] = useState(formData);
+  const [initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
+  
+  // Função para verificar se há mudanças não salvas
+  const hasUnsavedChanges = (): boolean => {
+    // Verificar se há mudanças nos itens
+    const hasItemChanges = Object.values(itemHasUnsavedChanges).some(changed => changed);
+    if (hasItemChanges) return true;
+    
+    // Verificar se há mudanças no formulário principal
+    const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    if (formChanged) return true;
+    
+    // Verificar se há mudanças nos dados dos tabs
+    const tabsChanged = JSON.stringify(tabsData) !== JSON.stringify(initialTabsData);
+    if (tabsChanged) return true;
+    
+    return false;
+  };
+  
+  // Função para confirmar navegação se houver mudanças não salvas
+  const handleNavigateWithConfirm = (path: string) => {
+    if (hasUnsavedChanges()) {
+      const confirmed = window.confirm(
+        'Você tem alterações não salvas. Deseja realmente sair? As alterações serão perdidas.'
+      );
+      if (confirmed) {
+        navigate(path);
+      }
+    } else {
+      navigate(path);
+    }
+  };
+  
+  // Prevenir fechamento da janela/aba se houver mudanças não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Verificar mudanças diretamente aqui para evitar problemas de dependências
+      const hasItemChanges = Object.values(itemHasUnsavedChanges).some(changed => changed);
+      const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+      const tabsChanged = JSON.stringify(tabsData) !== JSON.stringify(initialTabsData);
+      
+      if (hasItemChanges || formChanged || tabsChanged) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData, tabsData, itemHasUnsavedChanges, initialFormData, initialTabsData]);
 
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -592,6 +650,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
     }
   }, [routeOrderId, navigate, toast, mode]);
+
+  // Carregar pedido duplicado quando houver
+  useEffect(() => {
+    if (duplicateFrom && !isEditMode) {
+      console.log('[CreateOrderComplete] Carregando pedido para duplicar:', duplicateFrom);
+      populateFormFromOrder(duplicateFrom);
+      toast({
+        title: "Pedido duplicado",
+        description: `Dados do pedido ${duplicateFrom.numero || duplicateFrom.id} carregados. Ajuste os dados e salve como novo pedido.`,
+        variant: "success",
+      });
+    }
+  }, [duplicateFrom, isEditMode]);
 
   // Removido: não precisamos mais carregar lista de pedidos quando temos ID na rota
   // O pedido será carregado diretamente pelo ID
@@ -1502,6 +1573,60 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   };
 
+  /**
+   * Faz upload obrigatório de imagens ANTES de salvar pedido
+   * Atualiza normalizedItems com referências do servidor
+   * Se algum upload falhar, lança erro para impedir salvamento
+   */
+  const uploadImagesBeforeSave = async (
+    items: NormalizedItem[]
+  ): Promise<void> => {
+    // Coletar todas as imagens que precisam upload
+    const itemsWithLocalImages = items.filter(
+      (item) => item.imagem && needsUpload(item.imagem)
+    );
+    
+    if (itemsWithLocalImages.length === 0) {
+      return; // Nenhuma imagem para upload
+    }
+    
+    console.log(`[uploadImagesBeforeSave] Fazendo upload obrigatório de ${itemsWithLocalImages.length} imagens antes de salvar pedido`);
+    
+    // Fazer uploads em paralelo - usar Promise.all para falhar rápido se algum falhar
+    const uploadPromises = itemsWithLocalImages.map((item) => {
+      if (!item.imagem) {
+        return Promise.reject(new Error('Dados de imagem ausentes para upload local'));
+      }
+      // Usar orderItemId se disponível (edição), senão undefined (criação)
+      return uploadImageToServer(item.imagem, item.orderItemId);
+    });
+    
+    try {
+      const uploadResults = await Promise.all(uploadPromises);
+      
+      // Atualizar referências nos items normalizados
+      uploadResults.forEach((result, index) => {
+        if (result.success && result.server_reference) {
+          const itemIndex = items.findIndex(
+            (item) => item === itemsWithLocalImages[index]
+          );
+          if (itemIndex >= 0) {
+            items[itemIndex].imagem = result.server_reference;
+            console.log(`[uploadImagesBeforeSave] ✅ Imagem ${index + 1} enviada: ${result.server_reference}`);
+          }
+        } else {
+          const error = result.error || 'Erro desconhecido no upload';
+          throw new Error(`Falha no upload da imagem ${index + 1}: ${error}`);
+        }
+      });
+      
+      console.log(`[uploadImagesBeforeSave] ✅ Todas as ${uploadResults.length} imagens foram enviadas com sucesso`);
+    } catch (error) {
+      console.error('[uploadImagesBeforeSave] ❌ Erro no upload obrigatório de imagens:', error);
+      throw error; // Re-lançar para impedir salvamento
+    }
+  };
+
   const handleConfirmSave = async () => {
     setIsSaving(true);
 
@@ -1551,6 +1676,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             espaco_cordinha: item.espaco_cordinha,
             valor_cordinha: item.valor_cordinha,
             observacao: item.observacao,
+            // Campo imagem será atualizado após upload obrigatório (que ocorre antes de criar o pedido)
             imagem: item.imagem,
             legenda_imagem: item.legenda_imagem,
             quantidade_paineis: item.quantidade_paineis,
@@ -1636,6 +1762,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           return;
         }
 
+        // CRÍTICO: Fazer upload obrigatório de imagens ANTES de salvar pedido
+        try {
+          await uploadImagesBeforeSave(normalizedItems);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido no upload de imagens';
+          toast({
+            title: 'Erro no upload de imagens',
+            description: `${errorMessage}. O pedido não foi salvo.`,
+            variant: 'destructive',
+          });
+          return; // NÃO SALVAR O PEDIDO se upload falhar
+        }
+
         const updateItemsPayload: UpdateOrderItemRequest[] = normalizedItems.map(
           ({ orderItemId, ...rest }) => ({
             id: orderItemId,
@@ -1648,10 +1787,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           customer_name: formData.cliente,
           cliente: formData.cliente,
           address: address,
-          cidade_cliente: address,
+          cidade_cliente: formData.cidade_cliente || address,
           status: formData.status ?? OrderStatus.Pendente,
           items: updateItemsPayload,
           valor_frete: valorFrete,
+          telefone_cliente: formData.telefone_cliente,
+          estado_cliente: formData.estado_cliente,
+          data_entrega: dataEntregaFormatted || undefined,
+          prioridade: formData.prioridade,
+          forma_envio: formData.forma_envio,
+          forma_pagamento_id: formData.tipo_pagamento ? Number.parseInt(formData.tipo_pagamento, 10) : undefined,
+          observacao: formData.observacao,
         };
 
         const updatedOrder = await api.updateOrder(updateRequest);
@@ -1757,8 +1903,29 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setCurrentOrder(finalOrder);
         populateFormFromOrder(finalOrder);
         updateOrderInStore(finalOrder);
+        
+        // Atualizar estado inicial após salvar com sucesso
+        setInitialFormData(formData);
+        setInitialTabsData(tabsData);
+        
+        // Imagens já foram enviadas antes de salvar, então estão prontas
+        console.log('[handleConfirmSave] ✅ Pedido atualizado com imagens já enviadas ao servidor');
+        
         navigate('/dashboard/orders');
         return;
+      }
+
+      // CRÍTICO: Fazer upload obrigatório de imagens ANTES de criar pedido
+      try {
+        await uploadImagesBeforeSave(normalizedItems);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido no upload de imagens';
+        toast({
+          title: 'Erro no upload de imagens',
+          description: `${errorMessage}. O pedido não foi criado.`,
+          variant: 'destructive',
+        });
+        return; // NÃO CRIAR O PEDIDO se upload falhar
       }
 
       const createItems: CreateOrderItemRequest[] = normalizedItems.map(
@@ -1790,6 +1957,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const createdOrder = await api.createOrder(createOrderRequest);
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
+      // Imagens já foram enviadas antes de criar o pedido, então estão prontas
+      console.log('[handleConfirmSave] ✅ Pedido criado com imagens já enviadas ao servidor');
+
       toast({
         title: 'Pedido criado!',
         description: `Pedido ${orderIdentifier} criado com sucesso!`,
@@ -1797,6 +1967,24 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
       setShowResumoModal(false);
       clearForm();
+      // Atualizar estado inicial após criar com sucesso (form já foi limpo)
+      setInitialFormData({
+        numero: '',
+        cliente: '',
+        telefone_cliente: '',
+        cidade_cliente: '',
+        estado_cliente: '',
+        data_entrada: new Date().toISOString().split('T')[0],
+        data_entrega: '',
+        prioridade: 'NORMAL',
+        status: OrderStatus.Pendente,
+        observacao: '',
+        forma_envio: '',
+        tipo_pagamento: '',
+        desconto_tipo: '',
+        valor_frete: '0,00',
+      });
+      setInitialTabsData({ 'tab-1': createEmptyTab('tab-1') });
       navigate('/dashboard/orders');
     } catch (error) {
       console.error('Erro detalhado ao salvar pedido:', error);
@@ -2536,7 +2724,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         <Button
           variant="outline"
           className="h-11 text-base"
-          onClick={() => navigate('/dashboard/orders')}
+          onClick={() => handleNavigateWithConfirm('/dashboard/orders')}
         >
           Cancelar
         </Button>

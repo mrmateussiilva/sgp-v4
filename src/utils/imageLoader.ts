@@ -1,4 +1,6 @@
 import { apiClient, getApiUrl } from '../services/apiClient';
+import { getLocalImagePath, loadLocalImageAsBase64, cacheImageFromUrl } from './localImageManager';
+import { isTauri } from './isTauri';
 
 /**
  * Cache de URLs de blob para evitar recarregar a mesma imagem múltiplas vezes
@@ -9,6 +11,32 @@ const blobUrlCache = new Map<string, string>();
  * Cache de blobs para evitar recarregar a mesma imagem múltiplas vezes
  */
 const blobCache = new Map<string, Blob>();
+
+/**
+ * Detecta se é um local_path de outro sistema (não do sistema atual)
+ * @param path - Caminho a verificar
+ * @returns true se for local_path de outro sistema
+ */
+function isOtherSystemLocalPath(path: string): boolean {
+  // Se contém caminho absoluto do Windows (C:\, D:\, etc)
+  if (/^[A-Z]:[\\/]/.test(path)) {
+    return true;
+  }
+  // Se contém caminho absoluto do Linux/Mac começando com /
+  // mas não é URL
+  if (path.startsWith('/') && !path.startsWith('http')) {
+    // Verificar se é um caminho de sistema (não relativo da API)
+    const systemPaths = [
+      /^\/Users\//,
+      /^\/home\//,
+      /^\/root\//,
+      /^C:[\\/]/,
+      /^D:[\\/]/,
+    ];
+    return systemPaths.some(regex => regex.test(path));
+  }
+  return false;
+}
 
 /**
  * Normaliza uma URL de imagem, substituindo localhost pela URL da API configurada
@@ -25,6 +53,20 @@ function normalizeImageUrl(imagePath: string): string {
 
   // Normalizar o caminho
   let normalized = imagePath.replace(/\\/g, '/').trim();
+  
+  // Se for local_path de outro sistema, extrair apenas o nome do arquivo
+  // e tentar buscar no servidor (assumindo que o servidor salva pelo nome do arquivo)
+  if (isOtherSystemLocalPath(normalized)) {
+    console.warn('[normalizeImageUrl] ⚠️ Local path de outro sistema detectado:', normalized);
+    // Extrair apenas o nome do arquivo
+    const fileName = normalized.split(/[\\/]/).pop();
+    if (fileName) {
+      // Tentar buscar como caminho relativo da API
+      // Ajustar conforme a estrutura de diretórios da API
+      normalized = `/images/${fileName}`; // ou o caminho correto da API
+      console.log('[normalizeImageUrl] 🔄 Convertendo para caminho do servidor:', normalized);
+    }
+  }
   
   // Se for protocolo tauri://localhost, converter para http usando a API configurada
   if (normalized.startsWith('tauri://localhost/') && apiUrl) {
@@ -73,22 +115,41 @@ function normalizeImageUrl(imagePath: string): string {
 
 /**
  * Carrega uma imagem autenticada e retorna uma blob URL
- * @param imagePath - Caminho da imagem (pode ser relativo ou absoluto)
+ * @param imagePath - Caminho da imagem (pode ser relativo ou absoluto, local_path, base64 ou URL)
  * @returns Promise com a blob URL da imagem
  */
 export async function loadAuthenticatedImage(imagePath: string): Promise<string> {
-  // Se já está em cache, retornar
-  if (blobUrlCache.has(imagePath)) {
-    return blobUrlCache.get(imagePath)!;
+  // Normalizar SEMPRE primeiro - usar como chave única consistente do cache
+  const normalized = normalizeImageUrl(imagePath);
+  
+  // Verificar cache usando apenas caminho normalizado
+  if (blobUrlCache.has(normalized)) {
+    return blobUrlCache.get(normalized)!;
   }
 
   try {
-    // Normalizar a URL (substituir localhost se necessário)
-    const normalized = normalizeImageUrl(imagePath);
-    
     // Se for base64, retornar diretamente
     if (normalized.startsWith('data:image/')) {
       return normalized;
+    }
+
+    // NOVO: Se estiver em Tauri, verificar cache local primeiro
+    // Mas apenas se NÃO for local_path de outro sistema
+    if (isTauri() && !isOtherSystemLocalPath(normalized)) {
+      const localPath = await getLocalImagePath(normalized);
+      if (localPath) {
+        console.log('[loadAuthenticatedImage] ✅ Imagem encontrada no cache local:', localPath);
+        // Carregar do cache local e converter para blob URL para compatibilidade
+        const base64 = await loadLocalImageAsBase64(localPath);
+        // Converter base64 para blob URL
+        const response = await fetch(base64);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        // Salvar usando apenas caminho normalizado (chave única)
+        blobUrlCache.set(normalized, blobUrl);
+        blobCache.set(normalized, blob);
+        return blobUrl;
+      }
     }
 
     // Se já for URL completa (http/https), usar diretamente sem baseURL
@@ -101,14 +162,41 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
-      blobUrlCache.set(imagePath, blobUrl);
-      blobCache.set(imagePath, blob);
+      // Salvar usando apenas caminho normalizado (chave única)
+      blobUrlCache.set(normalized, blobUrl);
+      blobCache.set(normalized, blob);
+      
+      // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
+      if (isTauri() && response.data) {
+        try {
+          // Converter blob para Uint8Array
+          const arrayBuffer = await blob.arrayBuffer();
+          const imageData = new Uint8Array(arrayBuffer);
+          
+          // Cachear localmente usando caminho normalizado
+          await cacheImageFromUrl(normalized, imageData);
+          console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
+        } catch (cacheError) {
+          // Não falhar se o cache falhar, apenas logar
+          console.warn('[loadAuthenticatedImage] ⚠️ Erro ao cachear imagem localmente:', cacheError);
+        }
+      }
+      
       return blobUrl;
     }
 
     // Para caminhos relativos, usar o apiClient com baseURL configurado
     // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
-    const relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    
+    // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
+    // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
+    if (relativePath.startsWith('/pedidos/tmp/') || /^\/pedidos\/\d+\//.test(relativePath)) {
+      // Construir caminho para o endpoint /pedidos/media/{file_path}
+      // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
+      relativePath = `/pedidos/media${relativePath}`;
+      console.log('[loadAuthenticatedImage] 🔄 Convertendo para endpoint /media/:', relativePath);
+    }
     
     console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {
       originalPath: imagePath,
@@ -128,9 +216,25 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Armazenar no cache (tanto blob URL quanto blob)
-    blobUrlCache.set(imagePath, blobUrl);
-    blobCache.set(imagePath, blob);
+    // Armazenar no cache usando apenas caminho normalizado (chave única)
+    blobUrlCache.set(normalized, blobUrl);
+    blobCache.set(normalized, blob);
+
+    // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
+    if (isTauri() && response.data) {
+      try {
+        // Converter blob para Uint8Array
+        const arrayBuffer = await blob.arrayBuffer();
+        const imageData = new Uint8Array(arrayBuffer);
+        
+        // Cachear localmente usando caminho normalizado
+        await cacheImageFromUrl(normalized, imageData);
+        console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
+      } catch (cacheError) {
+        // Não falhar se o cache falhar, apenas logar
+        console.warn('[loadAuthenticatedImage] ⚠️ Erro ao cachear imagem localmente:', cacheError);
+      }
+    }
 
     console.log('[loadAuthenticatedImage] ✅ Imagem carregada:', {
       originalPath: imagePath,
@@ -163,11 +267,13 @@ export function clearImageCache(): void {
  * Revoga uma blob URL específica do cache
  */
 export function revokeImageUrl(imagePath: string): void {
-  const blobUrl = blobUrlCache.get(imagePath);
+  // Normalizar caminho para usar chave consistente do cache
+  const normalized = normalizeImageUrl(imagePath);
+  const blobUrl = blobUrlCache.get(normalized);
   if (blobUrl) {
     URL.revokeObjectURL(blobUrl);
-    blobUrlCache.delete(imagePath);
-    blobCache.delete(imagePath);
+    blobUrlCache.delete(normalized);
+    blobCache.delete(normalized);
   }
 }
 
@@ -178,16 +284,20 @@ export function revokeImageUrl(imagePath: string): void {
  */
 export async function imageToBase64(imagePath: string): Promise<string> {
   try {
+    // Normalizar caminho para usar chave consistente do cache
+    const normalized = normalizeImageUrl(imagePath);
+    
     // Se já for base64, retornar diretamente
-    if (imagePath.startsWith('data:image/')) {
-      return imagePath;
+    if (normalized.startsWith('data:image/')) {
+      return normalized;
     }
 
-    // Verificar se já temos o blob em cache
-    let blob: Blob | undefined = blobCache.get(imagePath);
+    // Verificar se já temos o blob em cache usando caminho normalizado
+    let blob: Blob | undefined = blobCache.get(normalized);
     
     if (!blob) {
       // Carregar a imagem autenticada (retorna blob URL)
+      // loadAuthenticatedImage já normaliza internamente, então pode passar imagePath original
       const blobUrl = await loadAuthenticatedImage(imagePath);
       
       // Se for base64, retornar diretamente
@@ -195,14 +305,16 @@ export async function imageToBase64(imagePath: string): Promise<string> {
         return blobUrl;
       }
 
-      // Tentar obter o blob do cache novamente (pode ter sido adicionado durante loadAuthenticatedImage)
-      blob = blobCache.get(imagePath);
+      // Tentar obter o blob do cache novamente usando caminho normalizado
+      // (pode ter sido adicionado durante loadAuthenticatedImage)
+      blob = blobCache.get(normalized);
       
       // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
       if (!blob) {
         const response = await fetch(blobUrl);
         blob = await response.blob();
-        blobCache.set(imagePath, blob);
+        // Salvar no cache usando caminho normalizado
+        blobCache.set(normalized, blob);
       }
     }
     
