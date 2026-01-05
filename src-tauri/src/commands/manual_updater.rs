@@ -414,7 +414,64 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
             write_log(&app_log_file, "⚠️ AVISO: Não foi possível verificar assinatura do arquivo");
         }
 
-        write_log(&app_log_file, "Preparando comando msiexec...");
+        // Tentar desinstalar versão anterior primeiro (se existir)
+        write_log(&app_log_file, "Verificando e desinstalando versão anterior...");
+        
+        // ProductCodes conhecidos de versões anteriores (pode ser expandido)
+        let previous_product_codes = vec![
+            "{F80FE871-0D01-494F-ABED-082205E0B8CF}", // Versão 1.0.0
+            // Adicionar outros ProductCodes conforme necessário
+        ];
+        
+        let mut previous_version_found = false;
+        
+        for product_code in &previous_product_codes {
+            write_log(&app_log_file, &format!("Verificando produto: {}", product_code));
+            
+            let uninstall_log = parent_dir.join(format!("msi_uninstall_{}.log", product_code.replace("{", "").replace("}", "")));
+            
+            let uninstall_output = Command::new("msiexec")
+                .args(&[
+                    "/x",
+                    product_code,
+                    "/qn",  // Quiet mode
+                    "/norestart",  // Não reiniciar
+                    "/L*v",  // Log verbose
+                    uninstall_log.to_string_lossy().as_ref(),
+                ])
+                .output();
+            
+            match uninstall_output {
+                Ok(output) => {
+                    let exit_code = output.status.code().unwrap_or(-1);
+                    
+                    if output.status.success() {
+                        write_log(&app_log_file, &format!("✅ Versão anterior ({}) desinstalada com sucesso", product_code));
+                        previous_version_found = true;
+                        std::thread::sleep(std::time::Duration::from_secs(2)); // Aguardar um pouco
+                        break;
+                    } else if exit_code == 1605 {
+                        // 1605 = Product not found - não há problema, continua
+                        write_log(&app_log_file, &format!("ℹ️ Produto {} não está instalado (código 1605)", product_code));
+                    } else if exit_code == 1730 {
+                        // 1730 = Requer admin para desinstalar
+                        write_log(&app_log_file, &format!("⚠️ AVISO: Produto {} requer admin para desinstalar (código 1730). Tentando instalação mesmo assim...", product_code));
+                        previous_version_found = true;
+                    } else {
+                        write_log(&app_log_file, &format!("⚠️ AVISO: Erro ao desinstalar {} (código {}). Continuando com instalação...", product_code, exit_code));
+                    }
+                }
+                Err(e) => {
+                    write_log(&app_log_file, &format!("⚠️ AVISO: Erro ao verificar produto {}: {} (continuando)", product_code, e));
+                }
+            }
+        }
+        
+        if !previous_version_found {
+            write_log(&app_log_file, "ℹ️ Nenhuma versão anterior detectada");
+        }
+        
+        write_log(&app_log_file, "Preparando comando msiexec para instalação...");
         
         // Executar em background (spawn) para não bloquear e permitir timeout
         let mut child = Command::new("msiexec")
@@ -550,16 +607,55 @@ fn install_windows_update(path: &PathBuf, app_handle: &AppHandle) -> Result<(), 
                                 )
                             }
                             1603 => {
+                                // Verificar se o erro 1603 foi causado por erro 1730 (requer admin)
+                                let caused_by_1730 = msi_log_content.contains("1730") || 
+                                                    msi_log_content.contains("You must be an Administrator");
+                                
+                                if caused_by_1730 {
+                                    format!(
+                                        "Erro MSI 1603: Falha na instalação devido a problema de permissões.\n\n\
+                                        Causa identificada: A versão anterior foi instalada como administrador e requer \
+                                        privilégios de administrador para ser removida.\n\n\
+                                        O que aconteceu:\n\
+                                        • A versão anterior (1.0.0) foi instalada como per-machine (requer admin)\n\
+                                        • A nova versão (1.0.1) está tentando instalar como per-user (sem admin)\n\
+                                        • O Windows Installer precisa remover a versão antiga primeiro\n\
+                                        • Mas a remoção requer privilégios de administrador\n\n\
+                                        💡 Soluções:\n\
+                                        1. Desinstale manualmente a versão anterior:\n\
+                                           • Abra 'Adicionar ou remover programas'\n\
+                                           • Procure por 'SGP - Sistema de Gerenciamento de Pedidos'\n\
+                                           • Clique em 'Desinstalar'\n\
+                                           • Depois tente atualizar novamente\n\n\
+                                        2. Execute a atualização como administrador (se possível)\n\n\
+                                        3. Ou aguarde uma versão futura que lide melhor com upgrades"
+                                    )
+                                } else {
+                                    format!(
+                                        "Erro MSI 1603: Erro fatal durante a instalação.\n\n\
+                                        Possíveis causas:\n\
+                                        • Conflito com outra instalação em andamento\n\
+                                        • Arquivos bloqueados por outro processo\n\
+                                        • Problemas de permissão\n\n\
+                                        💡 Soluções:\n\
+                                        1. Feche outras aplicações\n\
+                                        2. Reinicie o computador e tente novamente\n\
+                                        3. Execute como administrador (se necessário)"
+                                    )
+                                }
+                            }
+                            1730 => {
                                 format!(
-                                    "Erro MSI 1603: Erro fatal durante a instalação.\n\n\
-                                    Possíveis causas:\n\
-                                    • Conflito com outra instalação em andamento\n\
-                                    • Arquivos bloqueados por outro processo\n\
-                                    • Problemas de permissão\n\n\
+                                    "Erro MSI 1730: Você deve ser um Administrador para remover esta aplicação.\n\n\
+                                    Causa: A versão anterior foi instalada como per-machine (requer admin) e precisa \
+                                    ser removida antes de instalar a nova versão como per-user.\n\n\
                                     💡 Soluções:\n\
-                                    1. Feche outras aplicações\n\
-                                    2. Reinicie o computador e tente novamente\n\
-                                    3. Execute como administrador (se necessário)"
+                                    1. Desinstale manualmente a versão anterior:\n\
+                                       • Abra 'Adicionar ou remover programas' (Configurações > Aplicativos)\n\
+                                       • Procure por 'SGP - Sistema de Gerenciamento de Pedidos'\n\
+                                       • Clique em 'Desinstalar'\n\
+                                       • Depois tente atualizar novamente\n\n\
+                                    2. Execute a atualização como administrador (se possível)"
                                 )
                             }
                             _ => {
