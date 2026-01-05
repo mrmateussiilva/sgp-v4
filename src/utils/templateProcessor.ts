@@ -146,6 +146,21 @@ const formatDimensions = (item: OrderItem): string => {
 };
 
 /**
+ * Formata valores monetários para exibição
+ */
+const formatCurrency = (value: string | number | undefined): string => {
+  if (!value) return 'R$ 0,00';
+  const num = typeof value === 'string' 
+    ? parseFloat(value.replace(',', '.').replace(/[^\d.,-]/g, '')) 
+    : value;
+  if (Number.isNaN(num) || num === 0) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(num);
+};
+
+/**
  * Cria um mapa de dados do pedido e item para preencher os campos do template
  */
 export const createOrderDataMap = (
@@ -239,22 +254,29 @@ export const createOrderDataMap = (
     
     // Campos de lona
     acabamento_lona: item?.acabamento_lona || '',
-    valor_lona: '', // Valor monetário removido
+    acabamento_lona_display: item?.acabamento_lona === 'refilar' ? 'Refilar' 
+      : item?.acabamento_lona === 'nao_refilar' ? 'Não refilar'
+      : '',
+    valor_lona: formatCurrency(item?.valor_lona),
     quantidade_lona: item?.quantidade_lona || '',
-    outros_valores_lona: '', // Valor monetário removido
+    outros_valores_lona: formatCurrency(item?.outros_valores_lona),
     
     // Campos de adesivo
     tipo_adesivo: item?.tipo_adesivo || '',
-    valor_adesivo: '', // Valor monetário removido
+    valor_adesivo: formatCurrency(item?.valor_adesivo),
     quantidade_adesivo: item?.quantidade_adesivo || '',
-    outros_valores_adesivo: '', // Valor monetário removido
+    outros_valores_adesivo: formatCurrency(item?.outros_valores_adesivo),
     
     // Campos de totem
     acabamento_totem: item?.acabamento_totem || '',
+    acabamento_totem_display: item?.acabamento_totem === 'com_pe' ? 'Com pé' 
+      : item?.acabamento_totem === 'sem_pe' ? 'Sem pé'
+      : item?.acabamento_totem === 'outro' ? (item?.acabamento_totem_outro || 'Outro')
+      : '',
     acabamento_totem_outro: item?.acabamento_totem_outro || '',
-    valor_totem: '', // Valor monetário removido
+    valor_totem: formatCurrency(item?.valor_totem),
     quantidade_totem: item?.quantidade_totem || '',
-    outros_valores_totem: '', // Valor monetário removido
+    outros_valores_totem: formatCurrency(item?.outros_valores_totem),
     
     // Campos de impressão (para anotação manual no resumo)
     data_impressao: item?.data_impressao || '',
@@ -520,30 +542,37 @@ const processTemplateHTML = (
       
       // Remover campos irrelevantes baseado no tipo de produção
       // Usar regex mais flexível para capturar elementos com múltiplas classes
+      // IMPORTANTE: Preservar campos específicos do tipo atual
       if (tipoProducao === 'totem') {
         // Totem: remover campos de painel, lona e adesivo
+        // MAS preservar campos específicos de totem (acabamento_totem, quantidade_totem, valor_totem, etc)
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // Remover linhas vazias para totem
-        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+        // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
+        // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores
+        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade Totem|Valor Totem|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'lona') {
         // Lona: remover campos de painel, tecido, totem e adesivo
+        // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // Remover linhas vazias para lona
-        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+        // Remover apenas linhas vazias que NÃO sejam campos específicos de lona
+        // Preservar: Acabamento Lona, Quantidade Lona, Valor Lona, Outros Valores, Terceirizado
+        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento Lona|Quantidade Lona|Valor Lona|Outros Valores|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'adesivo') {
         // Adesivo: remover campos de painel, tecido, totem e lona
+        // MAS preservar campos específicos de adesivo (tipo_adesivo, quantidade_adesivo, valor_adesivo, etc)
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-        // Remover linhas vazias para adesivo
-        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+        // Remover apenas linhas vazias que NÃO sejam campos específicos de adesivo
+        // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
+        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
         // Painel/Tecido: remover apenas campos de totem, lona e adesivo
         // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
@@ -624,30 +653,37 @@ const processTemplateHTML = (
   
   // Remover campos irrelevantes baseado no tipo de produção
   // Usar regex mais flexível para capturar elementos com múltiplas classes
+  // IMPORTANTE: Preservar campos específicos do tipo atual
   if (tipoProducao === 'totem') {
     // Totem: remover campos de painel, lona e adesivo
+    // MAS preservar campos específicos de totem (acabamento_totem, quantidade_totem, valor_totem, etc)
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // Remover linhas vazias para totem
-    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+    // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
+    // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores
+    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade Totem|Valor Totem|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'lona') {
     // Lona: remover campos de painel, tecido, totem e adesivo
+    // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // Remover linhas vazias para lona
-    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+    // Remover apenas linhas vazias que NÃO sejam campos específicos de lona
+    // Preservar: Acabamento Lona, Quantidade Lona, Valor Lona, Outros Valores, Terceirizado
+    processed = processed.replace(/<div[^>]*>• (?!Acabamento Lona|Quantidade Lona|Valor Lona|Outros Valores|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'adesivo') {
     // Adesivo: remover campos de painel, tecido, totem e lona
+    // MAS preservar campos específicos de adesivo (tipo_adesivo, quantidade_adesivo, valor_adesivo, etc)
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-    // Remover linhas vazias para adesivo
-    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
+    // Remover apenas linhas vazias que NÃO sejam campos específicos de adesivo
+    // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
+    processed = processed.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
     // Painel/Tecido: remover apenas campos de totem, lona e adesivo
     // MAS NÃO remover campos vazios - mostrar todos os campos de painel/tecido mesmo vazios
