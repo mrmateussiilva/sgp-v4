@@ -9,7 +9,7 @@ import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { saveImageLocally, processAndSaveImage } from '@/utils/localImageManager';
+import { processAndSaveImage } from '@/utils/localImageManager';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
 import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';

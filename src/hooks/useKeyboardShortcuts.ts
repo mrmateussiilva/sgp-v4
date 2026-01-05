@@ -47,7 +47,6 @@ export function useKeyboardShortcuts(
         if (shortcut.enabled === false) continue;
 
         const keyMatches = shortcut.key.toLowerCase() === event.key.toLowerCase();
-        const ctrlMatches = shortcut.ctrl === undefined || shortcut.ctrl === (event.ctrlKey || event.metaKey);
         const shiftMatches = shortcut.shift === undefined || shortcut.shift === event.shiftKey;
         const altMatches = shortcut.alt === undefined || shortcut.alt === event.altKey;
         const metaMatches = shortcut.meta === undefined || shortcut.meta === event.metaKey;

@@ -903,7 +903,6 @@ const fetchOrdersPaginated = async (
       [OrderStatus.Pendente]: 'pendente',
       [OrderStatus.EmProcessamento]: 'em_producao',
       [OrderStatus.Concluido]: 'pronto',
-      [OrderStatus.Entregue]: 'entregue',
       [OrderStatus.Cancelado]: 'cancelado',
     };
     params.status = statusMap[status] || status;

@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Edit, Trash2, FileText, Printer, X, Clock, AlertTriangle, CheckCircle2, MapPin, User, Calendar } from 'lucide-react';
+import { useMemo } from 'react';
+import { Edit, Trash2, Printer, X, Clock, AlertTriangle, CheckCircle2, MapPin, User, Calendar } from 'lucide-react';
 import { OrderWithItems } from '@/types';
 import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -150,7 +149,7 @@ export function OrderContextPanel({
                     />
                   </div>
                   <div className="space-y-2">
-                    {statusSteps.map((step, index) => (
+                    {statusSteps.map((step) => (
                       <div
                         key={step.field}
                         className="flex items-center justify-between text-sm"

@@ -1,7 +1,6 @@
 import { readImageFile } from './localImageManager';
-import { apiClient, getApiUrl } from '../services/apiClient';
+import { apiClient } from '../services/apiClient';
 import { isTauri } from './isTauri';
-import { getClient } from '@tauri-apps/api/http';
 
 /**
  * Resultado de um upload de imagem
@@ -50,7 +49,11 @@ export async function uploadImageToServer(
       mimeType = 'image/webp';
     }
     
-    const blob = new Blob([imageData], { type: mimeType });
+    // Converter Uint8Array para Array de números para compatibilidade com Blob
+    // Criar um novo ArrayBuffer a partir dos bytes
+    const bytesArray = Array.from(imageData);
+    const arrayBuffer = new Uint8Array(bytesArray).buffer;
+    const blob = new Blob([arrayBuffer], { type: mimeType });
     const formData = new FormData();
     
     // Gerar nome de arquivo baseado no orderItemId ou timestamp
