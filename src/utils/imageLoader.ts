@@ -119,20 +119,12 @@ function normalizeImageUrl(imagePath: string): string {
  * @returns Promise com a blob URL da imagem
  */
 export async function loadAuthenticatedImage(imagePath: string): Promise<string> {
-  // Normalizar PRIMEIRO para usar como chave consistente do cache
+  // Normalizar SEMPRE primeiro - usar como chave única consistente do cache
   const normalized = normalizeImageUrl(imagePath);
   
-  // Verificar cache usando caminho normalizado (chave principal)
+  // Verificar cache usando apenas caminho normalizado
   if (blobUrlCache.has(normalized)) {
     return blobUrlCache.get(normalized)!;
-  }
-  
-  // Verificar também com caminho original para compatibilidade
-  if (normalized !== imagePath && blobUrlCache.has(imagePath)) {
-    const cachedUrl = blobUrlCache.get(imagePath)!;
-    // Migrar para chave normalizada para consistência futura
-    blobUrlCache.set(normalized, cachedUrl);
-    return cachedUrl;
   }
 
   try {
@@ -153,14 +145,9 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         const response = await fetch(base64);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
-        // Salvar usando caminho normalizado como chave principal
+        // Salvar usando apenas caminho normalizado (chave única)
         blobUrlCache.set(normalized, blobUrl);
         blobCache.set(normalized, blob);
-        // Também salvar com caminho original para compatibilidade
-        if (normalized !== imagePath) {
-          blobUrlCache.set(imagePath, blobUrl);
-          blobCache.set(imagePath, blob);
-        }
         return blobUrl;
       }
     }
@@ -175,14 +162,9 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
-      // Salvar usando caminho normalizado como chave principal
+      // Salvar usando apenas caminho normalizado (chave única)
       blobUrlCache.set(normalized, blobUrl);
       blobCache.set(normalized, blob);
-      // Também salvar com caminho original para compatibilidade
-      if (normalized !== imagePath) {
-        blobUrlCache.set(imagePath, blobUrl);
-        blobCache.set(imagePath, blob);
-      }
       
       // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
       if (isTauri() && response.data) {
@@ -234,14 +216,9 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Armazenar no cache usando caminho normalizado como chave principal
+    // Armazenar no cache usando apenas caminho normalizado (chave única)
     blobUrlCache.set(normalized, blobUrl);
     blobCache.set(normalized, blob);
-    // Também salvar com caminho original para compatibilidade
-    if (normalized !== imagePath) {
-      blobUrlCache.set(imagePath, blobUrl);
-      blobCache.set(imagePath, blob);
-    }
 
     // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
     if (isTauri() && response.data) {
@@ -305,16 +282,20 @@ export function revokeImageUrl(imagePath: string): void {
  */
 export async function imageToBase64(imagePath: string): Promise<string> {
   try {
+    // Normalizar caminho para usar chave consistente do cache
+    const normalized = normalizeImageUrl(imagePath);
+    
     // Se já for base64, retornar diretamente
-    if (imagePath.startsWith('data:image/')) {
-      return imagePath;
+    if (normalized.startsWith('data:image/')) {
+      return normalized;
     }
 
-    // Verificar se já temos o blob em cache
-    let blob: Blob | undefined = blobCache.get(imagePath);
+    // Verificar se já temos o blob em cache usando caminho normalizado
+    let blob: Blob | undefined = blobCache.get(normalized);
     
     if (!blob) {
       // Carregar a imagem autenticada (retorna blob URL)
+      // loadAuthenticatedImage já normaliza internamente, então pode passar imagePath original
       const blobUrl = await loadAuthenticatedImage(imagePath);
       
       // Se for base64, retornar diretamente
@@ -322,8 +303,9 @@ export async function imageToBase64(imagePath: string): Promise<string> {
         return blobUrl;
       }
 
-      // Tentar obter o blob do cache novamente (pode ter sido adicionado durante loadAuthenticatedImage)
-      blob = blobCache.get(imagePath);
+      // Tentar obter o blob do cache novamente usando caminho normalizado
+      // (pode ter sido adicionado durante loadAuthenticatedImage)
+      blob = blobCache.get(normalized);
       
       // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
       if (!blob) {
