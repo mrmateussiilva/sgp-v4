@@ -15,7 +15,7 @@ import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderKanbanBoard } from './OrderKanbanBoard';
-import { OrderContextPanel } from './OrderContextPanel';
+// import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
 import { formatDateForDisplay } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 import { isTauri } from '@/utils/isTauri';
-import { cn } from '@/lib/utils';
+// import { cn } from '@/lib/utils'; // Não usado mais (painel lateral desabilitado)
 
 export default function OrderList() {
   const navigate = useNavigate();
@@ -123,9 +123,9 @@ export default function OrderList() {
     nomeSetor: '',
   });
   
-  // Estados para painel lateral e navegação por teclado
-  const [contextPanelOpen, setContextPanelOpen] = useState(false);
-  const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
+  // Estados para navegação por teclado (painel lateral desabilitado)
+  // const [contextPanelOpen, setContextPanelOpen] = useState(false);
+  // const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -988,49 +988,49 @@ export default function OrderList() {
     }
   }, [orders, filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
 
-  // Handlers para painel lateral - precisa estar depois de paginatedOrders
-  const handleOpenContextPanel = (order: OrderWithItems) => {
-    setSelectedOrder(order);
-    setContextPanelOpen(true);
-    const index = paginatedOrders.findIndex(o => o.id === order.id);
-    if (index >= 0) {
-      setSelectedOrderIndex(index);
-    }
-  };
+  // Handlers para painel lateral - DESABILITADO
+  // const handleOpenContextPanel = (order: OrderWithItems) => {
+  //   setSelectedOrder(order);
+  //   setContextPanelOpen(true);
+  //   const index = paginatedOrders.findIndex(o => o.id === order.id);
+  //   if (index >= 0) {
+  //     setSelectedOrderIndex(index);
+  //   }
+  // };
 
-  const handleCloseContextPanel = () => {
-    setContextPanelOpen(false);
-    setSelectedOrderIndex(null);
-  };
+  // const handleCloseContextPanel = () => {
+  //   setContextPanelOpen(false);
+  //   setSelectedOrderIndex(null);
+  // };
 
-  // Navegação por teclado (setas)
-  const handleNavigateUp = useCallback(() => {
-    if (paginatedOrders.length === 0) return;
-    
-    const currentIndex = selectedOrderIndex ?? 0;
-    const newIndex = currentIndex > 0 ? currentIndex - 1 : paginatedOrders.length - 1;
-    setSelectedOrderIndex(newIndex);
-    
-    const order = paginatedOrders[newIndex];
-    if (order) {
-      setSelectedOrder(order);
-      setContextPanelOpen(true);
-    }
-  }, [paginatedOrders, selectedOrderIndex]);
+  // Navegação por teclado (setas) - DESABILITADO (painel lateral desabilitado)
+  // const handleNavigateUp = useCallback(() => {
+  //   if (paginatedOrders.length === 0) return;
+  //   
+  //   const currentIndex = selectedOrderIndex ?? 0;
+  //   const newIndex = currentIndex > 0 ? currentIndex - 1 : paginatedOrders.length - 1;
+  //   setSelectedOrderIndex(newIndex);
+  //   
+  //   const order = paginatedOrders[newIndex];
+  //   if (order) {
+  //     setSelectedOrder(order);
+  //     setContextPanelOpen(true);
+  //   }
+  // }, [paginatedOrders, selectedOrderIndex]);
 
-  const handleNavigateDown = useCallback(() => {
-    if (paginatedOrders.length === 0) return;
-    
-    const currentIndex = selectedOrderIndex ?? -1;
-    const newIndex = currentIndex < paginatedOrders.length - 1 ? currentIndex + 1 : 0;
-    setSelectedOrderIndex(newIndex);
-    
-    const order = paginatedOrders[newIndex];
-    if (order) {
-      setSelectedOrder(order);
-      setContextPanelOpen(true);
-    }
-  }, [paginatedOrders, selectedOrderIndex]);
+  // const handleNavigateDown = useCallback(() => {
+  //   if (paginatedOrders.length === 0) return;
+  //   
+  //   const currentIndex = selectedOrderIndex ?? -1;
+  //   const newIndex = currentIndex < paginatedOrders.length - 1 ? currentIndex + 1 : 0;
+  //   setSelectedOrderIndex(newIndex);
+  //   
+  //   const order = paginatedOrders[newIndex];
+  //   if (order) {
+  //     setSelectedOrder(order);
+  //     setContextPanelOpen(true);
+  //   }
+  // }, [paginatedOrders, selectedOrderIndex]);
   const handlePrintSelected = async () => {
     if (selectedOrderIdsForPrint.length === 0) {
       return;
@@ -1101,18 +1101,19 @@ export default function OrderList() {
       action: () => searchInputRef.current?.focus(),
       description: 'Focar busca',
     },
-    {
-      key: 'ArrowUp',
-      action: handleNavigateUp,
-      description: 'Navegar para cima',
-      enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
-    },
-    {
-      key: 'ArrowDown',
-      action: handleNavigateDown,
-      description: 'Navegar para baixo',
-      enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
-    },
+    // Navegação por setas desabilitada (painel lateral desabilitado)
+    // {
+    //   key: 'ArrowUp',
+    //   action: handleNavigateUp,
+    //   description: 'Navegar para cima',
+    //   enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
+    // },
+    // {
+    //   key: 'ArrowDown',
+    //   action: handleNavigateDown,
+    //   description: 'Navegar para baixo',
+    //   enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
+    // },
     {
       key: 'e',
       action: () => {
@@ -1147,29 +1148,31 @@ export default function OrderList() {
     {
       key: 'Escape',
       action: () => {
-        if (contextPanelOpen) {
-          handleCloseContextPanel();
-        } else if (viewModalOpen) {
+        // Painel lateral desabilitado
+        // if (contextPanelOpen) {
+        //   handleCloseContextPanel();
+        // } else 
+        if (viewModalOpen) {
           setViewModalOpen(false);
         } else if (deleteDialogOpen) {
           setDeleteDialogOpen(false);
         }
       },
-      description: 'Fechar painel/modal',
+      description: 'Fechar modal',
     },
   ], [
     navigate,
-    handleNavigateUp,
-    handleNavigateDown,
+    // handleNavigateUp, // Painel lateral desabilitado
+    // handleNavigateDown, // Painel lateral desabilitado
     selectedOrder,
     viewModalOpen,
     editDialogOpen,
     deleteDialogOpen,
-    contextPanelOpen,
+    // contextPanelOpen, // Painel lateral desabilitado
     isAdmin,
     handleEdit,
     handleDeleteClick,
-    handleCloseContextPanel,
+    // handleCloseContextPanel, // Painel lateral desabilitado
     handlePrintSelected,
     setSelectedOrderIdsForPrint,
   ]);
@@ -1400,10 +1403,7 @@ export default function OrderList() {
 
   // Modo tabela - layout original
   return (
-    <div className={cn(
-      "flex flex-col h-full space-y-4 min-h-screen transition-all duration-300",
-      contextPanelOpen && "pr-[400px]"
-    )}>
+    <div className="flex flex-col h-full space-y-4 min-h-screen">
       {viewMode === 'table' && (
         <>
           {/* Barra de Filtros Principais - Sempre Visível */}
@@ -1826,10 +1826,9 @@ export default function OrderList() {
                 </TableCell>
               </TableRow>
             ) : (
-                  paginatedOrders.map((order: OrderWithItems, index: number) => {
+                  paginatedOrders.map((order: OrderWithItems) => {
                     const urgency = getOrderUrgency(order.data_entrega);
                     const isOverdue = urgency.type === 'overdue';
-                    const isSelected = selectedOrderIndex === index;
                     const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
                     const isHighPriority = order.prioridade === 'ALTA';
                     const isDelayed = isOverdue && !order.pronto;
@@ -1846,15 +1845,10 @@ export default function OrderList() {
                     return (
                       <TableRow 
                         key={order.id} 
-                        className={cn(
-                          rowClassName,
-                          isSelected && 'bg-primary/10 border-l-4 border-l-primary',
-                          'cursor-pointer'
-                        )}
+                        className={rowClassName}
                         data-overdue={isDelayed}
                         data-urgent={isUrgent}
                         data-priority={order.prioridade}
-                        onClick={() => handleOpenContextPanel(order)}
                       >
                         <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                           <Checkbox
@@ -2247,7 +2241,8 @@ export default function OrderList() {
         }}
       />
 
-      {/* Painel Lateral de Contexto */}
+      {/* Painel Lateral de Contexto - DESABILITADO */}
+      {/* 
       <OrderContextPanel
         order={selectedOrder}
         isOpen={contextPanelOpen}
@@ -2281,6 +2276,7 @@ export default function OrderList() {
         }}
         isAdmin={isAdmin}
       />
+      */}
     </div>
   );
 }
