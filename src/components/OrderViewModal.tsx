@@ -3,14 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Printer, ChevronDown, FileText } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
-import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
-import { OrderPrintManager } from './OrderPrintManager';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -31,7 +29,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
-  const [showPrintManager, setShowPrintManager] = useState(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -208,19 +205,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const handlePrint = async () => {
-    const formaPagamentoNome = getFormaPagamentoNome(order.forma_pagamento_id);
-    const enrichedOrder = {
-      ...order,
-      forma_pagamento_nome:
-        formaPagamentoNome && formaPagamentoNome !== 'Não informado'
-          ? formaPagamentoNome
-          : undefined,
-    };
-    
-    // Sempre usar a ficha completa (geral)
-    await printOrderServiceForm(enrichedOrder, 'geral');
-  };
 
   const parseCurrencyValue = (value: unknown): number => {
     if (value === null || value === undefined) {
@@ -1182,26 +1166,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs sm:text-sm"
-                onClick={() => setShowPrintManager(true)}
-              >
-                <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Gerenciar Impressão</span>
-                <span className="sm:hidden">Ger.</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs sm:text-sm"
-                onClick={handlePrint}
-              >
-                <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Imprimir Ficha</span>
-                <span className="sm:hidden">Impr.</span>
-              </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -1419,14 +1383,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         </Dialog>
       )}
 
-      {/* Modal de Gerenciamento de Impressão */}
-      {showPrintManager && (
-        <OrderPrintManager
-          isOpen={showPrintManager}
-          onClose={() => setShowPrintManager(false)}
-          order={order}
-        />
-      )}
     </Dialog>
   );
 };
