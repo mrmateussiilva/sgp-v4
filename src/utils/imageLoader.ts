@@ -267,11 +267,13 @@ export function clearImageCache(): void {
  * Revoga uma blob URL específica do cache
  */
 export function revokeImageUrl(imagePath: string): void {
-  const blobUrl = blobUrlCache.get(imagePath);
+  // Normalizar caminho para usar chave consistente do cache
+  const normalized = normalizeImageUrl(imagePath);
+  const blobUrl = blobUrlCache.get(normalized);
   if (blobUrl) {
     URL.revokeObjectURL(blobUrl);
-    blobUrlCache.delete(imagePath);
-    blobCache.delete(imagePath);
+    blobUrlCache.delete(normalized);
+    blobCache.delete(normalized);
   }
 }
 
@@ -311,7 +313,8 @@ export async function imageToBase64(imagePath: string): Promise<string> {
       if (!blob) {
         const response = await fetch(blobUrl);
         blob = await response.blob();
-        blobCache.set(imagePath, blob);
+        // Salvar no cache usando caminho normalizado
+        blobCache.set(normalized, blob);
       }
     }
     
