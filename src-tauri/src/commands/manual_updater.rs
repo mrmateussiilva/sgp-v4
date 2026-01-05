@@ -147,6 +147,18 @@ pub async fn download_update_manual(
 
     info!("💾 Baixando para: {:?}", file_path);
 
+    // Validar URL antes de tentar baixar
+    if updateUrl.is_empty() {
+        return Err("URL de atualização vazia".to_string());
+    }
+
+    // Verificar se a URL é válida
+    if !updateUrl.starts_with("http://") && !updateUrl.starts_with("https://") {
+        return Err(format!("URL inválida: {}", updateUrl));
+    }
+
+    info!("🔗 URL de atualização validada: {}", updateUrl);
+
     // Baixar arquivo usando reqwest
     info!("📡 Iniciando download de: {}", updateUrl);
     let response = reqwest::get(&updateUrl)
@@ -154,9 +166,18 @@ pub async fn download_update_manual(
         .map_err(|e| format!("Erro ao conectar com servidor: {}", e))?;
 
     if !response.status().is_success() {
+        let status = response.status();
+        if status == 404 {
+            return Err(format!(
+                "Erro HTTP 404: Arquivo não encontrado no servidor.\n\nURL tentada: {}\n\nVerifique se:\n• O arquivo MSI existe no servidor neste caminho\n• O servidor está configurado para servir arquivos estáticos\n• O caminho do arquivo está correto\n\n💡 Acesse a URL acima no navegador para verificar se o arquivo está disponível.",
+                updateUrl
+            ));
+        }
         return Err(format!(
-            "Erro HTTP ao baixar: {} - Verifique se o arquivo existe no servidor",
-            response.status()
+            "Erro HTTP {} ao baixar: {} - URL: {}\n\nVerifique se o arquivo existe no servidor e está acessível.",
+            status,
+            status.canonical_reason().unwrap_or("Unknown"),
+            updateUrl
         ));
     }
 

@@ -89,6 +89,18 @@ export default function UpdateStatus() {
       return;
     }
 
+    // Validar URL antes de tentar baixar
+    if (!updateInfo.url.startsWith('http://') && !updateInfo.url.startsWith('https://')) {
+      toast({
+        title: 'URL inválida',
+        description: `A URL de atualização é inválida: ${updateInfo.url}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('📥 Tentando baixar atualização de:', updateInfo.url);
+
     try {
       // Fase 1: Download
       setIsDownloading(true);
@@ -151,10 +163,24 @@ export default function UpdateStatus() {
       }
       
       // Mensagens mais específicas baseadas no tipo de erro
-      if (errorMessage.toLowerCase().includes('conectar') || errorMessage.toLowerCase().includes('conexão')) {
+      if (errorMessage.toLowerCase().includes('404') || errorMessage.toLowerCase().includes('not found')) {
+        errorMessage = `❌ Arquivo não encontrado no servidor (404).\n\n` +
+          `URL tentada: ${updateInfo?.url || 'N/A'}\n\n` +
+          `Possíveis causas:\n` +
+          `• O arquivo MSI não foi publicado no servidor neste caminho\n` +
+          `• O servidor não está configurado para servir arquivos estáticos\n` +
+          `• Verifique se o arquivo existe em: ${updateInfo?.url || 'N/A'}\n\n` +
+          `💡 Acesse a URL acima no navegador para verificar se o arquivo está disponível.\n\n` +
+          `📋 Para corrigir:\n` +
+          `1. Publique o arquivo MSI no servidor no caminho correto\n` +
+          `2. Configure o servidor para servir arquivos estáticos\n` +
+          `3. Verifique as permissões do arquivo no servidor`;
+      } else if (errorMessage.toLowerCase().includes('conectar') || errorMessage.toLowerCase().includes('conexão')) {
         errorMessage = '❌ Erro de conexão: Verifique sua internet e tente novamente.';
       } else if (errorMessage.toLowerCase().includes('http')) {
-        errorMessage = '❌ Erro ao baixar: O arquivo pode não estar disponível no servidor.';
+        errorMessage = `❌ Erro HTTP ao baixar: ${errorMessage}\n\n` +
+          `URL: ${updateInfo?.url || 'N/A'}\n\n` +
+          `Verifique se o arquivo está disponível no servidor.`;
       } else if (errorMessage.toLowerCase().includes('salvar') || errorMessage.toLowerCase().includes('disco')) {
         errorMessage = '❌ Erro ao salvar: Verifique se há espaço em disco suficiente.';
       } else if (errorMessage.toLowerCase().includes('key') || errorMessage.toLowerCase().includes('chave')) {
@@ -167,7 +193,7 @@ export default function UpdateStatus() {
         title: '❌ Erro ao processar atualização',
         description: errorMessage,
         variant: 'destructive',
-        duration: 10000,
+        duration: 15000, // Aumentar duração para mensagens longas
       });
       
       setDownloadProgress('');
