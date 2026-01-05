@@ -860,17 +860,17 @@ export default function OrderList() {
 
     // Se não estamos usando paginação do backend, aplicar todos os filtros localmente
     if (!isBackendPaginated) {
-    // Filtro de busca por cliente/ID
-    if (searchTerm) {
-      filtered = filtered.filter((order) => {
-        const clienteName = order.cliente || order.customer_name || '';
-        return (
-          clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.id.toString().includes(searchTerm) ||
-          (order.numero && order.numero.toString().includes(searchTerm))
-        );
-      });
-    }
+      // Filtro de busca por cliente/ID
+      if (searchTerm) {
+        filtered = filtered.filter((order) => {
+          const clienteName = order.cliente || order.customer_name || '';
+          return (
+            clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.id.toString().includes(searchTerm) ||
+            (order.numero && order.numero.toString().includes(searchTerm))
+          );
+        });
+      }
 
       // Filtro por status de produção
       if (productionStatusFilter === 'pending') {
@@ -984,7 +984,7 @@ export default function OrderList() {
   // A paginação já foi feita no backend, então retornar os pedidos diretamente
   const paginatedOrders = useMemo(() => {
     // Quando usando paginação do backend, retornar os pedidos diretamente
-      // (a paginação já foi feita no backend)
+    // (a paginação já foi feita no backend)
     if (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready' || productionStatusFilter === 'all') {
       return orders; // orders já vem paginado do backend
     } else {
