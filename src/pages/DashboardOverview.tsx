@@ -18,6 +18,8 @@ import {
   Search
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
+import { useAuthStore } from '../store/authStore';
+import { api } from '../services/api';
 import { OrderWithItems } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,12 +49,93 @@ interface RecentOrder extends OrderWithItems {
 
 export default function DashboardOverview() {
   const navigate = useNavigate();
-  const { orders } = useOrderStore();
+  const { orders, setOrders } = useOrderStore();
+  const logout = useAuthStore((state) => state.logout);
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Função para carregar pedidos do servidor
+  const loadOrdersFromServer = useCallback(async (showToast = false) => {
+    try {
+      setIsRefreshing(true);
+      setError(null);
+      
+      // Carregar pedidos paginados com limite alto para ter dados suficientes para estatísticas
+      // Usar múltiplas páginas se necessário, mas começar com uma página grande
+      const pageSize = 100; // Limite alto para dashboard
+      let allOrders: OrderWithItems[] = [];
+      let currentPage = 1;
+      let hasMore = true;
+      
+      // Carregar pedidos em lotes até ter dados suficientes ou não houver mais
+      while (hasMore && currentPage <= 5) { // Limitar a 5 páginas (500 pedidos) para não sobrecarregar
+        const result = await api.getOrdersPaginated(
+          currentPage,
+          pageSize,
+          undefined, // status - todos
+          undefined, // cliente
+          undefined, // data_inicio
+          undefined  // data_fim
+        );
+        
+        allOrders = [...allOrders, ...result.orders];
+        
+        // Se retornou menos que o pageSize, não há mais páginas
+        if (result.orders.length < pageSize || currentPage >= result.total_pages) {
+          hasMore = false;
+        } else {
+          currentPage++;
+        }
+      }
+      
+      // Atualizar o store com os pedidos carregados
+      setOrders(allOrders);
+      setLastUpdate(new Date());
+      
+      if (showToast) {
+        toast({
+          title: 'Atualizado',
+          description: `${allOrders.length} pedidos carregados com sucesso`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar pedidos:', error);
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Erro desconhecido';
+      setError(errorMessage);
+      
+      // Verificar se é erro de sessão
+      if (errorMessage.toLowerCase().includes('sessão') || 
+          errorMessage.toLowerCase().includes('token') ||
+          error?.response?.status === 401) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar.',
+          variant: 'destructive',
+        });
+        logout();
+        navigate('/login', { replace: true });
+        return;
+      }
+      
+      toast({
+        title: 'Erro ao carregar dados',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  }, [setOrders, toast, logout, navigate]);
+
+  // Carregar pedidos quando o componente montar
+  useEffect(() => {
+    loadOrdersFromServer();
+  }, [loadOrdersFromServer]);
 
   // Validar se orders é um array válido
   const validOrders = useMemo(() => {
@@ -193,23 +276,14 @@ export default function DashboardOverview() {
     }
   }, [validOrders, toast]);
 
-  useEffect(() => {
-    setLoading(false);
-    setLastUpdate(new Date());
-  }, [stats]);
-
   // Atualização automática a cada 30 segundos
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsRefreshing(true);
-      setTimeout(() => {
-        setIsRefreshing(false);
-        setLastUpdate(new Date());
-      }, 500);
-    }, 30000);
+      loadOrdersFromServer(false); // Não mostrar toast na atualização automática
+    }, 30000); // 30 segundos
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadOrdersFromServer]);
 
   // Memoizar funções de formatação
   const formatDays = useCallback((days: number): string => {
@@ -306,16 +380,8 @@ export default function DashboardOverview() {
   }, [validOrders]);
 
   const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setLastUpdate(new Date());
-      toast({
-        title: 'Atualizado',
-        description: 'Dashboard atualizado com sucesso',
-      });
-    }, 500);
-  }, [toast]);
+    loadOrdersFromServer(true); // Mostrar toast no refresh manual
+  }, [loadOrdersFromServer]);
 
 
   const formatLastUpdate = useCallback((date: Date): string => {
@@ -367,6 +433,9 @@ export default function DashboardOverview() {
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Última atualização: {formatLastUpdate(lastUpdate)}
+            {error && (
+              <span className="text-red-500 ml-2">⚠️ Erro ao carregar dados</span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -397,6 +466,29 @@ export default function DashboardOverview() {
           </Button>
         </div>
       </div>
+
+      {/* Mensagem de erro se houver */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                Erro ao carregar dados
+              </p>
+              <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                {error}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadOrdersFromServer(true)}
+            >
+              Tentar Novamente
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Busca Rápida */}
       <div className="relative">
