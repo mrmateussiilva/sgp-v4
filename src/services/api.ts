@@ -874,6 +874,102 @@ const fetchOrdersRaw = async (): Promise<ApiPedido[]> => {
   return response.data ?? [];
 };
 
+/**
+ * Busca pedidos com paginação do backend (usa skip/limit)
+ * Para calcular o total, faz uma chamada adicional sem limit
+ */
+const fetchOrdersPaginated = async (
+  page: number = 1,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+  status?: OrderStatus,
+  cliente?: string,
+  data_inicio?: string,
+  data_fim?: string
+): Promise<PaginatedOrders> => {
+  requireSessionToken();
+  
+  const skip = (page - 1) * pageSize;
+  const limit = pageSize;
+  
+  // Construir query params
+  const params: Record<string, any> = {
+    skip,
+    limit,
+  };
+  
+  if (status) {
+    // Converter OrderStatus para formato da API
+    const statusMap: Record<OrderStatus, string> = {
+      [OrderStatus.Pendente]: 'pendente',
+      [OrderStatus.EmProcessamento]: 'em_producao',
+      [OrderStatus.Concluido]: 'pronto',
+      [OrderStatus.Entregue]: 'entregue',
+      [OrderStatus.Cancelado]: 'cancelado',
+    };
+    params.status = statusMap[status] || status;
+  }
+  
+  if (cliente) {
+    params.cliente = cliente;
+  }
+  
+  if (data_inicio) {
+    params.data_inicio = data_inicio;
+  }
+  
+  if (data_fim) {
+    params.data_fim = data_fim;
+  }
+  
+  // Buscar pedidos paginados
+  const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
+  const paginatedData = (response.data ?? []).map(mapPedidoFromApi);
+  
+  // Para calcular o total de forma eficiente:
+  // - Se retornou menos que pageSize, sabemos que é a última página
+  // - Se retornou exatamente pageSize, fazer uma chamada adicional apenas na primeira página
+  //   para contar o total (e cachear se possível)
+  let total = paginatedData.length;
+  let totalPages = 1;
+  
+  if (paginatedData.length < pageSize) {
+    // Última página: calcular total exato
+    total = skip + paginatedData.length;
+    totalPages = Math.ceil(total / pageSize);
+  } else if (page === 1) {
+    // Primeira página: fazer chamada adicional para contar total
+    // Usar limit alto para obter todos e contar (otimização futura: endpoint de contagem)
+    const countParams = { ...params };
+    delete countParams.skip;
+    delete countParams.limit;
+    countParams.limit = 10000; // Limite alto para contar (otimização futura: endpoint COUNT)
+    
+    try {
+      const countResponse = await apiClient.get<ApiPedido[]>('/pedidos/', { params: countParams });
+      total = (countResponse.data ?? []).length;
+      totalPages = Math.ceil(total / pageSize);
+    } catch (error) {
+      // Se falhar, estimar conservadoramente
+      console.warn('Erro ao contar total de pedidos, usando estimativa:', error);
+      total = paginatedData.length + pageSize; // Estimativa conservadora
+      totalPages = Math.ceil(total / pageSize);
+    }
+  } else {
+    // Páginas seguintes: estimar baseado na página atual
+    // (o total já foi calculado na primeira página)
+    total = skip + paginatedData.length + pageSize; // Estimativa conservadora
+    totalPages = Math.ceil(total / pageSize);
+  }
+  
+  return {
+    orders: paginatedData,
+    total,
+    page,
+    page_size: pageSize,
+    total_pages: totalPages,
+  };
+};
+
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
   const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
@@ -1327,6 +1423,21 @@ export const api = {
 
   getOrders: async (): Promise<OrderWithItems[]> => {
     return await fetchOrders();
+  },
+
+  /**
+   * Busca pedidos com paginação do backend (usa skip/limit)
+   * Esta função deve ser usada quando productionStatusFilter === 'all' para evitar carregar todos os pedidos
+   */
+  getOrdersPaginated: async (
+    page: number = 1,
+    pageSize: number = DEFAULT_PAGE_SIZE,
+    status?: OrderStatus,
+    cliente?: string,
+    data_inicio?: string,
+    data_fim?: string
+  ): Promise<PaginatedOrders> => {
+    return await fetchOrdersPaginated(page, pageSize, status, cliente, data_inicio, data_fim);
   },
 
   getPendingOrdersLight: async (): Promise<OrderWithItems[]> => {

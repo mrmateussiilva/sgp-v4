@@ -347,13 +347,21 @@ export default function OrderList() {
         setTotalPages(paginatedData.total_pages);
         setTotalOrders(paginatedData.total);
       } else {
-        const data = await api.getOrders();
+        // Usar paginação do backend mesmo para 'all' para evitar carregar todos os pedidos
+        const paginatedData = await api.getOrdersPaginated(
+          currentPage + 1,
+          currentPageSize,
+          undefined, // status
+          searchTerm || undefined, // cliente
+          dateFrom || undefined, // data_inicio
+          dateTo || undefined // data_fim
+        );
         if (loadRequestRef.current !== requestId) {
           return;
         }
-        setOrders(data);
-        setTotalPages(Math.ceil(data.length / currentPageSize) || 1);
-        setTotalOrders(data.length);
+        setOrders(paginatedData.orders);
+        setTotalPages(paginatedData.total_pages);
+        setTotalOrders(paginatedData.total);
       }
     } catch (error) {
       const message = extractErrorMessage(error);
@@ -831,23 +839,29 @@ export default function OrderList() {
     return count;
   }, [selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, searchTerm, dateFrom, dateTo]);
 
+  // Verificar se estamos usando paginação do backend
+  const isBackendPaginated = dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready' || productionStatusFilter === 'all';
+
   const filteredOrders = useMemo(() => {
+    // Se estamos usando paginação do backend, os pedidos já vêm filtrados e paginados
+    // Aplicar apenas filtros avançados que não estão disponíveis no backend
     let filtered = orders;
 
-    // Filtro de busca por cliente/ID
-    if (searchTerm) {
-      filtered = filtered.filter((order) => {
-        const clienteName = order.cliente || order.customer_name || '';
-        return (
-          clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          order.id.toString().includes(searchTerm) ||
-          (order.numero && order.numero.toString().includes(searchTerm))
-        );
-      });
-    }
+    // Se não estamos usando paginação do backend, aplicar todos os filtros localmente
+    if (!isBackendPaginated) {
+      // Filtro de busca por cliente/ID
+      if (searchTerm) {
+        filtered = filtered.filter((order) => {
+          const clienteName = order.cliente || order.customer_name || '';
+          return (
+            clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.id.toString().includes(searchTerm) ||
+            (order.numero && order.numero.toString().includes(searchTerm))
+          );
+        });
+      }
 
-    // Filtro por status de produção (se não estiver usando filtros de data)
-    if (!dateFrom && !dateTo) {
+      // Filtro por status de produção
       if (productionStatusFilter === 'pending') {
         filtered = filtered.filter(order => !order.pronto);
       } else if (productionStatusFilter === 'ready') {
@@ -855,7 +869,7 @@ export default function OrderList() {
       }
     }
 
-    // Filtros avançados
+    // Filtros avançados (sempre aplicados, pois não estão disponíveis no backend)
     if (selectedStatuses.length > 0) {
       filtered = filtered.filter((order) => {
         const statusChecks = [];
@@ -890,7 +904,7 @@ export default function OrderList() {
       });
     }
 
-    // Ordenação
+    // Ordenação (sempre aplicada localmente para consistência)
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
         let aValue: any;
@@ -928,7 +942,7 @@ export default function OrderList() {
     }
 
     return filtered;
-  }, [orders, searchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, sortColumn, sortDirection]);
+  }, [orders, searchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, sortColumn, sortDirection, isBackendPaginated]);
 
   // Calcular total de páginas baseado nos pedidos filtrados
   const totalPagesFiltered = useMemo(() => {
@@ -955,20 +969,20 @@ export default function OrderList() {
     }
   }, [totalPages, totalPagesFiltered, page, dateFrom, dateTo, productionStatusFilter]);
 
-  // Para pedidos com filtros de data, pendentes e prontos com paginação, usar dados do backend
-  // Para outros casos, usar paginação local dos pedidos filtrados
+  // Para pedidos com filtros de data, pendentes, prontos e 'all' com paginação, usar dados do backend
+  // A paginação já foi feita no backend, então retornar os pedidos diretamente
   const paginatedOrders = useMemo(() => {
-    if (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready') {
-      // Quando usando paginação do backend, retornar os pedidos filtrados diretamente
-      // (a paginação já foi feita no backend)
-      return filteredOrders;
+    // Quando usando paginação do backend, retornar os pedidos diretamente
+    // (a paginação já foi feita no backend)
+    if (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready' || productionStatusFilter === 'all') {
+      return orders; // orders já vem paginado do backend
     } else {
-      // Paginação local para filtro 'all' e outros casos
+      // Paginação local apenas para casos especiais (não deveria acontecer normalmente)
       const startIndex = page * rowsPerPage;
       const endIndex = startIndex + rowsPerPage;
       return filteredOrders.slice(startIndex, endIndex);
     }
-  }, [filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
+  }, [orders, filteredOrders, page, rowsPerPage, dateFrom, dateTo, productionStatusFilter]);
 
   // Handlers para painel lateral - precisa estar depois de paginatedOrders
   const handleOpenContextPanel = (order: OrderWithItems) => {
