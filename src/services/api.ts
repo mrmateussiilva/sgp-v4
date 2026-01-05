@@ -2028,8 +2028,30 @@ export async function updateUser(
 
 export async function deleteUser(_sessionToken: string, userId: number): Promise<boolean> {
   requireSessionToken();
-  await apiClient.delete(`/users/${userId}`);
-  return true;
+  
+  // Validar userId
+  if (!userId || typeof userId !== 'number' || isNaN(userId) || userId <= 0) {
+    throw new Error('ID do usuário inválido');
+  }
+  
+  // Garantir que a URL seja construída corretamente
+  const url = `/users/${encodeURIComponent(userId)}`;
+  
+  try {
+    await apiClient.delete(url);
+    return true;
+  } catch (error: any) {
+    console.error('Erro ao excluir usuário:', error);
+    
+    // Re-lançar erro com mensagem mais clara
+    if (error?.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    if (error?.message) {
+      throw error;
+    }
+    throw new Error('Erro desconhecido ao excluir usuário');
+  }
 }
 
 export async function getOrdersByDeliveryDate(

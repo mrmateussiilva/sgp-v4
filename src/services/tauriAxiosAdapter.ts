@@ -12,11 +12,25 @@ function resolveUrl(config: AxiosRequestConfig): string {
 
   if (baseURL) {
     try {
-      return new URL(url, baseURL).toString();
-    } catch {
+      // Tentar construir URL usando URL constructor
+      const fullUrl = new URL(url, baseURL);
+      return fullUrl.toString();
+    } catch (error) {
+      // Se falhar, fazer concatenação manual mais robusta
       const trimmedBase = baseURL.replace(/\/+$/, '');
       const trimmedUrl = url.replace(/^\/+/, '');
-      return `${trimmedBase}/${trimmedUrl}`;
+      const combined = `${trimmedBase}/${trimmedUrl}`;
+      
+      // Validar se a URL resultante é válida
+      try {
+        new URL(combined);
+        return combined;
+      } catch {
+        // Se ainda falhar, retornar a URL combinada mesmo assim
+        // O fetch do Tauri pode aceitar URLs relativas
+        console.warn('URL construction warning:', { baseURL, url, combined, error });
+        return combined;
+      }
     }
   }
 

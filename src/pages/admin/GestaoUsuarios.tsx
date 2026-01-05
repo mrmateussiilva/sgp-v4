@@ -198,6 +198,16 @@ export default function GestaoUsuarios() {
   const handleDelete = async () => {
     if (!usuarioToDelete) return;
 
+    // Validar se o ID do usuário é válido
+    if (!usuarioToDelete.id || typeof usuarioToDelete.id !== 'number' || isNaN(usuarioToDelete.id)) {
+      toast({
+        title: 'Erro',
+        description: 'ID do usuário inválido',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (!sessionToken) {
@@ -214,12 +224,36 @@ export default function GestaoUsuarios() {
       setUsuarioToDelete(null);
       loadUsuarios();
     } catch (error: any) {
+      console.error('Erro ao excluir usuário:', error);
+      
+      // Melhorar tratamento de erro
+      let errorMessage = 'Erro ao excluir usuário';
+      if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Verificar se é erro de sessão
+      if (errorMessage.toLowerCase().includes('sessão') || 
+          errorMessage.toLowerCase().includes('token') ||
+          error?.response?.status === 401) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar.',
+          variant: 'destructive',
+        });
+        navigate('/login', { replace: true });
+        return;
+      }
+      
       toast({
         title: 'Erro',
-        description: error.toString(),
+        description: errorMessage,
         variant: 'destructive',
       });
-      console.error('Erro ao excluir usuário:', error);
     } finally {
       setIsLoading(false);
     }
