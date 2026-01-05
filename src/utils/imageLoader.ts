@@ -191,11 +191,22 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     
     // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
     // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
-    if (relativePath.startsWith('/pedidos/tmp/') || /^\/pedidos\/\d+\//.test(relativePath)) {
+    // IMPORTANTE: Verificar tanto o normalized quanto o relativePath para capturar todos os casos
+    const isPedidosTmp = relativePath.startsWith('/pedidos/tmp/') || normalized.startsWith('pedidos/tmp/');
+    const isPedidosId = /^\/pedidos\/\d+\//.test(relativePath) || /^pedidos\/\d+\//.test(normalized);
+    
+    if (isPedidosTmp || isPedidosId) {
       // Construir caminho para o endpoint /pedidos/media/{file_path}
       // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
-      relativePath = `/pedidos/media${relativePath}`;
-      console.log('[loadAuthenticatedImage] 🔄 Convertendo para endpoint /media/:', relativePath);
+      // Garantir que o caminho comece com / para construir corretamente
+      const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+      relativePath = `/pedidos/media${cleanPath}`;
+      console.log('[loadAuthenticatedImage] 🔄 Convertendo para endpoint /media/:', {
+        original: imagePath,
+        normalized,
+        cleanPath,
+        relativePath
+      });
     }
     
     console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {

@@ -392,6 +392,19 @@ export default function OrderList() {
     loadOrders();
   }, [loadOrders]);
 
+  // Recarregar pedidos quando o modal de visualização for fechado
+  useEffect(() => {
+    if (!viewModalOpen) {
+      // Pequeno delay para garantir que o modal foi completamente fechado
+      const timeoutId = setTimeout(() => {
+        console.log('[OrderList] Modal fechado, recarregando pedidos...');
+        loadOrders();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [viewModalOpen, loadOrders]);
+
   // Debounce na busca para evitar requisições a cada tecla digitada
   useEffect(() => {
     const timer = setTimeout(() => {

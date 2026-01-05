@@ -9,7 +9,7 @@ import { api } from '../services/api';
 import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
-import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
+import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { OrderPrintManager } from './OrderPrintManager';
 
 interface OrderViewModalProps {
@@ -115,21 +115,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, order?.items, openItemKey]);
 
-  // Cleanup: revogar blob URLs quando o componente for desmontado ou modal fechar
-  useEffect(() => {
-    return () => {
-      // Só revogar URLs se o modal principal estiver fechado
-      if (!isOpen) {
-        itemImageUrls.forEach((_blobUrl, itemKey) => {
-          // Encontrar o caminho original da imagem para revogar
-          const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
-          if (item?.imagem) {
-            revokeImageUrl(item.imagem);
-          }
-        });
-      }
-    };
-  }, [itemImageUrls, order?.items, isOpen]);
+  // REMOVIDO: Cleanup que revogava blob URLs quando o modal fechava
+  // O cache global do imageLoader já gerencia as blob URLs e não precisa ser limpo manualmente
+  // Isso permite que as imagens sejam reutilizadas quando o modal reabrir
 
   if (!order) return null;
 

@@ -552,7 +552,9 @@ const processTemplateHTML = (
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
         // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
         // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
-        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd)[^:]+: (?:|Não|0| )<\/div>/gi, '');
+        // IMPORTANTE: NÃO remover campos importantes mesmo se tiverem valor "Não" ou "0"
+        // Apenas remover campos genéricos que não são relevantes para totem
+        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd|Totem|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'lona') {
         // Lona: remover campos de painel, tecido, totem e adesivo
         // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
@@ -663,7 +665,9 @@ const processTemplateHTML = (
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
     // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
     // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
-    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd)[^:]+: (?:|Não|0| )<\/div>/gi, '');
+    // IMPORTANTE: NÃO remover campos importantes mesmo se tiverem valor "Não" ou "0"
+    // Apenas remover campos genéricos que não são relevantes para totem
+    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd|Totem|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'lona') {
     // Lona: remover campos de painel, tecido, totem e adesivo
     // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)

@@ -971,8 +971,25 @@ const fetchOrdersPaginated = async (
 
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
-  const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
-  return mapPedidoFromApi(response.data);
+  
+  try {
+    // PRIMEIRO: Tentar buscar do JSON salvo pela API (mais completo)
+    const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
+    const jsonOrder = jsonResponse.data;
+    
+    // Normalizar caminhos de imagem para URLs absolutas se necessário
+    // IMPORTANTE: Não normalizar aqui - deixar o imageLoader fazer a normalização
+    // Isso evita duplicação de caminhos e problemas com blob URLs
+    // O imageLoader já trata caminhos relativos corretamente via /pedidos/media/{file_path}
+    
+    // Converter o JSON para OrderWithItems
+    return mapPedidoFromApi(jsonOrder);
+  } catch (error) {
+    // FALLBACK: Se não houver JSON, buscar da API normal
+    console.warn(`[fetchOrderById] JSON não encontrado para pedido ${orderId}, usando API normal:`, error);
+    const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
+    return mapPedidoFromApi(response.data);
+  }
 };
 
 const fetchOrders = async (): Promise<OrderWithItems[]> => {
