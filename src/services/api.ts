@@ -1752,7 +1752,8 @@ export const api = {
   },
 
   getOrderFicha: async (orderId: number): Promise<OrderFicha> => {
-    return fetchOrderFicha(sessionToken, orderId);
+    requireSessionToken();
+    return fetchOrderFicha('', orderId);
   },
 
   getClientes: async (): Promise<Cliente[]> => {
