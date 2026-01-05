@@ -16,9 +16,7 @@ import {
   Target,
   RefreshCw,
   Search,
-  Edit,
-  DollarSign,
-  TrendingUp
+  Edit
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
@@ -43,9 +41,7 @@ interface DashboardStats {
   avgDelayTime: number;
   todayOrders: number;
   efficiencyRate: number;
-  totalPendingValue: number;
-  totalCompletedValue: number;
-  averageTicket: number;
+  shippingMethods: Array<{ name: string; count: number; percentage: number }>;
 }
 
 interface RecentOrder extends OrderWithItems {
@@ -170,9 +166,7 @@ export default function DashboardOverview() {
           avgDelayTime: 0,
           todayOrders: 0,
           efficiencyRate: 0,
-          totalPendingValue: 0,
-          totalCompletedValue: 0,
-          averageTicket: 0,
+          shippingMethods: [],
         };
       }
       
@@ -253,34 +247,21 @@ export default function DashboardOverview() {
         ? Math.round((onTimeOrders / completedOrders) * 100) 
         : 0;
 
-      // Calcular valores financeiros
-      const parseValue = (value: number | string | undefined): number => {
-        if (typeof value === 'number') return value;
-        if (typeof value === 'string') {
-          const parsed = parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'));
-          return isNaN(parsed) ? 0 : parsed;
-        }
-        return 0;
-      };
+      // Calcular distribuição por forma de envio
+      const shippingCounts: Record<string, number> = {};
+      validOrders.forEach(order => {
+        const shippingMethod = order.forma_envio || 'Não especificado';
+        shippingCounts[shippingMethod] = (shippingCounts[shippingMethod] || 0) + 1;
+      });
 
-      const pendingOrdersList = validOrders.filter(order => !order.pronto);
-      const completedOrdersList = validOrders.filter(order => order.pronto);
-
-      const totalPendingValue = pendingOrdersList.reduce((sum, order) => {
-        return sum + parseValue(order.total_value || order.valor_total || 0);
-      }, 0);
-
-      const totalCompletedValue = completedOrdersList.reduce((sum, order) => {
-        return sum + parseValue(order.total_value || order.valor_total || 0);
-      }, 0);
-
-      const totalValue = validOrders.reduce((sum, order) => {
-        return sum + parseValue(order.total_value || order.valor_total || 0);
-      }, 0);
-
-      const averageTicket = totalOrders > 0 
-        ? Math.round(totalValue / totalOrders) 
-        : 0;
+      const shippingMethods = Object.entries(shippingCounts)
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: Math.round((count / totalOrders) * 100),
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // Top 5 formas de envio
 
       return {
         totalOrders,
@@ -292,9 +273,7 @@ export default function DashboardOverview() {
         avgDelayTime,
         todayOrders,
         efficiencyRate,
-        totalPendingValue,
-        totalCompletedValue,
-        averageTicket,
+        shippingMethods,
       };
     } catch (error) {
       console.error('Erro ao calcular estatísticas:', error);
@@ -313,9 +292,7 @@ export default function DashboardOverview() {
         avgDelayTime: 0,
         todayOrders: 0,
         efficiencyRate: 0,
-        totalPendingValue: 0,
-        totalCompletedValue: 0,
-        averageTicket: 0,
+        shippingMethods: [],
       };
     }
   }, [validOrders, toast]);
@@ -436,14 +413,6 @@ export default function DashboardOverview() {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }, []);
 
-  const formatCurrency = useCallback((value: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }, []);
 
   const handleCardClick = useCallback((filterType: 'all' | 'pending' | 'completed' | 'overdue' | 'urgent') => {
     const params = new URLSearchParams();
@@ -651,53 +620,44 @@ export default function DashboardOverview() {
         </Card>
       </div>
 
-      {/* Financial Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card 
-          className="cursor-pointer hover:bg-accent transition-colors"
-          onClick={() => handleCardClick('pending')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Pendente</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(stats.totalPendingValue)}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.pendingOrders} pedidos em produção
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className="cursor-pointer hover:bg-accent transition-colors"
-          onClick={() => handleCardClick('completed')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Concluído</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalCompletedValue)}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.completedOrders} pedidos prontos
-            </p>
-          </CardContent>
-        </Card>
-
+      {/* Shipping Methods Distribution */}
+      {stats.shippingMethods.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-blue-500" />
+              Formas de Envio
+            </CardTitle>
+            <CardDescription>
+              Distribuição de pedidos por forma de envio
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.averageTicket)}</div>
-            <p className="text-xs text-muted-foreground">
-              Por pedido
-            </p>
+            <div className="space-y-3">
+              {stats.shippingMethods.map((method) => (
+                <div key={method.name} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{method.name}</span>
+                    <span className="text-muted-foreground">
+                      {method.count} pedidos ({method.percentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" 
+                      style={{ width: `${method.percentage}%` }}
+                      role="progressbar"
+                      aria-valuenow={method.percentage}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Time-based Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
