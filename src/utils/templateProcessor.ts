@@ -551,8 +551,8 @@ const processTemplateHTML = (
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
         itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
         // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
-        // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores
-        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade Totem|Valor Totem|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
+        // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
+        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd)[^:]+: (?:|Não|0| )<\/div>/gi, '');
       } else if (tipoProducao === 'lona') {
         // Lona: remover campos de painel, tecido, totem e adesivo
         // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
@@ -662,8 +662,8 @@ const processTemplateHTML = (
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
     processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
     // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
-    // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores
-    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade Totem|Valor Totem|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
+    // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
+    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd)[^:]+: (?:|Não|0| )<\/div>/gi, '');
   } else if (tipoProducao === 'lona') {
     // Lona: remover campos de painel, tecido, totem e adesivo
     // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)

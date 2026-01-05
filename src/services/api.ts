@@ -1678,8 +1678,7 @@ export const api = {
   },
 
   getOrderFicha: async (orderId: number): Promise<OrderFicha> => {
-    const order = await fetchOrderById(orderId);
-    return mapOrderToFicha(order);
+    return fetchOrderFicha(sessionToken, orderId);
   },
 
   getClientes: async (): Promise<Cliente[]> => {
@@ -2077,9 +2076,27 @@ export async function getOrdersByDeliveryDate(
   });
 }
 
+async function fetchOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
+  requireSessionToken();
+  
+  try {
+    // PRIMEIRO: Tentar buscar do JSON salvo pela API
+    const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
+    const jsonOrder = jsonResponse.data;
+    
+    // Converter o JSON para OrderWithItems e depois para OrderFicha
+    const order = mapPedidoFromApi(jsonOrder);
+    return mapOrderToFicha(order);
+  } catch (error) {
+    // FALLBACK: Se não houver JSON, buscar do banco normalmente
+    console.warn(`[getOrderFicha] JSON não encontrado para pedido ${orderId}, usando fallback:`, error);
+    const order = await fetchOrderById(orderId);
+    return mapOrderToFicha(order);
+  }
+}
+
 export async function getOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
-  const order = await fetchOrderById(orderId);
-  return mapOrderToFicha(order);
+  return fetchOrderFicha(_sessionToken, orderId);
 }
 
 // ==================== TIPOS DE PRODUÇÃO ====================
