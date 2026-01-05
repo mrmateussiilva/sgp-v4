@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Edit, Eye, Trash2, FileText, Printer, X, Clock, AlertTriangle, CheckCircle2, MapPin, User, Calendar } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, X, Clock, AlertTriangle, CheckCircle2, MapPin, User, Calendar } from 'lucide-react';
 import { OrderWithItems } from '@/types';
 import { formatDateForDisplay } from '@/utils/date';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,6 @@ interface OrderContextPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit: (orderId: number) => void;
-  onView: (order: OrderWithItems) => void;
   onDelete: (orderId: number) => void;
   onPrint: (orderId: number) => void;
   onStatusChange?: (orderId: number, field: string, value: boolean) => void;
@@ -25,7 +24,6 @@ export function OrderContextPanel({
   isOpen,
   onClose,
   onEdit,
-  onView,
   onDelete,
   onPrint,
   onStatusChange,
@@ -296,15 +294,6 @@ export function OrderContextPanel({
           {/* Footer com ações */}
           <div className="sticky bottom-0 border-t border-border bg-card p-4 space-y-2">
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onView(order)}
-                className="w-full"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Ver
-              </Button>
               <Button
                 variant="outline"
                 size="sm"

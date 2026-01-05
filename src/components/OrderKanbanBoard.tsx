@@ -3,7 +3,7 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Eye, FileText, Trash2 } from 'lucide-react';
+import { Edit, FileText, Trash2 } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { EditingIndicator } from './EditingIndicator';
 import {
@@ -17,7 +17,6 @@ interface OrderKanbanBoardProps {
   orders: OrderWithItems[];
   onStatusChange: (orderId: number, newStatus: string) => void;
   onEdit: (order: OrderWithItems) => void;
-  onView: (order: OrderWithItems) => void;
   onViewOrder: (order: OrderWithItems) => void;
   onDelete: (orderId: number) => void;
   isAdmin: boolean;
@@ -81,7 +80,6 @@ export function OrderKanbanBoard({
   orders,
   onStatusChange,
   onEdit,
-  onView,
   onViewOrder,
   onDelete,
   isAdmin,
@@ -278,22 +276,6 @@ export function OrderKanbanBoard({
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Visualizar</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7"
-                                  onClick={() => onView(order)}
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Detalhes</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
 

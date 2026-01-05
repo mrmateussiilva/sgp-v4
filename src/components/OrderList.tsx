@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, Eye, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
@@ -11,7 +11,6 @@ import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
-import OrderDetails from './OrderDetails';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
@@ -98,7 +97,6 @@ export default function OrderList() {
   const [cidades, setCidades] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
@@ -411,11 +409,6 @@ export default function OrderList() {
     // Navegar para a página de edição completa usando a nova rota
     // Como o Dashboard está em /dashboard/*, precisamos incluir o prefixo
     navigate(`/dashboard/pedido/editar/${order.id}`);
-  };
-
-  const handleView = (order: OrderWithItems) => {
-    setSelectedOrder(order);
-    setDetailsOpen(true);
   };
 
   const handleViewOrder = (order: OrderWithItems) => {
@@ -1112,23 +1105,13 @@ export default function OrderList() {
       key: 'ArrowUp',
       action: handleNavigateUp,
       description: 'Navegar para cima',
-      enabled: !detailsOpen && !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
+      enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
     },
     {
       key: 'ArrowDown',
       action: handleNavigateDown,
       description: 'Navegar para baixo',
-      enabled: !detailsOpen && !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
-    },
-    {
-      key: 'Enter',
-      action: () => {
-        if (selectedOrder && !detailsOpen && !viewModalOpen) {
-          handleView(selectedOrder);
-        }
-      },
-      description: 'Abrir detalhes',
-      enabled: selectedOrder !== null && !detailsOpen && !viewModalOpen,
+      enabled: !viewModalOpen && !editDialogOpen && !deleteDialogOpen,
     },
     {
       key: 'e',
@@ -1166,8 +1149,6 @@ export default function OrderList() {
       action: () => {
         if (contextPanelOpen) {
           handleCloseContextPanel();
-        } else if (detailsOpen) {
-          setDetailsOpen(false);
         } else if (viewModalOpen) {
           setViewModalOpen(false);
         } else if (deleteDialogOpen) {
@@ -1181,13 +1162,11 @@ export default function OrderList() {
     handleNavigateUp,
     handleNavigateDown,
     selectedOrder,
-    detailsOpen,
     viewModalOpen,
     editDialogOpen,
     deleteDialogOpen,
     contextPanelOpen,
     isAdmin,
-    handleView,
     handleEdit,
     handleDeleteClick,
     handleCloseContextPanel,
@@ -1409,7 +1388,6 @@ export default function OrderList() {
             orders={paginatedOrders}
             onStatusChange={handleKanbanStatusChange}
             onEdit={handleEdit}
-            onView={handleView}
             onViewOrder={handleViewOrder}
             onDelete={handleDeleteClick}
             isAdmin={isAdmin}
@@ -2075,18 +2053,6 @@ export default function OrderList() {
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleView(order);
-                            }}
-                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                            title="Detalhes"
-                          >
-                            <Eye className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
                               handleEdit(order);
                             }}
                             className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
@@ -2257,8 +2223,6 @@ export default function OrderList() {
         </DialogContent>
       </Dialog>
 
-      <OrderDetails open={detailsOpen} onClose={() => setDetailsOpen(false)} />
-      
       <OrderViewModal 
         isOpen={viewModalOpen} 
         onClose={() => setViewModalOpen(false)} 
@@ -2294,7 +2258,6 @@ export default function OrderList() {
             handleEdit(order);
           }
         }}
-        onView={(order) => handleView(order)}
         onDelete={(orderId) => handleDeleteClick(orderId)}
         onPrint={(orderId) => {
           const order = orders.find(o => o.id === orderId);

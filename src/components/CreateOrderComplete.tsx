@@ -651,18 +651,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   }, [routeOrderId, navigate, toast, mode]);
 
-  // Carregar pedido duplicado quando houver
-  useEffect(() => {
-    if (duplicateFrom && !isEditMode) {
-      console.log('[CreateOrderComplete] Carregando pedido para duplicar:', duplicateFrom);
-      populateFormFromOrder(duplicateFrom);
-      toast({
-        title: "Pedido duplicado",
-        description: `Dados do pedido ${duplicateFrom.numero || duplicateFrom.id} carregados. Ajuste os dados e salve como novo pedido.`,
-        variant: "success",
-      });
-    }
-  }, [duplicateFrom, isEditMode]);
 
   // Removido: não precisamos mais carregar lista de pedidos quando temos ID na rota
   // O pedido será carregado diretamente pelo ID
