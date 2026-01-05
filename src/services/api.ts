@@ -972,10 +972,30 @@ const fetchOrdersPaginated = async (
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
   
+  console.log(`[fetchOrderById] 🔍 Buscando pedido ${orderId}...`);
+  
   try {
     // PRIMEIRO: Tentar buscar do JSON salvo pela API (mais completo)
+    console.log(`[fetchOrderById] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
     const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
     const jsonOrder = jsonResponse.data;
+    
+    console.log(`[fetchOrderById] ✅ JSON encontrado!`, {
+      orderId,
+      source: 'JSON_FILE',
+      hasItems: !!jsonOrder.items,
+      itemsCount: jsonOrder.items?.length || 0,
+      firstItem: jsonOrder.items?.[0] ? {
+        id: jsonOrder.items[0].id,
+        item_name: jsonOrder.items[0].item_name,
+        tipo_producao: jsonOrder.items[0].tipo_producao,
+        overloque: jsonOrder.items[0].overloque,
+        elastico: jsonOrder.items[0].elastico,
+        emenda: jsonOrder.items[0].emenda,
+        emenda_qtd: jsonOrder.items[0].emenda_qtd,
+        imagem: jsonOrder.items[0].imagem
+      } : null
+    });
     
     // Normalizar caminhos de imagem para URLs absolutas se necessário
     // IMPORTANTE: Não normalizar aqui - deixar o imageLoader fazer a normalização
@@ -983,12 +1003,49 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
     // O imageLoader já trata caminhos relativos corretamente via /pedidos/media/{file_path}
     
     // Converter o JSON para OrderWithItems
-    return mapPedidoFromApi(jsonOrder);
+    const mappedOrder = mapPedidoFromApi(jsonOrder);
+    
+    console.log(`[fetchOrderById] 🔄 Dados mapeados (OrderWithItems):`, {
+      orderId: mappedOrder.id,
+      numero: mappedOrder.numero,
+      itemsCount: mappedOrder.items?.length || 0,
+      firstItemMapped: mappedOrder.items?.[0] ? {
+        id: mappedOrder.items[0].id,
+        item_name: mappedOrder.items[0].item_name,
+        tipo_producao: mappedOrder.items[0].tipo_producao,
+        overloque: mappedOrder.items[0].overloque,
+        elastico: mappedOrder.items[0].elastico,
+        emenda: mappedOrder.items[0].emenda,
+        emenda_qtd: mappedOrder.items[0].emenda_qtd,
+        imagem: mappedOrder.items[0].imagem
+      } : null
+    });
+    
+    return mappedOrder;
   } catch (error) {
     // FALLBACK: Se não houver JSON, buscar da API normal
-    console.warn(`[fetchOrderById] JSON não encontrado para pedido ${orderId}, usando API normal:`, error);
+    console.warn(`[fetchOrderById] ⚠️ JSON não encontrado para pedido ${orderId}, usando API normal:`, error);
+    console.log(`[fetchOrderById] 📡 Buscando da API: /pedidos/${orderId}`);
+    
     const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
-    return mapPedidoFromApi(response.data);
+    const mappedOrder = mapPedidoFromApi(response.data);
+    
+    console.log(`[fetchOrderById] ✅ Dados da API normal:`, {
+      orderId: mappedOrder.id,
+      source: 'API_DATABASE',
+      itemsCount: mappedOrder.items?.length || 0,
+      firstItem: mappedOrder.items?.[0] ? {
+        id: mappedOrder.items[0].id,
+        item_name: mappedOrder.items[0].item_name,
+        tipo_producao: mappedOrder.items[0].tipo_producao,
+        overloque: mappedOrder.items[0].overloque,
+        elastico: mappedOrder.items[0].elastico,
+        emenda: mappedOrder.items[0].emenda,
+        emenda_qtd: mappedOrder.items[0].emenda_qtd
+      } : null
+    });
+    
+    return mappedOrder;
   }
 };
 
@@ -2096,19 +2153,49 @@ export async function getOrdersByDeliveryDate(
 async function fetchOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
   requireSessionToken();
   
+  console.log(`[fetchOrderFicha] 🔍 Buscando ficha do pedido ${orderId}...`);
+  
   try {
     // PRIMEIRO: Tentar buscar do JSON salvo pela API
+    console.log(`[fetchOrderFicha] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
     const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
     const jsonOrder = jsonResponse.data;
     
+    console.log(`[fetchOrderFicha] ✅ JSON encontrado!`, {
+      orderId,
+      source: 'JSON_FILE',
+      hasItems: !!jsonOrder.items,
+      itemsCount: jsonOrder.items?.length || 0
+    });
+    
     // Converter o JSON para OrderWithItems e depois para OrderFicha
     const order = mapPedidoFromApi(jsonOrder);
-    return mapOrderToFicha(order);
+    const ficha = mapOrderToFicha(order);
+    
+    console.log(`[fetchOrderFicha] 🔄 Ficha mapeada:`, {
+      orderId: ficha.id,
+      itemsCount: ficha.items?.length || 0,
+      firstItem: ficha.items?.[0] ? {
+        id: ficha.items[0].id,
+        item_name: ficha.items[0].item_name,
+        tipo_producao: ficha.items[0].tipo_producao
+      } : null
+    });
+    
+    return ficha;
   } catch (error) {
     // FALLBACK: Se não houver JSON, buscar do banco normalmente
-    console.warn(`[getOrderFicha] JSON não encontrado para pedido ${orderId}, usando fallback:`, error);
+    console.warn(`[fetchOrderFicha] ⚠️ JSON não encontrado para pedido ${orderId}, usando fallback:`, error);
     const order = await fetchOrderById(orderId);
-    return mapOrderToFicha(order);
+    const ficha = mapOrderToFicha(order);
+    
+    console.log(`[fetchOrderFicha] ✅ Ficha do fallback:`, {
+      orderId: ficha.id,
+      source: 'API_DATABASE',
+      itemsCount: ficha.items?.length || 0
+    });
+    
+    return ficha;
   }
 }
 

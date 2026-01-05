@@ -167,6 +167,27 @@ export const createOrderDataMap = (
   order: OrderWithItems,
   item?: OrderItem
 ): OrderDataMap => {
+  console.log(`[createOrderDataMap] 🗺️ Criando mapa de dados:`, {
+    orderId: order.id,
+    itemId: item?.id,
+    itemName: item?.item_name,
+    tipoProducao: item?.tipo_producao,
+    itemData: item ? {
+      overloque: item.overloque,
+      elastico: item.elastico,
+      emenda: item.emenda,
+      emenda_qtd: item.emenda_qtd,
+      quantidade_paineis: item.quantidade_paineis,
+      tecido: item.tecido,
+      acabamento_totem: item.acabamento_totem,
+      quantidade_totem: item.quantidade_totem,
+      acabamento_lona: item.acabamento_lona,
+      quantidade_lona: item.quantidade_lona,
+      tipo_adesivo: item.tipo_adesivo,
+      quantidade_adesivo: item.quantidade_adesivo
+    } : null
+  });
+  
   const itemRecord = item as unknown as Record<string, unknown> || {};
   
   // Campos específicos com formatação
@@ -176,7 +197,7 @@ export const createOrderDataMap = (
     order.estado_cliente
   ].filter(Boolean).join(' / ') || '';
 
-  return {
+  const dataMap = {
     // Dados do pedido
     numero: order.numero || order.id?.toString() || '',
     cliente: order.customer_name || order.cliente || '',
@@ -229,13 +250,6 @@ export const createOrderDataMap = (
     // Campos adicionais do item
     overloque: item?.overloque ? 'Sim' : 'Não',
     elastico: item?.elastico ? 'Sim' : 'Não',
-    // Debug: verificar valores mapeados
-    ...(item?.tipo_producao === 'painel' || item?.tipo_producao === 'tecido' ? {
-      _debug_overloque: item?.overloque,
-      _debug_elastico: item?.elastico,
-      _debug_emenda: item?.emenda,
-      _debug_emenda_qtd: item?.emenda_qtd
-    } : {}),
     tipo_acabamento: item?.tipo_acabamento || '',
     quantidade_ilhos: item?.quantidade_ilhos || '',
     espaco_ilhos: item?.espaco_ilhos || '',
@@ -314,6 +328,311 @@ export const createOrderDataMap = (
       return acc;
     }, {} as OrderDataMap),
   };
+  
+  console.log(`[createOrderDataMap] ✅ Mapa criado:`, {
+    orderId: order.id,
+    itemId: item?.id,
+    tipoProducao: dataMap.tipo_producao,
+    camposRelevantes: {
+      overloque: dataMap.overloque,
+      elastico: dataMap.elastico,
+      emenda: dataMap.emenda,
+      emenda_qtd: dataMap.emenda_qtd,
+      quantidade_paineis: dataMap.quantidade_paineis,
+      tecido: dataMap.tecido,
+      acabamento_totem_display: dataMap.acabamento_totem_display,
+      quantidade_totem: dataMap.quantidade_totem,
+      acabamento_lona_display: dataMap.acabamento_lona_display,
+      quantidade_lona: dataMap.quantidade_lona,
+      tipo_adesivo: dataMap.tipo_adesivo,
+      quantidade_adesivo: dataMap.quantidade_adesivo
+    }
+  });
+  
+  return dataMap;
+};
+
+// ============================================================================
+// CONFIGURAÇÃO DE CAMPOS POR TIPO DE PRODUÇÃO
+// ============================================================================
+
+/**
+ * Define quais campos devem ser exibidos para cada tipo de produção
+ * Esta estrutura declarativa substitui a lógica complexa de regex
+ * 
+ * show: Lista de campos (pelos nomes das variáveis no template) que devem ser preservados
+ * hide: Lista de classes CSS que devem ser removidas do HTML
+ * preserveEmpty: Se true, não remove campos vazios (usa CSS para esconder)
+ */
+const FIELD_VISIBILITY_RULES = {
+  totem: {
+    show: ['acabamento_totem', 'quantidade_totem', 'valor_totem', 'outros_valores_totem', 'terceirizado'],
+    hide: ['spec-painel', 'spec-tecido', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: false
+  },
+  lona: {
+    show: ['acabamento_lona', 'quantidade_lona', 'valor_lona', 'outros_valores_lona', 'terceirizado'],
+    hide: ['spec-painel', 'spec-tecido', 'spec-totem', 'spec-adesivo'],
+    preserveEmpty: false
+  },
+  adesivo: {
+    show: ['tipo_adesivo', 'quantidade_adesivo', 'valor_adesivo', 'outros_valores_adesivo'],
+    hide: ['spec-painel', 'spec-tecido', 'spec-totem', 'spec-lona'],
+    preserveEmpty: false
+  },
+  painel: {
+    show: ['overloque', 'elastico', 'emenda', 'emenda_qtd', 'quantidade_paineis', 'tecido'],
+    hide: ['spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: true // Não remover campos vazios - usar CSS para esconder
+  },
+  tecido: {
+    show: ['overloque', 'elastico', 'emenda', 'emenda_qtd', 'tecido'],
+    hide: ['spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: true // Não remover campos vazios - usar CSS para esconder
+  }
+} as const;
+
+// ============================================================================
+// FUNÇÕES AUXILIARES DE LIMPEZA DE HTML
+// ============================================================================
+
+/**
+ * Remove elementos HTML baseado em seletores de classe
+ */
+const removeElementsByClass = (html: string, classesToRemove: readonly string[]): string => {
+  let result = html;
+  for (const className of classesToRemove) {
+    // Regex robusto que captura elementos com múltiplas classes
+    const regex = new RegExp(`<div[^>]*\\b${className}\\b[^>]*>.*?</div>`, 'gi');
+    result = result.replace(regex, '');
+  }
+  return result;
+};
+
+/**
+ * Mapeia nomes de variáveis para labels que aparecem no HTML
+ */
+const mapVariableToLabel: Record<string, string> = {
+  // Totem
+  'acabamento_totem': 'Acabamento Totem',
+  'quantidade_totem': 'Totem Qtd',
+  'valor_totem': 'Valor Totem',
+  'outros_valores_totem': 'Outros Valores Totem',
+  // Lona
+  'acabamento_lona': 'Acabamento Lona',
+  'quantidade_lona': 'Lona Qtd',
+  'valor_lona': 'Valor Lona',
+  'outros_valores_lona': 'Outros Valores Lona',
+  // Adesivo
+  'tipo_adesivo': 'Tipo Adesivo',
+  'quantidade_adesivo': 'Adesivo Qtd',
+  'valor_adesivo': 'Valor Adesivo',
+  'outros_valores_adesivo': 'Outros Valores Adesivo',
+  // Painel/Tecido
+  'overloque': 'Overloque',
+  'elastico': 'Elástico',
+  'emenda': 'Emenda',
+  'emenda_qtd': 'Qtd Emendas',
+  'quantidade_paineis': 'Painéis Qtd',
+  'tecido': 'Tecido',
+  // Genéricos
+  'terceirizado': 'Terceirizado'
+};
+
+/**
+ * Remove campos vazios do HTML, exceto campos específicos que devem ser preservados
+ * Aceita tanto nomes de variáveis quanto labels do HTML
+ */
+const removeEmptyFields = (html: string, fieldsToPreserve: readonly string[]): string => {
+  // Converter nomes de variáveis para labels se necessário
+  const labelsToPreserve = fieldsToPreserve.map(field => 
+    mapVariableToLabel[field] || field
+  );
+  
+  // Criar padrão de campos a preservar
+  const preservePattern = labelsToPreserve.length > 0 
+    ? `(?!${labelsToPreserve.join('|')})`
+    : '';
+  
+  // Remove divs com valor vazio, "Não" ou "0" após os dois pontos
+  const regex = new RegExp(`<div[^>]*>• ${preservePattern}[^:]+: (?:|Não|0| )</div>`, 'gi');
+  return html.replace(regex, '');
+};
+
+/**
+ * Normaliza o tipo de produção no HTML
+ */
+const normalizeTipoProducao = (html: string, tipoProducao: string): string => {
+  const normalized = tipoProducao.toLowerCase().trim();
+  return html.replace(
+    /data-tipo-producao="[^"]*"/gi,
+    `data-tipo-producao="${normalized}"`
+  );
+};
+
+/**
+ * Adiciona classe CSS "hidden-empty" em campos com "Não" ou vazio para painel/tecido
+ */
+const addHiddenEmptyClass = (html: string): string => {
+  // Adicionar classe hidden-empty em campos com "Não", vazio ou "0" após os dois pontos
+  // Para elementos com spec-painel ou spec-tecido
+  let result = html;
+  
+  // Substituir class="..." por class="... hidden-empty" quando encontrar ": Não", ": 0" ou ": "
+  result = result.replace(
+    /(class="([^"]*spec-item[^"]*spec-painel[^"]*))"[^>]*>• [^:]+: (Não|0| )\s*<\/div>/gi,
+    (match, p1) => {
+      return match.replace(p1, `${p1} hidden-empty`);
+    }
+  );
+  result = result.replace(
+    /(class="([^"]*spec-item[^"]*spec-tecido[^"]*))"[^>]*>• [^:]+: (Não|0| )\s*<\/div>/gi,
+    (match, p1) => {
+      return match.replace(p1, `${p1} hidden-empty`);
+    }
+  );
+  
+  return result;
+};
+
+/**
+ * Aplica regras de visibilidade de campos baseado no tipo de produção
+ */
+const applyFieldVisibilityRules = (html: string, tipoProducao: string): string => {
+  const rules = FIELD_VISIBILITY_RULES[tipoProducao as keyof typeof FIELD_VISIBILITY_RULES];
+  
+  if (!rules) {
+    // Tipo de produção desconhecido - remover apenas campos vazios genéricos
+    return removeEmptyFields(html, []);
+  }
+  
+  // 1. Remover classes que devem ser escondidas
+  let result = removeElementsByClass(html, rules.hide);
+  
+  // 2. Remover campos vazios se não for para preservar
+  if (!rules.preserveEmpty) {
+    result = removeEmptyFields(result, rules.show);
+  } else {
+    // Para painel/tecido, adicionar classe CSS para controle de visibilidade
+    result = addHiddenEmptyClass(result);
+    console.log(`[templateProcessor] Preservando campos vazios para tipo: ${tipoProducao}`);
+  }
+  
+  return result;
+};
+
+/**
+ * Substitui variáveis no HTML com dados do pedido
+ */
+const replaceVariables = (
+  html: string,
+  dataMap: OrderDataMap,
+  imageBase64Map: Map<string, string>,
+  item?: OrderItem
+): string => {
+  let result = html;
+  
+  for (const [key, value] of Object.entries(dataMap)) {
+    // Ignorar campos de debug
+    if (key.startsWith('_debug_')) continue;
+    
+    let replacementValue = String(value || '');
+    
+    // Tratamento especial para imagens
+    if (key === 'imagem' && item?.imagem) {
+      const imagePath = item.imagem.trim();
+      if (imageBase64Map.has(imagePath)) {
+        replacementValue = imageBase64Map.get(imagePath)!;
+      } else if (isValidImagePath(imagePath)) {
+        replacementValue = imagePath;
+      }
+    }
+    
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    
+    // Para imagens, não escapar HTML (já é base64 ou URL)
+    if (key === 'imagem') {
+      result = result.replace(regex, replacementValue);
+    } else {
+      result = result.replace(regex, escapeHtml(replacementValue));
+    }
+  }
+  
+  return result;
+};
+
+/**
+ * Processa tags <img> no HTML
+ */
+const processImageTags = (
+  html: string,
+  imagePath: string | undefined,
+  imageBase64Map: Map<string, string>
+): string => {
+  if (!imagePath) return html;
+  
+  const imageUrl = imageBase64Map.has(imagePath) 
+    ? imageBase64Map.get(imagePath)! 
+    : (isValidImagePath(imagePath) ? imagePath : '');
+  
+  if (!imageUrl) return html;
+  
+  // Substituir src="{{imagem}}" com a URL da imagem
+  return html.replace(
+    /src\s*=\s*["']?\{\{imagem\}\}["']?/gi,
+    `src="${imageUrl}"`
+  );
+};
+
+/**
+ * Processa um único item no template HTML
+ */
+const processItemTemplate = (
+  html: string,
+  order: OrderWithItems,
+  item: OrderItem,
+  imageBase64Map: Map<string, string>
+): string => {
+  const dataMap = createOrderDataMap(order, item);
+  const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
+  
+  console.log(`[processItemTemplate] 🔧 Processando item:`, {
+    itemId: item.id,
+    itemName: item.item_name,
+    tipoProducao,
+    dataMapFields: {
+      overloque: dataMap.overloque,
+      elastico: dataMap.elastico,
+      emenda: dataMap.emenda,
+      emenda_qtd: dataMap.emenda_qtd,
+      quantidade_paineis: dataMap.quantidade_paineis,
+      tecido: dataMap.tecido
+    }
+  });
+  
+  // 1. Substituir variáveis
+  let processed = replaceVariables(html, dataMap, imageBase64Map, item);
+  
+  // 2. Processar tags de imagem
+  processed = processImageTags(processed, item.imagem, imageBase64Map);
+  
+  // 3. Normalizar tipo de produção
+  processed = normalizeTipoProducao(processed, tipoProducao);
+  
+  // 4. Aplicar regras de visibilidade
+  processed = applyFieldVisibilityRules(processed, tipoProducao);
+  
+  console.log(`[processItemTemplate] ✅ Item processado:`, {
+    itemId: item.id,
+    tipoProducao,
+    processedLength: processed.length,
+    hasOverloque: processed.includes('Overloque'),
+    hasElastico: processed.includes('Elástico') || processed.includes('Elastico'),
+    hasEmenda: processed.includes('Emenda')
+  });
+  
+  // 5. Envolver em container com altura fixa
+  return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${processed}</div>`;
 };
 
 // ============================================================================
@@ -487,6 +806,7 @@ export const renderTemplate = (
 
 /**
  * Processa template HTML substituindo variáveis do pedido
+ * Usa a nova abordagem declarativa com FIELD_VISIBILITY_RULES
  */
 const processTemplateHTML = (
   html: string,
@@ -494,165 +814,28 @@ const processTemplateHTML = (
   items: OrderItem[] | undefined,
   imageBase64Map: Map<string, string>
 ): string => {
-  // Se houver múltiplos itens, processar cada um separadamente
+  console.log(`[processTemplateHTML] 🔄 Processando template HTML:`, {
+    orderId: order.id,
+    htmlLength: html.length,
+    itemsCount: items?.length || 0,
+    items: items?.map(item => ({
+      id: item.id,
+      item_name: item.item_name,
+      tipo_producao: item.tipo_producao,
+      overloque: item.overloque,
+      elastico: item.elastico,
+      emenda: item.emenda,
+      emenda_qtd: item.emenda_qtd
+    })) || [],
+    imageBase64MapSize: imageBase64Map.size
+  });
+  
+  // Múltiplos itens - processar cada um separadamente
   if (items && items.length > 1) {
-    const itemTemplates = items.map(item => {
-      const itemDataMap = createOrderDataMap(order, item);
-      let itemHtml = html;
-      
-      // Substituir variáveis no formato {{variavel}}
-      for (const [key, value] of Object.entries(itemDataMap)) {
-        // Ignorar campos de debug
-        if (key.startsWith('_debug_')) continue;
-        
-        let replacementValue = String(value || '');
-        
-        // Se for a variável de imagem, usar base64 se disponível
-        if (key === 'imagem' && item.imagem) {
-          const imagePath = item.imagem.trim();
-          if (imageBase64Map.has(imagePath)) {
-            replacementValue = imageBase64Map.get(imagePath)!;
-          } else if (isValidImagePath(imagePath)) {
-            // Se não estiver em base64 mas for um caminho válido, manter o caminho
-            replacementValue = imagePath;
-          }
-        }
-        
-        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        // Para imagem, não escapar HTML (já é base64 ou URL)
-        if (key === 'imagem') {
-          itemHtml = itemHtml.replace(regex, replacementValue);
-        } else {
-          const escapedValue = escapeHtml(replacementValue);
-          itemHtml = itemHtml.replace(regex, escapedValue);
-          
-          // Debug: verificar substituição de campos importantes para painel/tecido
-          if ((key === 'overloque' || key === 'elastico' || key === 'emenda' || key === 'emenda_qtd') && 
-              (itemDataMap.tipo_producao === 'painel' || itemDataMap.tipo_producao === 'tecido')) {
-            console.log(`[templateProcessor] Substituído ${key}: "${replacementValue}" -> "${escapedValue}"`);
-          }
-        }
-      }
-      
-      // Processar tags <img> que possam ter src="{{imagem}}" ou similar
-      if (item.imagem) {
-        const imagePath = item.imagem.trim();
-        const imageUrl = imageBase64Map.has(imagePath) 
-          ? imageBase64Map.get(imagePath)! 
-          : (isValidImagePath(imagePath) ? imagePath : '');
-        
-        if (imageUrl) {
-          // Substituir src="{{imagem}}" ou src='{{imagem}}' ou apenas {{imagem}} em atributos src
-          itemHtml = itemHtml.replace(
-            /src\s*=\s*["']?\{\{imagem\}\}["']?/gi,
-            `src="${imageUrl}"`
-          );
-        }
-      }
-      
-      // Normalizar tipo de produção para lowercase no atributo data-tipo-producao ANTES de remover linhas vazias
-      const tipoProducao = String(itemDataMap.tipo_producao || '').toLowerCase().trim();
-      itemHtml = itemHtml.replace(
-        /data-tipo-producao="[^"]*"/gi,
-        `data-tipo-producao="${tipoProducao}"`
-      );
-      
-      // Remover campos irrelevantes baseado no tipo de produção
-      // Usar regex mais flexível para capturar elementos com múltiplas classes
-      // IMPORTANTE: Preservar campos específicos do tipo atual
-      if (tipoProducao === 'totem') {
-        // Totem: remover campos de painel, lona e adesivo
-        // MAS preservar campos específicos de totem (acabamento_totem, quantidade_totem, valor_totem, etc)
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
-        // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
-        // IMPORTANTE: NÃO remover campos importantes mesmo se tiverem valor "Não" ou "0"
-        // Apenas remover campos genéricos que não são relevantes para totem
-        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd|Totem|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-      } else if (tipoProducao === 'lona') {
-        // Lona: remover campos de painel, tecido, totem e adesivo
-        // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // Remover apenas linhas vazias que NÃO sejam campos específicos de lona
-        // Preservar: Acabamento Lona, Quantidade Lona, Valor Lona, Outros Valores, Terceirizado
-        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Acabamento Lona|Quantidade Lona|Valor Lona|Outros Valores|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-      } else if (tipoProducao === 'adesivo') {
-        // Adesivo: remover campos de painel, tecido, totem e lona
-        // MAS preservar campos específicos de adesivo (tipo_adesivo, quantidade_adesivo, valor_adesivo, etc)
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-        // Remover apenas linhas vazias que NÃO sejam campos específicos de adesivo
-        // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
-        itemHtml = itemHtml.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-      } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-        // Painel/Tecido: remover APENAS campos de outros tipos (totem, lona, adesivo)
-        // NÃO remover campos vazios ou com "Não" - deixar todos os campos aparecerem
-        // O CSS vai esconder os campos com "Não" depois de forma mais confiável
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-        itemHtml = itemHtml.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-        // NÃO aplicar regex de remoção de campos vazios para painel/tecido
-        // Todos os campos de painel/tecido serão preservados e o CSS vai controlar a visibilidade
-        
-        // Debug: verificar campos preservados
-        const hasOverloque = itemHtml.includes('Overloque');
-        const hasElastico = itemHtml.includes('Elástico') || itemHtml.includes('Elastico');
-        const hasEmenda = itemHtml.includes('Emenda');
-        console.log(`[templateProcessor] Painel/Tecido - Campos preservados (sem remoção):`, {
-          overloque: hasOverloque,
-          elastico: hasElastico,
-          emenda: hasEmenda,
-          tipoProducao,
-          htmlSample: itemHtml.substring(itemHtml.indexOf('Overloque') || 0, (itemHtml.indexOf('Overloque') || 0) + 200)
-        });
-      } else {
-        // Para outros tipos, remover linhas vazias
-        itemHtml = itemHtml.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
-      }
-      
-      // Para painel/tecido, adicionar classe CSS "hidden-empty" em campos com "Não" ou vazio
-      let finalHtml = itemHtml;
-      if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-        // Adicionar classe hidden-empty em campos com "Não", vazio ou "0" após os dois pontos
-        // Substituir class="..." por class="... hidden-empty" quando encontrar ": Não", ": 0" ou ": "
-        finalHtml = finalHtml.replace(
-          /(class="([^"]*spec-item[^"]*spec-painel[^"]*))"/gi,
-          (match, p1, p2, offset) => {
-            // Verificar o conteúdo após este elemento
-            const afterMatch = finalHtml.substring(offset + match.length);
-            const nextDivEnd = afterMatch.indexOf('</div>');
-            const content = afterMatch.substring(0, nextDivEnd);
-            if (content.match(/: (Não|0| )\s*$/)) {
-              return `${p1} hidden-empty"`;
-            }
-            return match;
-          }
-        );
-        finalHtml = finalHtml.replace(
-          /(class="([^"]*spec-item[^"]*spec-tecido[^"]*))"/gi,
-          (match, p1, p2, offset) => {
-            const afterMatch = finalHtml.substring(offset + match.length);
-            const nextDivEnd = afterMatch.indexOf('</div>');
-            const content = afterMatch.substring(0, nextDivEnd);
-            if (content.match(/: (Não|0| )\s*$/)) {
-              return `${p1} hidden-empty"`;
-            }
-            return match;
-          }
-        );
-      }
-      
-      // Envolver cada item em item-container com estilos inline para garantir altura fixa
-      return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${finalHtml}</div>`;
-    });
+    console.log(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos`);
+    const itemTemplates = items.map(item => 
+      processItemTemplate(html, order, item, imageBase64Map)
+    );
     
     // Agrupar itens em pares (2 por página) - FORÇAR exatamente 2 itens por página com estilos inline
     const pages: string[] = [];
@@ -665,119 +848,20 @@ const processTemplateHTML = (
     return pages.join('\n');
   }
   
-  // Processar com dados do pedido e primeiro item (se houver)
-  const dataMap = createOrderDataMap(order, items?.[0]);
-  let processed = html;
-  
-  // Substituir variáveis no formato {{variavel}}
-  for (const [key, value] of Object.entries(dataMap)) {
-    let replacementValue = String(value || '');
-    
-    // Se for a variável de imagem, usar base64 se disponível
-    if (key === 'imagem' && items?.[0]?.imagem) {
-      const imagePath = items[0].imagem.trim();
-      if (imageBase64Map.has(imagePath)) {
-        replacementValue = imageBase64Map.get(imagePath)!;
-      } else if (isValidImagePath(imagePath)) {
-        // Se não estiver em base64 mas for um caminho válido, manter o caminho
-        replacementValue = imagePath;
-      }
-    }
-    
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-    // Para imagem, não escapar HTML (já é base64 ou URL)
-    if (key === 'imagem') {
-      processed = processed.replace(regex, replacementValue);
-    } else {
-      processed = processed.replace(regex, escapeHtml(replacementValue));
-    }
+  // Item único ou sem itens - usar processItemTemplate ou processar diretamente
+  if (items && items.length === 1) {
+    return `<div class="template-page">${processItemTemplate(html, order, items[0], imageBase64Map)}</div>`;
   }
   
-  // Processar tags <img> que possam ter src="{{imagem}}" ou similar
-  if (items?.[0]?.imagem) {
-    const imagePath = items[0].imagem.trim();
-    const imageUrl = imageBase64Map.has(imagePath) 
-      ? imageBase64Map.get(imagePath)! 
-      : (isValidImagePath(imagePath) ? imagePath : '');
-    
-    if (imageUrl) {
-      // Substituir src="{{imagem}}" ou src='{{imagem}}' ou apenas {{imagem}} em atributos src
-      processed = processed.replace(
-        /src\s*=\s*["']?\{\{imagem\}\}["']?/gi,
-        `src="${imageUrl}"`
-      );
-    }
-  }
-  
-  // Normalizar tipo de produção para lowercase no atributo data-tipo-producao
+  // Sem itens - processar com dados do pedido apenas
+  const dataMap = createOrderDataMap(order, undefined);
   const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
-  processed = processed.replace(
-    /data-tipo-producao="[^"]*"/gi,
-    `data-tipo-producao="${tipoProducao}"`
-  );
   
-  // Remover campos irrelevantes baseado no tipo de produção
-  // Usar regex mais flexível para capturar elementos com múltiplas classes
-  // IMPORTANTE: Preservar campos específicos do tipo atual
-  if (tipoProducao === 'totem') {
-    // Totem: remover campos de painel, lona e adesivo
-    // MAS preservar campos específicos de totem (acabamento_totem, quantidade_totem, valor_totem, etc)
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // Remover apenas linhas vazias que NÃO sejam campos específicos de totem
-    // Preservar: Acabamento, Quantidade Totem, Valor Totem, Outros Valores, Overloque, Elastico, Quantity
-    // IMPORTANTE: NÃO remover campos importantes mesmo se tiverem valor "Não" ou "0"
-    // Apenas remover campos genéricos que não são relevantes para totem
-    processed = processed.replace(/<div[^>]*>• (?!Acabamento|Quantidade|Valor|Outros Valores|Overloque|Elastico|Elástico|Quantity|Qtd|Totem|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-  } else if (tipoProducao === 'lona') {
-    // Lona: remover campos de painel, tecido, totem e adesivo
-    // MAS preservar campos específicos de lona (acabamento_lona, quantidade_lona, valor_lona, terceirizado, etc)
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // Remover apenas linhas vazias que NÃO sejam campos específicos de lona
-    // Preservar: Acabamento Lona, Quantidade Lona, Valor Lona, Outros Valores, Terceirizado
-    processed = processed.replace(/<div[^>]*>• (?!Acabamento Lona|Quantidade Lona|Valor Lona|Outros Valores|Terceirizado)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-  } else if (tipoProducao === 'adesivo') {
-    // Adesivo: remover campos de painel, tecido, totem e lona
-    // MAS preservar campos específicos de adesivo (tipo_adesivo, quantidade_adesivo, valor_adesivo, etc)
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-painel\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-tecido\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-    // Remover apenas linhas vazias que NÃO sejam campos específicos de adesivo
-    // Preservar: Tipo Adesivo, Quantidade Adesivo, Valor Adesivo, Outros Valores
-    processed = processed.replace(/<div[^>]*>• (?!Tipo Adesivo|Quantidade Adesivo|Valor Adesivo|Outros Valores)[^:]+: (?:|Não|0| )<\/div>/gi, '');
-  } else if (tipoProducao === 'painel' || tipoProducao === 'tecido') {
-    // Painel/Tecido: remover APENAS campos de outros tipos (totem, lona, adesivo)
-    // NÃO remover campos vazios ou com "Não" - deixar todos os campos aparecerem
-    // O CSS vai esconder os campos com "Não" depois de forma mais confiável
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-totem\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-lona\b[^"]*">.*?<\/div>/gi, '');
-    processed = processed.replace(/<div class="spec-item[^"]*\bspec-adesivo\b[^"]*">.*?<\/div>/gi, '');
-    // NÃO aplicar regex de remoção de campos vazios para painel/tecido
-    // Todos os campos de painel/tecido serão preservados e o CSS vai controlar a visibilidade
-    
-    // Debug: verificar campos preservados
-    const hasOverloque = processed.includes('Overloque');
-    const hasElastico = processed.includes('Elástico') || processed.includes('Elastico');
-    const hasEmenda = processed.includes('Emenda');
-    console.log(`[templateProcessor] Painel/Tecido (processTemplateHTML) - Campos preservados (sem remoção):`, {
-      overloque: hasOverloque,
-      elastico: hasElastico,
-      emenda: hasEmenda,
-      tipoProducao,
-      htmlSample: processed.substring(processed.indexOf('Overloque') || 0, (processed.indexOf('Overloque') || 0) + 200)
-    });
-  } else {
-    // Para outros tipos, remover linhas vazias
-    processed = processed.replace(/<div[^>]*>• [^:]+: (?:|Não|0| )<\/div>/gi, '');
-  }
+  let processed = replaceVariables(html, dataMap, imageBase64Map);
+  processed = processImageTags(processed, undefined, imageBase64Map);
+  processed = normalizeTipoProducao(processed, tipoProducao);
+  processed = applyFieldVisibilityRules(processed, tipoProducao);
   
-  // Envolver em template-page para manter estrutura consistente
   return `<div class="template-page">${processed}</div>`;
 };
 
@@ -844,6 +928,25 @@ export const generateTemplatePrintContent = async (
   order: OrderWithItems,
   items?: OrderItem[]
 ): Promise<{ html: string; css: string } | null> => {
+  console.log(`[generateTemplatePrintContent] 🖨️ Iniciando geração de template:`, {
+    templateType,
+    orderId: order.id,
+    orderNumero: order.numero,
+    itemsCount: order.items?.length || 0,
+    itemsParamCount: items?.length || 0,
+    itemsParamProvided: !!items,
+    orderItems: order.items?.map(item => ({
+      id: item.id,
+      item_name: item.item_name,
+      tipo_producao: item.tipo_producao,
+      overloque: item.overloque,
+      elastico: item.elastico,
+      emenda: item.emenda,
+      emenda_qtd: item.emenda_qtd,
+      imagem: item.imagem
+    })) || []
+  });
+  
   // PRIMEIRO: Tentar buscar template HTML editado manualmente
   try {
     const { api } = await import('../services/api');
@@ -863,6 +966,19 @@ export const generateTemplatePrintContent = async (
       
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
+      
+      console.log(`[generateTemplatePrintContent] 📋 Itens para renderizar:`, {
+        itemsToRenderCount: itemsToRender.length,
+        itemsToRender: itemsToRender.map(item => ({
+          id: item.id,
+          item_name: item.item_name,
+          tipo_producao: item.tipo_producao,
+          overloque: item.overloque,
+          elastico: item.elastico,
+          emenda: item.emenda,
+          emenda_qtd: item.emenda_qtd
+        }))
+      });
       
       // Carregar todas as imagens para base64 antes de processar
       const imageBase64Map = new Map<string, string>();
