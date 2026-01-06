@@ -68,6 +68,12 @@ fn main() {
                 window.set_title(&title).unwrap_or_else(|e| {
                     warn!("Erro ao definir título da janela: {}", e);
                 });
+                
+                // Maximizar a janela ao abrir
+                window.maximize().unwrap_or_else(|e| {
+                    warn!("Erro ao maximizar janela: {}", e);
+                });
+                
                 info!("Título da janela definido: {}", title);
             }
             
