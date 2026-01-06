@@ -6,6 +6,7 @@ import {
   setAuthToken,
 } from './apiClient';
 import { useAuthStore } from '../store/authStore';
+import { logger } from '../utils/logger';
 import {
   LoginRequest,
   LoginResponse,
@@ -949,7 +950,7 @@ const fetchOrdersPaginated = async (
       totalPages = Math.ceil(total / pageSize);
     } catch (error) {
       // Se falhar, estimar conservadoramente
-      console.warn('Erro ao contar total de pedidos, usando estimativa:', error);
+      logger.warn('Erro ao contar total de pedidos, usando estimativa:', error);
       total = paginatedData.length + pageSize; // Estimativa conservadora
       totalPages = Math.ceil(total / pageSize);
     }
@@ -972,15 +973,15 @@ const fetchOrdersPaginated = async (
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
   
-  console.log(`[fetchOrderById] 🔍 Buscando pedido ${orderId}...`);
+  logger.debug(`[fetchOrderById] 🔍 Buscando pedido ${orderId}...`);
   
   try {
     // PRIMEIRO: Tentar buscar do JSON salvo pela API (mais completo)
-    console.log(`[fetchOrderById] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
+    logger.debug(`[fetchOrderById] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
     const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
     const jsonOrder = jsonResponse.data;
     
-    console.log(`[fetchOrderById] ✅ JSON encontrado!`, {
+    logger.debug(`[fetchOrderById] ✅ JSON encontrado!`, {
       orderId,
       source: 'JSON_FILE',
       hasItems: !!jsonOrder.items,
@@ -1005,7 +1006,7 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
     // Converter o JSON para OrderWithItems
     const mappedOrder = mapPedidoFromApi(jsonOrder);
     
-    console.log(`[fetchOrderById] 🔄 Dados mapeados (OrderWithItems):`, {
+    logger.debug(`[fetchOrderById] 🔄 Dados mapeados (OrderWithItems):`, {
       orderId: mappedOrder.id,
       numero: mappedOrder.numero,
       itemsCount: mappedOrder.items?.length || 0,
@@ -1024,13 +1025,13 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
     return mappedOrder;
   } catch (error) {
     // FALLBACK: Se não houver JSON, buscar da API normal
-    console.warn(`[fetchOrderById] ⚠️ JSON não encontrado para pedido ${orderId}, usando API normal:`, error);
-    console.log(`[fetchOrderById] 📡 Buscando da API: /pedidos/${orderId}`);
+    logger.warn(`[fetchOrderById] ⚠️ JSON não encontrado para pedido ${orderId}, usando API normal:`, error);
+    logger.debug(`[fetchOrderById] 📡 Buscando da API: /pedidos/${orderId}`);
     
     const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
     const mappedOrder = mapPedidoFromApi(response.data);
     
-    console.log(`[fetchOrderById] ✅ Dados da API normal:`, {
+    logger.debug(`[fetchOrderById] ✅ Dados da API normal:`, {
       orderId: mappedOrder.id,
       source: 'API_DATABASE',
       itemsCount: mappedOrder.items?.length || 0,
@@ -1444,7 +1445,7 @@ const getFichaTemplateHTML = async (templateType: 'geral' | 'resumo'): Promise<{
       return { html: null, exists: false };
     }
     // Para outros erros, logar mas retornar null para usar fallback
-    console.warn('[api] Erro ao buscar template HTML editado:', error);
+      logger.warn('[api] Erro ao buscar template HTML editado:', error);
     return { html: null, exists: false };
   }
 };
@@ -1546,9 +1547,9 @@ export const api = {
     // Salvar pedido em JSON na API após criação
     try {
       await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-      console.log(`[api.createOrder] ✅ JSON do pedido ${order.id} salvo na API`);
+      logger.debug(`[api.createOrder] ✅ JSON do pedido ${order.id} salvo na API`);
     } catch (error) {
-      console.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
+      logger.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
     }
     
     return order;
@@ -1563,9 +1564,9 @@ export const api = {
     // Salvar pedido em JSON na API após atualização
     try {
       await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-      console.log(`[api.updateOrder] ✅ JSON do pedido ${order.id} salvo na API`);
+      logger.debug(`[api.updateOrder] ✅ JSON do pedido ${order.id} salvo na API`);
     } catch (error) {
-      console.warn('[api.updateOrder] Erro ao salvar JSON do pedido na API:', error);
+      logger.warn('[api.updateOrder] Erro ao salvar JSON do pedido na API:', error);
     }
     
     return order;
@@ -1602,7 +1603,7 @@ export const api = {
     
     // Debug: log do payload final antes de enviar
     if (import.meta.env.DEV) {
-      console.log('📤 Payload de atualização de status:', {
+      logger.debug('📤 Payload de atualização de status:', {
         pedido_id: request.id,
         isFinanceiroUpdate,
         payload: { ...payload },
@@ -2114,7 +2115,7 @@ export async function deleteUser(_sessionToken: string, userId: number): Promise
     await apiClient.delete(url);
     return true;
   } catch (error: any) {
-    console.error('Erro ao excluir usuário:', error);
+    logger.error('Erro ao excluir usuário:', error);
     
     // Re-lançar erro com mensagem mais clara
     if (error?.response?.data?.detail) {
@@ -2154,15 +2155,15 @@ export async function getOrdersByDeliveryDate(
 async function fetchOrderFicha(_sessionToken: string, orderId: number): Promise<OrderFicha> {
   requireSessionToken();
   
-  console.log(`[fetchOrderFicha] 🔍 Buscando ficha do pedido ${orderId}...`);
+  logger.debug(`[fetchOrderFicha] 🔍 Buscando ficha do pedido ${orderId}...`);
   
   try {
     // PRIMEIRO: Tentar buscar do JSON salvo pela API
-    console.log(`[fetchOrderFicha] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
+    logger.debug(`[fetchOrderFicha] 📄 Tentando buscar do JSON: /pedidos/${orderId}/json`);
     const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
     const jsonOrder = jsonResponse.data;
     
-    console.log(`[fetchOrderFicha] ✅ JSON encontrado!`, {
+    logger.debug(`[fetchOrderFicha] ✅ JSON encontrado!`, {
       orderId,
       source: 'JSON_FILE',
       hasItems: !!jsonOrder.items,
@@ -2173,7 +2174,7 @@ async function fetchOrderFicha(_sessionToken: string, orderId: number): Promise<
     const order = mapPedidoFromApi(jsonOrder);
     const ficha = mapOrderToFicha(order);
     
-    console.log(`[fetchOrderFicha] 🔄 Ficha mapeada:`, {
+    logger.debug(`[fetchOrderFicha] 🔄 Ficha mapeada:`, {
       orderId: ficha.id,
       itemsCount: ficha.items?.length || 0,
       firstItem: ficha.items?.[0] ? {
@@ -2186,11 +2187,11 @@ async function fetchOrderFicha(_sessionToken: string, orderId: number): Promise<
     return ficha;
   } catch (error) {
     // FALLBACK: Se não houver JSON, buscar do banco normalmente
-    console.warn(`[fetchOrderFicha] ⚠️ JSON não encontrado para pedido ${orderId}, usando fallback:`, error);
+    logger.warn(`[fetchOrderFicha] ⚠️ JSON não encontrado para pedido ${orderId}, usando fallback:`, error);
     const order = await fetchOrderById(orderId);
     const ficha = mapOrderToFicha(order);
     
-    console.log(`[fetchOrderFicha] ✅ Ficha do fallback:`, {
+    logger.debug(`[fetchOrderFicha] ✅ Ficha do fallback:`, {
       orderId: ficha.id,
       source: 'API_DATABASE',
       itemsCount: ficha.items?.length || 0
@@ -2220,7 +2221,7 @@ export async function getTiposProducaoAtivos(): Promise<Array<{ value: string; l
       label: tipo.description || tipo.name,
     }));
   } catch (error) {
-    console.error('Erro ao buscar tipos de produção ativos:', error);
+    logger.error('Erro ao buscar tipos de produção ativos:', error);
     return [];
   }
 }

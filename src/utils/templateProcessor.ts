@@ -2,6 +2,7 @@ import { OrderWithItems, OrderItem, TemplateFieldConfig as TemplateField, FichaT
 import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
 import { apiClient } from '../services/apiClient';
+import { logger } from './logger';
 
 // ============================================================================
 // STORAGE - Leitura e Escrita de Templates
@@ -40,7 +41,7 @@ const saveTemplatesToStorage = (templates: TemplatesConfig) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
   } catch (error) {
-    console.warn('[templateProcessor] Não foi possível salvar templates localmente:', error);
+    logger.warn('[templateProcessor] Não foi possível salvar templates localmente:', error);
   }
 };
 
@@ -55,7 +56,7 @@ const getLocalTemplates = (): TemplatesConfig | null => {
       return normalizeTemplates(parsed);
     }
   } catch (error) {
-    console.error('[templateProcessor] Erro ao carregar templates locais:', error);
+    logger.error('[templateProcessor] Erro ao carregar templates locais:', error);
   }
   return null;
 };
@@ -75,7 +76,7 @@ const fetchTemplatesFromServer = async (): Promise<TemplatesConfig | null> => {
     }
     // Logar apenas erros inesperados
     if (axiosError.response?.status !== 404) {
-      console.warn('[templateProcessor] Falha ao buscar templates no servidor:', error);
+      logger.warn('[templateProcessor] Falha ao buscar templates no servidor:', error);
     }
     return null;
   }
@@ -100,7 +101,7 @@ export const loadTemplates = async (): Promise<TemplatesConfig | null> => {
     const local = getLocalTemplates();
     if (local) {
       templatesCache = local;
-      console.warn('[templateProcessor] API indisponível, usando cache local');
+      logger.warn('[templateProcessor] API indisponível, usando cache local');
       return templatesCache;
     }
   } else {
@@ -167,7 +168,7 @@ export const createOrderDataMap = (
   order: OrderWithItems,
   item?: OrderItem
 ): OrderDataMap => {
-  console.log(`[createOrderDataMap] 🗺️ Criando mapa de dados:`, {
+  logger.debug(`[createOrderDataMap] 🗺️ Criando mapa de dados:`, {
     orderId: order.id,
     itemId: item?.id,
     itemName: item?.item_name,
@@ -329,7 +330,7 @@ export const createOrderDataMap = (
     }, {} as OrderDataMap),
   };
   
-  console.log(`[createOrderDataMap] ✅ Mapa criado:`, {
+  logger.debug(`[createOrderDataMap] ✅ Mapa criado:`, {
     orderId: order.id,
     itemId: item?.id,
     tipoProducao: dataMap.tipo_producao,
@@ -515,7 +516,7 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
   } else {
     // Para painel/tecido, adicionar classe CSS para controle de visibilidade
     result = addHiddenEmptyClass(result);
-    console.log(`[templateProcessor] Preservando campos vazios para tipo: ${tipoProducao}`);
+    logger.debug(`[templateProcessor] Preservando campos vazios para tipo: ${tipoProducao}`);
   }
   
   return result;
@@ -596,7 +597,7 @@ const processItemTemplate = (
   const dataMap = createOrderDataMap(order, item);
   const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
   
-  console.log(`[processItemTemplate] 🔧 Processando item:`, {
+  logger.debug(`[processItemTemplate] 🔧 Processando item:`, {
     itemId: item.id,
     itemName: item.item_name,
     tipoProducao,
@@ -622,7 +623,7 @@ const processItemTemplate = (
   // 4. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
   
-  console.log(`[processItemTemplate] ✅ Item processado:`, {
+  logger.debug(`[processItemTemplate] ✅ Item processado:`, {
     itemId: item.id,
     tipoProducao,
     processedLength: processed.length,
@@ -814,7 +815,7 @@ const processTemplateHTML = (
   items: OrderItem[] | undefined,
   imageBase64Map: Map<string, string>
 ): string => {
-  console.log(`[processTemplateHTML] 🔄 Processando template HTML:`, {
+  logger.debug(`[processTemplateHTML] 🔄 Processando template HTML:`, {
     orderId: order.id,
     htmlLength: html.length,
     itemsCount: items?.length || 0,
@@ -832,7 +833,7 @@ const processTemplateHTML = (
   
   // Múltiplos itens - processar cada um separadamente
   if (items && items.length > 1) {
-    console.log(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos`);
+    logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos`);
     const itemTemplates = items.map(item => 
       processItemTemplate(html, order, item, imageBase64Map)
     );
@@ -928,7 +929,7 @@ export const generateTemplatePrintContent = async (
   order: OrderWithItems,
   items?: OrderItem[]
 ): Promise<{ html: string; css: string } | null> => {
-  console.log(`[generateTemplatePrintContent] 🖨️ Iniciando geração de template:`, {
+  logger.debug(`[generateTemplatePrintContent] 🖨️ Iniciando geração de template:`, {
     templateType,
     orderId: order.id,
     orderNumero: order.numero,
@@ -952,7 +953,7 @@ export const generateTemplatePrintContent = async (
     const { api } = await import('../services/api');
     const templateHTML = await api.getFichaTemplateHTML(templateType);
     
-    console.log(`[templateProcessor] Template HTML buscado:`, {
+    logger.debug(`[templateProcessor] Template HTML buscado:`, {
       templateType,
       exists: templateHTML.exists,
       hasHtml: !!templateHTML.html,
@@ -962,12 +963,12 @@ export const generateTemplatePrintContent = async (
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
       // Template HTML editado manualmente encontrado - usar ele!
-      console.log(`[templateProcessor] ✅ Usando template HTML editado manualmente: ${templateType}`);
+      logger.debug(`[templateProcessor] ✅ Usando template HTML editado manualmente: ${templateType}`);
       
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
       
-      console.log(`[generateTemplatePrintContent] 📋 Itens para renderizar:`, {
+      logger.debug(`[generateTemplatePrintContent] 📋 Itens para renderizar:`, {
         itemsToRenderCount: itemsToRender.length,
         itemsToRender: itemsToRender.map(item => ({
           id: item.id,
@@ -992,7 +993,7 @@ export const generateTemplatePrintContent = async (
             const base64 = await imageToBase64(imagePath);
             imageBase64Map.set(imagePath, base64);
           } catch (error) {
-            console.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);
+            logger.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);
             // Continuar mesmo se uma imagem falhar
           }
         });
@@ -1007,7 +1008,7 @@ export const generateTemplatePrintContent = async (
       
       const processedHTML = processTemplateHTML(templateHTML.html, order, itemsForProcessing, imageBase64Map);
       
-      console.log(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
+      logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
       
       // Gerar CSS básico
       const css = generateBasicTemplateCSS(templateType);
@@ -1017,22 +1018,22 @@ export const generateTemplatePrintContent = async (
         css: css
       };
     } else {
-      console.log(`[templateProcessor] ⚠️ Template HTML não encontrado, usando fallback JSON`);
+      logger.warn(`[templateProcessor] ⚠️ Template HTML não encontrado, usando fallback JSON`);
     }
   } catch (error) {
-    console.warn('[templateProcessor] Erro ao buscar template HTML editado, usando fallback:', error);
+    logger.warn('[templateProcessor] Erro ao buscar template HTML editado, usando fallback:', error);
   }
 
   // FALLBACK: Usar sistema de templates JSON (comportamento atual)
   const templates = await loadTemplates();
   if (!templates) {
-    console.warn('Templates não encontrados no localStorage');
+    logger.warn('Templates não encontrados no localStorage');
     return null;
   }
 
   const template = templates[templateType];
   if (!template) {
-    console.warn(`Template ${templateType} não encontrado`);
+    logger.warn(`Template ${templateType} não encontrado`);
     return null;
   }
 
@@ -1048,12 +1049,12 @@ export const generateTemplatePrintContent = async (
     .map(async (item) => {
       try {
         const imagePath = item.imagem!.trim();
-        console.log('[templateProcessor] 🔄 Carregando imagem para template:', imagePath);
+        logger.debug('[templateProcessor] 🔄 Carregando imagem para template:', imagePath);
         const base64 = await imageToBase64(imagePath);
         imageBase64Map.set(imagePath, base64);
-        console.log('[templateProcessor] ✅ Imagem carregada para template:', imagePath);
+        logger.debug('[templateProcessor] ✅ Imagem carregada para template:', imagePath);
       } catch (error) {
-        console.error('[templateProcessor] ❌ Erro ao carregar imagem para template:', {
+        logger.error('[templateProcessor] ❌ Erro ao carregar imagem para template:', {
           imagem: item.imagem,
           error
         });

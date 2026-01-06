@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { getErrorMessage, isAuthError } from '@/utils/errorHandler';
+import { logger } from '@/utils/logger';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -46,12 +48,15 @@ export default function Login() {
         });
       }
     } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      const isAuth = isAuthError(err);
+      
       toast({
         variant: "destructive",
-        title: "Erro de conexão",
-        description: 'Não foi possível conectar ao servidor. Tente novamente mais tarde.',
+        title: isAuth ? "Falha na autenticação" : "Erro ao fazer login",
+        description: errorMessage,
       });
-      console.error('Login error:', err);
+      logger.error('Login error:', err);
     } finally {
       setLoading(false);
     }
