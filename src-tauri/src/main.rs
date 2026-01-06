@@ -70,7 +70,7 @@ fn main() {
                 });
                 
                 // Maximizar a janela ao abrir
-                window.maximize().unwrap_or_else(|e| {
+                window.set_maximized(true).unwrap_or_else(|e| {
                     warn!("Erro ao maximizar janela: {}", e);
                 });
                 

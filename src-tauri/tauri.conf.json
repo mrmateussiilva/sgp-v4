@@ -21,6 +21,7 @@
             {
                 "fullscreen": false,
                 "resizable": true,
+                "maximized": true,
                 "title": "SGP - Sistema de Gerenciamento de Pedidos",
                 "width": 1280,
                 "height": 800,
