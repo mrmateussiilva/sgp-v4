@@ -1601,7 +1601,7 @@ export const api = {
     }
     
     // Debug: log do payload final antes de enviar
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('📤 Payload de atualização de status:', {
         pedido_id: request.id,
         isFinanceiroUpdate,

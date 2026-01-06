@@ -39,8 +39,9 @@ export function normalizeImagePath(path: string): string {
         });
         return fullUrl;
       } else {
-        // Se baseUrl não estiver configurado, tentar usar window.location
-        if (typeof window !== 'undefined') {
+        // Se baseUrl não estiver configurado, verificar se é Tauri antes de usar window.location
+        const { isTauri } = require('./isTauri');
+        if (!isTauri() && typeof window !== 'undefined') {
           const protocol = window.location.protocol;
           const hostname = window.location.hostname;
           const port = window.location.port;

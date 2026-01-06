@@ -158,7 +158,7 @@ class OrdersWebSocketManager {
     this.isConnecting = true;
 
     try {
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('🔌 Tentando conectar WebSocket:', wsUrl);
       }
       
@@ -168,7 +168,7 @@ class OrdersWebSocketManager {
       this.isConnecting = false;
       
       // Silenciar erros esperados de criação de WebSocket
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
       }
       this.scheduleReconnect();
@@ -180,7 +180,7 @@ class OrdersWebSocketManager {
       this.isConnecting = false;
       this.consecutiveFailures = 0;
       
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('✅ WebSocket conectado com sucesso:', this.currentUrl);
       }
       
@@ -198,11 +198,11 @@ class OrdersWebSocketManager {
             token: token 
           }));
           
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.log('🔐 Token de autenticação enviado via mensagem');
           }
         } catch (error) {
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.warn('⚠️ Erro ao enviar token de autenticação:', error);
           }
         }
@@ -231,7 +231,7 @@ class OrdersWebSocketManager {
       }
       
       // Log detalhado em desenvolvimento para debug
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         if (!event.wasClean) {
           console.warn('⚠️ WebSocket fechado:', {
             code: event.code,
@@ -265,7 +265,7 @@ class OrdersWebSocketManager {
     this.socket.onerror = (event) => {
       // Silenciar erros de conexão esperados (servidor não disponível)
       // Apenas logar em modo debug
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.warn('⚠️ Erro no WebSocket:', event);
       }
       
@@ -292,7 +292,7 @@ class OrdersWebSocketManager {
         const message = JSON.parse(payload) as OrderEventMessage;
         
         // Log detalhado em desenvolvimento
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log('📨 WebSocket mensagem recebida:', {
             type: message.type,
             order_id: message.order_id,
@@ -312,7 +312,7 @@ class OrdersWebSocketManager {
           }
         });
         
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log(`✅ Mensagem processada por ${processedCount} listener(s)`);
         }
       } catch (error) {
@@ -360,7 +360,7 @@ class OrdersWebSocketManager {
     
     // Se já tentou muitas vezes sem sucesso, parar de tentar
     if (this.consecutiveFailures >= this.maxReconnectAttempts) {
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.info('ℹ️ WebSocket: Parando tentativas de reconexão após múltiplas falhas. O sistema continuará funcionando normalmente sem atualizações em tempo real.');
       }
       this.updateStatus({

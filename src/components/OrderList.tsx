@@ -1296,7 +1296,7 @@ export default function OrderList() {
       }
       
       // Log apenas em desenvolvimento para não poluir o console em produção
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Error updating status:', error);
       }
     } finally {

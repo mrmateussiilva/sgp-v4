@@ -16,7 +16,7 @@ type StatusState =
   | { type: 'success'; message: string }
   | { type: 'error'; message: string };
 
-const DEFAULT_API_URL = 'http://192.168.0.10:8000';
+const DEFAULT_API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function ConfigApi({ onConfigured }: ConfigApiProps) {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
