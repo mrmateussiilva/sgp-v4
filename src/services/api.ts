@@ -623,6 +623,7 @@ const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
   const valorItens = parseDecimal(pedido.valor_itens ?? pedido.valor_total);
   const totalValue = valorItens || items.reduce((sum, item) => sum + item.subtotal, 0);
   const status = mapStatusFromApi(pedido.status);
+  const prontoFromApi = (pedido as unknown as { pronto?: unknown }).pronto;
 
   return {
     id: pedido.id,
@@ -650,7 +651,9 @@ const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
     sublimacao: Boolean(pedido.sublimacao),
     costura: Boolean(pedido.costura),
     expedicao: Boolean(pedido.expedicao),
-    pronto: status === OrderStatus.Concluido,
+    // O backend pode expor "pronto" como boolean independente do campo "status".
+    // Se existir no payload, ele é a fonte da verdade; senão, usamos o fallback antigo.
+    pronto: typeof prontoFromApi === 'boolean' ? prontoFromApi : status === OrderStatus.Concluido,
     sublimacao_maquina: pedido.sublimacao_maquina ?? undefined,
     sublimacao_data_impressao: pedido.sublimacao_data_impressao ?? undefined,
     items,
