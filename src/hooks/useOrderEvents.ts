@@ -51,10 +51,14 @@ export const useOrderEvents = ({
     };
 
     const handleMessage = (message: OrderEventMessage) => {
+      // Type guard para acessar propriedades dinâmicas
+      const messageWithOrder = message as OrderEventMessage & { order?: unknown; pedido_id?: number };
+      const orderPayload = messageWithOrder.order as { id?: number; order_id?: number; pedido_id?: number } | undefined;
+      
       console.log('📡 [useOrderEvents] Evento WebSocket recebido:', {
         type: message.type,
         order_id: message.order_id,
-        has_order: !!(message as any).order,
+        has_order: !!orderPayload,
         full_message: message,
       });
       
@@ -64,11 +68,10 @@ export const useOrderEvents = ({
         return;
       }
 
-      const orderPayload = (message as any).order;
       // Tentar extrair order_id de múltiplas fontes possíveis
       const orderId =
         parseOrderId(message.order_id) ??
-        parseOrderId((message as any).pedido_id) ??
+        parseOrderId(messageWithOrder.pedido_id) ??
         parseOrderId(orderPayload?.id) ??
         parseOrderId(orderPayload?.order_id) ??
         parseOrderId(orderPayload?.pedido_id);
@@ -148,6 +151,13 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   // Usar ref para sempre ter acesso ao estado mais recente (evita closure stale)
   const ordersRef = useRef(orders);
   ordersRef.current = orders;
+  
+  // Usar ref para loadOrders para evitar recriação de callbacks quando loadOrders muda
+  // Isso previne múltiplas assinaturas WebSocket
+  const loadOrdersRef = useRef(loadOrders);
+  useEffect(() => {
+    loadOrdersRef.current = loadOrders;
+  }, [loadOrders]);
 
   const handleOrderCreated = useCallback(
     async (orderId: number) => {
@@ -169,16 +179,14 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           return [newOrder, ...currentOrders];
         });
         
-        // 3. Recarregar lista para garantir que filtros sejam reaplicados
-        if (loadOrders) {
-          console.log('🔄 [useOrderAutoSync] Recarregando lista após criação de pedido');
-          loadOrders();
-        }
+        // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
+        // Recarregar apenas quando necessário (ex: quando modal fecha)
+        // Isso evita loops infinitos e múltiplas conexões WebSocket
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido criado:', error);
       }
     },
-    [setOrders, updateOrder, loadOrders],
+    [setOrders, updateOrder], // Remover loadOrders das dependências
   );
 
   const handleOrderUpdated = useCallback(
@@ -216,20 +224,15 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           }
         });
         
-        // 3. Recarregar lista para garantir que filtros sejam reaplicados
-        // Isso garante que pedidos que mudaram de status apareçam/desapareçam corretamente
-        if (loadOrders) {
-          console.log('🔄 [useOrderAutoSync] Recarregando lista após atualização de pedido');
-          // Usar setTimeout para evitar múltiplas recargas simultâneas
-          setTimeout(() => {
-            loadOrders();
-          }, 100);
-        }
+        // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
+        // Isso evita loops infinitos e múltiplas conexões WebSocket
+        // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
+        // isso será tratado quando o usuário interagir com a interface ou quando o modal fechar
       } catch (error) {
         console.error('❌ Erro ao sincronizar pedido atualizado:', error);
       }
     },
-    [setOrders, updateOrder, loadOrders],
+    [setOrders, updateOrder], // Remover loadOrders das dependências
   );
 
   const handleOrderDeleted = useCallback(
@@ -237,14 +240,10 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
       console.log('🗑️ [useOrderAutoSync] Removendo pedido:', orderId);
       removeOrder(orderId);
       
-      // Recarregar lista após remoção
-      if (loadOrders) {
-        setTimeout(() => {
-          loadOrders();
-        }, 100);
-      }
+      // NÃO recarregar lista automaticamente - apenas remover da lista atual
+      // Isso evita loops infinitos e múltiplas conexões WebSocket
     },
-    [removeOrder, loadOrders],
+    [removeOrder], // Remover loadOrders das dependências
   );
 
   const handleOrderStatusUpdated = useCallback(
@@ -287,20 +286,15 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           }
         });
         
-        // 3. Recarregar lista para garantir que filtros sejam reaplicados
-        // Isso é especialmente importante para mudanças de status que podem fazer
-        // o pedido aparecer/desaparecer da lista filtrada
-        if (loadOrders) {
-          console.log('🔄 [useOrderAutoSync] Recarregando lista após mudança de status');
-          setTimeout(() => {
-            loadOrders();
-          }, 100);
-        }
+        // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
+        // Isso evita loops infinitos e múltiplas conexões WebSocket
+        // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
+        // isso será tratado quando o usuário interagir com a interface ou quando o modal fechar
       } catch (error) {
         console.error('❌ Erro ao sincronizar status do pedido:', error);
       }
     },
-    [setOrders, updateOrder, loadOrders],
+    [setOrders, updateOrder], // Remover loadOrders das dependências
   );
 
   useOrderEvents({
