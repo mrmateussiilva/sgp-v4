@@ -1662,6 +1662,16 @@ export const api = {
     
     const updatedOrder = await fetchOrderById(request.id);
     
+    // 🔥 CORREÇÃO: Salvar pedido em JSON na API após atualização de status
+    // Isso garante que o arquivo JSON fique sincronizado com o banco de dados
+    // Sem isso, fetchOrderById pode retornar dados antigos do JSON
+    try {
+      await apiClient.post(`/pedidos/save-json/${updatedOrder.id}`, updatedOrder);
+      logger.debug(`[api.updateOrderStatus] ✅ JSON do pedido ${updatedOrder.id} salvo na API`);
+    } catch (error) {
+      logger.warn('[api.updateOrderStatus] Erro ao salvar JSON do pedido na API:', error);
+    }
+    
     return updatedOrder;
   },
 
