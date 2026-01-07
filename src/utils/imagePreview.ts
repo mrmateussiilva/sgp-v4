@@ -50,11 +50,17 @@ export async function getImagePreviewUrl(
     }
   }
 
-  // Se for URL HTTP/HTTPS ou caminho relativo do servidor, usar loadAuthenticatedImage
+  // CORREÇÃO: Detectar caminhos relativos que começam com "pedidos/"
+  // Esses caminhos precisam ser tratados como referências do servidor
+  const isPedidosPath = imageReference.startsWith('pedidos/') || 
+                        imageReference.startsWith('/pedidos/');
+  
+  // Se for URL HTTP/HTTPS, caminho absoluto ou caminho de pedidos, usar loadAuthenticatedImage
   // Isso carrega a imagem com autenticação e retorna uma blob URL
   if (imageReference.startsWith('http://') || 
       imageReference.startsWith('https://') || 
-      imageReference.startsWith('/')) {
+      imageReference.startsWith('/') ||
+      isPedidosPath) {
     try {
       const blobUrl = await loadAuthenticatedImage(imageReference);
       return blobUrl;
