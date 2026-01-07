@@ -1702,49 +1702,23 @@ export const api = {
   },
 
   getOrdersWithFilters: async (filters: OrderFilters): Promise<PaginatedOrders> => {
-    const orders = await fetchOrders();
-    const statusFilter = filters.status;
-    const searchTerm = (filters.customer_name ?? (filters as any).cliente ?? '').toLowerCase();
-    const dateFrom = filters.date_from ? new Date(filters.date_from) : null;
-    const dateTo = filters.date_to ? new Date(filters.date_to) : null;
-
-    const filtered = orders.filter((order) => {
-      if (statusFilter) {
-        if (statusFilter === OrderStatus.Pendente) {
-          if (!isPendingOrderByStages(order)) {
-            return false;
-          }
-        } else if (order.status !== statusFilter) {
-          return false;
-        }
-      }
-      if (searchTerm) {
-        const match =
-          (order.cliente ?? '').toLowerCase().includes(searchTerm) ||
-          (order.customer_name ?? '').toLowerCase().includes(searchTerm) ||
-          (order.numero ?? '').toLowerCase().includes(searchTerm);
-        if (!match) {
-          return false;
-        }
-      }
-      if (dateFrom || dateTo) {
-        const delivery = order.data_entrega ? new Date(order.data_entrega) : null;
-        if (!delivery) {
-          return false;
-        }
-        if (dateFrom && delivery < dateFrom) {
-          return false;
-        }
-        if (dateTo && delivery > dateTo) {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    const page = filters.page ?? 1;
-    const pageSize = filters.page_size ?? DEFAULT_PAGE_SIZE;
-    return paginateOrders(filtered, page, pageSize);
+    // SEMPRE usar paginação do backend quando possível
+    // Isso economiza MUITAS requisições ao não carregar todos os pedidos
+    // Os filtros avançados (vendedor, designer, cidade) são aplicados no frontend
+    // depois que os dados paginados chegam, então não precisamos verificar aqui
+    
+    // Usar paginação do backend - muito mais eficiente
+    // Nota: filtros avançados serão aplicados no frontend após receber os dados
+    return await fetchOrdersPaginated(
+      filters.page ?? 1,
+      filters.page_size ?? DEFAULT_PAGE_SIZE,
+      filters.status,
+      filters.customer_name ?? (filters as any).cliente,
+      filters.date_from,
+      filters.date_to
+    );
+    
+    // Código antigo removido - agora sempre usa paginação do backend para melhor performance
   },
 
   getOrderHistory: async (orderId: number): Promise<OrderAuditLogEntry[]> => {
