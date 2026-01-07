@@ -216,16 +216,21 @@ export const useRealtimeNotifications = () => {
   };
 
   // Conectar automaticamente quando o token de sessão estiver disponível
+  // IMPORTANTE: não depender de isConnected aqui, senão ao conectar (isConnected=true)
+  // o React reexecuta o effect e roda o cleanup, derrubando o WebSocket.
   useEffect(() => {
-    if (sessionToken && !isConnected) {
+    if (sessionToken) {
       connect();
+    } else {
+      // Se perder token (logout), desconectar imediatamente
+      disconnect();
     }
-    
-    // Cleanup ao desmontar
+
+    // Cleanup ao desmontar ou quando sessionToken trocar
     return () => {
       disconnect();
     };
-  }, [sessionToken, connect, disconnect, isConnected]);
+  }, [sessionToken, connect, disconnect]);
 
   return {
     isConnected,
