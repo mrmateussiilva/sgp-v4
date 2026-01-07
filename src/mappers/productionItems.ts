@@ -361,6 +361,17 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     fields.valor_totem = canon.valor_totem ?? '';
     fields.outros_valores_totem = canon.outros_valores_totem ?? '';
     fields.valor_unitario = canon.valor_unitario ?? '';
+
+    // Campo agregado para Resumo: evita ficar vazio e facilita manutenção do template
+    const label = acabamentoTotemLabel(canon.acabamento_totem);
+    const outro = (canon.acabamento_totem_outro ?? '').trim();
+    if (label === 'Outro') {
+      fields.acabamento_totem_resumo = outro ? `Outro (${outro})` : 'Outro';
+    } else if (label) {
+      fields.acabamento_totem_resumo = label;
+    } else {
+      fields.acabamento_totem_resumo = 'Não informado';
+    }
   }
 
   if (canon.tipo_producao === 'lona') {
