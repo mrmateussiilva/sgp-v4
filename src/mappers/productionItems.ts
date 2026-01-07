@@ -276,7 +276,33 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
 }
 
 export function toPrintFields(canon: CanonicalProductionItem): Record<string, string> {
+  // Helpers "humanizados" para templates de impressão (Resumo)
+  // Mantidos aqui para virar um ponto único de manutenção.
   const boolText = (value?: boolean) => (value ? 'Sim' : 'Não');
+  const yesNo = (value: boolean) => (value ? 'Sim' : 'Não');
+
+  const emendaLabel = (value?: string) => {
+    const v = (value ?? '').trim();
+    if (!v || v === 'sem-emenda') return 'Não';
+    if (v === 'vertical') return 'Vertical';
+    if (v === 'horizontal') return 'Horizontal';
+    return v;
+  };
+
+  const acabamentoTotemLabel = (value?: string) => {
+    const v = (value ?? '').trim();
+    if (!v) return '';
+    if (v === 'com_pe') return 'Com pé';
+    if (v === 'sem_pe') return 'Sem pé';
+    if (v === 'outro') return 'Outro';
+    return v;
+  };
+
+  const parseQtd = (value?: string) => {
+    const n = Number.parseInt(String(value ?? '0'), 10);
+    return Number.isNaN(n) ? 0 : n;
+  };
+
   const fields: Record<string, string> = {
     tipo_producao: canon.tipo_producao,
     descricao: canon.descricao ?? '',
@@ -286,9 +312,13 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     vendedor: canon.vendedor ?? '',
     designer: canon.designer ?? '',
     tecido: canon.tecido ?? '',
+    // Alias útil para templates (mais “humano” que tecido)
+    material: canon.tecido ?? '',
     observacao: canon.observacao ?? '',
     emenda: canon.emenda ?? '',
     emenda_qtd: canon.emenda_qtd ?? '',
+    // Versões “humanizadas” para resumo
+    emenda_label: emendaLabel(canon.emenda),
   };
 
   if (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica') {
@@ -304,10 +334,17 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     fields.quantidade_cordinha = canon.quantidade_cordinha ?? '';
     fields.espaco_cordinha = canon.espaco_cordinha ?? '';
     fields.valor_cordinha = canon.valor_cordinha ?? '';
+
+    // Campos resumidos (Sim/Não) para o template de Resumo
+    const hasIlhos = parseQtd(canon.quantidade_ilhos) > 0;
+    const hasCordinha = parseQtd(canon.quantidade_cordinha) > 0;
+    fields.ilhos = yesNo(hasIlhos);
+    fields.cordinha = yesNo(hasCordinha);
   }
 
   if (canon.tipo_producao === 'totem') {
     fields.acabamento_totem = canon.acabamento_totem ?? '';
+    fields.acabamento_totem_label = acabamentoTotemLabel(canon.acabamento_totem);
     fields.acabamento_totem_outro = canon.acabamento_totem_outro ?? '';
     fields.quantidade_totem = canon.quantidade_totem ?? '';
     fields.valor_totem = canon.valor_totem ?? '';
