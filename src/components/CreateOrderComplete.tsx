@@ -33,6 +33,7 @@ import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
+import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -1661,9 +1662,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
           // Campos específicos por tipo (começando por Painel e Totem)
           if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-            return {
+            const canon = canonicalizeFromItemRequest({
               ...basePayload,
-              // Painel: acabamentos + ilhós/cordinha + valores/quantidade
               overloque: item.overloque,
               elastico: item.elastico,
               tipo_acabamento: item.tipo_acabamento,
@@ -1683,13 +1683,31 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     ? item.emendaQtd
                     : undefined
                   : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              // Painel: acabamentos + ilhós/cordinha + valores/quantidade
+              overloque: canon.tipo_producao !== 'other' && 'overloque' in canon ? canon.overloque : item.overloque,
+              elastico: canon.tipo_producao !== 'other' && 'elastico' in canon ? canon.elastico : item.elastico,
+              tipo_acabamento: canon.tipo_producao !== 'other' && 'tipo_acabamento' in canon ? canon.tipo_acabamento : item.tipo_acabamento,
+              quantidade_ilhos: canon.tipo_producao !== 'other' && 'quantidade_ilhos' in canon ? canon.quantidade_ilhos : item.quantidade_ilhos,
+              espaco_ilhos: canon.tipo_producao !== 'other' && 'espaco_ilhos' in canon ? canon.espaco_ilhos : item.espaco_ilhos,
+              valor_ilhos: canon.tipo_producao !== 'other' && 'valor_ilhos' in canon ? canon.valor_ilhos : item.valor_ilhos,
+              quantidade_cordinha: canon.tipo_producao !== 'other' && 'quantidade_cordinha' in canon ? canon.quantidade_cordinha : item.quantidade_cordinha,
+              espaco_cordinha: canon.tipo_producao !== 'other' && 'espaco_cordinha' in canon ? canon.espaco_cordinha : item.espaco_cordinha,
+              valor_cordinha: canon.tipo_producao !== 'other' && 'valor_cordinha' in canon ? canon.valor_cordinha : item.valor_cordinha,
+              quantidade_paineis: canon.tipo_producao !== 'other' && 'quantidade_paineis' in canon ? canon.quantidade_paineis : item.quantidade_paineis,
+              valor_painel: canon.tipo_producao !== 'other' && 'valor_painel' in canon ? canon.valor_painel : item.valor_painel,
+              valores_adicionais: canon.tipo_producao !== 'other' && 'valores_adicionais' in canon ? canon.valores_adicionais : item.valores_adicionais,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (item.tipo_producao === 'totem') {
-            return {
+            const canon = canonicalizeFromItemRequest({
               ...basePayload,
-              // Totem: acabamentos próprios + valores/quantidade
               acabamento_totem: item.acabamento_totem,
               acabamento_totem_outro: item.acabamento_totem_outro,
               quantidade_totem: item.quantidade_totem,
@@ -1703,6 +1721,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     ? item.emendaQtd
                     : undefined
                   : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              // Totem: acabamentos próprios + valores/quantidade
+              acabamento_totem: canon.tipo_producao === 'totem' ? canon.acabamento_totem : item.acabamento_totem,
+              acabamento_totem_outro: canon.tipo_producao === 'totem' ? canon.acabamento_totem_outro : item.acabamento_totem_outro,
+              quantidade_totem: canon.tipo_producao === 'totem' ? canon.quantidade_totem : item.quantidade_totem,
+              valor_totem: canon.tipo_producao === 'totem' ? canon.valor_totem : item.valor_totem,
+              outros_valores_totem: canon.tipo_producao === 'totem' ? canon.outros_valores_totem : item.outros_valores_totem,
+              valor_unitario: canon.tipo_producao === 'totem' ? canon.valor_unitario : item.valor_unitario,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 

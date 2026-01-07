@@ -3,6 +3,7 @@ import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
 import { apiClient } from '../services/apiClient';
 import { logger } from './logger';
+import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 
 // ============================================================================
 // STORAGE - Leitura e Escrita de Templates
@@ -190,6 +191,7 @@ export const createOrderDataMap = (
   });
   
   const itemRecord = item as unknown as Record<string, unknown> || {};
+  const printFields = item ? toPrintFields(canonicalizeFromOrderItem(item)) : {};
   
   // Campos específicos com formatação
   const dimensoes = item ? formatDimensions(item) : '';
@@ -237,6 +239,8 @@ export const createOrderDataMap = (
     altura: item?.altura || '',
     metro_quadrado: item?.metro_quadrado || '',
     designer: item?.designer || '',
+    // Campos canônicos (Painel/Totem) — garantem consistência entre create/edit/print
+    ...printFields,
     vendedor: item?.vendedor || '',
     tecido: item?.tecido || '',
     quantity: item?.quantity?.toString() || '1',
