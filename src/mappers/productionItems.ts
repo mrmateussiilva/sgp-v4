@@ -1,6 +1,6 @@
 import type { CreateOrderItemRequest, OrderItem } from '@/types';
 
-export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'other';
+export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'other';
 
 export type CommonCanonicalFields = {
   descricao: string;
@@ -48,12 +48,42 @@ export type TotemCanonicalItem = CommonCanonicalFields & {
   valor_unitario?: string;
 };
 
-export type CanonicalProductionItem = PainelCanonicalItem | TotemCanonicalItem | OtherCanonicalItem;
+export type LonaCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'lona';
+  acabamento_lona?: 'refilar' | 'nao_refilar' | string;
+  quantidade_lona?: string;
+  valor_lona?: string;
+  outros_valores_lona?: string;
+  tipo_acabamento?: 'ilhos' | 'cordinha' | 'nenhum';
+  quantidade_ilhos?: string;
+  espaco_ilhos?: string;
+  valor_ilhos?: string;
+  quantidade_cordinha?: string;
+  espaco_cordinha?: string;
+  valor_cordinha?: string;
+};
+
+export type AdesivoCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'adesivo';
+  tipo_adesivo?: string;
+  quantidade_adesivo?: string;
+  valor_adesivo?: string;
+  outros_valores_adesivo?: string;
+};
+
+export type CanonicalProductionItem =
+  | PainelCanonicalItem
+  | TotemCanonicalItem
+  | LonaCanonicalItem
+  | AdesivoCanonicalItem
+  | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (tipo === 'painel') return 'painel';
   if (tipo === 'generica') return 'generica';
   if (tipo === 'totem') return 'totem';
+  if (tipo === 'lona') return 'lona';
+  if (tipo === 'adesivo') return 'adesivo';
   return 'other';
 }
 
@@ -133,6 +163,35 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
     };
   }
 
+  if (tipo === 'lona') {
+    return {
+      tipo_producao: 'lona',
+      ...baseCommon,
+      acabamento_lona: normalizeString(anyItem.acabamento_lona) ?? undefined,
+      quantidade_lona: normalizeString(anyItem.quantidade_lona),
+      valor_lona: normalizeString(anyItem.valor_lona),
+      outros_valores_lona: normalizeString(anyItem.outros_valores_lona),
+      tipo_acabamento: (anyItem.tipo_acabamento as LonaCanonicalItem['tipo_acabamento']) ?? 'nenhum',
+      quantidade_ilhos: normalizeString(anyItem.quantidade_ilhos),
+      espaco_ilhos: normalizeString(anyItem.espaco_ilhos),
+      valor_ilhos: normalizeString(anyItem.valor_ilhos),
+      quantidade_cordinha: normalizeString(anyItem.quantidade_cordinha),
+      espaco_cordinha: normalizeString(anyItem.espaco_cordinha),
+      valor_cordinha: normalizeString(anyItem.valor_cordinha),
+    };
+  }
+
+  if (tipo === 'adesivo') {
+    return {
+      tipo_producao: 'adesivo',
+      ...baseCommon,
+      tipo_adesivo: normalizeString(anyItem.tipo_adesivo),
+      quantidade_adesivo: normalizeString(anyItem.quantidade_adesivo),
+      valor_adesivo: normalizeString(anyItem.valor_adesivo),
+      outros_valores_adesivo: normalizeString(anyItem.outros_valores_adesivo),
+    };
+  }
+
   return {
     tipo_producao: 'other',
     ...baseCommon,
@@ -181,6 +240,35 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
     };
   }
 
+  if (tipo === 'lona') {
+    return {
+      tipo_producao: 'lona',
+      ...baseCommon,
+      acabamento_lona: normalizeString(anyItem.acabamento_lona) ?? undefined,
+      quantidade_lona: normalizeString(anyItem.quantidade_lona),
+      valor_lona: normalizeString(anyItem.valor_lona),
+      outros_valores_lona: normalizeString(anyItem.outros_valores_lona),
+      tipo_acabamento: (anyItem.tipo_acabamento as LonaCanonicalItem['tipo_acabamento']) ?? 'nenhum',
+      quantidade_ilhos: normalizeString(anyItem.quantidade_ilhos),
+      espaco_ilhos: normalizeString(anyItem.espaco_ilhos),
+      valor_ilhos: normalizeString(anyItem.valor_ilhos),
+      quantidade_cordinha: normalizeString(anyItem.quantidade_cordinha),
+      espaco_cordinha: normalizeString(anyItem.espaco_cordinha),
+      valor_cordinha: normalizeString(anyItem.valor_cordinha),
+    };
+  }
+
+  if (tipo === 'adesivo') {
+    return {
+      tipo_producao: 'adesivo',
+      ...baseCommon,
+      tipo_adesivo: normalizeString(anyItem.tipo_adesivo),
+      quantidade_adesivo: normalizeString(anyItem.quantidade_adesivo),
+      valor_adesivo: normalizeString(anyItem.valor_adesivo),
+      outros_valores_adesivo: normalizeString(anyItem.outros_valores_adesivo),
+    };
+  }
+
   return {
     tipo_producao: 'other',
     ...baseCommon,
@@ -225,6 +313,27 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     fields.valor_totem = canon.valor_totem ?? '';
     fields.outros_valores_totem = canon.outros_valores_totem ?? '';
     fields.valor_unitario = canon.valor_unitario ?? '';
+  }
+
+  if (canon.tipo_producao === 'lona') {
+    fields.acabamento_lona = canon.acabamento_lona ?? '';
+    fields.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
+    fields.quantidade_lona = canon.quantidade_lona ?? '';
+    fields.valor_lona = canon.valor_lona ?? '';
+    fields.outros_valores_lona = canon.outros_valores_lona ?? '';
+    fields.quantidade_ilhos = canon.quantidade_ilhos ?? '';
+    fields.espaco_ilhos = canon.espaco_ilhos ?? '';
+    fields.valor_ilhos = canon.valor_ilhos ?? '';
+    fields.quantidade_cordinha = canon.quantidade_cordinha ?? '';
+    fields.espaco_cordinha = canon.espaco_cordinha ?? '';
+    fields.valor_cordinha = canon.valor_cordinha ?? '';
+  }
+
+  if (canon.tipo_producao === 'adesivo') {
+    fields.tipo_adesivo = canon.tipo_adesivo ?? '';
+    fields.quantidade_adesivo = canon.quantidade_adesivo ?? '';
+    fields.valor_adesivo = canon.valor_adesivo ?? '';
+    fields.outros_valores_adesivo = canon.outros_valores_adesivo ?? '';
   }
 
   return fields;

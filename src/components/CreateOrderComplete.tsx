@@ -1749,6 +1749,74 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             };
           }
 
+          if (item.tipo_producao === 'lona') {
+            const canon = canonicalizeFromItemRequest({
+              ...basePayload,
+              tipo_acabamento: item.tipo_acabamento,
+              quantidade_ilhos: item.quantidade_ilhos,
+              espaco_ilhos: item.espaco_ilhos,
+              valor_ilhos: item.valor_ilhos,
+              quantidade_cordinha: item.quantidade_cordinha,
+              espaco_cordinha: item.espaco_cordinha,
+              valor_cordinha: item.valor_cordinha,
+              acabamento_lona: item.acabamento_lona,
+              quantidade_lona: item.quantidade_lona,
+              valor_lona: item.valor_lona,
+              outros_valores_lona: item.outros_valores_lona,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              tipo_acabamento: canon.tipo_producao === 'lona' ? canon.tipo_acabamento : item.tipo_acabamento,
+              quantidade_ilhos: canon.tipo_producao === 'lona' ? canon.quantidade_ilhos : item.quantidade_ilhos,
+              espaco_ilhos: canon.tipo_producao === 'lona' ? canon.espaco_ilhos : item.espaco_ilhos,
+              valor_ilhos: canon.tipo_producao === 'lona' ? canon.valor_ilhos : item.valor_ilhos,
+              quantidade_cordinha: canon.tipo_producao === 'lona' ? canon.quantidade_cordinha : item.quantidade_cordinha,
+              espaco_cordinha: canon.tipo_producao === 'lona' ? canon.espaco_cordinha : item.espaco_cordinha,
+              valor_cordinha: canon.tipo_producao === 'lona' ? canon.valor_cordinha : item.valor_cordinha,
+              acabamento_lona: canon.tipo_producao === 'lona' ? canon.acabamento_lona : item.acabamento_lona,
+              quantidade_lona: canon.tipo_producao === 'lona' ? canon.quantidade_lona : item.quantidade_lona,
+              valor_lona: canon.tipo_producao === 'lona' ? canon.valor_lona : item.valor_lona,
+              outros_valores_lona: canon.tipo_producao === 'lona' ? canon.outros_valores_lona : item.outros_valores_lona,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
+            };
+          }
+
+          if (item.tipo_producao === 'adesivo') {
+            const canon = canonicalizeFromItemRequest({
+              ...basePayload,
+              tipo_adesivo: item.tipo_adesivo,
+              quantidade_adesivo: item.quantidade_adesivo,
+              valor_adesivo: item.valor_adesivo,
+              outros_valores_adesivo: item.outros_valores_adesivo,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              tipo_adesivo: canon.tipo_producao === 'adesivo' ? canon.tipo_adesivo : item.tipo_adesivo,
+              quantidade_adesivo: canon.tipo_producao === 'adesivo' ? canon.quantidade_adesivo : item.quantidade_adesivo,
+              valor_adesivo: canon.tipo_producao === 'adesivo' ? canon.valor_adesivo : item.valor_adesivo,
+              outros_valores_adesivo: canon.tipo_producao === 'adesivo' ? canon.outros_valores_adesivo : item.outros_valores_adesivo,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
+            };
+          }
+
           // Outros tipos: manter payload completo atual (serão refatorados depois)
           return {
             ...basePayload,

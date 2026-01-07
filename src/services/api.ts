@@ -1255,7 +1255,7 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
   };
 
-  // Campos específicos por tipo — começando por Painel e Totem (pra reduzir erro humano)
+  // Campos específicos por tipo — agora cobrindo Painel/Totem/Lona/Adesivo
   if ((tipo === 'painel' || tipo === 'generica') && (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica')) {
     // CRÍTICO: o formulário (Painel) depende de tipo_acabamento para marcar Ilhós/Cordinha
     // Sem isso, ao reabrir para editar volta "nenhum" e o checkbox fica desmarcado.
@@ -1269,6 +1269,26 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     payload.outros_valores_totem = canon.outros_valores_totem ?? undefined;
     payload.acabamento_totem = canon.acabamento_totem ?? undefined;
     payload.acabamento_totem_outro = canon.acabamento_totem_outro ?? undefined;
+  } else if (tipo === 'lona' && canon.tipo_producao === 'lona') {
+    // Lona também usa tipo_acabamento + ilhós/cordinha
+    payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
+    payload.acabamento_lona = canon.acabamento_lona ?? undefined;
+    payload.quantidade_lona = canon.quantidade_lona ?? undefined;
+    payload.valor_lona = canon.valor_lona ? toCurrencyString(canon.valor_lona) : undefined;
+    payload.outros_valores_lona = canon.outros_valores_lona ? toCurrencyString(canon.outros_valores_lona) : undefined;
+    payload.quantidade_ilhos = canon.quantidade_ilhos ?? undefined;
+    payload.espaco_ilhos = canon.espaco_ilhos ?? undefined;
+    payload.valor_ilhos = canon.valor_ilhos ?? undefined;
+    payload.quantidade_cordinha = canon.quantidade_cordinha ?? undefined;
+    payload.espaco_cordinha = canon.espaco_cordinha ?? undefined;
+    payload.valor_cordinha = canon.valor_cordinha ?? undefined;
+  } else if (tipo === 'adesivo' && canon.tipo_producao === 'adesivo') {
+    payload.tipo_adesivo = canon.tipo_adesivo ?? undefined;
+    payload.quantidade_adesivo = canon.quantidade_adesivo ?? undefined;
+    payload.valor_adesivo = canon.valor_adesivo ? toCurrencyString(canon.valor_adesivo) : undefined;
+    payload.outros_valores_adesivo = canon.outros_valores_adesivo
+      ? toCurrencyString(canon.outros_valores_adesivo)
+      : undefined;
   } else {
     // Outros tipos mantêm os campos existentes (serão refatorados depois)
     payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
