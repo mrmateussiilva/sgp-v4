@@ -1212,8 +1212,11 @@ const collectReadyOrders = async (): Promise<OrderWithItems[]> => {
 };
 
 const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
+  const tipo = inferTipoProducao(item);
+
+  // Campos comuns a qualquer tipo (base)
   const payload: Record<string, any> = {
-    tipo_producao: inferTipoProducao(item),
+    tipo_producao: tipo,
     descricao: safeString(item?.descricao ?? item?.item_name ?? 'Item'),
     largura: item?.largura ?? '',
     altura: item?.altura ?? '',
@@ -1223,39 +1226,55 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     tecido: item?.tecido ?? '',
     acabamento: buildAcabamento(item),
     emenda: item?.emenda ?? 'sem-emenda',
+    emenda_qtd: item?.emenda_qtd ?? item?.emendaQtd ?? undefined,
     observacao: item?.observacao ?? '',
     valor_unitario: toCurrencyString(item?.valor_unitario ?? item?.unit_price ?? 0),
     imagem: item?.imagem ?? null,
     legenda_imagem: normalizeNullableString(item?.legenda_imagem),
-    quantidade_paineis: item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined),
-    valor_painel: item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined,
-    valores_adicionais: item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined,
-    quantidade_totem: item?.quantidade_totem ?? undefined,
-    quantidade_lona: item?.quantidade_lona ?? undefined,
-    quantidade_adesivo: item?.quantidade_adesivo ?? undefined,
+    terceirizado: item?.terceirizado ?? false,
+    ziper: item?.ziper ?? false,
+    cordinha_extra: item?.cordinha_extra ?? false,
+    alcinha: item?.alcinha ?? false,
+    toalha_pronta: item?.toalha_pronta ?? false,
+    // Campos compartilhados de acabamento (ilhós/cordinha) — alguns tipos usam, outros ignoram
     quantidade_cordinha: item?.quantidade_cordinha ?? undefined,
     valor_cordinha: item?.valor_cordinha ?? undefined,
     espaco_cordinha: item?.espaco_cordinha ?? undefined,
     quantidade_ilhos: item?.quantidade_ilhos ?? item?.ilhos_qtd ?? undefined,
     valor_ilhos: item?.valor_ilhos ?? item?.ilhos_valor_unitario ?? undefined,
     espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
-    valor_totem: item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined,
-    valor_lona: item?.valor_lona ? toCurrencyString(item.valor_lona) : undefined,
-    valor_adesivo: item?.valor_adesivo ? toCurrencyString(item.valor_adesivo) : undefined,
-    outros_valores_totem: item?.outros_valores_totem ?? undefined,
-    outros_valores_lona: item?.outros_valores_lona ?? undefined,
-    outros_valores_adesivo: item?.outros_valores_adesivo ?? undefined,
-    ziper: item?.ziper ?? false,
-    cordinha_extra: item?.cordinha_extra ?? false,
-    alcinha: item?.alcinha ?? false,
-    toalha_pronta: item?.toalha_pronta ?? false,
-    emenda_qtd: item?.emenda_qtd ?? item?.emendaQtd ?? undefined,
-    terceirizado: item?.terceirizado ?? false,
-    acabamento_lona: item?.acabamento_lona ?? undefined,
-    acabamento_totem: item?.acabamento_totem ?? undefined,
-    acabamento_totem_outro: item?.acabamento_totem_outro ?? undefined,
-    tipo_adesivo: item?.tipo_adesivo ?? undefined,
   };
+
+  // Campos específicos por tipo — começando por Painel e Totem (pra reduzir erro humano)
+  if (tipo === 'painel' || tipo === 'generica') {
+    payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
+    payload.valor_painel = item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined;
+    payload.valores_adicionais = item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined;
+  } else if (tipo === 'totem') {
+    payload.quantidade_totem = item?.quantidade_totem ?? undefined;
+    payload.valor_totem = item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined;
+    payload.outros_valores_totem = item?.outros_valores_totem ?? undefined;
+    payload.acabamento_totem = item?.acabamento_totem ?? undefined;
+    payload.acabamento_totem_outro = item?.acabamento_totem_outro ?? undefined;
+  } else {
+    // Outros tipos mantêm os campos existentes (serão refatorados depois)
+    payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
+    payload.valor_painel = item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined;
+    payload.valores_adicionais = item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined;
+    payload.quantidade_totem = item?.quantidade_totem ?? undefined;
+    payload.quantidade_lona = item?.quantidade_lona ?? undefined;
+    payload.quantidade_adesivo = item?.quantidade_adesivo ?? undefined;
+    payload.valor_totem = item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined;
+    payload.valor_lona = item?.valor_lona ? toCurrencyString(item.valor_lona) : undefined;
+    payload.valor_adesivo = item?.valor_adesivo ? toCurrencyString(item.valor_adesivo) : undefined;
+    payload.outros_valores_totem = item?.outros_valores_totem ?? undefined;
+    payload.outros_valores_lona = item?.outros_valores_lona ?? undefined;
+    payload.outros_valores_adesivo = item?.outros_valores_adesivo ?? undefined;
+    payload.acabamento_lona = item?.acabamento_lona ?? undefined;
+    payload.acabamento_totem = item?.acabamento_totem ?? undefined;
+    payload.acabamento_totem_outro = item?.acabamento_totem_outro ?? undefined;
+    payload.tipo_adesivo = item?.tipo_adesivo ?? undefined;
+  }
 
   const identifier = item?.orderItemId ?? item?.id;
   if (identifier) {

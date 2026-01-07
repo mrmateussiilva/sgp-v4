@@ -1634,7 +1634,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
           const quantidade = Number.isNaN(quantidadeRaw) || quantidadeRaw <= 0 ? 1 : quantidadeRaw;
 
-          const payload: NormalizedItem = {
+          // Campos comuns (base) para qualquer tipo de produção
+          const basePayload: NormalizedItem = {
             orderItemId: item.orderItemId,
             item_name: `${item.tipo_producao.toUpperCase()}: ${item.descricao}`,
             quantity: quantidade,
@@ -1647,6 +1648,67 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             vendedor: item.vendedor,
             designer: item.designer,
             tecido: item.tecido,
+            observacao: item.observacao,
+            // Campo imagem será atualizado após upload obrigatório (que ocorre antes de criar o pedido)
+            imagem: item.imagem,
+            legenda_imagem: item.legenda_imagem,
+            terceirizado: item.terceirizado,
+            ziper: item.ziper,
+            cordinha_extra: item.cordinha_extra,
+            alcinha: item.alcinha,
+            toalha_pronta: item.toalha_pronta,
+          };
+
+          // Campos específicos por tipo (começando por Painel e Totem)
+          if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
+            return {
+              ...basePayload,
+              // Painel: acabamentos + ilhós/cordinha + valores/quantidade
+              overloque: item.overloque,
+              elastico: item.elastico,
+              tipo_acabamento: item.tipo_acabamento,
+              quantidade_ilhos: item.quantidade_ilhos,
+              espaco_ilhos: item.espaco_ilhos,
+              valor_ilhos: item.valor_ilhos,
+              quantidade_cordinha: item.quantidade_cordinha,
+              espaco_cordinha: item.espaco_cordinha,
+              valor_cordinha: item.valor_cordinha,
+              quantidade_paineis: item.quantidade_paineis,
+              valor_painel: item.valor_painel,
+              valores_adicionais: item.valores_adicionais,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            };
+          }
+
+          if (item.tipo_producao === 'totem') {
+            return {
+              ...basePayload,
+              // Totem: acabamentos próprios + valores/quantidade
+              acabamento_totem: item.acabamento_totem,
+              acabamento_totem_outro: item.acabamento_totem_outro,
+              quantidade_totem: item.quantidade_totem,
+              valor_totem: item.valor_totem,
+              outros_valores_totem: item.outros_valores_totem,
+              valor_unitario: item.valor_unitario,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            };
+          }
+
+          // Outros tipos: manter payload completo atual (serão refatorados depois)
+          return {
+            ...basePayload,
             overloque: item.overloque,
             elastico: item.elastico,
             tipo_acabamento: item.tipo_acabamento,
@@ -1656,10 +1718,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             quantidade_cordinha: item.quantidade_cordinha,
             espaco_cordinha: item.espaco_cordinha,
             valor_cordinha: item.valor_cordinha,
-            observacao: item.observacao,
-            // Campo imagem será atualizado após upload obrigatório (que ocorre antes de criar o pedido)
-            imagem: item.imagem,
-            legenda_imagem: item.legenda_imagem,
             quantidade_paineis: item.quantidade_paineis,
             valor_painel: item.valor_painel,
             valores_adicionais: item.valores_adicionais,
@@ -1671,7 +1729,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   ? item.emendaQtd
                   : undefined
                 : undefined,
-            terceirizado: item.terceirizado,
             acabamento_lona: item.acabamento_lona,
             valor_lona: item.valor_lona,
             quantidade_lona: item.quantidade_lona,
@@ -1685,13 +1742,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             valor_adesivo: item.valor_adesivo,
             quantidade_adesivo: item.quantidade_adesivo,
             outros_valores_adesivo: item.outros_valores_adesivo,
-            ziper: item.ziper,
-            cordinha_extra: item.cordinha_extra,
-            alcinha: item.alcinha,
-            toalha_pronta: item.toalha_pronta,
           };
-
-          return payload;
         });
 
       if (!formData.cliente || formData.cliente.trim().length === 0) {
