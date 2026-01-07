@@ -18,11 +18,12 @@ export function useNotifications() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
+  const lastReconnectAttempt = useRef(0);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const sessionToken = useAuthStore((state) => state.sessionToken);
   const { updateOrder, addOrder, removeOrder } = useOrderStore();
-  const MAX_RECONNECT_ATTEMPTS = 5;
-  const RECONNECT_DELAY = 3000; // 3 segundos
+  const MAX_RECONNECT_ATTEMPTS = 10; // Aumentado de 5 para 10
+  const MIN_RECONNECT_INTERVAL = 2000; // Mínimo de 2 segundos entre tentativas
 
   useEffect(() => {
     const apiUrl = getApiUrl();
@@ -120,16 +121,40 @@ export function useNotifications() {
         ws.onclose = (event) => {
           console.log('[WebSocket] Conexão fechada:', event.code, event.reason);
           
+          // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
+          if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
+            console.log('[WebSocket] Outra sessão ativa. Não reconectando.');
+            return; // NÃO reconectar
+          }
+          
           // Tentar reconectar se não foi um fechamento intencional
           if (event.code !== 1000 && reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts.current++;
-            console.log(`[WebSocket] Tentando reconectar (tentativa ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
             
+            // CORREÇÃO 3: Implementar exponential backoff
+            const baseDelay = 1000; // 1 segundo base
+            const maxDelay = 30000; // 30 segundos máximo
+            const exponentialDelay = Math.min(
+              baseDelay * Math.pow(2, reconnectAttempts.current - 1),
+              maxDelay
+            );
+            
+            // CORREÇÃO 2: Garantir delay mínimo
+            const finalDelay = Math.max(exponentialDelay, MIN_RECONNECT_INTERVAL);
+            
+            // Debounce: verificar se passou tempo suficiente desde a última tentativa
+            const now = Date.now();
+            const timeSinceLastAttempt = now - lastReconnectAttempt.current;
+            const actualDelay = Math.max(finalDelay - timeSinceLastAttempt, MIN_RECONNECT_INTERVAL);
+            
+            console.log(`[WebSocket] Tentando reconectar em ${actualDelay}ms (tentativa ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+            
+            lastReconnectAttempt.current = now;
             reconnectTimeoutRef.current = setTimeout(() => {
               connectWebSocket();
-            }, RECONNECT_DELAY);
+            }, actualDelay);
           } else if (reconnectAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
-            console.error('[WebSocket] Máximo de tentativas de reconexão atingido');
+            console.error(`[WebSocket] Máximo de tentativas de reconexão atingido (${MAX_RECONNECT_ATTEMPTS})`);
           }
         };
         

@@ -33,10 +33,11 @@ class OrdersWebSocketManager {
   private statusListeners = new Set<StatusListener>();
   private status: OrdersSocketStatus = { ...INITIAL_STATUS };
   private shouldStayConnected = false;
-  private reconnectDelayMs = 2000;
-  private maxReconnectAttempts = 3; // Limitar tentativas para evitar spam de erros
+  private maxReconnectAttempts = 10; // Limitar tentativas para evitar spam de erros
   private consecutiveFailures = 0;
   private isConnecting = false; // Flag para evitar múltiplas conexões simultâneas
+  private lastReconnectAttempt = 0; // Timestamp da última tentativa de reconexão
+  private minReconnectInterval = 2000; // Mínimo de 2 segundos entre tentativas
 
   subscribe(listener: MessageListener): () => void {
     this.listeners.add(listener);
@@ -86,6 +87,17 @@ class OrdersWebSocketManager {
   private ensureConnection(forceReconnect = false): void {
     // Evitar múltiplas conexões simultâneas
     if (this.isConnecting && !forceReconnect) {
+      return;
+    }
+
+    // Debounce: verificar se passou tempo suficiente desde a última tentativa
+    const now = Date.now();
+    const timeSinceLastAttempt = now - this.lastReconnectAttempt;
+    if (timeSinceLastAttempt < this.minReconnectInterval && !forceReconnect && this.lastReconnectAttempt > 0) {
+      if (import.meta.env.DEV) {
+        console.log(`⏳ Aguardando ${this.minReconnectInterval - timeSinceLastAttempt}ms antes de reconectar...`);
+      }
+      this.scheduleReconnect();
       return;
     }
 
@@ -222,11 +234,28 @@ class OrdersWebSocketManager {
       // Resetar flag de conexão
       this.isConnecting = false;
       
+      // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
+      // (código 1000 com razão "Nova conexão do mesmo usuário")
+      if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
+        if (import.meta.env.DEV) {
+          console.log('ℹ️ WebSocket: Conexão fechada - outra sessão ativa. Não reconectando.');
+        }
+        this.updateStatus({
+          isConnected: false,
+          lastError: 'Outra sessão ativa - conexão fechada pelo servidor',
+        });
+        this.stopPing();
+        this.socket = null;
+        // Resetar contadores pois não é uma falha
+        this.consecutiveFailures = 0;
+        return; // NÃO reconectar
+      }
+      
       // Incrementar contador de falhas se não foi um fechamento limpo
       if (!event.wasClean) {
         this.consecutiveFailures++;
       } else {
-        // Resetar se foi fechamento limpo
+        // Resetar se foi fechamento limpo (mas não o caso especial acima)
         this.consecutiveFailures = 0;
       }
       
@@ -296,7 +325,7 @@ class OrdersWebSocketManager {
           console.log('📨 WebSocket mensagem recebida:', {
             type: message.type,
             order_id: message.order_id,
-            has_order: !!(message as any).order,
+            has_order: !!message.order,
             listeners_count: this.listeners.size,
           });
         }
@@ -358,26 +387,44 @@ class OrdersWebSocketManager {
       return;
     }
     
-    // Se já tentou muitas vezes sem sucesso, parar de tentar
+    // CORREÇÃO 4: Limitar número de tentativas de reconexão
     if (this.consecutiveFailures >= this.maxReconnectAttempts) {
       if (import.meta.env.DEV) {
-        console.info('ℹ️ WebSocket: Parando tentativas de reconexão após múltiplas falhas. O sistema continuará funcionando normalmente sem atualizações em tempo real.');
+        console.info(`ℹ️ WebSocket: Parando tentativas de reconexão após ${this.maxReconnectAttempts} tentativas. O sistema continuará funcionando normalmente sem atualizações em tempo real.`);
       }
       this.updateStatus({
-        lastError: 'WebSocket não disponível - funcionando sem tempo real',
+        lastError: `WebSocket não disponível após ${this.maxReconnectAttempts} tentativas - funcionando sem tempo real`,
       });
       return;
     }
     
+    // CORREÇÃO 3: Implementar exponential backoff
+    // Calcular delay: 1s, 2s, 4s, 8s... máximo 30s
+    const baseDelay = 1000; // 1 segundo base
+    const maxDelay = 30000; // 30 segundos máximo
+    const exponentialDelay = Math.min(
+      baseDelay * Math.pow(2, this.consecutiveFailures - 1),
+      maxDelay
+    );
+    
+    // CORREÇÃO 2: Garantir delay mínimo de 2-3 segundos
+    const finalDelay = Math.max(exponentialDelay, this.minReconnectInterval);
+    
     this.updateStatus({
       reconnectAttempts: this.status.reconnectAttempts + 1,
     });
+    
+    if (import.meta.env.DEV) {
+      console.log(`🔄 WebSocket: Agendando reconexão em ${finalDelay}ms (tentativa ${this.consecutiveFailures + 1}/${this.maxReconnectAttempts})`);
+    }
+    
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      this.lastReconnectAttempt = Date.now();
       if (this.shouldStayConnected || this.listeners.size > 0) {
         this.ensureConnection();
       }
-    }, this.reconnectDelayMs);
+    }, finalDelay);
   }
 
   private clearReconnectTimer(): void {
