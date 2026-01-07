@@ -14,12 +14,159 @@ interface UseOrderEventsProps {
   onOrderStatusUpdated?: (orderId: number) => void;
 }
 
+// Singleton para gerenciar handlers globais e assinatura única
+class OrderEventsManager {
+  private static instance: OrderEventsManager | null = null;
+  private globalSubscription: (() => void) | null = null;
+  private handlers = new Map<symbol, UseOrderEventsProps>();
+  private subscriptionCount = 0;
+
+  static getInstance(): OrderEventsManager {
+    if (!OrderEventsManager.instance) {
+      OrderEventsManager.instance = new OrderEventsManager();
+    }
+    return OrderEventsManager.instance;
+  }
+
+  private parseOrderId(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    return undefined;
+  }
+
+  private handleMessage = (message: OrderEventMessage) => {
+    // Type guard para acessar propriedades dinâmicas
+    const messageWithOrder = message as OrderEventMessage & { order?: unknown; pedido_id?: number };
+    const orderPayload = messageWithOrder.order as { id?: number; order_id?: number; pedido_id?: number } | undefined;
+    
+    if (import.meta.env.DEV) {
+      console.log('📡 [OrderEventsManager] Evento WebSocket recebido:', {
+        type: message.type,
+        order_id: message.order_id,
+        has_order: !!orderPayload,
+        handlers_count: this.handlers.size,
+      });
+    }
+    
+    const type = message.type;
+    if (!type) {
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ [OrderEventsManager] Evento sem tipo:', message);
+      }
+      return;
+    }
+
+    // Tentar extrair order_id de múltiplas fontes possíveis
+    const orderId =
+      this.parseOrderId(message.order_id) ??
+      this.parseOrderId(messageWithOrder.pedido_id) ??
+      this.parseOrderId(orderPayload?.id) ??
+      this.parseOrderId(orderPayload?.order_id) ??
+      this.parseOrderId(orderPayload?.pedido_id);
+
+    if (!orderId) {
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ [OrderEventsManager] Evento recebido sem order_id rastreável:', message);
+      }
+      return;
+    }
+
+    // Notificar todos os handlers registrados
+    this.handlers.forEach((handlers) => {
+      const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlers;
+
+      // Processar eventos na ordem correta para evitar conflitos
+      if (type === 'order_created' && orderId) {
+        if (onOrderCreated) {
+          onOrderCreated(orderId);
+        }
+        // order_created também dispara onOrderUpdated
+        if (onOrderUpdated) {
+          onOrderUpdated(orderId);
+        }
+      } else if (type === 'order_status_updated' && orderId) {
+        // order_status_updated tem prioridade e dispara ambos os handlers
+        if (onOrderStatusUpdated) {
+          if (import.meta.env.DEV) {
+            console.log('🔄 [OrderEventsManager] Chamando onOrderStatusUpdated para pedido:', orderId);
+          }
+          onOrderStatusUpdated(orderId);
+        }
+        // Também disparar onOrderUpdated para garantir atualização
+        if (onOrderUpdated) {
+          if (import.meta.env.DEV) {
+            console.log('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
+          }
+          onOrderUpdated(orderId);
+        }
+      } else if (type === 'order_updated' && orderId && onOrderUpdated) {
+        if (import.meta.env.DEV) {
+          console.log('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
+        }
+        onOrderUpdated(orderId);
+      }
+
+      if (type === 'order_deleted' && orderId && onOrderDeleted) {
+        onOrderDeleted(orderId);
+      }
+    });
+  };
+
+  subscribe(handlers: UseOrderEventsProps): { unsubscribe: () => void; id: symbol } {
+    const id = Symbol('order-events-handler');
+    this.handlers.set(id, handlers);
+    this.subscriptionCount++;
+
+    // Criar assinatura WebSocket apenas na primeira vez
+    if (!this.globalSubscription) {
+      this.globalSubscription = ordersSocket.subscribe(this.handleMessage);
+      if (import.meta.env.DEV) {
+        console.log('✅ [OrderEventsManager] Assinatura WebSocket global criada');
+      }
+    }
+
+    // Retornar função de unsubscribe e ID
+    return {
+      id,
+      unsubscribe: () => {
+        this.handlers.delete(id);
+        this.subscriptionCount--;
+
+        // Se não houver mais handlers, fazer unsubscribe
+        if (this.subscriptionCount === 0 && this.globalSubscription) {
+          this.globalSubscription();
+          this.globalSubscription = null;
+          if (import.meta.env.DEV) {
+            console.log('✅ [OrderEventsManager] Assinatura WebSocket global removida (sem mais handlers)');
+          }
+        }
+      },
+    };
+  }
+
+  updateHandlers(id: symbol, handlers: UseOrderEventsProps): void {
+    if (this.handlers.has(id)) {
+      this.handlers.set(id, handlers);
+    }
+  }
+}
+
+const orderEventsManager = OrderEventsManager.getInstance();
+
 export const useOrderEvents = ({
   onOrderCreated,
   onOrderUpdated,
   onOrderDeleted,
   onOrderStatusUpdated,
 }: UseOrderEventsProps = {}) => {
+  const handlerIdRef = useRef<symbol | null>(null);
   const handlersRef = useRef({
     onOrderCreated,
     onOrderUpdated,
@@ -34,105 +181,25 @@ export const useOrderEvents = ({
       onOrderDeleted,
       onOrderStatusUpdated,
     };
+
+    // Atualizar handlers no manager se já estiver registrado
+    if (handlerIdRef.current) {
+      orderEventsManager.updateHandlers(handlerIdRef.current, handlersRef.current);
+    }
   }, [onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated]);
 
   useEffect(() => {
-    const parseOrderId = (value: unknown): number | undefined => {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-      }
-      if (typeof value === 'string') {
-        const parsed = Number.parseInt(value, 10);
-        if (!Number.isNaN(parsed)) {
-          return parsed;
-        }
-      }
-      return undefined;
-    };
-
-    const handleMessage = (message: OrderEventMessage) => {
-      // Type guard para acessar propriedades dinâmicas
-      const messageWithOrder = message as OrderEventMessage & { order?: unknown; pedido_id?: number };
-      const orderPayload = messageWithOrder.order as { id?: number; order_id?: number; pedido_id?: number } | undefined;
-      
-      console.log('📡 [useOrderEvents] Evento WebSocket recebido:', {
-        type: message.type,
-        order_id: message.order_id,
-        has_order: !!orderPayload,
-        full_message: message,
-      });
-      
-      const type = message.type;
-      if (!type) {
-        console.warn('⚠️ [useOrderEvents] Evento sem tipo:', message);
-        return;
-      }
-
-      // Tentar extrair order_id de múltiplas fontes possíveis
-      const orderId =
-        parseOrderId(message.order_id) ??
-        parseOrderId(messageWithOrder.pedido_id) ??
-        parseOrderId(orderPayload?.id) ??
-        parseOrderId(orderPayload?.order_id) ??
-        parseOrderId(orderPayload?.pedido_id);
-
-      console.log('🔍 [useOrderEvents] OrderId extraído:', {
-        from_message: message.order_id,
-        from_order_payload: orderPayload?.id,
-        final_orderId: orderId,
-      });
-
-      const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlersRef.current;
-
-      if (!orderId) {
-        console.warn('⚠️ [useOrderEvents] Evento recebido sem order_id rastreável:', message);
-        return; // Não processar se não tiver orderId
-      }
-      
-      console.log('✅ [useOrderEvents] Handlers disponíveis:', {
-        onOrderCreated: !!onOrderCreated,
-        onOrderUpdated: !!onOrderUpdated,
-        onOrderDeleted: !!onOrderDeleted,
-        onOrderStatusUpdated: !!onOrderStatusUpdated,
-      });
-
-      // Processar eventos na ordem correta para evitar conflitos
-      if (type === 'order_created' && orderId) {
-        if (onOrderCreated) {
-          onOrderCreated(orderId);
-        }
-        // order_created também dispara onOrderUpdated
-        if (onOrderUpdated) {
-          onOrderUpdated(orderId);
-        }
-      } else if (type === 'order_status_updated' && orderId) {
-        // order_status_updated tem prioridade e dispara ambos os handlers
-        if (onOrderStatusUpdated) {
-          console.log('🔄 Chamando onOrderStatusUpdated para pedido:', orderId);
-          onOrderStatusUpdated(orderId);
-        }
-        // Também disparar onOrderUpdated para garantir atualização
-        if (onOrderUpdated) {
-          console.log('🔄 Chamando onOrderUpdated para pedido:', orderId);
-          onOrderUpdated(orderId);
-        }
-      } else if (type === 'order_updated' && orderId && onOrderUpdated) {
-        console.log('🔄 Chamando onOrderUpdated para pedido:', orderId);
-        onOrderUpdated(orderId);
-      }
-
-      if (type === 'order_deleted' && orderId && onOrderDeleted) {
-        onOrderDeleted(orderId);
-      }
-    };
-
-    // subscribe() já chama ensureConnection() internamente, não precisa chamar connect() novamente
-    const unsubscribe = ordersSocket.subscribe(handleMessage);
+    // Registrar handlers no manager singleton
+    const { id, unsubscribe } = orderEventsManager.subscribe(handlersRef.current);
+    
+    // Armazenar o ID para atualizações futuras
+    handlerIdRef.current = id;
 
     return () => {
       unsubscribe();
+      handlerIdRef.current = null;
     };
-  }, []);
+  }, []); // Dependências vazias - criar apenas uma vez por componente
 };
 
 // ========================================
