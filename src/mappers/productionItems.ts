@@ -2,8 +2,7 @@ import type { CreateOrderItemRequest, OrderItem } from '@/types';
 
 export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'other';
 
-export type BaseCanonicalItem = {
-  tipo_producao: CanonicalTipoProducao;
+export type CommonCanonicalFields = {
   descricao: string;
   largura?: string;
   altura?: string;
@@ -19,7 +18,11 @@ export type BaseCanonicalItem = {
   terceirizado?: boolean;
 };
 
-export type PainelCanonicalItem = BaseCanonicalItem & {
+export type OtherCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'other';
+};
+
+export type PainelCanonicalItem = CommonCanonicalFields & {
   tipo_producao: 'painel' | 'generica';
   overloque: boolean;
   elastico: boolean;
@@ -35,7 +38,7 @@ export type PainelCanonicalItem = BaseCanonicalItem & {
   valores_adicionais?: string;
 };
 
-export type TotemCanonicalItem = BaseCanonicalItem & {
+export type TotemCanonicalItem = CommonCanonicalFields & {
   tipo_producao: 'totem';
   acabamento_totem?: 'com_pe' | 'sem_pe' | 'outro' | string;
   acabamento_totem_outro?: string;
@@ -45,7 +48,7 @@ export type TotemCanonicalItem = BaseCanonicalItem & {
   valor_unitario?: string;
 };
 
-export type CanonicalProductionItem = PainelCanonicalItem | TotemCanonicalItem | BaseCanonicalItem;
+export type CanonicalProductionItem = PainelCanonicalItem | TotemCanonicalItem | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (tipo === 'painel') return 'painel';
@@ -67,7 +70,7 @@ function normalizeNullableString(value: unknown): string | null | undefined {
   return trimmed.length ? trimmed : null;
 }
 
-function baseFromAny(input: Record<string, unknown>): Omit<BaseCanonicalItem, 'tipo_producao' | 'descricao'> {
+function baseFromAny(input: Record<string, unknown>): Omit<CommonCanonicalFields, 'descricao'> {
   return {
     largura: normalizeString(input.largura),
     altura: normalizeString(input.altura),
@@ -93,16 +96,15 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
       ? anyItem.item_name
       : '';
 
-  const base: BaseCanonicalItem = {
-    tipo_producao: tipo,
+  const baseCommon = {
     descricao,
     ...baseFromAny(anyItem),
   };
 
   if (tipo === 'painel' || tipo === 'generica') {
     return {
-      ...base,
       tipo_producao: tipo,
+      ...baseCommon,
       overloque: Boolean(anyItem.overloque),
       elastico: Boolean(anyItem.elastico),
       tipo_acabamento: (anyItem.tipo_acabamento as PainelCanonicalItem['tipo_acabamento']) ?? 'nenhum',
@@ -120,8 +122,8 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
 
   if (tipo === 'totem') {
     return {
-      ...base,
       tipo_producao: 'totem',
+      ...baseCommon,
       acabamento_totem: normalizeString(anyItem.acabamento_totem) ?? undefined,
       acabamento_totem_outro: normalizeString(anyItem.acabamento_totem_outro),
       quantidade_totem: normalizeString(anyItem.quantidade_totem),
@@ -131,7 +133,10 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
     };
   }
 
-  return base;
+  return {
+    tipo_producao: 'other',
+    ...baseCommon,
+  };
 }
 
 export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionItem {
@@ -139,16 +144,15 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
   const tipo = normalizeTipo((item.tipo_producao as string | null | undefined) ?? (anyItem.tipo_producao as any));
   const descricao = item.descricao ?? item.item_name ?? '';
 
-  const base: BaseCanonicalItem = {
-    tipo_producao: tipo,
+  const baseCommon = {
     descricao,
     ...baseFromAny(anyItem),
   };
 
   if (tipo === 'painel' || tipo === 'generica') {
     return {
-      ...base,
       tipo_producao: tipo,
+      ...baseCommon,
       overloque: Boolean((anyItem.overloque as unknown) ?? false),
       elastico: Boolean((anyItem.elastico as unknown) ?? false),
       tipo_acabamento: (anyItem.tipo_acabamento as PainelCanonicalItem['tipo_acabamento']) ?? 'nenhum',
@@ -166,8 +170,8 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
 
   if (tipo === 'totem') {
     return {
-      ...base,
       tipo_producao: 'totem',
+      ...baseCommon,
       acabamento_totem: normalizeString(anyItem.acabamento_totem) ?? undefined,
       acabamento_totem_outro: normalizeString(anyItem.acabamento_totem_outro),
       quantidade_totem: normalizeString(anyItem.quantidade_totem),
@@ -177,7 +181,10 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
     };
   }
 
-  return base;
+  return {
+    tipo_producao: 'other',
+    ...baseCommon,
+  };
 }
 
 export function toPrintFields(canon: CanonicalProductionItem): Record<string, string> {

@@ -12,6 +12,7 @@ import {
   LoginResponse,
   OrderWithItems,
   CreateOrderRequest,
+  CreateOrderItemRequest,
   UpdateOrderRequest,
   UpdateOrderMetadataRequest,
   OrderFilters,
@@ -34,6 +35,7 @@ import {
 } from '../types';
 import { generateFechamentoReport } from '../utils/fechamentoReport';
 import { ordersSocket } from '../lib/realtimeOrders';
+import { canonicalizeFromItemRequest } from '../mappers/productionItems';
 
 type ApiOrderStatus = 'pendente' | 'em_producao' | 'pronto' | 'entregue' | 'cancelado';
 type ApiPriority = 'NORMAL' | 'ALTA';
@@ -1213,25 +1215,33 @@ const collectReadyOrders = async (): Promise<OrderWithItems[]> => {
 
 const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
   const tipo = inferTipoProducao(item);
+  const canon = canonicalizeFromItemRequest(item as CreateOrderItemRequest);
 
   // Campos comuns a qualquer tipo (base)
   const payload: Record<string, any> = {
     tipo_producao: tipo,
-    descricao: safeString(item?.descricao ?? item?.item_name ?? 'Item'),
-    largura: item?.largura ?? '',
-    altura: item?.altura ?? '',
-    metro_quadrado: item?.metro_quadrado ?? '',
-    vendedor: item?.vendedor ?? '',
-    designer: item?.designer ?? '',
-    tecido: item?.tecido ?? '',
-    acabamento: buildAcabamento(item),
-    emenda: item?.emenda ?? 'sem-emenda',
-    emenda_qtd: item?.emenda_qtd ?? item?.emendaQtd ?? undefined,
-    observacao: item?.observacao ?? '',
-    valor_unitario: toCurrencyString(item?.valor_unitario ?? item?.unit_price ?? 0),
-    imagem: item?.imagem ?? null,
-    legenda_imagem: normalizeNullableString(item?.legenda_imagem),
-    terceirizado: item?.terceirizado ?? false,
+    descricao: safeString(canon.descricao ?? 'Item'),
+    largura: canon.largura ?? '',
+    altura: canon.altura ?? '',
+    metro_quadrado: canon.metro_quadrado ?? '',
+    vendedor: canon.vendedor ?? '',
+    designer: canon.designer ?? '',
+    tecido: canon.tecido ?? '',
+    // acabamento (overloque/elástico/ilhós) deve ser coerente com o tipo
+    acabamento: buildAcabamento(canon),
+    emenda: canon.emenda ?? 'sem-emenda',
+    emenda_qtd: canon.emenda_qtd ?? undefined,
+    observacao: canon.observacao ?? '',
+    // valor_unitario é a base para itens genéricos e também é usado em Totem
+    valor_unitario: toCurrencyString(
+      (canon.tipo_producao === 'totem' ? canon.valor_unitario : undefined) ??
+        item?.valor_unitario ??
+        item?.unit_price ??
+        0
+    ),
+    imagem: canon.imagem ?? null,
+    legenda_imagem: normalizeNullableString(canon.legenda_imagem ?? undefined),
+    terceirizado: canon.terceirizado ?? false,
     ziper: item?.ziper ?? false,
     cordinha_extra: item?.cordinha_extra ?? false,
     alcinha: item?.alcinha ?? false,
@@ -1246,16 +1256,16 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
   };
 
   // Campos específicos por tipo — começando por Painel e Totem (pra reduzir erro humano)
-  if (tipo === 'painel' || tipo === 'generica') {
-    payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
-    payload.valor_painel = item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined;
-    payload.valores_adicionais = item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined;
-  } else if (tipo === 'totem') {
-    payload.quantidade_totem = item?.quantidade_totem ?? undefined;
-    payload.valor_totem = item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined;
-    payload.outros_valores_totem = item?.outros_valores_totem ?? undefined;
-    payload.acabamento_totem = item?.acabamento_totem ?? undefined;
-    payload.acabamento_totem_outro = item?.acabamento_totem_outro ?? undefined;
+  if ((tipo === 'painel' || tipo === 'generica') && (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica')) {
+    payload.quantidade_paineis = canon.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
+    payload.valor_painel = canon.valor_painel ? toCurrencyString(canon.valor_painel) : undefined;
+    payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
+  } else if (tipo === 'totem' && canon.tipo_producao === 'totem') {
+    payload.quantidade_totem = canon.quantidade_totem ?? undefined;
+    payload.valor_totem = canon.valor_totem ? toCurrencyString(canon.valor_totem) : undefined;
+    payload.outros_valores_totem = canon.outros_valores_totem ?? undefined;
+    payload.acabamento_totem = canon.acabamento_totem ?? undefined;
+    payload.acabamento_totem_outro = canon.acabamento_totem_outro ?? undefined;
   } else {
     // Outros tipos mantêm os campos existentes (serão refatorados depois)
     payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
