@@ -7,7 +7,6 @@ import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Loader2 } from 'lucide-react';
-import { useNotifications } from './hooks/useNotifications';
 import { useAutoUpdateCheck } from './hooks/useAutoUpdateCheck';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
@@ -40,10 +39,9 @@ function App() {
   const [showFallback, setShowFallback] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Hook de notificações (só funciona quando API está configurada)
-  useNotifications();
-
   // Hook de verificação automática de atualizações
+  // Nota: Notificações WebSocket são gerenciadas por useOrderAutoSync em OrderList.tsx
+  // que usa o singleton ordersSocket para evitar múltiplas conexões
   useAutoUpdateCheck();
 
   useEffect(() => {

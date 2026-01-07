@@ -342,6 +342,9 @@ const createCacheEntry = <T>(data: T): TimedCache<T> => ({
 let designersCache: TimedCache<DesignerApi[]> | null = null;
 let materiaisCache: TimedCache<MaterialApi[]> | null = null;
 let ordersByStatusCache: Map<string, TimedCache<OrderWithItems[]>> = new Map();
+let ordersByIdCache: Map<number, TimedCache<OrderWithItems>> = new Map();
+let vendedoresCache: TimedCache<Array<{ id: number; nome: string }>> | null = null;
+let tiposPagamentoCache: TimedCache<Array<{ id: number; nome: string }>> | null = null;
 
 const clearDesignersCache = (): void => {
   designersCache = null;
@@ -349,6 +352,11 @@ const clearDesignersCache = (): void => {
 
 const clearMateriaisCache = (): void => {
   materiaisCache = null;
+};
+
+const clearOrderCache = (orderId: number): void => {
+  ordersByIdCache.delete(orderId);
+  logger.debug(`[clearOrderCache] 🗑️ Cache invalidado para pedido ${orderId}`);
 };
 
 const API_STATUS_TO_APP: Record<ApiOrderStatus, OrderStatus> = {
@@ -974,6 +982,13 @@ const fetchOrdersPaginated = async (
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
   
+  // Cache por 10 segundos para pedidos individuais
+  const cached = ordersByIdCache.get(orderId);
+  if (cached && isCacheFresh(cached)) {
+    logger.debug(`[fetchOrderById] ✅ Retornando do cache: ${orderId}`);
+    return cached.data;
+  }
+  
   logger.debug(`[fetchOrderById] 🔍 Buscando pedido ${orderId}...`);
   
   try {
@@ -1023,6 +1038,8 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
       } : null
     });
     
+    // Cachear resultado por 10 segundos
+    ordersByIdCache.set(orderId, createCacheEntry(mappedOrder));
     return mappedOrder;
   } catch (error) {
     // FALLBACK: Se não houver JSON, buscar da API normal
@@ -1047,6 +1064,8 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
       } : null
     });
     
+    // Cachear resultado por 10 segundos
+    ordersByIdCache.set(orderId, createCacheEntry(mappedOrder));
     return mappedOrder;
   }
 };
@@ -1567,6 +1586,9 @@ export const api = {
       logger.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
     }
     
+    // Invalidar caches após criar novo pedido
+    ordersByStatusCache.clear();
+    
     return order;
   },
 
@@ -1632,6 +1654,12 @@ export const api = {
     // 🔥 CORREÇÃO CRÍTICA: Após o PATCH, fazer um GET explícito para garantir que o estado está sincronizado
     // Isso resolve o problema onde o checkbox volta ao estado anterior após atualização
     // O backend pode retornar dados stale no response do PATCH, então sempre buscamos o pedido atualizado
+    
+    // Invalidar cache do pedido antes de buscar novamente
+    clearOrderCache(request.id);
+    // Também invalidar cache de status para garantir consistência
+    ordersByStatusCache.clear();
+    
     const updatedOrder = await fetchOrderById(request.id);
     
     return updatedOrder;
@@ -1729,6 +1757,11 @@ export const api = {
   deleteOrder: async (orderId: number): Promise<boolean> => {
     requireSessionToken();
     await apiClient.delete(`/pedidos/${orderId}`);
+    
+    // Invalidar caches após deletar pedido
+    clearOrderCache(orderId);
+    ordersByStatusCache.clear();
+    
     return true;
   },
 
@@ -1825,11 +1858,23 @@ export const api = {
 
   getVendedoresAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
     requireSessionToken();
+    
+    // Cache para evitar requisições repetidas
+    if (isCacheFresh(vendedoresCache)) {
+      logger.debug(`[getVendedoresAtivos] ✅ Retornando do cache`);
+      return vendedoresCache.data;
+    }
+    
+    logger.debug(`[getVendedoresAtivos] 📡 Buscando do backend`);
     const response = await apiClient.get<VendedorApi[]>('/vendedores/ativos');
-    return (response.data ?? [])
+    const result = (response.data ?? [])
       .filter((vendedor) => Boolean(vendedor?.nome))
       .map((vendedor) => ({ id: vendedor.id, nome: vendedor.nome.trim() }))
       .filter((vendedor) => vendedor.nome.length > 0);
+    
+    // Cachear resultado por 60 segundos (vendedores mudam pouco)
+    vendedoresCache = createCacheEntry(result);
+    return result;
   },
 
   getDesignersAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
@@ -1903,10 +1948,22 @@ export const api = {
 
   getFormasPagamentoAtivas: async (): Promise<Array<{ id: number; nome: string }>> => {
     requireSessionToken();
+    
+    // Cache para evitar requisições repetidas
+    if (isCacheFresh(tiposPagamentoCache)) {
+      logger.debug(`[getFormasPagamentoAtivas] ✅ Retornando do cache`);
+      return tiposPagamentoCache.data;
+    }
+    
+    logger.debug(`[getFormasPagamentoAtivas] 📡 Buscando do backend`);
     const response = await apiClient.get<FormaPagamentoApi[]>('/tipos-pagamentos/ativos');
-    return (response.data ?? [])
+    const result = (response.data ?? [])
       .filter((forma) => Boolean(forma?.nome))
       .map((forma) => ({ id: forma.id, nome: forma.nome }));
+    
+    // Cachear resultado por 60 segundos (tipos de pagamento mudam pouco)
+    tiposPagamentoCache = createCacheEntry(result);
+    return result;
   },
 
   generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
