@@ -546,6 +546,8 @@ const normalizePriority = (value?: string | null): ApiPriority => {
 };
 
 const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): OrderItem => {
+  const anyItem = item as unknown as Record<string, unknown>;
+  const acabamentoAny = (item.acabamento ?? (anyItem.acabamento as ApiAcabamento | null | undefined)) ?? null;
   const quantity = deriveQuantity(item);
   const unitPrice =
     item.valor_unitario != null || item.valor_totem != null || item.valor_lona != null || item.valor_adesivo != null
@@ -553,6 +555,12 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
       : deriveUnitPrice(item);
   const subtotal = Number((unitPrice * quantity).toFixed(2));
   const fallbackId = item.id ?? orderId * 1000 + index;
+  const imagemCandidate =
+    (typeof item.imagem === 'string' && item.imagem.trim().length > 0 ? item.imagem : null) ??
+    (typeof anyItem.imagem_path === 'string' && anyItem.imagem_path.trim().length > 0 ? anyItem.imagem_path : null) ??
+    (typeof anyItem.image_reference === 'string' && anyItem.image_reference.trim().length > 0 ? anyItem.image_reference : null) ??
+    (typeof anyItem.server_reference === 'string' && anyItem.server_reference.trim().length > 0 ? anyItem.server_reference : null) ??
+    null;
 
   return {
     id: fallbackId,
@@ -569,8 +577,10 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
     vendedor: item.vendedor ?? undefined,
     designer: item.designer ?? undefined,
     tecido: item.tecido ?? undefined,
-    overloque: Boolean(item.acabamento?.overloque),
-    elastico: Boolean(item.acabamento?.elastico),
+    // Compatibilidade: alguns payloads (especialmente JSON salvo) podem trazer
+    // overloque/elastico em raiz, e não dentro de acabamento.
+    overloque: Boolean(acabamentoAny?.overloque ?? anyItem.overloque),
+    elastico: Boolean(acabamentoAny?.elastico ?? anyItem.elastico),
     tipo_acabamento: item.tipo_acabamento ?? undefined,
     quantidade_ilhos: item.quantidade_ilhos ?? item.ilhos_qtd ?? undefined,
     espaco_ilhos: item.espaco_ilhos ?? item.ilhos_distancia ?? undefined,
@@ -579,7 +589,8 @@ const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): Or
     espaco_cordinha: item.espaco_cordinha ?? undefined,
     valor_cordinha: item.valor_cordinha ?? undefined,
     observacao: item.observacao ?? undefined,
-    imagem: item.imagem ?? undefined,
+    // Compatibilidade: imagem pode vir em campos alternativos dependendo da origem
+    imagem: imagemCandidate ?? undefined,
     legenda_imagem: item.legenda_imagem ?? undefined,
     quantidade_paineis: item.quantidade_paineis ?? undefined,
     // Normalizar campos monetários que historicamente podem vir em centavos da API
@@ -1189,6 +1200,17 @@ const collectPendingOrders = async (): Promise<OrderWithItems[]> => {
   return sortOrdersByUpdatedAtDesc(Array.from(unique.values()));
 };
 
+const collectReadyOrders = async (): Promise<OrderWithItems[]> => {
+  const ready = await fetchOrdersByStatus('pronto');
+  const delivered = await fetchOrdersByStatus('entregue');
+  const combined = [...ready, ...delivered].sort((a, b) => {
+    const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return dateB - dateA;
+  });
+  return combined;
+};
+
 const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
   const payload: Record<string, any> = {
     tipo_producao: inferTipoProducao(item),
@@ -1565,14 +1587,12 @@ export const api = {
   },
 
   getReadyOrdersPaginated: async (page?: number, pageSize?: number): Promise<PaginatedOrders> => {
-    const ready = await fetchOrdersByStatus('pronto');
-    const delivered = await fetchOrdersByStatus('entregue');
-    const combined = [...ready, ...delivered].sort((a, b) => {
-      const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-      const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-      return dateB - dateA;
-    });
-    return paginateOrders(combined, page ?? 1, pageSize ?? DEFAULT_PAGE_SIZE);
+    const orders = await collectReadyOrders();
+    return paginateOrders(orders, page ?? 1, pageSize ?? DEFAULT_PAGE_SIZE);
+  },
+
+  getReadyOrdersLight: async (): Promise<OrderWithItems[]> => {
+    return collectReadyOrders();
   },
 
   getOrderById: async (orderId: number): Promise<OrderWithItems> => {
