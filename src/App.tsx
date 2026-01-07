@@ -11,6 +11,7 @@ import { useAutoUpdateCheck } from './hooks/useAutoUpdateCheck';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
 import { AlertProvider } from './contexts/AlertContext';
+import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -43,6 +44,10 @@ function App() {
   // Nota: Notificações WebSocket são gerenciadas por useOrderAutoSync em OrderList.tsx
   // que usa o singleton ordersSocket para evitar múltiplas conexões
   useAutoUpdateCheck();
+
+  // Ativar notificações em tempo real globalmente (toasts + refresh)
+  // O hook já lida com connect/disconnect baseado no sessionToken.
+  useRealtimeNotifications();
 
   useEffect(() => {
     const verifyConfig = async () => {

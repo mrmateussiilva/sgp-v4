@@ -104,20 +104,10 @@ export const useRealtimeNotifications = () => {
       return;
     }
 
-    // Não mostrar notificação para ações do próprio usuário
-    // Só filtrar se tivermos user_id na notificação E userId no store E forem iguais
-    const isOwnAction = notification.user_id !== undefined 
-      && userId !== null 
-      && notification.user_id === userId;
-    
-    if (isOwnAction) {
-      console.log('🚫 Notificação ignorada (próprio usuário):', {
-        notification_user_id: notification.user_id,
-        current_user_id: userId,
-        isOwnAction: true,
-      });
-      return;
-    }
+    // IMPORTANTE:
+    // Não filtrar por user_id aqui.
+    // Em cenários onde múltiplos computadores usam o mesmo login, filtrar por user_id
+    // faria os outros clientes ignorarem notificações legítimas.
 
     // Log para debug
     console.log('✅ Notificação será exibida:', {
@@ -125,7 +115,6 @@ export const useRealtimeNotifications = () => {
       order_id: notification.order_id,
       notification_user_id: notification.user_id,
       current_user_id: userId,
-      isOwnAction: false,
       will_show: true,
     });
 
