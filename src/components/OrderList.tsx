@@ -9,7 +9,6 @@ import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types'
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
-import { subscribeToOrderEvents } from '../services/orderEvents';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
@@ -131,26 +130,9 @@ export default function OrderList() {
   
   const { toast } = useToast();
 
-  // Adicionar notificações toast para eventos de pedidos
-  // IMPORTANTE: Este useEffect deve vir DEPOIS da declaração de toast
-  useEffect(() => {
-    const unsubscribe = subscribeToOrderEvents({
-      onOrderCreated: async (orderId) => {
-        // useOrderAutoSync já atualiza a lista, apenas logar
-        console.log(`✅ Pedido #${orderId} criado - lista atualizada automaticamente`);
-      },
-      onOrderUpdated: async (orderId) => {
-        // useOrderAutoSync já atualiza a lista, apenas logar
-        console.log(`✅ Pedido #${orderId} atualizado - lista atualizada automaticamente`);
-      },
-      onOrderCanceled: async (orderId) => {
-        // useOrderAutoSync já remove o pedido, apenas logar
-        console.log(`✅ Pedido #${orderId} cancelado - removido da lista automaticamente`);
-      },
-    }, true, toast); // showToast = true, passar função toast
-    
-    return unsubscribe;
-  }, [toast]);
+  // REMOVIDO: subscribeToOrderEvents duplicado
+  // useOrderAutoSync já gerencia todas as atualizações via WebSocket
+  // Não precisamos de uma segunda assinatura que cria conexões duplicadas
 
   // Carregar dados para filtros (vendedores + designers)
   useEffect(() => {

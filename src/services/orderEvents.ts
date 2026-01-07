@@ -123,10 +123,8 @@ export function subscribeToOrderEvents(
   };
 
   // Assinar eventos do WebSocket
+  // subscribe() já chama ensureConnection() internamente, não precisa chamar connect() novamente
   const unsubscribe = ordersSocket.subscribe(handleMessage);
-
-  // Garantir que a conexão está ativa
-  ordersSocket.connect();
 
   // Retornar função de cancelamento
   return unsubscribe;
