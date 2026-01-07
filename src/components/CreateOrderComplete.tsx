@@ -300,8 +300,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   function mapItemToTab(item: OrderItem, tabId: string): TabItem {
     const anyItem = item as Record<string, any>;
+    // Fallback seguro: pedidos antigos podem não ter tipo_acabamento salvo.
+    // Inferir a partir de quantidade_ilhos/quantidade_cordinha para manter checkboxes coerentes.
+    const inferTipoAcabamento = (): TabItem['tipo_acabamento'] => {
+      const rawIlhos = anyItem.quantidade_ilhos ?? anyItem.ilhos_qtd ?? '';
+      const rawCordinha = anyItem.quantidade_cordinha ?? '';
+      const qtdIlhos = Number.parseInt(String(rawIlhos || '0'), 10);
+      if (!Number.isNaN(qtdIlhos) && qtdIlhos > 0) return 'ilhos';
+      const qtdCordinha = Number.parseInt(String(rawCordinha || '0'), 10);
+      if (!Number.isNaN(qtdCordinha) && qtdCordinha > 0) return 'cordinha';
+      return 'nenhum';
+    };
+
     const tipoAcabamento =
-      (anyItem.tipo_acabamento as TabItem['tipo_acabamento'] | undefined) ?? 'nenhum';
+      (anyItem.tipo_acabamento as TabItem['tipo_acabamento'] | undefined) ?? inferTipoAcabamento();
     const acabamentoLona =
       (anyItem.acabamento_lona as TabItem['acabamento_lona'] | undefined) ?? 'refilar';
     const acabamentoTotem =

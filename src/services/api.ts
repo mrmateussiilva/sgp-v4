@@ -1257,6 +1257,9 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
 
   // Campos específicos por tipo — começando por Painel e Totem (pra reduzir erro humano)
   if ((tipo === 'painel' || tipo === 'generica') && (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica')) {
+    // CRÍTICO: o formulário (Painel) depende de tipo_acabamento para marcar Ilhós/Cordinha
+    // Sem isso, ao reabrir para editar volta "nenhum" e o checkbox fica desmarcado.
+    payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
     payload.quantidade_paineis = canon.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
     payload.valor_painel = canon.valor_painel ? toCurrencyString(canon.valor_painel) : undefined;
     payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
