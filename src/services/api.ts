@@ -33,6 +33,7 @@ import {
   RelatorioTemplatesConfig,
 } from '../types';
 import { generateFechamentoReport } from '../utils/fechamentoReport';
+import { ordersSocket } from '../lib/realtimeOrders';
 
 type ApiOrderStatus = 'pendente' | 'em_producao' | 'pronto' | 'entregue' | 'cancelado';
 type ApiPriority = 'NORMAL' | 'ALTA';
@@ -1589,6 +1590,14 @@ export const api = {
     // Invalidar caches após criar novo pedido
     ordersByStatusCache.clear();
     
+    // 📡 Broadcast via WebSocket para notificar outros clientes conectados
+    try {
+      ordersSocket.broadcastOrderCreated(order.id, order);
+      logger.debug(`[api.createOrder] 📡 Broadcast enviado para pedido ${order.id}`);
+    } catch (error) {
+      logger.warn('[api.createOrder] Erro ao enviar broadcast WebSocket:', error);
+    }
+    
     return order;
   },
 
@@ -1604,6 +1613,14 @@ export const api = {
       logger.debug(`[api.updateOrder] ✅ JSON do pedido ${order.id} salvo na API`);
     } catch (error) {
       logger.warn('[api.updateOrder] Erro ao salvar JSON do pedido na API:', error);
+    }
+    
+    // 📡 Broadcast via WebSocket para notificar outros clientes conectados
+    try {
+      ordersSocket.broadcastOrderUpdate(order.id, order);
+      logger.debug(`[api.updateOrder] 📡 Broadcast enviado para pedido ${order.id}`);
+    } catch (error) {
+      logger.warn('[api.updateOrder] Erro ao enviar broadcast WebSocket:', error);
     }
     
     return order;
@@ -1670,6 +1687,16 @@ export const api = {
       logger.debug(`[api.updateOrderStatus] ✅ JSON do pedido ${updatedOrder.id} salvo na API`);
     } catch (error) {
       logger.warn('[api.updateOrderStatus] Erro ao salvar JSON do pedido na API:', error);
+    }
+    
+    // 📡 Broadcast via WebSocket para notificar outros clientes conectados
+    // Isso garante que todos os clientes recebam a atualização em tempo real
+    try {
+      ordersSocket.broadcastOrderStatusUpdate(updatedOrder.id, updatedOrder);
+      logger.debug(`[api.updateOrderStatus] 📡 Broadcast enviado para pedido ${updatedOrder.id}`);
+    } catch (error) {
+      // Não falhar a operação se o broadcast falhar
+      logger.warn('[api.updateOrderStatus] Erro ao enviar broadcast WebSocket:', error);
     }
     
     return updatedOrder;
@@ -1771,6 +1798,14 @@ export const api = {
     // Invalidar caches após deletar pedido
     clearOrderCache(orderId);
     ordersByStatusCache.clear();
+    
+    // 📡 Broadcast via WebSocket para notificar outros clientes conectados
+    try {
+      ordersSocket.broadcastOrderDeleted(orderId);
+      logger.debug(`[api.deleteOrder] 📡 Broadcast enviado para pedido ${orderId}`);
+    } catch (error) {
+      logger.warn('[api.deleteOrder] Erro ao enviar broadcast WebSocket:', error);
+    }
     
     return true;
   },

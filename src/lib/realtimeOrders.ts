@@ -475,6 +475,93 @@ class OrdersWebSocketManager {
       }
     });
   }
+
+  /**
+   * Envia uma mensagem via WebSocket para broadcast para outros clientes
+   * @param message - Mensagem a ser enviada (será convertida para JSON)
+   * @returns true se a mensagem foi enviada, false caso contrário
+   */
+  sendMessage(message: OrderEventMessage): boolean {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ WebSocket não conectado, não foi possível enviar mensagem:', message);
+      }
+      return false;
+    }
+
+    try {
+      this.socket.send(JSON.stringify(message));
+      if (import.meta.env.DEV) {
+        console.log('📤 Mensagem WebSocket enviada:', message);
+      }
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao enviar mensagem WebSocket:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Notifica outros clientes sobre atualização de status de pedido
+   * @param orderId - ID do pedido atualizado
+   * @param order - Dados do pedido (opcional, para incluir na notificação)
+   */
+  broadcastOrderStatusUpdate(orderId: number, order?: unknown): void {
+    const message: OrderEventMessage = {
+      type: 'order_status_updated',
+      order_id: orderId,
+      order: order,
+      timestamp: Date.now(),
+      broadcast: true, // Flag para indicar que é um broadcast do cliente
+    };
+    this.sendMessage(message);
+  }
+
+  /**
+   * Notifica outros clientes sobre atualização de pedido
+   * @param orderId - ID do pedido atualizado
+   * @param order - Dados do pedido (opcional)
+   */
+  broadcastOrderUpdate(orderId: number, order?: unknown): void {
+    const message: OrderEventMessage = {
+      type: 'order_updated',
+      order_id: orderId,
+      order: order,
+      timestamp: Date.now(),
+      broadcast: true,
+    };
+    this.sendMessage(message);
+  }
+
+  /**
+   * Notifica outros clientes sobre criação de pedido
+   * @param orderId - ID do pedido criado
+   * @param order - Dados do pedido (opcional)
+   */
+  broadcastOrderCreated(orderId: number, order?: unknown): void {
+    const message: OrderEventMessage = {
+      type: 'order_created',
+      order_id: orderId,
+      order: order,
+      timestamp: Date.now(),
+      broadcast: true,
+    };
+    this.sendMessage(message);
+  }
+
+  /**
+   * Notifica outros clientes sobre exclusão de pedido
+   * @param orderId - ID do pedido excluído
+   */
+  broadcastOrderDeleted(orderId: number): void {
+    const message: OrderEventMessage = {
+      type: 'order_deleted',
+      order_id: orderId,
+      timestamp: Date.now(),
+      broadcast: true,
+    };
+    this.sendMessage(message);
+  }
 }
 
 export const ordersSocket = new OrdersWebSocketManager();
