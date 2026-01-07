@@ -322,17 +322,20 @@ const DESIGNERS_LIST_ENDPOINT = `${DESIGNERS_ENDPOINT}/`;
 const MATERIAIS_ENDPOINT = '/materiais';
 const MATERIAIS_LIST_ENDPOINT = `${MATERIAIS_ENDPOINT}/`;
 const CATALOG_CACHE_TTL_MS = 60_000;
+// Pedidos precisam refletir mudanças quase em tempo real (WebSocket). Cache longo aqui causa UI stale.
+const ORDER_BY_ID_CACHE_TTL_MS = 2_000;
+const ORDERS_BY_STATUS_CACHE_TTL_MS = 2_000;
 
 interface TimedCache<T> {
   data: T;
   timestamp: number;
 }
 
-const isCacheFresh = <T>(cache: TimedCache<T> | null): cache is TimedCache<T> => {
+const isCacheFresh = <T>(cache: TimedCache<T> | null, ttlMs: number = CATALOG_CACHE_TTL_MS): cache is TimedCache<T> => {
   if (!cache) {
     return false;
   }
-  return Date.now() - cache.timestamp < CATALOG_CACHE_TTL_MS;
+  return Date.now() - cache.timestamp < ttlMs;
 };
 
 const createCacheEntry = <T>(data: T): TimedCache<T> => ({
@@ -985,7 +988,7 @@ const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   
   // Cache por 10 segundos para pedidos individuais
   const cached = ordersByIdCache.get(orderId);
-  if (cached && isCacheFresh(cached)) {
+  if (cached && isCacheFresh(cached, ORDER_BY_ID_CACHE_TTL_MS)) {
     logger.debug(`[fetchOrderById] ✅ Retornando do cache: ${orderId}`);
     return cached.data;
   }
@@ -1082,7 +1085,7 @@ const fetchOrdersByStatus = async (status: ApiOrderStatus): Promise<OrderWithIte
   // Cache para evitar requisições repetidas do mesmo status
   const cacheKey = `orders_${status}`;
   const cached = ordersByStatusCache.get(cacheKey);
-  if (cached && isCacheFresh(cached)) {
+  if (cached && isCacheFresh(cached, ORDERS_BY_STATUS_CACHE_TTL_MS)) {
     logger.debug(`[fetchOrdersByStatus] ✅ Retornando do cache: ${status}`);
     return cached.data;
   }
