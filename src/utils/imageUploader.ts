@@ -124,6 +124,12 @@ export function needsUpload(imageReference: string | null | undefined): boolean 
     return false;
   }
   
+  // Se começar com "pedidos/" ou "/pedidos/", já está no servidor (não precisa upload)
+  const normalized = imageReference.trim().replace(/\\/g, '/');
+  if (normalized.startsWith('pedidos/') || normalized.startsWith('/pedidos/')) {
+    return false;
+  }
+  
   // Se for caminho local (contém / ou \), precisa upload
   return imageReference.includes('/') || imageReference.includes('\\');
 }
