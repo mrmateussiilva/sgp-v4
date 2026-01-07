@@ -200,7 +200,9 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
 
 export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionItem {
   const anyItem = item as unknown as Record<string, unknown>;
-  const tipo = normalizeTipo((item.tipo_producao as string | null | undefined) ?? (anyItem.tipo_producao as any));
+  const tipo = normalizeTipo(
+    (item.tipo_producao as string | null | undefined) ?? (anyItem.tipo_producao as string | null | undefined)
+  );
   const descricao = item.descricao ?? item.item_name ?? '';
 
   const baseCommon = {
@@ -340,6 +342,15 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     const hasCordinha = parseQtd(canon.quantidade_cordinha) > 0;
     fields.ilhos = yesNo(hasIlhos);
     fields.cordinha = yesNo(hasCordinha);
+
+    // Campos "resumo" (não viram "Não" para evitar sumir via hidden-empty no template)
+    const acabamentos: string[] = [];
+    if (canon.overloque) acabamentos.push('Overloque');
+    if (canon.elastico) acabamentos.push('Elástico');
+    fields.acabamentos_painel = acabamentos.length ? acabamentos.join(' + ') : 'Nenhum';
+
+    fields.ilhos_resumo = hasIlhos ? `Sim (${parseQtd(canon.quantidade_ilhos)})` : 'Nenhum';
+    fields.cordinha_resumo = hasCordinha ? `Sim (${parseQtd(canon.quantidade_cordinha)})` : 'Nenhum';
   }
 
   if (canon.tipo_producao === 'totem') {
