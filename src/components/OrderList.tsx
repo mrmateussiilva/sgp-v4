@@ -9,6 +9,7 @@ import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types'
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
@@ -371,6 +372,18 @@ export default function OrderList() {
     updateOrder,
     loadOrders,
   });
+
+  // Auto-refresh suave (fallback) a cada 15s.
+  // Não executa enquanto modais estiverem abertos para evitar qualquer sensação de "piscada".
+  useAutoRefresh(
+    async () => {
+      if (viewModalOpen || editDialogOpen || deleteDialogOpen) {
+        return;
+      }
+      await loadOrders();
+    },
+    15000,
+  );
 
   useEffect(() => {
     loadOrders();
