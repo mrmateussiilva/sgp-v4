@@ -191,7 +191,8 @@ export const useRealtimeNotifications = () => {
       setSubscriberCount(ordersSocket.getListenerCount());
     });
 
-    ordersSocket.connect();
+    // REMOVIDO: ordersSocket.connect() - subscribe() já chama ensureConnection() internamente
+    // Chamar connect() aqui força reconexões desnecessárias
     updateStatusFromManager();
   }, [handleNotification, updateStatusFromManager]);
 
