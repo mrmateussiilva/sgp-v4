@@ -1676,8 +1676,12 @@ export const api = {
     clearOrderCache(request.id);
     // Também invalidar cache de status para garantir consistência
     ordersByStatusCache.clear();
-    
-    const updatedOrder = await fetchOrderById(request.id);
+
+    // IMPORTANTE: Não usar fetchOrderById aqui porque ele prioriza /pedidos/{id}/json,
+    // que pode estar desatualizado/incompleto logo após um PATCH e causar "reset" dos checkboxes.
+    // Buscar diretamente da API (fonte da verdade) e só depois salvar o JSON.
+    const freshResponse = await apiClient.get<ApiPedido>(`/pedidos/${request.id}`);
+    const updatedOrder = mapPedidoFromApi(freshResponse.data);
     
     // 🔥 CORREÇÃO: Salvar pedido em JSON na API após atualização de status
     // Isso garante que o arquivo JSON fique sincronizado com o banco de dados
