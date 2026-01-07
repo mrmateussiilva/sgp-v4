@@ -341,6 +341,7 @@ const createCacheEntry = <T>(data: T): TimedCache<T> => ({
 
 let designersCache: TimedCache<DesignerApi[]> | null = null;
 let materiaisCache: TimedCache<MaterialApi[]> | null = null;
+let ordersByStatusCache: Map<string, TimedCache<OrderWithItems[]>> = new Map();
 
 const clearDesignersCache = (): void => {
   designersCache = null;
@@ -1057,9 +1058,23 @@ const fetchOrders = async (): Promise<OrderWithItems[]> => {
 
 const fetchOrdersByStatus = async (status: ApiOrderStatus): Promise<OrderWithItems[]> => {
   requireSessionToken();
+  
+  // Cache para evitar requisições repetidas do mesmo status
+  const cacheKey = `orders_${status}`;
+  const cached = ordersByStatusCache.get(cacheKey);
+  if (cached && isCacheFresh(cached)) {
+    logger.debug(`[fetchOrdersByStatus] ✅ Retornando do cache: ${status}`);
+    return cached.data;
+  }
+  
+  logger.debug(`[fetchOrdersByStatus] 📡 Buscando do backend: ${status}`);
   const response = await apiClient.get<ApiPedido[]>(`/pedidos/status/${status}`);
   const data = Array.isArray(response.data) ? response.data : [];
-  return data.map(mapPedidoFromApi);
+  const result = data.map(mapPedidoFromApi);
+  
+  // Cachear resultado por 30 segundos
+  ordersByStatusCache.set(cacheKey, createCacheEntry(result));
+  return result;
 };
 
 const fetchDesignersRaw = async (): Promise<DesignerApi[]> => {
@@ -1652,9 +1667,37 @@ export const api = {
       return parsedEnd;
     })();
 
-    const orders = await fetchOrders();
+    // Otimizado: usar paginação do backend em vez de carregar todos os pedidos
+    // Formatar datas para o formato esperado pela API
+    const dateFromStr = trimmedStart;
+    const dateToStr = (endDate ?? '').trim() || end.toISOString().split('T')[0];
+    
+    const allOrders: OrderWithItems[] = [];
+    let page = 1;
+    let hasMore = true;
+    const pageSize = 100; // Página grande para reduzir requisições
+    
+    // Limitar a 20 páginas (2000 pedidos) para evitar sobrecarga
+    while (hasMore && page <= 20) {
+      const result = await fetchOrdersPaginated(
+        page,
+        pageSize,
+        undefined, // status
+        undefined, // cliente
+        dateFromStr,
+        dateToStr
+      );
+      
+      allOrders.push(...result.orders);
+      
+      // Se retornou menos que pageSize, é a última página
+      hasMore = result.orders.length === pageSize && result.total > allOrders.length;
+      page++;
+    }
 
-    const filtered = orders.filter((order) => {
+    // Aplicar filtro adicional no frontend para garantir que todas as datas estão corretas
+    // (o backend pode não filtrar perfeitamente)
+    const filtered = allOrders.filter((order) => {
       const reference = order.data_entrega ?? order.data_entrada ?? null;
       if (!reference) {
         return false;
@@ -1867,7 +1910,71 @@ export const api = {
   },
 
   generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
-    const orders = await fetchOrders();
+    // Otimizado: carregar pedidos em lotes usando paginação quando há filtros de data
+    // Se não houver filtros, pode precisar de todos os pedidos para o relatório completo
+    let orders: OrderWithItems[] = [];
+    
+    // Se há filtros de data, usar paginação para reduzir requisições
+    if (request.start_date || request.end_date) {
+      const allOrders: OrderWithItems[] = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100; // Página grande
+      
+      // Limitar a 30 páginas (3000 pedidos) para relatórios
+      while (hasMore && page <= 30) {
+        // Converter string para OrderStatus se for válido
+        const statusFilter = request.status 
+          ? (Object.values(OrderStatus).includes(request.status as OrderStatus) 
+              ? (request.status as OrderStatus) 
+              : undefined)
+          : undefined;
+        
+        const result = await fetchOrdersPaginated(
+          page,
+          pageSize,
+          statusFilter,
+          undefined, // cliente
+          request.start_date,
+          request.end_date
+        );
+        
+        allOrders.push(...result.orders);
+        hasMore = result.orders.length === pageSize && result.total > allOrders.length;
+        page++;
+      }
+      orders = allOrders;
+    } else {
+      // Sem filtros de data: precisa carregar todos para relatório completo
+      // Mas ainda é melhor carregar em lotes do que tudo de uma vez
+      const allOrders: OrderWithItems[] = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+      
+      // Limitar a 50 páginas (5000 pedidos) para relatórios completos
+      while (hasMore && page <= 50) {
+        // Converter string para OrderStatus se for válido
+        const statusFilter = request.status 
+          ? (Object.values(OrderStatus).includes(request.status as OrderStatus) 
+              ? (request.status as OrderStatus) 
+              : undefined)
+          : undefined;
+        
+        const result = await fetchOrdersPaginated(
+          page,
+          pageSize,
+          statusFilter,
+          undefined
+        );
+        
+        allOrders.push(...result.orders);
+        hasMore = result.orders.length === pageSize && result.total > allOrders.length;
+        page++;
+      }
+      orders = allOrders;
+    }
+    
     return generateFechamentoReport(orders, request);
   },
 };
@@ -2107,11 +2214,33 @@ export async function getOrdersByDeliveryDate(
   dateFrom: string,
   dateTo: string,
 ): Promise<OrderWithItems[]> {
-  const orders = await fetchOrders();
+  // Otimizado: usar paginação do backend em vez de carregar todos os pedidos
+  const allOrders: OrderWithItems[] = [];
+  let page = 1;
+  let hasMore = true;
+  const pageSize = 100;
+  
+  // Limitar a 20 páginas (2000 pedidos) para evitar sobrecarga
+  while (hasMore && page <= 20) {
+    const result = await fetchOrdersPaginated(
+      page,
+      pageSize,
+      undefined, // status
+      undefined, // cliente
+      dateFrom,
+      dateTo
+    );
+    
+    allOrders.push(...result.orders);
+    hasMore = result.orders.length === pageSize && result.total > allOrders.length;
+    page++;
+  }
+
   const from = dateFrom ? new Date(dateFrom) : null;
   const to = dateTo ? new Date(dateTo) : null;
 
-  return orders.filter((order) => {
+  // Aplicar filtro adicional para garantir precisão
+  return allOrders.filter((order) => {
     if (!order.data_entrega) {
       return false;
     }
