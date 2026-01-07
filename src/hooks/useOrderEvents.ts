@@ -226,6 +226,62 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     loadOrdersRef.current = loadOrders;
   }, [loadOrders]);
 
+  // ========================================
+  // FALLBACK: POLLING quando WS está bloqueado por "Outra sessão ativa"
+  // (servidor fecha conexões antigas quando o mesmo usuário abre outra)
+  // ========================================
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPollingRef = useRef(false);
+
+  useEffect(() => {
+    const stopPolling = () => {
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+
+    const startPolling = (intervalMs: number) => {
+      if (pollingTimerRef.current) return;
+
+      pollingTimerRef.current = setInterval(async () => {
+        if (isPollingRef.current) return;
+
+        const fn = loadOrdersRef.current;
+        if (!fn) return;
+
+        try {
+          isPollingRef.current = true;
+          await fn();
+        } catch (error) {
+          // Não quebrar polling por erro pontual
+          console.warn('[useOrderAutoSync] Erro no polling de pedidos:', error);
+        } finally {
+          isPollingRef.current = false;
+        }
+      }, intervalMs);
+    };
+
+    const unsubscribe = ordersSocket.onStatus((status) => {
+      const blockedByOtherSession =
+        !status.isConnected &&
+        typeof status.lastError === 'string' &&
+        status.lastError.includes('Outra sessão ativa');
+
+      if (blockedByOtherSession) {
+        // WS bloqueado por login duplicado -> usar polling
+        startPolling(8000);
+      } else {
+        stopPolling();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      stopPolling();
+    };
+  }, []);
+
   const handleOrderCreated = useCallback(
     async (orderId: number) => {
       try {
