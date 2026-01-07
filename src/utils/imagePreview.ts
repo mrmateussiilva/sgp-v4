@@ -39,17 +39,6 @@ export async function getImagePreviewUrl(
     return imageReference;
   }
 
-  // Se for caminho local e estiver em Tauri, carregar como base64 temporário
-  if (isTauri() && isLocalPath(imageReference)) {
-    try {
-      const base64 = await loadLocalImageAsBase64(imageReference);
-      return base64;
-    } catch (error) {
-      console.error('Erro ao carregar imagem local para preview:', error);
-      return null;
-    }
-  }
-
   // CORREÇÃO: Detectar caminhos relativos que começam com "pedidos/"
   // Esses caminhos precisam ser tratados como referências do servidor
   const isPedidosPath = imageReference.startsWith('pedidos/') || 
@@ -66,6 +55,18 @@ export async function getImagePreviewUrl(
       return blobUrl;
     } catch (error) {
       console.error('Erro ao carregar imagem do servidor para preview:', error);
+      return null;
+    }
+  }
+
+  // Se for caminho local e estiver em Tauri, carregar como base64 temporário
+  // (IMPORTANTE: essa checagem vem DEPOIS de pedidos/*, porque pedidos/tmp/... é do servidor)
+  if (isTauri() && isLocalPath(imageReference)) {
+    try {
+      const base64 = await loadLocalImageAsBase64(imageReference);
+      return base64;
+    } catch (error) {
+      console.error('Erro ao carregar imagem local para preview:', error);
       return null;
     }
   }
