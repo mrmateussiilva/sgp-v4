@@ -382,7 +382,7 @@ export default function OrderList() {
       }
       await loadOrders();
     },
-    15000,
+    30000,
   );
 
   useEffect(() => {
