@@ -65,13 +65,6 @@ export default function OrderList() {
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
   
-  // Configurar sincronização automática via eventos
-  useOrderAutoSync({
-    orders,
-    setOrders,
-    removeOrder,
-  });
-  
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -369,6 +362,15 @@ export default function OrderList() {
       }
     }
   }, [dateFrom, dateTo, page, rowsPerPage, productionStatusFilter, debouncedSearchTerm, toast, logout, navigate]);
+
+  // Configurar sincronização automática via eventos (DEPOIS de loadOrders estar definido)
+  useOrderAutoSync({
+    orders,
+    setOrders,
+    removeOrder,
+    updateOrder,
+    loadOrders,
+  });
 
   useEffect(() => {
     loadOrders();
