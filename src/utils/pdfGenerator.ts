@@ -864,8 +864,8 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
 }
 
 /**
- * Abre diálogo de impressão do PDF (faz download automático)
- * Usa a função profissional printPdf() quando no Tauri
+ * Abre diálogo de impressão do PDF usando window.print()
+ * Funciona tanto no Tauri quanto no navegador
  */
 export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
@@ -878,21 +878,9 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
     const docDefinition = await gerarDocDefinition(itens);
     console.log('[pdfGenerator] Documento gerado');
 
-    if (isTauriEnvironment()) {
-      // Usar função profissional de impressão
-      console.log('[pdfGenerator] 🖥️ Tauri: usando fluxo profissional de impressão');
-      const filePath = await printPdf(docDefinition, 'relatorio-pedidos-para-imprimir.pdf');
-      if (filePath) {
-        console.log('[pdfGenerator] ✅ PDF salvo e aberto. Você pode imprimir através do visualizador.');
-      } else {
-        console.log('[pdfGenerator] ℹ️ Usuário cancelou a operação');
-      }
-    } else {
-      // Fallback para navegador (usa print() do PDFMake)
-      console.log('[pdfGenerator] 🖨️ Chamando print() do PDFMake');
-      const pdfDoc = pdfMake.createPdf(docDefinition);
-      pdfDoc.print();
-    }
+    // Usar window.print() (funciona tanto no Tauri quanto no navegador)
+    console.log('[pdfGenerator] 🖨️ Usando window.print() para impressão');
+    await printPdfWindowPrint(docDefinition, 'relatorio-pedidos-para-imprimir.pdf');
   } catch (error) {
     console.error('[pdfGenerator] Erro na impressão:', error);
     throw error;
@@ -944,6 +932,130 @@ export async function gerarPDFBase64(itens: ItemRelatorio[]): Promise<string> {
 // ============================================================================
 // FUNÇÃO PROFISSIONAL DE IMPRESSÃO
 // ============================================================================
+
+/**
+ * Imprime PDF usando window.print() em nova janela/iframe
+ * Funciona tanto no Tauri quanto no navegador
+ */
+export async function printPdfWindowPrint(
+  docDefinition: TDocumentDefinitions,
+  _nomeArquivoPadrao: string = 'documento.pdf'
+): Promise<void> {
+  try {
+    console.log('[printPdfWindowPrint] 📄 Gerando PDF...');
+    const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+
+    // Obter blob do PDF
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('Timeout ao gerar blob do PDF'));
+        }
+      }, 30000);
+
+      pdfDocGenerator.getBlob((blob: Blob | null) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+
+        if (!blob) {
+          reject(new Error('Falha ao gerar blob do PDF'));
+          return;
+        }
+
+        resolve(blob);
+      });
+    });
+
+    console.log('[printPdfWindowPrint] ✅ PDF gerado, tamanho:', blob.size, 'bytes');
+
+    // Criar URL do blob
+    const blobUrl = URL.createObjectURL(blob);
+    console.log('[printPdfWindowPrint] 📄 URL do blob criada');
+
+    if (isTauriEnvironment()) {
+      // No Tauri: criar iframe temporário para imprimir
+      console.log('[printPdfWindowPrint] 🖥️ Tauri: criando iframe para impressão...');
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.width = '100vw';
+      iframe.style.height = '100vh';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.zIndex = '999999';
+      iframe.style.border = 'none';
+      iframe.style.display = 'none'; // Ocultar inicialmente
+      
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        console.log('[printPdfWindowPrint] 📄 PDF carregado no iframe, chamando print()...');
+        try {
+          // Aguardar um pouco para garantir que o PDF carregou
+          setTimeout(() => {
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+              console.log('[printPdfWindowPrint] ✅ print() chamado');
+              
+              // Limpar após um tempo
+              setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe);
+                }
+                URL.revokeObjectURL(blobUrl);
+              }, 1000);
+            }
+          }, 500);
+        } catch (error) {
+          console.error('[printPdfWindowPrint] ❌ Erro ao chamar print():', error);
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          URL.revokeObjectURL(blobUrl);
+        }
+      };
+
+      iframe.onerror = () => {
+        console.error('[printPdfWindowPrint] ❌ Erro ao carregar PDF no iframe');
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        URL.revokeObjectURL(blobUrl);
+      };
+
+      iframe.src = blobUrl;
+      
+    } else {
+      // No navegador: usar window.open e print()
+      console.log('[printPdfWindowPrint] 🌐 Navegador: abrindo nova janela para impressão...');
+      const printWindow = window.open(blobUrl, '_blank');
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            // Limpar URL após impressão
+            setTimeout(() => {
+              URL.revokeObjectURL(blobUrl);
+            }, 1000);
+          }, 500);
+        };
+      } else {
+        console.error('[printPdfWindowPrint] ❌ Não foi possível abrir nova janela');
+        URL.revokeObjectURL(blobUrl);
+        throw new Error('Popup bloqueado. Permita popups para este site.');
+      }
+    }
+  } catch (error) {
+    console.error('[printPdfWindowPrint] ❌ Erro:', error);
+    throw error;
+  }
+}
 
 /**
  * Fluxo profissional de impressão:
