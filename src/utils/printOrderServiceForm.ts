@@ -105,6 +105,9 @@ export const printOrderServiceForm = async (
         ${content}
         <script>
           (function(){
+            // Guard para evitar abrir 2 diálogos de impressão
+            if (window.__SGP_PRINTED__) return;
+            window.__SGP_PRINTED__ = true;
             function doPrint(){
               try { window.focus(); window.print(); } catch(e){}
             }
@@ -137,21 +140,14 @@ export const printOrderServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
+      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
       setTimeout(() => {
-        try { 
-          temp.contentWindow?.focus(); 
-          temp.contentWindow?.print(); 
+        try {
+          document.body.removeChild(temp);
         } catch {
-          // Ignorar erros de impressão
+          // Ignorar erros de remoção
         }
-        setTimeout(() => { 
-          try { 
-            document.body.removeChild(temp); 
-          } catch {
-            // Ignorar erros de remoção
-          }
-        }, 1000);
-      }, 300);
+      }, 4000);
     }
     return;
   }
@@ -328,6 +324,9 @@ export const printMultipleOrdersServiceForm = async (
         </script>
         <script>
           (function(){
+            // Guard para evitar abrir 2 diálogos de impressão
+            if (window.__SGP_PRINTED__) return;
+            window.__SGP_PRINTED__ = true;
             function doPrint(){
               try { window.focus(); window.print(); } catch(e){}
             }
@@ -360,21 +359,14 @@ export const printMultipleOrdersServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
+      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
       setTimeout(() => {
-        try { 
-          temp.contentWindow?.focus(); 
-          temp.contentWindow?.print(); 
+        try {
+          document.body.removeChild(temp);
         } catch {
-          // Ignorar erros de impressão
+          // Ignorar erros de remoção
         }
-        setTimeout(() => { 
-          try { 
-            document.body.removeChild(temp); 
-          } catch {
-            // Ignorar erros de remoção
-          }
-        }, 1000);
-      }, 300);
+      }, 4000);
     }
     return;
   }
