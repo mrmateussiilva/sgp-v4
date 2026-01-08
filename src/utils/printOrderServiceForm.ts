@@ -292,6 +292,144 @@ export const printOrderServiceForm = async (
     ` : ''}
   `;
 
+  // Função de cleanup (executada via TypeScript, não inline)
+  const performCleanup = (doc: Document) => {
+    try {
+      const normalizeText = (s: string) => {
+        return String(s || '')
+          .trim()
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      };
+
+      const stripStyles = (el: Element) => {
+        try {
+          (el as HTMLElement).style.setProperty('border', '0', 'important');
+          (el as HTMLElement).style.setProperty('outline', '0', 'important');
+          (el as HTMLElement).style.setProperty('box-shadow', 'none', 'important');
+          (el as HTMLElement).style.setProperty('background', 'transparent', 'important');
+          (el as HTMLElement).style.setProperty('padding', '0', 'important');
+          (el as HTMLElement).style.setProperty('margin', '0', 'important');
+          (el as HTMLElement).style.setProperty('border-radius', '0', 'important');
+        } catch (e) {
+          // Ignorar erros
+        }
+      };
+
+      const hasOtherText = (el: Element) => {
+        try {
+          const raw = (el.textContent || '').trim();
+          const norm = normalizeText(raw);
+          const cleaned = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
+          return cleaned.length > 0;
+        } catch (e) {
+          return false;
+        }
+      };
+
+      const items = doc.querySelectorAll('.item');
+      for (let idx = 0; idx < items.length; idx++) {
+        const item = items[idx];
+        if (!item) continue;
+
+        const img = item.querySelector('img');
+        if (!img) continue;
+
+        const right = item.querySelector('.right-column') || 
+                     (img.closest && img.closest('.right-column')) || 
+                     img.parentElement || 
+                     item;
+
+        // 1) Esconder título "VISUALIZAÇÃO"
+        try {
+          const nodes = right.querySelectorAll('*');
+          for (let i = 0; i < nodes.length; i++) {
+            const el = nodes[i];
+            if (!el) continue;
+
+            // Texto solto "VISUALIZAÇÃO" dentro de containers
+            try {
+              if (el.childNodes && el.childNodes.length) {
+                for (let n = 0; n < el.childNodes.length; n++) {
+                  const node = el.childNodes[n];
+                  if (node && node.nodeType === 3) {
+                    const rawNode = node.textContent || '';
+                    if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                      node.textContent = '';
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              // Ignorar erros
+            }
+
+            // Elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
+            try {
+              const raw = (el.textContent || '').trim();
+              if (!raw) continue;
+              if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+              if (el.querySelector && el.querySelector('img')) continue;
+              (el as HTMLElement).style.setProperty('display', 'none', 'important');
+              (el as HTMLElement).style.setProperty('margin', '0', 'important');
+              (el as HTMLElement).style.setProperty('padding', '0', 'important');
+              (el as HTMLElement).style.setProperty('height', '0', 'important');
+            } catch (e) {
+              // Ignorar erros
+            }
+          }
+        } catch (e) {
+          // Ignorar erros
+        }
+
+        // 2) Remover "molduras" somente na cadeia que contém a imagem
+        try {
+          if (img.classList) img.classList.add('__sgp_img_wrap__');
+
+          let p: Element | null = img.parentElement;
+          while (p && p !== item) {
+            try {
+              const imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
+              if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
+              if (hasOtherText(p)) break;
+            } catch (e) {
+              // Ignorar erros
+            }
+
+            if (p.classList) p.classList.add('__sgp_img_wrap__');
+            stripStyles(p);
+            p = p.parentElement;
+          }
+
+          // Também limpa o container "right" se ele for "só imagem"
+          try {
+            if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
+              if (right.classList) right.classList.add('__sgp_img_wrap__');
+              stripStyles(right);
+            }
+          } catch (e) {
+            // Ignorar erros
+          }
+
+          // Garante imagem proporcional e ocupando o container
+          stripStyles(img);
+          (img as HTMLElement).style.setProperty('display', 'block', 'important');
+          (img as HTMLElement).style.setProperty('width', '100%', 'important');
+          (img as HTMLElement).style.setProperty('height', '100%', 'important');
+          (img as HTMLElement).style.setProperty('max-width', '100%', 'important');
+          (img as HTMLElement).style.setProperty('max-height', '100%', 'important');
+          (img as HTMLElement).style.setProperty('object-fit', 'contain', 'important');
+          (img as HTMLElement).style.setProperty('object-position', 'center', 'important');
+        } catch (e) {
+          // Ignorar erros
+        }
+      }
+    } catch (e) {
+      console.warn('Erro durante cleanup:', e);
+    }
+  };
+
   const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -303,132 +441,6 @@ export const printOrderServiceForm = async (
       </head>
       <body>
         ${content}
-        <script>
-          (function(){
-            // Guard para evitar abrir 2 diálogos de impressão
-            if (window.__SGP_PRINTED__) return;
-            window.__SGP_PRINTED__ = true;
-            function cleanup(){
-              try {
-                function normalizeText(s){
-                  return String(s || '')
-                    .trim()
-                    .toUpperCase()
-                    .normalize('NFD')
-                    .replace(/[\\u0300-\\u036f]/g, '');
-                }
-                function stripStyles(el){
-                  try {
-                    el.style.setProperty('border', '0', 'important');
-                    el.style.setProperty('outline', '0', 'important');
-                    el.style.setProperty('box-shadow', 'none', 'important');
-                    el.style.setProperty('background', 'transparent', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('border-radius', '0', 'important');
-                  } catch (e) {}
-                }
-                function hasOtherText(el){
-                  try {
-                    var raw = (el.textContent || '');
-                    var norm = normalizeText(raw);
-                    norm = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
-                    return norm.length > 0;
-                  } catch (e) {}
-                  return false;
-                }
-
-                var items = document.querySelectorAll('.item');
-                for (var idx = 0; idx < items.length; idx++) {
-                  var item = items[idx];
-                  if (!item) continue;
-
-                  var img = item.querySelector('img');
-                  if (!img) continue;
-
-                  // Preferir limpar apenas a coluna/área da imagem.
-                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
-
-                  // 1) Esconder título "VISUALIZAÇÃO" (sem remover layout inteiro)
-                  try {
-                    var nodes = right.querySelectorAll('*');
-                    for (var i = 0; i < nodes.length; i++) {
-                      var el = nodes[i];
-                      if (!el) continue;
-
-                      // texto solto "VISUALIZAÇÃO" dentro de containers
-                      try {
-                        if (el.childNodes && el.childNodes.length) {
-                          for (var n = 0; n < el.childNodes.length; n++) {
-                            var node = el.childNodes[n];
-                            if (node && node.nodeType === 3) {
-                              var rawNode = node.textContent || '';
-                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
-                            }
-                          }
-                        }
-                      } catch (e) {}
-
-                      // elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
-                      try {
-                        var raw = (el.textContent || '').trim();
-                        if (!raw) continue;
-                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
-                        if (el.querySelector && el.querySelector('img')) continue;
-                        el.style.setProperty('display', 'none', 'important');
-                        el.style.setProperty('margin', '0', 'important');
-                        el.style.setProperty('padding', '0', 'important');
-                        el.style.setProperty('height', '0', 'important');
-                      } catch (e) {}
-                    }
-                  } catch (e) {}
-
-                  // 2) Remover “molduras” somente na cadeia que contém a imagem (sem apagar outros dados)
-                  try {
-                    // Marca e limpa somente wrappers que realmente pertencem à imagem.
-                    try { if (img.classList) img.classList.add('__sgp_img_wrap__'); } catch (e) {}
-
-                    var p = img.parentElement;
-                    while (p && p !== item) {
-                      try {
-                        var imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
-                        if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
-                        if (hasOtherText(p)) break;
-                      } catch (e) {}
-
-                      try { if (p.classList) p.classList.add('__sgp_img_wrap__'); } catch (e) {}
-                      stripStyles(p);
-                      p = p.parentElement;
-                    }
-
-                    // Também limpa o container “right” se ele for “só imagem” (sem outros textos).
-                    try {
-                      if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
-                        try { if (right.classList) right.classList.add('__sgp_img_wrap__'); } catch (e) {}
-                        stripStyles(right);
-                      }
-                    } catch (e) {}
-
-                    // garante imagem proporcional e ocupando o container
-                    stripStyles(img);
-                    img.style.setProperty('display', 'block', 'important');
-                    img.style.setProperty('width', '100%', 'important');
-                    img.style.setProperty('height', '100%', 'important');
-                    img.style.setProperty('max-width', '100%', 'important');
-                    img.style.setProperty('max-height', '100%', 'important');
-                    img.style.setProperty('object-fit', 'contain', 'important');
-                    img.style.setProperty('object-position', 'center', 'important');
-                  } catch (e) {}
-                }
-              } catch (e) {}
-            }
-            function doPrint(){
-              cleanup();
-              try { window.focus(); window.print(); } catch(e){}
-            }
-            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
-          })();
-        </script>
       </body>
     </html>
   `;
@@ -455,14 +467,42 @@ export const printOrderServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
-      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
-      setTimeout(() => {
+      
+      // Executar cleanup e print via TypeScript após carregar
+      const tryPrint = () => {
         try {
-          document.body.removeChild(temp);
-        } catch {
-          // Ignorar erros de remoção
+          if (doc.readyState === 'complete' || doc.readyState === 'interactive') {
+            performCleanup(doc);
+      setTimeout(() => {
+        try { 
+          temp.contentWindow?.focus(); 
+          temp.contentWindow?.print(); 
+              } catch (e) {
+                console.warn('Erro ao chamar print no iframe:', e);
         }
-      }, 4000);
+            }, 150);
+            
+        setTimeout(() => { 
+          try { 
+            document.body.removeChild(temp); 
+          } catch {
+            // Ignorar erros de remoção
+          }
+            }, 4000);
+          } else {
+            setTimeout(tryPrint, 50);
+          }
+        } catch (e) {
+          console.warn('Erro ao tentar imprimir:', e);
+        }
+      };
+      
+      if (doc.readyState === 'complete') {
+        tryPrint();
+      } else {
+        doc.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+        temp.addEventListener('load', tryPrint, { once: true });
+      }
     }
     return;
   }
@@ -470,6 +510,34 @@ export const printOrderServiceForm = async (
   win.document.open();
   win.document.write(html);
   win.document.close();
+
+  // Executar cleanup e print via TypeScript após janela carregar
+  const tryPrint = () => {
+    try {
+      if (win && win.document.readyState === 'complete' || win.document.readyState === 'interactive') {
+        performCleanup(win.document);
+        setTimeout(() => {
+          try {
+            win?.focus();
+            win?.print();
+          } catch (e) {
+            console.warn('Erro ao chamar print:', e);
+          }
+        }, 150);
+      } else {
+        setTimeout(tryPrint, 50);
+      }
+    } catch (e) {
+      console.warn('Erro ao tentar imprimir:', e);
+    }
+  };
+
+  if (win.document.readyState === 'complete') {
+    tryPrint();
+  } else {
+    win.addEventListener('load', tryPrint, { once: true });
+    win.document.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+  }
 };
 
 /**
@@ -814,136 +882,6 @@ export const printMultipleOrdersServiceForm = async (
       </head>
       <body>
         <div class="template-document">${combinedContent}</div>
-        <script>
-          // Garantir que nenhum bloco comece “rolado” para baixo (alguns WebViews fazem isso)
-          (function () {
-            window.addEventListener('load', function () {
-              try {
-                document.querySelectorAll('.section-content.especificacoes-content').forEach(function (el) {
-                  try { el.scrollTop = 0; } catch (e) {}
-                });
-              } catch (e) {}
-            }, { once: true });
-          })();
-        </script>
-        <script>
-          (function(){
-            // Guard para evitar abrir 2 diálogos de impressão
-            if (window.__SGP_PRINTED__) return;
-            window.__SGP_PRINTED__ = true;
-            function cleanup(){
-              try {
-                function normalizeText(s){
-                  return String(s || '')
-                    .trim()
-                    .toUpperCase()
-                    .normalize('NFD')
-                    .replace(/[\\u0300-\\u036f]/g, '');
-                }
-                function stripStyles(el){
-                  try {
-                    el.style.setProperty('border', '0', 'important');
-                    el.style.setProperty('outline', '0', 'important');
-                    el.style.setProperty('box-shadow', 'none', 'important');
-                    el.style.setProperty('background', 'transparent', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('border-radius', '0', 'important');
-                  } catch (e) {}
-                }
-                function hasOtherText(el){
-                  try {
-                    var raw = (el.textContent || '');
-                    var norm = normalizeText(raw);
-                    norm = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
-                    return norm.length > 0;
-                  } catch (e) {}
-                  return false;
-                }
-
-                var items = document.querySelectorAll('.item');
-                for (var idx = 0; idx < items.length; idx++) {
-                  var item = items[idx];
-                  if (!item) continue;
-
-                  var img = item.querySelector('img');
-                  if (!img) continue;
-
-                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
-
-                  try {
-                    var nodes = right.querySelectorAll('*');
-                    for (var i = 0; i < nodes.length; i++) {
-                      var el = nodes[i];
-                      if (!el) continue;
-
-                      try {
-                        if (el.childNodes && el.childNodes.length) {
-                          for (var n = 0; n < el.childNodes.length; n++) {
-                            var node = el.childNodes[n];
-                            if (node && node.nodeType === 3) {
-                              var rawNode = node.textContent || '';
-                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
-                            }
-                          }
-                        }
-                      } catch (e) {}
-
-                      try {
-                        var raw = (el.textContent || '').trim();
-                        if (!raw) continue;
-                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
-                        if (el.querySelector && el.querySelector('img')) continue;
-                        el.style.setProperty('display', 'none', 'important');
-                        el.style.setProperty('margin', '0', 'important');
-                        el.style.setProperty('padding', '0', 'important');
-                        el.style.setProperty('height', '0', 'important');
-                      } catch (e) {}
-                    }
-                  } catch (e) {}
-
-                  try {
-                    try { if (img.classList) img.classList.add('__sgp_img_wrap__'); } catch (e) {}
-
-                    var p = img.parentElement;
-                    while (p && p !== item) {
-                      try {
-                        var imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
-                        if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
-                        if (hasOtherText(p)) break;
-                      } catch (e) {}
-
-                      try { if (p.classList) p.classList.add('__sgp_img_wrap__'); } catch (e) {}
-                      stripStyles(p);
-                      p = p.parentElement;
-                    }
-
-                    try {
-                      if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
-                        try { if (right.classList) right.classList.add('__sgp_img_wrap__'); } catch (e) {}
-                        stripStyles(right);
-                      }
-                    } catch (e) {}
-
-                    stripStyles(img);
-                    img.style.setProperty('display', 'block', 'important');
-                    img.style.setProperty('width', '100%', 'important');
-                    img.style.setProperty('height', '100%', 'important');
-                    img.style.setProperty('max-width', '100%', 'important');
-                    img.style.setProperty('max-height', '100%', 'important');
-                    img.style.setProperty('object-fit', 'contain', 'important');
-                    img.style.setProperty('object-position', 'center', 'important');
-                  } catch (e) {}
-                }
-              } catch (e) {}
-            }
-            function doPrint(){
-              cleanup();
-              try { window.focus(); window.print(); } catch(e){}
-            }
-            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
-          })();
-        </script>
       </body>
     </html>
   `;
@@ -970,14 +908,49 @@ export const printMultipleOrdersServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
-      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
-      setTimeout(() => {
+      
+      // Executar cleanup e print via TypeScript após carregar
+      const tryPrint = () => {
         try {
-          document.body.removeChild(temp);
-        } catch {
-          // Ignorar erros de remoção
+          if (doc.readyState === 'complete' || doc.readyState === 'interactive') {
+            // Reset scrollTop em elementos de especificações
+            try {
+              doc.querySelectorAll('.section-content.especificacoes-content').forEach((el) => {
+                try { (el as HTMLElement).scrollTop = 0; } catch (e) {}
+              });
+            } catch (e) {}
+            
+            performCleanup(doc);
+            setTimeout(() => {
+              try {
+                temp.contentWindow?.focus();
+                temp.contentWindow?.print();
+              } catch (e) {
+                console.warn('Erro ao chamar print no iframe:', e);
+              }
+            }, 150);
+            
+            setTimeout(() => {
+              try {
+                document.body.removeChild(temp);
+              } catch {
+                // Ignorar erros de remoção
+              }
+            }, 4000);
+          } else {
+            setTimeout(tryPrint, 50);
+          }
+        } catch (e) {
+          console.warn('Erro ao tentar imprimir:', e);
         }
-      }, 4000);
+      };
+      
+      if (doc.readyState === 'complete') {
+        tryPrint();
+      } else {
+        doc.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+        temp.addEventListener('load', tryPrint, { once: true });
+      }
     }
     return;
   }
@@ -985,4 +958,39 @@ export const printMultipleOrdersServiceForm = async (
   win.document.open();
   win.document.write(html);
   win.document.close();
+
+  // Executar cleanup e print via TypeScript após janela carregar
+  const tryPrint = () => {
+    try {
+      if (win && (win.document.readyState === 'complete' || win.document.readyState === 'interactive')) {
+        // Reset scrollTop em elementos de especificações
+        try {
+          win.document.querySelectorAll('.section-content.especificacoes-content').forEach((el) => {
+            try { (el as HTMLElement).scrollTop = 0; } catch (e) {}
+          });
+        } catch (e) {}
+        
+        performCleanup(win.document);
+        setTimeout(() => {
+          try {
+            win?.focus();
+            win?.print();
+          } catch (e) {
+            console.warn('Erro ao chamar print:', e);
+          }
+        }, 150);
+      } else {
+        setTimeout(tryPrint, 50);
+      }
+    } catch (e) {
+      console.warn('Erro ao tentar imprimir:', e);
+    }
+  };
+
+  if (win.document.readyState === 'complete') {
+    tryPrint();
+  } else {
+    win.addEventListener('load', tryPrint, { once: true });
+    win.document.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+  }
 };
