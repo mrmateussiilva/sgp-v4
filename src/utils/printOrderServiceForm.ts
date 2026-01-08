@@ -138,17 +138,17 @@ export const printOrderServiceForm = async (
        - regras são “tolerantes”: só aplicam se as classes existirem no template da API
        ============================================================ */
     .item .content-wrapper {
-      gap: 2mm !important;
+      gap: 1mm !important;
     }
     .item .left-column {
-      width: 35% !important;
-      flex: 0 0 35% !important;
-      max-width: 35% !important;
+      width: 20% !important;
+      flex: 0 0 20% !important;
+      max-width: 20% !important;
     }
     .item .right-column {
-      width: 65% !important;
-      flex: 1 1 65% !important;
-      max-width: 65% !important;
+      width: 80% !important;
+      flex: 1 1 80% !important;
+      max-width: 80% !important;
       padding: 0 !important;
       margin: 0 !important;
     }
@@ -265,6 +265,7 @@ export const printOrderServiceForm = async (
     .item .content-wrapper {
       height: 100% !important;
       align-items: stretch !important;
+      gap: 0.5mm !important;
     }
     .item .left-column,
     .item .right-column {
@@ -637,17 +638,17 @@ export const printMultipleOrdersServiceForm = async (
        MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
        ============================================================ */
     .item .content-wrapper {
-      gap: 2mm !important;
+      gap: 1mm !important;
     }
     .item .left-column {
-      width: 35% !important;
-      flex: 0 0 35% !important;
-      max-width: 35% !important;
+      width: 20% !important;
+      flex: 0 0 20% !important;
+      max-width: 20% !important;
     }
     .item .right-column {
-      width: 65% !important;
-      flex: 1 1 65% !important;
-      max-width: 65% !important;
+      width: 80% !important;
+      flex: 1 1 80% !important;
+      max-width: 80% !important;
       padding: 0 !important;
       margin: 0 !important;
     }
@@ -761,6 +762,7 @@ export const printMultipleOrdersServiceForm = async (
     .item .content-wrapper {
       height: 100% !important;
       align-items: stretch !important;
+      gap: 0.5mm !important;
     }
     .item .left-column,
     .item .right-column {
