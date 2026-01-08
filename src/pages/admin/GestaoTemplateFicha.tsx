@@ -308,32 +308,60 @@ export default function GestaoTemplateFicha() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
       setHasChanges(false);
       
-      // Gerar HTML estruturado para resumo (com seções organizadas) e salvar
+      // IMPORTANTE: Preservar HTML editado manualmente - só gerar se não existir
       try {
-        // Para resumo, usar HTML estruturado com seções
-        const resumoHTML = generateResumoHTMLStructured();
+        // Verificar se já existe HTML editado manualmente
+        const resumoHTMLExistente = await api.getFichaTemplateHTML('resumo');
+        const geralHTMLExistente = await api.getFichaTemplateHTML('geral');
         
-        // Para geral, usar o HTML gerado do JSON (ou manter vazio se não houver)
-        const { generateTemplatesHTML } = await import('@/utils/generateTemplateHTML');
-        const geralHTML = generateTemplatesHTML(normalized.geral, normalized.resumo).geral;
+        const htmlToSave: { geral?: string; resumo?: string } = {};
         
-        await api.saveFichaTemplatesHTML({ 
-          geral: geralHTML, 
-          resumo: resumoHTML 
-        });
+        // Só gerar/salvar HTML se não existir um editado manualmente
+        if (!resumoHTMLExistente.exists || !resumoHTMLExistente.html || resumoHTMLExistente.html.trim().length === 0) {
+          // Para resumo, usar HTML estruturado com seções (só se não existir editado)
+          htmlToSave.resumo = generateResumoHTMLStructured();
+          console.log('[saveTemplates] ✅ HTML estruturado gerado para resumo (não havia HTML editado)');
+        } else {
+          console.log('[saveTemplates] ⚠️ HTML editado manualmente encontrado para resumo - preservando');
+        }
         
-        console.log('[saveTemplates] ✅ HTML estruturado gerado e salvo para resumo');
+        if (!geralHTMLExistente.exists || !geralHTMLExistente.html || geralHTMLExistente.html.trim().length === 0) {
+          // Para geral, usar o HTML gerado do JSON (só se não existir editado)
+          const { generateTemplatesHTML } = await import('@/utils/generateTemplateHTML');
+          htmlToSave.geral = generateTemplatesHTML(normalized.geral, normalized.resumo).geral;
+          console.log('[saveTemplates] ✅ HTML estruturado gerado para geral (não havia HTML editado)');
+        } else {
+          console.log('[saveTemplates] ⚠️ HTML editado manualmente encontrado para geral - preservando');
+        }
         
-        toast({
-          title: 'Sucesso',
-          description: 'Templates salvos! HTML estruturado gerado para resumo com todas as seções e campos disponíveis.',
-          variant: 'default',
-        });
+        // Só salvar se houver algo para salvar
+        if (htmlToSave.geral || htmlToSave.resumo) {
+          await api.saveFichaTemplatesHTML(htmlToSave);
+          
+          const messages = [];
+          if (htmlToSave.resumo) messages.push('HTML gerado para resumo');
+          if (htmlToSave.geral) messages.push('HTML gerado para geral');
+          const preserved = [];
+          if (resumoHTMLExistente.exists && resumoHTMLExistente.html) preserved.push('resumo');
+          if (geralHTMLExistente.exists && geralHTMLExistente.html) preserved.push('geral');
+          
+          toast({
+            title: 'Sucesso',
+            description: `Templates salvos! ${messages.join(', ')}.${preserved.length > 0 ? ` HTML editado manualmente preservado para: ${preserved.join(', ')}.` : ''}`,
+            variant: 'default',
+          });
+        } else {
+          toast({
+            title: 'Sucesso',
+            description: 'Templates JSON salvos! HTML editado manualmente preservado.',
+            variant: 'default',
+          });
+        }
       } catch (htmlError) {
-        console.error('Erro ao salvar HTML estruturado:', htmlError);
+        console.error('Erro ao verificar/salvar HTML:', htmlError);
         toast({
           title: 'Aviso',
-          description: 'Templates JSON salvos, mas houve erro ao gerar HTML estruturado.',
+          description: 'Templates JSON salvos, mas houve erro ao verificar HTML.',
           variant: 'default',
         });
       }
