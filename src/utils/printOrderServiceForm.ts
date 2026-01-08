@@ -1,5 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
-import { generateTemplatePrintContent, loadTemplates } from './templateProcessor';
+import { generateTemplatePrintContent } from './templateProcessor';
 
 // ============================================================================
 // UTILITY FUNCTIONS
