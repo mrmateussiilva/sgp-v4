@@ -5,6 +5,67 @@ import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { normalizeImagePath, isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
 
+// Função para redimensionar imagem mantendo proporção
+// Define altura fixa de 75mm e calcula largura proporcionalmente
+const resizeImageForPrint = async (
+  imageSrc: string,
+  fixedHeight: number = 75  // Altura fixa em mm (75mm)
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    // NÃO definir crossOrigin para blob URLs (causa erro de CORS)
+    // img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      try {
+        // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
+        const mmToPx = 3.779527559;
+        const fixedHeightPx = fixedHeight * mmToPx;
+        
+        // Calcular largura proporcional baseada na altura fixa
+        const aspectRatio = img.width / img.height;
+        const newWidth = fixedHeightPx * aspectRatio;
+        const newHeight = fixedHeightPx;
+        
+        console.log(`[resizeImageForPrint] Original: ${img.width}x${img.height}, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}`);
+        
+        // Criar canvas e redimensionar
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(newWidth);
+        canvas.height = Math.round(newHeight);
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Não foi possível criar contexto do canvas'));
+          return;
+        }
+        
+        // Melhorar qualidade da imagem redimensionada
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Desenhar imagem redimensionada
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Converter para data URL (JPEG com qualidade 0.9)
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        console.log(`[resizeImageForPrint] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
+        resolve(resizedDataUrl);
+      } catch (error) {
+        console.error('[resizeImageForPrint] ❌ Erro ao redimensionar:', error);
+        reject(error);
+      }
+    };
+    
+    img.onerror = (error) => {
+      console.error('[resizeImageForPrint] ❌ Erro ao carregar imagem:', error);
+      reject(new Error('Erro ao carregar imagem para redimensionamento'));
+    };
+    
+    img.src = imageSrc;
+  });
+};
+
 interface FichaDeServicoProps {
   orderId: number;
   sessionToken: string;
@@ -41,8 +102,18 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           try {
             console.log(`[FichaDeServico] 🔄 Carregando imagem do item ${item.id}:`, item.imagem);
             const blobUrl = await loadAuthenticatedImage(item.imagem);
-            imageUrlMap.set(item.imagem, blobUrl);
-            console.log(`[FichaDeServico] ✅ Imagem do item ${item.id} carregada com sucesso`);
+            
+            // Redimensionar imagem para impressão (75mm altura fixa, largura calculada proporcionalmente)
+            try {
+              console.log(`[FichaDeServico] 🔄 Redimensionando imagem do item ${item.id}...`);
+              const resizedImageUrl = await resizeImageForPrint(blobUrl, 75);
+              imageUrlMap.set(item.imagem, resizedImageUrl);
+              console.log(`[FichaDeServico] ✅ Imagem do item ${item.id} carregada e redimensionada com sucesso`);
+            } catch (resizeErr) {
+              console.warn(`[FichaDeServico] ⚠️ Erro ao redimensionar imagem do item ${item.id}, usando original:`, resizeErr);
+              // Fallback: usar imagem original se o redimensionamento falhar
+              imageUrlMap.set(item.imagem, blobUrl);
+            }
           } catch (err) {
             console.error(`[FichaDeServico] ❌ Erro ao carregar imagem do item ${item.id}:`, {
               imagem: item.imagem,
@@ -501,7 +572,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           position: relative;
           width: 100%;
           max-width: 100%;
-          height: 80mm;
+          height: 75mm;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -513,7 +584,10 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
         .ficha-image {
           max-width: 100%;
           max-height: 100%;
+          width: auto;
+          height: auto;
           object-fit: contain;
+          object-position: center;
         }
 
         .ficha-image-placeholder {
@@ -695,6 +769,33 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
             background: #f8f8f8 !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+
+          /* Estilos específicos para imagens na impressão */
+          .ficha-image-container {
+            height: 75mm !important;
+            max-height: 75mm !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          .ficha-image {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain !important;
+            object-position: center !important;
+            display: block !important;
+          }
+
+          .ficha-image-section {
+            max-height: 90mm !important;
+            overflow: hidden !important;
           }
         }
 
