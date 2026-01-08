@@ -241,56 +241,85 @@ export const printOrderServiceForm = async (
                     .normalize('NFD')
                     .replace(/[\\u0300-\\u036f]/g, '');
                 }
-
-                // Tenta escopos mais prováveis do resumo; se não achar nada, cai no body todo.
-                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
-                var candidates = [];
-                for (var i = 0; i < selectors.length; i++) {
+                function stripStyles(el){
                   try {
-                    var found = document.querySelectorAll(selectors[i]);
-                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                    el.style.setProperty('border', '0', 'important');
+                    el.style.setProperty('outline', '0', 'important');
+                    el.style.setProperty('box-shadow', 'none', 'important');
+                    el.style.setProperty('background', 'transparent', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('border-radius', '0', 'important');
                   } catch (e) {}
                 }
-                if (!candidates.length) {
-                  candidates = Array.from(document.querySelectorAll('body *'));
-                }
 
-                for (var k = 0; k < candidates.length; k++) {
-                  var el = candidates[k];
-                  if (!el) continue;
+                var items = document.querySelectorAll('.item');
+                for (var idx = 0; idx < items.length; idx++) {
+                  var item = items[idx];
+                  if (!item) continue;
 
-                  // 1) Se "VISUALIZAÇÃO" vier como texto solto no mesmo container da imagem, remove só o texto.
+                  var img = item.querySelector('img');
+                  if (!img) continue;
+
+                  // Preferir limpar apenas a coluna/área da imagem.
+                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
+
+                  // 1) Esconder título "VISUALIZAÇÃO" (sem remover layout inteiro)
                   try {
-                    if (el.childNodes && el.childNodes.length) {
-                      for (var n = 0; n < el.childNodes.length; n++) {
-                        var node = el.childNodes[n];
-                        if (node && node.nodeType === 3) {
-                          var rawNode = node.textContent || '';
-                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
-                            node.textContent = '';
+                    var nodes = right.querySelectorAll('*');
+                    for (var i = 0; i < nodes.length; i++) {
+                      var el = nodes[i];
+                      if (!el) continue;
+
+                      // texto solto "VISUALIZAÇÃO" dentro de containers
+                      try {
+                        if (el.childNodes && el.childNodes.length) {
+                          for (var n = 0; n < el.childNodes.length; n++) {
+                            var node = el.childNodes[n];
+                            if (node && node.nodeType === 3) {
+                              var rawNode = node.textContent || '';
+                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
+                            }
                           }
                         }
-                      }
+                      } catch (e) {}
+
+                      // elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
+                      try {
+                        var raw = (el.textContent || '').trim();
+                        if (!raw) continue;
+                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+                        if (el.querySelector && el.querySelector('img')) continue;
+                        el.style.setProperty('display', 'none', 'important');
+                        el.style.setProperty('margin', '0', 'important');
+                        el.style.setProperty('padding', '0', 'important');
+                        el.style.setProperty('height', '0', 'important');
+                      } catch (e) {}
                     }
                   } catch (e) {}
 
-                  // 2) Se for um elemento “título” (sem img dentro), esconde.
-                  var raw = (el.textContent || '').trim();
-                  if (!raw) continue;
-                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
-
+                  // 2) Remover “molduras” somente na cadeia que contém a imagem (sem apagar outros dados)
                   try {
-                    if (el.querySelector && el.querySelector('img')) {
-                      // Não esconder containers que englobam a imagem; apenas removemos textos acima.
-                      continue;
+                    // zera moldura do próprio right se ele contém a imagem
+                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
+
+                    var p = img;
+                    // caminha para cima até item/right, tirando borda/padding dos wrappers que envolvem a imagem
+                    while (p && p !== item && p !== right) {
+                      stripStyles(p);
+                      p = p.parentElement;
                     }
-                  } catch (e) {}
+                    if (p) stripStyles(p);
 
-                  try {
-                    el.style.setProperty('display', 'none', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('height', '0', 'important');
+                    // garante imagem proporcional e ocupando o container
+                    stripStyles(img);
+                    img.style.setProperty('display', 'block', 'important');
+                    img.style.setProperty('width', '100%', 'important');
+                    img.style.setProperty('height', '100%', 'important');
+                    img.style.setProperty('max-width', '100%', 'important');
+                    img.style.setProperty('max-height', '100%', 'important');
+                    img.style.setProperty('object-fit', 'contain', 'important');
+                    img.style.setProperty('object-position', 'center', 'important');
                   } catch (e) {}
                 }
               } catch (e) {}
@@ -637,50 +666,77 @@ export const printMultipleOrdersServiceForm = async (
                     .normalize('NFD')
                     .replace(/[\\u0300-\\u036f]/g, '');
                 }
-
-                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
-                var candidates = [];
-                for (var i = 0; i < selectors.length; i++) {
+                function stripStyles(el){
                   try {
-                    var found = document.querySelectorAll(selectors[i]);
-                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                    el.style.setProperty('border', '0', 'important');
+                    el.style.setProperty('outline', '0', 'important');
+                    el.style.setProperty('box-shadow', 'none', 'important');
+                    el.style.setProperty('background', 'transparent', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('border-radius', '0', 'important');
                   } catch (e) {}
                 }
-                if (!candidates.length) {
-                  candidates = Array.from(document.querySelectorAll('body *'));
-                }
 
-                for (var k = 0; k < candidates.length; k++) {
-                  var el = candidates[k];
-                  if (!el) continue;
+                var items = document.querySelectorAll('.item');
+                for (var idx = 0; idx < items.length; idx++) {
+                  var item = items[idx];
+                  if (!item) continue;
+
+                  var img = item.querySelector('img');
+                  if (!img) continue;
+
+                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
 
                   try {
-                    if (el.childNodes && el.childNodes.length) {
-                      for (var n = 0; n < el.childNodes.length; n++) {
-                        var node = el.childNodes[n];
-                        if (node && node.nodeType === 3) {
-                          var rawNode = node.textContent || '';
-                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
-                            node.textContent = '';
+                    var nodes = right.querySelectorAll('*');
+                    for (var i = 0; i < nodes.length; i++) {
+                      var el = nodes[i];
+                      if (!el) continue;
+
+                      try {
+                        if (el.childNodes && el.childNodes.length) {
+                          for (var n = 0; n < el.childNodes.length; n++) {
+                            var node = el.childNodes[n];
+                            if (node && node.nodeType === 3) {
+                              var rawNode = node.textContent || '';
+                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
+                            }
                           }
                         }
-                      }
+                      } catch (e) {}
+
+                      try {
+                        var raw = (el.textContent || '').trim();
+                        if (!raw) continue;
+                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+                        if (el.querySelector && el.querySelector('img')) continue;
+                        el.style.setProperty('display', 'none', 'important');
+                        el.style.setProperty('margin', '0', 'important');
+                        el.style.setProperty('padding', '0', 'important');
+                        el.style.setProperty('height', '0', 'important');
+                      } catch (e) {}
                     }
                   } catch (e) {}
 
-                  var raw = (el.textContent || '').trim();
-                  if (!raw) continue;
-                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
-
                   try {
-                    if (el.querySelector && el.querySelector('img')) continue;
-                  } catch (e) {}
+                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
 
-                  try {
-                    el.style.setProperty('display', 'none', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('height', '0', 'important');
+                    var p = img;
+                    while (p && p !== item && p !== right) {
+                      stripStyles(p);
+                      p = p.parentElement;
+                    }
+                    if (p) stripStyles(p);
+
+                    stripStyles(img);
+                    img.style.setProperty('display', 'block', 'important');
+                    img.style.setProperty('width', '100%', 'important');
+                    img.style.setProperty('height', '100%', 'important');
+                    img.style.setProperty('max-width', '100%', 'important');
+                    img.style.setProperty('max-height', '100%', 'important');
+                    img.style.setProperty('object-fit', 'contain', 'important');
+                    img.style.setProperty('object-position', 'center', 'important');
                   } catch (e) {}
                 }
               } catch (e) {}
