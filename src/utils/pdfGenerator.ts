@@ -621,7 +621,7 @@ export async function baixarPDF(itens: ItemRelatorio[], nomeArquivo: string = 'r
 }
 
 /**
- * Abre o PDF em uma nova aba
+ * Abre o PDF em uma nova aba (sem bloqueio de popup)
  */
 export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
@@ -629,7 +629,34 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
   }
   
   const docDefinition = await gerarDocDefinition(itens);
-  pdfMake.createPdf(docDefinition).open();
+  
+  return new Promise((resolve, reject) => {
+    pdfMake.createPdf(docDefinition).getBlob((blob) => {
+      if (blob) {
+        // Criar URL do blob e abrir em nova aba
+        const url = URL.createObjectURL(blob);
+        const newWindow = window.open(url, '_blank');
+        
+        if (newWindow) {
+          // Limpar URL após carregar
+          newWindow.onload = () => {
+            URL.revokeObjectURL(url);
+          };
+          resolve();
+        } else {
+          // Fallback: baixar se popup ainda bloqueado
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'relatorio-pedidos.pdf';
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          resolve();
+        }
+      } else {
+        reject(new Error('Falha ao gerar PDF'));
+      }
+    });
+  });
 }
 
 /**
