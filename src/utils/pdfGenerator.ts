@@ -982,8 +982,21 @@ export async function printPdf(
   try {
     // 1. Gerar PDF usando pdfmake
     console.log('[printPdf] 📄 Gerando PDF...');
+    console.log('[printPdf] 📄 Verificando docDefinition...', {
+      temContent: !!docDefinition.content,
+      temStyles: !!docDefinition.styles,
+      pageSize: docDefinition.pageSize || 'A4'
+    });
+    
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
     console.log('[printPdf] ✅ PDF generator criado');
+    console.log('[printPdf] 🔍 Métodos disponíveis:', {
+      temGetBuffer: typeof pdfDocGenerator.getBuffer === 'function',
+      temGetBlob: typeof pdfDocGenerator.getBlob === 'function',
+      temDownload: typeof pdfDocGenerator.download === 'function',
+      temOpen: typeof pdfDocGenerator.open === 'function',
+      temPrint: typeof pdfDocGenerator.print === 'function'
+    });
 
     // 2. Obter buffer do PDF
     console.log('[printPdf] 📦 Tentando obter buffer do PDF...');
