@@ -217,6 +217,8 @@ const TEMPLATES_DEFAULT: TemplatesConfig = {
 const STORAGE_KEY = 'ficha_templates_config';
 const GRID_SIZE = 5; // mm
 
+const HTML_EDITOR_PLACEHOLDER = 'Cole ou edite o HTML do template aqui...\n\nUse {{variavel}} para substituir variáveis.\nExemplo: {{numero}}, {{cliente}}, {{descricao}}';
+
 const mmToPx = (mm: number) => mm * 3.779527559;
 const pxToMm = (px: number) => px / 3.779527559;
 
@@ -1329,23 +1331,23 @@ export default function GestaoTemplateFicha() {
                   setHtmlHasChanges(true);
                 }}
                 className="flex-1 font-mono text-sm resize-none min-h-0"
-                placeholder={htmlLoading ? 'Carregando...' : 'Cole ou edite o HTML do template aqui...\n\nUse {{variavel}} para substituir variáveis.\nExemplo: {{numero}}, {{cliente}}, {{descricao}}'}
+                placeholder={htmlLoading ? 'Carregando...' : HTML_EDITOR_PLACEHOLDER}
                 disabled={htmlLoading}
               />
               <div className="mt-2 text-xs text-gray-500">
                 <p className="mb-1"><strong>Variáveis disponíveis:</strong></p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{numero}}</code> - Número do pedido</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{cliente}}</code> - Nome do cliente</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{descricao}}</code> - Descrição do item</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{dimensoes}}</code> - Dimensões</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{material}}</code> - Material/Tecido</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{imagem}}</code> - URL da imagem</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{overloque}}</code> - Overloque (Sim/Não)</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{elastico}}</code> - Elástico (Sim/Não)</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{emenda_label}}</code> - Emenda</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{acabamentos_painel}}</code> - Acabamentos (Painel)</div>
-                  <div>• <code className="bg-gray-100 px-1 rounded">{{acabamento_totem_resumo}}</code> - Acabamento (Totem)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{numero}}'}</code> - Número do pedido</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{cliente}}'}</code> - Nome do cliente</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{descricao}}'}</code> - Descrição do item</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{dimensoes}}'}</code> - Dimensões</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{material}}'}</code> - Material/Tecido</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{imagem}}'}</code> - URL da imagem</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{overloque}}'}</code> - Overloque (Sim/Não)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{elastico}}'}</code> - Elástico (Sim/Não)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{emenda_label}}'}</code> - Emenda</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{acabamentos_painel}}'}</code> - Acabamentos (Painel)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{'{{acabamento_totem_resumo}}'}</code> - Acabamento (Totem)</div>
                 </div>
               </div>
             </div>
