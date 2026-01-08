@@ -232,21 +232,9 @@ export const printOrderServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
-            function cleanup() {
+            function cleanup(){
               try {
-                function stripStyles(el) {
-                  try {
-                    el.style.setProperty('border', '0', 'important');
-                    el.style.setProperty('outline', '0', 'important');
-                    el.style.setProperty('box-shadow', 'none', 'important');
-                    el.style.setProperty('background', 'transparent', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('border-radius', '0', 'important');
-                  } catch (e) {}
-                }
-
-                function normalizeText(s) {
+                function normalizeText(s){
                   return String(s || '')
                     .trim()
                     .toUpperCase()
@@ -254,84 +242,55 @@ export const printOrderServiceForm = async (
                     .replace(/[\\u0300-\\u036f]/g, '');
                 }
 
-                var items = document.querySelectorAll('.item');
-                for (var idx = 0; idx < items.length; idx++) {
-                  var item = items[idx];
-                  if (!item) continue;
-
-                  var img = item.querySelector('img');
-                  if (!img) continue;
-
-                  // Tenta limitar a limpeza ao “lado direito” se existir
-                  var right = item.querySelector('.right-column') || img.closest('.right-column') || item;
-
-                  // Remove nós de texto/headers "VISUALIZAÇÃO" (variações) sem depender de classe
+                // Tenta escopos mais prováveis do resumo; se não achar nada, cai no body todo.
+                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
+                var candidates = [];
+                for (var i = 0; i < selectors.length; i++) {
                   try {
-                    var nodes = right.querySelectorAll('*');
-                    for (var i = 0; i < nodes.length; i++) {
-                      var el = nodes[i];
-                      if (!el) continue;
+                    var found = document.querySelectorAll(selectors[i]);
+                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                  } catch (e) {}
+                }
+                if (!candidates.length) {
+                  candidates = Array.from(document.querySelectorAll('body *'));
+                }
 
-                      // remove nós de texto soltos contendo VISUALIZACAO
-                      try {
-                        if (el.childNodes && el.childNodes.length) {
-                          for (var n = 0; n < el.childNodes.length; n++) {
-                            var node = el.childNodes[n];
-                            if (node && node.nodeType === 3) {
-                              var rawNode = node.textContent || '';
-                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
-                            }
+                for (var k = 0; k < candidates.length; k++) {
+                  var el = candidates[k];
+                  if (!el) continue;
+
+                  // 1) Se "VISUALIZAÇÃO" vier como texto solto no mesmo container da imagem, remove só o texto.
+                  try {
+                    if (el.childNodes && el.childNodes.length) {
+                      for (var n = 0; n < el.childNodes.length; n++) {
+                        var node = el.childNodes[n];
+                        if (node && node.nodeType === 3) {
+                          var rawNode = node.textContent || '';
+                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                            node.textContent = '';
                           }
                         }
-                      } catch (e) {}
-
-                      // se o elemento é só um título e não contém imagem, remove
-                      try {
-                        var raw = (el.textContent || '').trim();
-                        if (raw && normalizeText(raw).startsWith('VISUALIZACAO') && !(el.querySelector && el.querySelector('img'))) {
-                          try { el.parentNode && el.parentNode.removeChild(el); } catch (e) {}
-                        }
-                      } catch (e) {}
+                      }
                     }
                   } catch (e) {}
 
-                  // “Só a imagem”: remove qualquer elemento no lado direito que NÃO contenha a imagem
+                  // 2) Se for um elemento “título” (sem img dentro), esconde.
+                  var raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+
                   try {
-                    stripStyles(right);
-
-                    var all = right.querySelectorAll('*');
-                    for (var k = all.length - 1; k >= 0; k--) {
-                      var el2 = all[k];
-                      if (!el2 || el2 === img) continue;
-
-                      if (el2.contains && el2.contains(img)) {
-                        stripStyles(el2); // mantém wrappers da imagem, mas sem “moldura”
-                        continue;
-                      }
-
-                      try { el2.parentNode && el2.parentNode.removeChild(el2); } catch (e) {}
+                    if (el.querySelector && el.querySelector('img')) {
+                      // Não esconder containers que englobam a imagem; apenas removemos textos acima.
+                      continue;
                     }
+                  } catch (e) {}
 
-                    // Garante que a imagem ocupe tudo proporcionalmente
-                    stripStyles(img);
-                    img.style.setProperty('display', 'block', 'important');
-                    img.style.setProperty('width', '100%', 'important');
-                    img.style.setProperty('height', '100%', 'important');
-                    img.style.setProperty('object-fit', 'contain', 'important');
-                    img.style.setProperty('object-position', 'center', 'important');
-
-                    // Faz a cadeia de wrappers “esticar” pra usar a altura disponível do slot
-                    try {
-                      var p = img.parentElement;
-                      while (p && p !== right && p !== item) {
-                        stripStyles(p);
-                        p.style.setProperty('height', '100%', 'important');
-                        p.style.setProperty('min-height', '0', 'important');
-                        p = p.parentElement;
-                      }
-                      right.style.setProperty('height', '100%', 'important');
-                      right.style.setProperty('min-height', '0', 'important');
-                    } catch (e) {}
+                  try {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('height', '0', 'important');
                   } catch (e) {}
                 }
               } catch (e) {}
@@ -669,21 +628,9 @@ export const printMultipleOrdersServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
-            function cleanup() {
+            function cleanup(){
               try {
-                function stripStyles(el) {
-                  try {
-                    el.style.setProperty('border', '0', 'important');
-                    el.style.setProperty('outline', '0', 'important');
-                    el.style.setProperty('box-shadow', 'none', 'important');
-                    el.style.setProperty('background', 'transparent', 'important');
-                    el.style.setProperty('padding', '0', 'important');
-                    el.style.setProperty('margin', '0', 'important');
-                    el.style.setProperty('border-radius', '0', 'important');
-                  } catch (e) {}
-                }
-
-                function normalizeText(s) {
+                function normalizeText(s){
                   return String(s || '')
                     .trim()
                     .toUpperCase()
@@ -691,74 +638,49 @@ export const printMultipleOrdersServiceForm = async (
                     .replace(/[\\u0300-\\u036f]/g, '');
                 }
 
-                var items = document.querySelectorAll('.item');
-                for (var idx = 0; idx < items.length; idx++) {
-                  var item = items[idx];
-                  if (!item) continue;
+                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
+                var candidates = [];
+                for (var i = 0; i < selectors.length; i++) {
+                  try {
+                    var found = document.querySelectorAll(selectors[i]);
+                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                  } catch (e) {}
+                }
+                if (!candidates.length) {
+                  candidates = Array.from(document.querySelectorAll('body *'));
+                }
 
-                  var img = item.querySelector('img');
-                  if (!img) continue;
-
-                  var right = item.querySelector('.right-column') || img.closest('.right-column') || item;
+                for (var k = 0; k < candidates.length; k++) {
+                  var el = candidates[k];
+                  if (!el) continue;
 
                   try {
-                    var nodes = right.querySelectorAll('*');
-                    for (var i = 0; i < nodes.length; i++) {
-                      var el = nodes[i];
-                      if (!el) continue;
-
-                      try {
-                        if (el.childNodes && el.childNodes.length) {
-                          for (var n = 0; n < el.childNodes.length; n++) {
-                            var node = el.childNodes[n];
-                            if (node && node.nodeType === 3) {
-                              var rawNode = node.textContent || '';
-                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
-                            }
+                    if (el.childNodes && el.childNodes.length) {
+                      for (var n = 0; n < el.childNodes.length; n++) {
+                        var node = el.childNodes[n];
+                        if (node && node.nodeType === 3) {
+                          var rawNode = node.textContent || '';
+                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                            node.textContent = '';
                           }
                         }
-                      } catch (e) {}
-
-                      try {
-                        var raw = (el.textContent || '').trim();
-                        if (raw && normalizeText(raw).startsWith('VISUALIZACAO') && !(el.querySelector && el.querySelector('img'))) {
-                          try { el.parentNode && el.parentNode.removeChild(el); } catch (e) {}
-                        }
-                      } catch (e) {}
+                      }
                     }
                   } catch (e) {}
 
+                  var raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+
                   try {
-                    stripStyles(right);
-                    var all = right.querySelectorAll('*');
-                    for (var k = all.length - 1; k >= 0; k--) {
-                      var el2 = all[k];
-                      if (!el2 || el2 === img) continue;
-                      if (el2.contains && el2.contains(img)) {
-                        stripStyles(el2);
-                        continue;
-                      }
-                      try { el2.parentNode && el2.parentNode.removeChild(el2); } catch (e) {}
-                    }
+                    if (el.querySelector && el.querySelector('img')) continue;
+                  } catch (e) {}
 
-                    stripStyles(img);
-                    img.style.setProperty('display', 'block', 'important');
-                    img.style.setProperty('width', '100%', 'important');
-                    img.style.setProperty('height', '100%', 'important');
-                    img.style.setProperty('object-fit', 'contain', 'important');
-                    img.style.setProperty('object-position', 'center', 'important');
-
-                    try {
-                      var p = img.parentElement;
-                      while (p && p !== right && p !== item) {
-                        stripStyles(p);
-                        p.style.setProperty('height', '100%', 'important');
-                        p.style.setProperty('min-height', '0', 'important');
-                        p = p.parentElement;
-                      }
-                      right.style.setProperty('height', '100%', 'important');
-                      right.style.setProperty('min-height', '0', 'important');
-                    } catch (e) {}
+                  try {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('height', '0', 'important');
                   } catch (e) {}
                 }
               } catch (e) {}
