@@ -4,10 +4,9 @@ import { Button } from './ui/button';
 import { OrderItem, OrderWithItems } from '../types';
 import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { 
-  baixarRelatorioResumoPDF, 
-  imprimirRelatorioResumoPDF 
+  baixarRelatorioResumoPDF
 } from '../utils/pdfReportAdapter';
-import { isTauri } from '@/utils/isTauri';
+import { printOrderServiceForm } from '@/utils/printOrderServiceForm';
 
 interface OrderPrintManagerProps {
   isOpen: boolean;
@@ -91,7 +90,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     }
   };
 
-  // Imprimir usando PDFMake
+  // Imprimir usando HTML + window.print() (abre seletor de impressora no WebView/Tauri)
   const handlePrint = async () => {
     if (!order) return;
     
@@ -100,8 +99,9 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Usar PDFMake para impressão (3 itens por página, sem sobreposição)
-      await imprimirRelatorioResumoPDF(reorderedOrder, orderedItems);
+      // Usa template HTML da API e chama window.print() automaticamente
+      // 'resumo' = layout compacto (1/3 A4); altere para 'geral' se quiser A4 completo
+      await printOrderServiceForm(reorderedOrder, 'resumo', orderedItems);
     } catch (error) {
       console.error('Erro ao imprimir:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao imprimir. Tente novamente.';

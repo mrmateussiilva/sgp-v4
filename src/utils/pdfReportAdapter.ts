@@ -4,7 +4,7 @@
  */
 
 import { OrderWithItems, OrderItem } from '../types';
-import { ItemRelatorio, baixarPDF, abrirPDF, imprimirPDF } from './pdfGenerator';
+import { ItemRelatorio, baixarPDF, abrirPDF } from './pdfGenerator';
 import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
@@ -235,22 +235,11 @@ export async function abrirRelatorioResumoPDF(
 }
 
 /**
- * Imprime PDF do relatório
- */
-export async function imprimirRelatorioResumoPDF(
-  order: OrderWithItems,
-  items?: OrderItem[]
-): Promise<void> {
-  const itens = await converterItensParaPDF(order, items);
-  await imprimirPDF(itens);
-}
-
-/**
  * Gera PDF de múltiplos pedidos (todos os itens juntos)
  */
 export async function gerarRelatorioMultiplosPedidosPDF(
   orders: OrderWithItems[],
-  action: 'baixar' | 'abrir' | 'imprimir' = 'abrir',
+  action: 'baixar' | 'abrir' = 'abrir',
   nomeArquivo?: string
 ): Promise<void> {
   if (!orders || orders.length === 0) {
@@ -291,9 +280,6 @@ export async function gerarRelatorioMultiplosPedidosPDF(
     switch (action) {
       case 'baixar':
         await baixarPDF(todosItens, nomeArquivo || 'relatorio-pedidos.pdf');
-        break;
-      case 'imprimir':
-        await imprimirPDF(todosItens);
         break;
       case 'abrir':
       default:
