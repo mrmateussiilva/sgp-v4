@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
 import {
@@ -16,7 +16,6 @@ import {
   FichaTemplatesConfig as TemplatesConfig,
   TemplateType,
 } from '@/types';
-import { generateResumoHTMLStructured } from '@/utils/generateResumoHTML';
 
 const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = [
   { id: 'numero_os', type: 'text', label: 'Nro. OS', key: 'numero' },
@@ -330,8 +329,8 @@ export default function GestaoTemplateFicha() {
     setHtmlLoading(true);
     try {
       await api.saveFichaTemplatesHTML({
-        geral: htmlContent.geral || undefined,
-        resumo: htmlContent.resumo || undefined,
+        geral: htmlContent.geral || '',
+        resumo: htmlContent.resumo || '',
       });
       
       toast({
@@ -388,15 +387,15 @@ export default function GestaoTemplateFicha() {
         const resumoHTMLExistente = await api.getFichaTemplateHTML('resumo');
         const geralHTMLExistente = await api.getFichaTemplateHTML('geral');
         
-        const htmlToSave: { geral?: string; resumo?: string } = {};
+        // A API espera strings (mesmo que vazias) para ambos os templates.
+        const htmlToSave: { geral: string; resumo: string } = { geral: '', resumo: '' };
         
-        // Só gerar/salvar HTML se não existir um editado manualmente
+        // Resumo: não gerar template local automaticamente.
+        // O projeto usa apenas templates da API; se não existir, o usuário deve configurar na API.
         if (!resumoHTMLExistente.exists || !resumoHTMLExistente.html || resumoHTMLExistente.html.trim().length === 0) {
-          // Para resumo, usar HTML estruturado com seções (só se não existir editado)
-          htmlToSave.resumo = generateResumoHTMLStructured();
-          console.log('[saveTemplates] ✅ HTML estruturado gerado para resumo (não havia HTML editado)');
+          console.log('[saveTemplates] ⚠️ Template HTML do resumo não encontrado/está vazio na API - nada será gerado localmente');
         } else {
-          console.log('[saveTemplates] ⚠️ HTML editado manualmente encontrado para resumo - preservando');
+          console.log('[saveTemplates] ✅ HTML editado manualmente encontrado para resumo - preservando');
         }
         
         if (!geralHTMLExistente.exists || !geralHTMLExistente.html || geralHTMLExistente.html.trim().length === 0) {
