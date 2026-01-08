@@ -183,17 +183,6 @@ export const printMultipleOrdersServiceForm = async (
     );
   }
 
-  // Carregar template para obter dimensões reais
-  const templates = await loadTemplates();
-  const template = templates?.[templateType];
-  
-  if (!template) {
-    throw new Error(`Template ${templateType} não encontrado para obter dimensões`);
-  }
-
-  // Usar dimensões reais do template
-  const templateHeight = template.height; // 92mm para resumo
-
   // Gerar conteúdo HTML para cada pedido
   const ordersHtml = await Promise.all(
     orders.map(async (order) => {
