@@ -621,41 +621,79 @@ export async function baixarPDF(itens: ItemRelatorio[], nomeArquivo: string = 'r
 }
 
 /**
- * Abre o PDF em uma nova aba (sem bloqueio de popup)
+ * Abre o PDF em uma nova aba para visualização/impressão
  */
 export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
   
+  console.log('[pdfGenerator] Gerando documento PDF...');
   const docDefinition = await gerarDocDefinition(itens);
+  console.log('[pdfGenerator] Documento gerado, criando blob...');
   
   return new Promise((resolve, reject) => {
-    pdfMake.createPdf(docDefinition).getBlob((blob) => {
-      if (blob) {
-        // Criar URL do blob e abrir em nova aba
-        const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, '_blank');
+    try {
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      
+      pdfDoc.getBlob((blob) => {
+        console.log('[pdfGenerator] Blob criado:', blob?.size, 'bytes');
         
-        if (newWindow) {
-          // Limpar URL após carregar
-          newWindow.onload = () => {
-            URL.revokeObjectURL(url);
-          };
-          resolve();
-        } else {
-          // Fallback: baixar se popup ainda bloqueado
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'relatorio-pedidos.pdf';
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          resolve();
+        if (!blob) {
+          reject(new Error('Falha ao gerar blob do PDF'));
+          return;
         }
-      } else {
-        reject(new Error('Falha ao gerar PDF'));
-      }
-    });
+        
+        // Criar URL do blob
+        const url = URL.createObjectURL(blob);
+        console.log('[pdfGenerator] URL criada:', url);
+        
+        // Criar iframe para exibir o PDF (mais confiável que window.open)
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.width = '100vw';
+        iframe.style.height = '100vh';
+        iframe.style.zIndex = '99999';
+        iframe.style.border = 'none';
+        iframe.style.backgroundColor = 'white';
+        iframe.src = url;
+        
+        // Adicionar botão de fechar
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕ Fechar';
+        closeBtn.style.cssText = `
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          z-index: 100000;
+          padding: 10px 20px;
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        `;
+        closeBtn.onclick = () => {
+          document.body.removeChild(iframe);
+          document.body.removeChild(closeBtn);
+          URL.revokeObjectURL(url);
+        };
+        
+        document.body.appendChild(iframe);
+        document.body.appendChild(closeBtn);
+        
+        console.log('[pdfGenerator] PDF exibido em iframe');
+        resolve();
+      });
+    } catch (error) {
+      console.error('[pdfGenerator] Erro ao gerar PDF:', error);
+      reject(error);
+    }
   });
 }
 
