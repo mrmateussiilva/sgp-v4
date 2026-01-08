@@ -989,14 +989,6 @@ export const printOrder = async (order: OrderWithItems) => {
       </head>
       <body>
         ${content}
-        <script>
-          (function(){
-            function doPrint(){
-              try { window.focus(); window.print(); } catch(e){}
-            }
-            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
-          })();
-        </script>
       </body>
     </html>
   `;
@@ -1023,21 +1015,40 @@ export const printOrder = async (order: OrderWithItems) => {
       doc.open();
       doc.write(html);
       doc.close();
-      setTimeout(() => {
-        try { 
-          temp.contentWindow?.focus(); 
-          temp.contentWindow?.print(); 
-        } catch {
-          // Ignorar erros de impressão
-        }
-        setTimeout(() => { 
-          try { 
-            document.body.removeChild(temp); 
-          } catch {
-            // Ignorar erros de remoção
+      
+      // Executar print via TypeScript após carregar
+      const tryPrint = () => {
+        try {
+          if (doc.readyState === 'complete' || doc.readyState === 'interactive') {
+            setTimeout(() => {
+              try {
+                temp.contentWindow?.focus();
+                temp.contentWindow?.print();
+              } catch (e) {
+                console.warn('Erro ao chamar print no iframe:', e);
+              }
+              setTimeout(() => {
+                try {
+                  document.body.removeChild(temp);
+                } catch {
+                  // Ignorar erros de remoção
+                }
+              }, 1000);
+            }, 150);
+          } else {
+            setTimeout(tryPrint, 50);
           }
-        }, 1000);
-      }, 300);
+        } catch (e) {
+          console.warn('Erro ao tentar imprimir:', e);
+        }
+      };
+      
+      if (doc.readyState === 'complete') {
+        tryPrint();
+      } else {
+        doc.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+        temp.addEventListener('load', tryPrint, { once: true });
+      }
     }
     return;
   }
@@ -1045,6 +1056,33 @@ export const printOrder = async (order: OrderWithItems) => {
   win.document.open();
   win.document.write(html);
   win.document.close();
+  
+  // Executar print via TypeScript após janela carregar
+  const tryPrint = () => {
+    try {
+      if (win && (win.document.readyState === 'complete' || win.document.readyState === 'interactive')) {
+        setTimeout(() => {
+          try {
+            win?.focus();
+            win?.print();
+          } catch (e) {
+            console.warn('Erro ao chamar print:', e);
+          }
+        }, 150);
+      } else {
+        setTimeout(tryPrint, 50);
+      }
+    } catch (e) {
+      console.warn('Erro ao tentar imprimir:', e);
+    }
+  };
+
+  if (win.document.readyState === 'complete') {
+    tryPrint();
+  } else {
+    win.addEventListener('load', tryPrint, { once: true });
+    win.document.addEventListener('DOMContentLoaded', tryPrint, { once: true });
+  }
   
   // Restaurar título anterior após um tempo
   setTimeout(() => {
