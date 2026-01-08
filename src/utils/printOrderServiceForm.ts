@@ -379,9 +379,35 @@ export const printMultipleOrdersServiceForm = async (
         <meta charset="utf-8" />
         <title>Fichas de Serviço - ${validOrdersHtml.length} pedido(s)</title>
         <style>${styles}</style>
+        <style>
+          /* Override robusto para Tauri/print:
+             evita que ESPECIFICAÇÕES TÉCNICAS “suma” por overflow/scroll. */
+          .section-content.especificacoes-content {
+            overflow: visible !important;
+            max-height: none !important;
+          }
+          /* Ajuste leve para caber mais linhas, sem mexer no template original */
+          .section-content.especificacoes-content .spec-item {
+            font-size: 8.5pt !important;
+            line-height: 1.2 !important;
+            margin-bottom: 0.4mm !important;
+          }
+        </style>
       </head>
       <body>
         <div class="template-document">${combinedContent}</div>
+        <script>
+          // Garantir que nenhum bloco comece “rolado” para baixo (alguns WebViews fazem isso)
+          (function () {
+            window.addEventListener('load', function () {
+              try {
+                document.querySelectorAll('.section-content.especificacoes-content').forEach(function (el) {
+                  try { el.scrollTop = 0; } catch (e) {}
+                });
+              } catch (e) {}
+            }, { once: true });
+          })();
+        </script>
       </body>
     </html>
   `;
