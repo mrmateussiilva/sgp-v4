@@ -628,73 +628,114 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
   
-  console.log('[pdfGenerator] Gerando documento PDF...');
-  const docDefinition = await gerarDocDefinition(itens);
-  console.log('[pdfGenerator] Documento gerado, criando blob...');
+  console.log('[pdfGenerator] Iniciando geração de PDF...', { totalItens: itens.length });
   
-  return new Promise((resolve, reject) => {
-    try {
-      const pdfDoc = pdfMake.createPdf(docDefinition);
-      
-      pdfDoc.getBlob((blob) => {
-        console.log('[pdfGenerator] Blob criado:', blob?.size, 'bytes');
+  try {
+    const docDefinition = await gerarDocDefinition(itens);
+    console.log('[pdfGenerator] Documento gerado com sucesso');
+    
+    return new Promise((resolve, reject) => {
+      try {
+        const pdfDoc = pdfMake.createPdf(docDefinition);
         
-        if (!blob) {
-          reject(new Error('Falha ao gerar blob do PDF'));
-          return;
-        }
-        
-        // Criar URL do blob
-        const url = URL.createObjectURL(blob);
-        console.log('[pdfGenerator] URL criada:', url);
-        
-        // Criar iframe para exibir o PDF (mais confiável que window.open)
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.width = '100vw';
-        iframe.style.height = '100vh';
-        iframe.style.zIndex = '99999';
-        iframe.style.border = 'none';
-        iframe.style.backgroundColor = 'white';
-        iframe.src = url;
-        
-        // Adicionar botão de fechar
-        const closeBtn = document.createElement('button');
-        closeBtn.innerHTML = '✕ Fechar';
-        closeBtn.style.cssText = `
-          position: fixed;
-          top: 10px;
-          right: 10px;
-          z-index: 100000;
-          padding: 10px 20px;
-          background: #ef4444;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: bold;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        `;
-        closeBtn.onclick = () => {
-          document.body.removeChild(iframe);
-          document.body.removeChild(closeBtn);
-          URL.revokeObjectURL(url);
-        };
-        
-        document.body.appendChild(iframe);
-        document.body.appendChild(closeBtn);
-        
-        console.log('[pdfGenerator] PDF exibido em iframe');
-        resolve();
-      });
-    } catch (error) {
-      console.error('[pdfGenerator] Erro ao gerar PDF:', error);
-      reject(error);
-    }
-  });
+        pdfDoc.getBlob((blob) => {
+          if (!blob) {
+            console.error('[pdfGenerator] Blob é null ou undefined');
+            reject(new Error('Falha ao gerar blob do PDF'));
+            return;
+          }
+          
+          console.log('[pdfGenerator] Blob criado:', blob.size, 'bytes');
+          
+          // Criar URL do blob
+          const url = URL.createObjectURL(blob);
+          console.log('[pdfGenerator] URL criada:', url.substring(0, 50) + '...');
+          
+          // Tentar abrir em nova janela primeiro
+          try {
+            const newWindow = window.open(url, '_blank');
+            if (newWindow) {
+              console.log('[pdfGenerator] PDF aberto em nova janela');
+              // Limpar URL após um tempo
+              setTimeout(() => URL.revokeObjectURL(url), 60000);
+              resolve();
+              return;
+            }
+          } catch (err) {
+            console.warn('[pdfGenerator] window.open falhou, tentando iframe:', err);
+          }
+          
+          // Fallback: usar iframe
+          try {
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = `
+              position: fixed;
+              top: 0;
+              left: 0;
+              width: 100vw;
+              height: 100vh;
+              z-index: 99999;
+              border: none;
+              background: white;
+            `;
+            iframe.src = url;
+            
+            // Botão de fechar
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕ Fechar';
+            closeBtn.style.cssText = `
+              position: fixed;
+              top: 10px;
+              right: 10px;
+              z-index: 100000;
+              padding: 10px 20px;
+              background: #ef4444;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: bold;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            `;
+            
+            const cleanup = () => {
+              if (iframe.parentNode) document.body.removeChild(iframe);
+              if (closeBtn.parentNode) document.body.removeChild(closeBtn);
+              URL.revokeObjectURL(url);
+            };
+            
+            closeBtn.onclick = cleanup;
+            iframe.onerror = () => {
+              console.error('[pdfGenerator] Erro ao carregar PDF no iframe');
+              cleanup();
+              reject(new Error('Falha ao carregar PDF'));
+            };
+            
+            document.body.appendChild(iframe);
+            document.body.appendChild(closeBtn);
+            console.log('[pdfGenerator] PDF exibido em iframe');
+            resolve();
+          } catch (iframeErr) {
+            console.error('[pdfGenerator] Erro ao criar iframe:', iframeErr);
+            // Último recurso: fazer download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'relatorio-pedidos.pdf';
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            resolve();
+          }
+        });
+      } catch (error) {
+        console.error('[pdfGenerator] Erro na criação do PDF:', error);
+        reject(error);
+      }
+    });
+  } catch (error) {
+    console.error('[pdfGenerator] Erro ao gerar definição do documento:', error);
+    throw error;
+  }
 }
 
 /**

@@ -257,30 +257,54 @@ export async function gerarRelatorioMultiplosPedidosPDF(
     throw new Error('Nenhum pedido fornecido');
   }
   
-  // Converter todos os itens de todos os pedidos
-  const todosItens: ItemRelatorio[] = [];
-  
-  for (const order of orders) {
-    const itens = await converterItensParaPDF(order);
-    todosItens.push(...itens);
-  }
-  
-  logger.debug('[pdfReportAdapter] Gerando PDF de múltiplos pedidos:', {
-    totalPedidos: orders.length,
-    totalItens: todosItens.length,
-  });
-  
-  switch (action) {
-    case 'baixar':
-      await baixarPDF(todosItens, nomeArquivo || 'relatorio-pedidos.pdf');
-      break;
-    case 'imprimir':
-      await imprimirPDF(todosItens);
-      break;
-    case 'abrir':
-    default:
-      await abrirPDF(todosItens);
-      break;
+  try {
+    console.log('[pdfReportAdapter] Iniciando conversão de pedidos:', { totalPedidos: orders.length });
+    
+    // Converter todos os itens de todos os pedidos
+    const todosItens: ItemRelatorio[] = [];
+    
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i];
+      console.log(`[pdfReportAdapter] Convertendo pedido ${i + 1}/${orders.length}:`, order.id);
+      
+      try {
+        const itens = await converterItensParaPDF(order);
+        todosItens.push(...itens);
+        console.log(`[pdfReportAdapter] Pedido ${order.id} convertido:`, itens.length, 'itens');
+      } catch (error) {
+        console.error(`[pdfReportAdapter] Erro ao converter pedido ${order.id}:`, error);
+        // Continuar com outros pedidos
+      }
+    }
+    
+    if (todosItens.length === 0) {
+      throw new Error('Nenhum item foi convertido com sucesso');
+    }
+    
+    logger.debug('[pdfReportAdapter] Gerando PDF de múltiplos pedidos:', {
+      totalPedidos: orders.length,
+      totalItens: todosItens.length,
+    });
+    
+    console.log('[pdfReportAdapter] Chamando função de PDF:', action, { totalItens: todosItens.length });
+    
+    switch (action) {
+      case 'baixar':
+        await baixarPDF(todosItens, nomeArquivo || 'relatorio-pedidos.pdf');
+        break;
+      case 'imprimir':
+        await imprimirPDF(todosItens);
+        break;
+      case 'abrir':
+      default:
+        await abrirPDF(todosItens);
+        break;
+    }
+    
+    console.log('[pdfReportAdapter] PDF gerado com sucesso');
+  } catch (error) {
+    console.error('[pdfReportAdapter] Erro completo:', error);
+    throw error;
   }
 }
 
