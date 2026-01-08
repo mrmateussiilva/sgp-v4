@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
 import {
@@ -329,8 +329,8 @@ export default function GestaoTemplateFicha() {
     setHtmlLoading(true);
     try {
       await api.saveFichaTemplatesHTML({
-        geral: htmlContent.geral || undefined,
-        resumo: htmlContent.resumo || undefined,
+        geral: htmlContent.geral || '',
+        resumo: htmlContent.resumo || '',
       });
       
       toast({
@@ -387,7 +387,8 @@ export default function GestaoTemplateFicha() {
         const resumoHTMLExistente = await api.getFichaTemplateHTML('resumo');
         const geralHTMLExistente = await api.getFichaTemplateHTML('geral');
         
-        const htmlToSave: { geral?: string; resumo?: string } = {};
+        // A API espera strings (mesmo que vazias) para ambos os templates.
+        const htmlToSave: { geral: string; resumo: string } = { geral: '', resumo: '' };
         
         // Resumo: não gerar template local automaticamente.
         // O projeto usa apenas templates da API; se não existir, o usuário deve configurar na API.
