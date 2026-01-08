@@ -698,38 +698,46 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
 };
 
 /**
- * Processa condicionais {{#IF tipo_producao == 'painel'}} ... {{/IF}} no HTML
- * Suporta:
- * - {{#IF tipo_producao == 'painel'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'totem'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'lona'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'adesivo'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'tecido'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'generica'}} ... {{/IF}}
+ * Processa condicionais no template HTML
+ * Suporta múltiplas sintaxes:
+ * 
+ * 1. Sintaxe legada: {{#IF tipo_producao == 'painel'}} ... {{/IF}}
+ * 2. Sintaxe Handlebars com eq: {{#if (eq tipo_producao 'painel')}} ... {{/if}}
+ * 3. Condicional simples: {{#if variavel}} ... {{/if}}
  */
 const processConditionals = (
   html: string,
-  tipoProducao: string
+  tipoProducao: string,
+  dataMap?: Record<string, string | number | undefined>
 ): string => {
   let result = html;
   const normalizedTipo = tipoProducao.toLowerCase().trim();
   
-  // Regex para encontrar blocos {{#IF tipo_producao == 'valor'}} ... {{/IF}}
-  // Suporta case-insensitive e espaços variáveis
-  const ifRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
-  
-  result = result.replace(ifRegex, (_match, tipoEsperado, conteudo) => {
+  // 1. Sintaxe legada: {{#IF tipo_producao == 'valor'}} ... {{/IF}}
+  const legacyIfRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
+  result = result.replace(legacyIfRegex, (_match, tipoEsperado, conteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
-    
-    // Verificar se o tipo de produção corresponde
-    if (normalizedTipo === normalizedEsperado) {
-      // Manter o conteúdo
-      return conteudo;
-    } else {
-      // Remover o conteúdo
-      return '';
-    }
+    return normalizedTipo === normalizedEsperado ? conteudo : '';
   });
+  
+  // 2. Sintaxe Handlebars: {{#if (eq tipo_producao 'valor')}} ... {{/if}}
+  const handlebarsEqRegex = /\{\{#if\s+\(eq\s+tipo_producao\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
+  result = result.replace(handlebarsEqRegex, (_match, tipoEsperado, conteudo) => {
+    const normalizedEsperado = tipoEsperado.toLowerCase().trim();
+    return normalizedTipo === normalizedEsperado ? conteudo : '';
+  });
+  
+  // 3. Condicional simples: {{#if variavel}} ... {{/if}}
+  // Verifica se a variável tem valor truthy no dataMap
+  if (dataMap) {
+    const simpleIfRegex = /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
+    result = result.replace(simpleIfRegex, (_match, varName, conteudo) => {
+      const value = dataMap[varName];
+      // Truthy: tem valor, não é string vazia, não é "false", não é 0
+      const isTruthy = value !== undefined && value !== null && value !== '' && value !== 'false' && value !== 0;
+      return isTruthy ? conteudo : '';
+    });
+  }
   
   return result;
 };
@@ -853,9 +861,9 @@ const processItemTemplate = (
     }
   });
   
-  // 1. Processar condicionais {{#IF tipo_producao == 'tipo'}} ... {{/IF}}
+  // 1. Processar condicionais (suporta sintaxe legada e Handlebars)
   // IMPORTANTE: Processar condicionais ANTES de substituir variáveis para melhor performance
-  let processed = processConditionals(html, tipoProducao);
+  let processed = processConditionals(html, tipoProducao, dataMap);
   
   // 2. Substituir variáveis
   processed = replaceVariables(processed, dataMap, imageBase64Map, item);
