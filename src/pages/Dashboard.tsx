@@ -383,14 +383,15 @@ export default function Dashboard() {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
+              {/* Desativado temporariamente */}
+              {/* <Route 
                 path="/admin/template-ficha" 
                 element={
                   <ProtectedRoute requireAdmin={true}>
                     <GestaoTemplateFicha />
                   </ProtectedRoute>
                 } 
-              />
+              /> */}
               <Route 
                 path="/admin/template-relatorios" 
                 element={

@@ -62,14 +62,15 @@ export default function Admin() {
       color: 'text-gray-500',
       bgColor: 'bg-gray-50 hover:bg-gray-100',
     },
-    {
-      title: 'Template de Ficha',
-      description: 'Configure o template global da ficha de serviço',
-      icon: FileText,
-      path: '/dashboard/admin/template-ficha',
-      color: 'text-indigo-500',
-      bgColor: 'bg-indigo-50 hover:bg-indigo-100',
-    },
+    // Desativado temporariamente
+    // {
+    //   title: 'Template de Ficha',
+    //   description: 'Configure o template global da ficha de serviço',
+    //   icon: FileText,
+    //   path: '/dashboard/admin/template-ficha',
+    //   color: 'text-indigo-500',
+    //   bgColor: 'bg-indigo-50 hover:bg-indigo-100',
+    // },
     {
       title: 'Templates de Relatórios',
       description: 'Configure templates de relatórios de envios e fechamentos',
