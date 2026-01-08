@@ -237,16 +237,24 @@ export const printOrderServiceForm = async (
                 // Remove título "VISUALIZAÇÃO" (varia de tag/classe no template da API)
                 const candidates = Array.from(document.querySelectorAll('.item *'));
                 for (const el of candidates) {
-                  // Só remover nós "folha" (sem filhos) para evitar apagar blocos inteiros
-                  if ((el as HTMLElement).children && (el as HTMLElement).children.length > 0) continue;
                   const raw = (el.textContent || '').trim();
                   if (!raw) continue;
                   const normalized = raw
                     .toUpperCase()
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, '');
-                  if (normalized === 'VISUALIZACAO') {
-                    (el as HTMLElement).remove();
+                  // Aceita variações como "VISUALIZAÇÃO", "VISUALIZAÇÃO DA IMAGEM", etc.
+                  if (normalized.startsWith('VISUALIZACAO')) {
+                    // Nunca esconder blocos que contenham a imagem
+                    try {
+                      if ((el as HTMLElement).querySelector && (el as HTMLElement).querySelector('img')) continue;
+                    } catch (e) {}
+                    try {
+                      (el as HTMLElement).style.setProperty('display', 'none', 'important');
+                      (el as HTMLElement).style.setProperty('margin', '0', 'important');
+                      (el as HTMLElement).style.setProperty('padding', '0', 'important');
+                      (el as HTMLElement).style.setProperty('height', '0', 'important');
+                    } catch (e) {}
                   }
                 }
               } catch (e) {}
@@ -588,15 +596,22 @@ export const printMultipleOrdersServiceForm = async (
               try {
                 const candidates = Array.from(document.querySelectorAll('.item *'));
                 for (const el of candidates) {
-                  if ((el as HTMLElement).children && (el as HTMLElement).children.length > 0) continue;
                   const raw = (el.textContent || '').trim();
                   if (!raw) continue;
                   const normalized = raw
                     .toUpperCase()
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, '');
-                  if (normalized === 'VISUALIZACAO') {
-                    (el as HTMLElement).remove();
+                  if (normalized.startsWith('VISUALIZACAO')) {
+                    try {
+                      if ((el as HTMLElement).querySelector && (el as HTMLElement).querySelector('img')) continue;
+                    } catch (e) {}
+                    try {
+                      (el as HTMLElement).style.setProperty('display', 'none', 'important');
+                      (el as HTMLElement).style.setProperty('margin', '0', 'important');
+                      (el as HTMLElement).style.setProperty('padding', '0', 'important');
+                      (el as HTMLElement).style.setProperty('height', '0', 'important');
+                    } catch (e) {}
                   }
                 }
               } catch (e) {}
