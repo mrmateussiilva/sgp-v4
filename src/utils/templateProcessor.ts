@@ -660,13 +660,12 @@ const processImageTags = (
 const wrapItemInFixedStructure = (content: string): string => {
   // Corrigir encoding de caracteres especiais (Õ, É, etc.)
   const normalizedContent = content
-    .replace(/Õ(?=[\s&<\"'])/g, '&Otilde;')
-    .replace(/É(?=[\s&<\"'])/g, '&Eacute;')
+    .replace(/Õ(?=[\s&<"'])/g, '&Otilde;')
+    .replace(/É(?=[\s&<"'])/g, '&Eacute;')
     .replace(/Õ/g, '&Otilde;')
     .replace(/É/g, '&Eacute;')
     .replace(/ã/g, '&atilde;')
     .replace(/á/g, '&aacute;')
-    .replace(/ê/g, '&ecirc;')
     .replace(/ê/g, '&ecirc;');
   
   // Usar estrutura com seções fixas para layout consistente
