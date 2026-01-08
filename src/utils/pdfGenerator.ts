@@ -739,7 +739,7 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
 }
 
 /**
- * Abre diálogo de impressão do PDF
+ * Abre diálogo de impressão do PDF (faz download automático)
  */
 export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
@@ -748,79 +748,52 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   
   console.log('[pdfGenerator] Gerando PDF para impressão...', { totalItens: itens.length });
   
-  const docDefinition = await gerarDocDefinition(itens);
-  console.log('[pdfGenerator] Documento gerado');
-  
-  return new Promise((resolve, reject) => {
-    const pdfDoc = pdfMake.createPdf(docDefinition);
+  try {
+    const docDefinition = await gerarDocDefinition(itens);
+    console.log('[pdfGenerator] Documento gerado, criando blob...');
     
-    // Obter blob do PDF
-    pdfDoc.getBlob((blob) => {
-      if (!blob) {
-        reject(new Error('Falha ao gerar PDF'));
-        return;
-      }
+    return new Promise((resolve, reject) => {
+      const pdfDoc = pdfMake.createPdf(docDefinition);
       
-      console.log('[pdfGenerator] Blob criado:', blob.size, 'bytes');
-      
-      // Criar URL do blob
-      const url = URL.createObjectURL(blob);
-      
-      // Criar nova janela com o PDF e chamar print automaticamente
-      const printWindow = window.open('', '_blank');
-      
-      if (!printWindow) {
-        // Se popup bloqueado, fazer download
-        console.warn('[pdfGenerator] Popup bloqueado, fazendo download...');
+      pdfDoc.getBlob((blob) => {
+        console.log('[pdfGenerator] getBlob callback executado', blob ? `blob OK (${blob.size} bytes)` : 'blob NULL');
+        
+        if (!blob) {
+          console.error('[pdfGenerator] Blob é null!');
+          reject(new Error('Falha ao gerar blob do PDF'));
+          return;
+        }
+        
+        console.log('[pdfGenerator] Blob criado com sucesso:', blob.size, 'bytes');
+        
+        // Criar URL do blob
+        const url = URL.createObjectURL(blob);
+        console.log('[pdfGenerator] URL criada');
+        
+        // Fazer download automático (mais confiável que abrir janelas)
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'relatorio-pedidos.pdf';
+        link.download = 'relatorio-pedidos-para-imprimir.pdf';
+        link.target = '_blank';
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        reject(new Error('Popup bloqueado pelo navegador. PDF foi baixado. Abra-o e pressione Ctrl+P para imprimir.'));
-        return;
-      }
-      
-      // Escrever HTML com iframe do PDF na nova janela
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Imprimir Relatório</title>
-            <style>
-              body {
-                margin: 0;
-                padding: 0;
-              }
-              iframe {
-                width: 100%;
-                height: 100vh;
-                border: none;
-              }
-            </style>
-          </head>
-          <body>
-            <iframe src="${url}" type="application/pdf"></iframe>
-            <script>
-              // Aguardar carregamento e então imprimir
-              window.onload = function() {
-                setTimeout(function() {
-                  window.focus();
-                  window.print();
-                  // Fechar após imprimir (opcional)
-                  // window.close();
-                }, 500);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      
-      console.log('[pdfGenerator] Janela aberta, aguardando impressão...');
-      resolve();
+        console.log('[pdfGenerator] Download iniciado');
+        
+        // Limpar após um tempo
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          console.log('[pdfGenerator] Limpeza concluída');
+        }, 1000);
+        
+        resolve();
+      });
     });
-  });
+  } catch (error) {
+    console.error('[pdfGenerator] Erro na impressão:', error);
+    throw error;
+  }
 }
 
 /**

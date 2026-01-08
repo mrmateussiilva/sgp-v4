@@ -1147,12 +1147,12 @@ export default function OrderList() {
       });
 
       // Usar PDFMake para geração de PDF (3 itens por página, sem sobreposição)
-      // Usar 'imprimir' para abrir diálogo de impressão diretamente
+      // Usar 'imprimir' para fazer download do PDF
       await gerarRelatorioMultiplosPedidosPDF(orders, 'imprimir');
       
       toast({
-        title: "PDF gerado",
-        description: `${orders.length} pedido(s) processado(s) com sucesso.`,
+        title: "PDF baixado",
+        description: `PDF gerado com sucesso! Abra o arquivo e pressione Ctrl+P para imprimir.`,
       });
     } catch (error) {
       console.error('Erro ao imprimir múltiplos pedidos:', error);
