@@ -529,6 +529,7 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
 
 /**
  * Substitui variáveis no HTML com dados do pedido
+ * Suporta substituição case-insensitive ({{numero}}, {{NUMERO}}, {{Numero}})
  */
 const replaceVariables = (
   html: string,
@@ -554,7 +555,10 @@ const replaceVariables = (
       }
     }
     
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    // Substituição case-insensitive: {{numero}}, {{NUMERO}}, {{Numero}} funcionam
+    // Escapar caracteres especiais da chave para regex
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'); // 'i' flag para case-insensitive
     
     // Para imagens, não escapar HTML (já é base64 ou URL)
     if (key === 'imagem') {
