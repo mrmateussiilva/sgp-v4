@@ -1,9 +1,10 @@
 use tauri::{AppHandle, Manager};
+#[allow(unused_imports)] // Usado apenas em Linux/macOS via #[cfg(target_os)]
 use tauri::async_runtime;
 use std::collections::HashMap;
 use std::process::Command;
 use std::path::PathBuf;
-use std::io::Write;
+use std::io::{Write, Read};
 use std::fs::OpenOptions;
 use tracing::{info, warn};
 use serde::{Deserialize, Serialize};
