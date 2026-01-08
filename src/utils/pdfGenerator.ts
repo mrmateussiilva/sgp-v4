@@ -880,7 +880,7 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
 
     // Usar window.print() (funciona tanto no Tauri quanto no navegador)
     console.log('[pdfGenerator] 🖨️ Usando window.print() para impressão');
-    await printPdfWindowPrint(docDefinition, 'relatorio-pedidos-para-imprimir.pdf');
+    await printPdfWindowPrint(docDefinition);
   } catch (error) {
     console.error('[pdfGenerator] Erro na impressão:', error);
     throw error;
@@ -938,8 +938,7 @@ export async function gerarPDFBase64(itens: ItemRelatorio[]): Promise<string> {
  * Funciona tanto no Tauri quanto no navegador
  */
 export async function printPdfWindowPrint(
-  docDefinition: TDocumentDefinitions,
-  _nomeArquivoPadrao: string = 'documento.pdf'
+  docDefinition: TDocumentDefinitions
 ): Promise<void> {
   try {
     console.log('[printPdfWindowPrint] 📄 Gerando PDF...');
