@@ -864,8 +864,9 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
 }
 
 /**
- * Abre diálogo de impressão do PDF usando window.print()
- * Funciona tanto no Tauri quanto no navegador
+ * Abre diálogo de impressão do PDF
+ * No Tauri: salva e abre o arquivo (usuário pode imprimir pelo visualizador)
+ * No navegador: usa open() do pdfmake
  */
 export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
@@ -878,9 +879,22 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
     const docDefinition = await gerarDocDefinition(itens);
     console.log('[pdfGenerator] Documento gerado');
 
-    // Usar window.print() (funciona tanto no Tauri quanto no navegador)
-    console.log('[pdfGenerator] 🖨️ Usando window.print() para impressão');
-    await printPdfWindowPrint(docDefinition);
+    if (isTauriEnvironment()) {
+      // No Tauri: usar printPdf() que salva e abre o arquivo
+      // O usuário pode então imprimir pelo visualizador padrão do sistema
+      console.log('[pdfGenerator] 🖥️ Tauri: salvando e abrindo PDF para impressão');
+      const filePath = await printPdf(docDefinition, 'relatorio-pedidos-para-imprimir.pdf');
+      if (filePath) {
+        console.log('[pdfGenerator] ✅ PDF salvo e aberto. Você pode imprimir através do visualizador padrão.');
+      } else {
+        console.log('[pdfGenerator] ℹ️ Usuário cancelou a operação');
+      }
+    } else {
+      // No navegador: usar open() do pdfmake que abre diretamente
+      console.log('[pdfGenerator] 🌐 Navegador: usando open() do pdfmake...');
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      pdfDoc.open();
+    }
   } catch (error) {
     console.error('[pdfGenerator] Erro na impressão:', error);
     throw error;
