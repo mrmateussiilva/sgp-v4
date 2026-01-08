@@ -234,28 +234,64 @@ export const printOrderServiceForm = async (
             window.__SGP_PRINTED__ = true;
             function cleanup(){
               try {
-                // Remove título "VISUALIZAÇÃO" (varia de tag/classe no template da API)
-                const candidates = Array.from(document.querySelectorAll('.item *'));
-                for (const el of candidates) {
-                  const raw = (el.textContent || '').trim();
-                  if (!raw) continue;
-                  const normalized = raw
+                function normalizeText(s){
+                  return String(s || '')
+                    .trim()
                     .toUpperCase()
                     .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '');
-                  // Aceita variações como "VISUALIZAÇÃO", "VISUALIZAÇÃO DA IMAGEM", etc.
-                  if (normalized.startsWith('VISUALIZACAO')) {
-                    // Nunca esconder blocos que contenham a imagem
-                    try {
-                      if ((el as HTMLElement).querySelector && (el as HTMLElement).querySelector('img')) continue;
-                    } catch (e) {}
-                    try {
-                      (el as HTMLElement).style.setProperty('display', 'none', 'important');
-                      (el as HTMLElement).style.setProperty('margin', '0', 'important');
-                      (el as HTMLElement).style.setProperty('padding', '0', 'important');
-                      (el as HTMLElement).style.setProperty('height', '0', 'important');
-                    } catch (e) {}
-                  }
+                    .replace(/[\\u0300-\\u036f]/g, '');
+                }
+
+                // Tenta escopos mais prováveis do resumo; se não achar nada, cai no body todo.
+                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
+                var candidates = [];
+                for (var i = 0; i < selectors.length; i++) {
+                  try {
+                    var found = document.querySelectorAll(selectors[i]);
+                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                  } catch (e) {}
+                }
+                if (!candidates.length) {
+                  candidates = Array.from(document.querySelectorAll('body *'));
+                }
+
+                for (var k = 0; k < candidates.length; k++) {
+                  var el = candidates[k];
+                  if (!el) continue;
+
+                  // 1) Se "VISUALIZAÇÃO" vier como texto solto no mesmo container da imagem, remove só o texto.
+                  try {
+                    if (el.childNodes && el.childNodes.length) {
+                      for (var n = 0; n < el.childNodes.length; n++) {
+                        var node = el.childNodes[n];
+                        if (node && node.nodeType === 3) {
+                          var rawNode = node.textContent || '';
+                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                            node.textContent = '';
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {}
+
+                  // 2) Se for um elemento “título” (sem img dentro), esconde.
+                  var raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+
+                  try {
+                    if (el.querySelector && el.querySelector('img')) {
+                      // Não esconder containers que englobam a imagem; apenas removemos textos acima.
+                      continue;
+                    }
+                  } catch (e) {}
+
+                  try {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('height', '0', 'important');
+                  } catch (e) {}
                 }
               } catch (e) {}
             }
@@ -594,25 +630,58 @@ export const printMultipleOrdersServiceForm = async (
             window.__SGP_PRINTED__ = true;
             function cleanup(){
               try {
-                const candidates = Array.from(document.querySelectorAll('.item *'));
-                for (const el of candidates) {
-                  const raw = (el.textContent || '').trim();
-                  if (!raw) continue;
-                  const normalized = raw
+                function normalizeText(s){
+                  return String(s || '')
+                    .trim()
                     .toUpperCase()
                     .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '');
-                  if (normalized.startsWith('VISUALIZACAO')) {
-                    try {
-                      if ((el as HTMLElement).querySelector && (el as HTMLElement).querySelector('img')) continue;
-                    } catch (e) {}
-                    try {
-                      (el as HTMLElement).style.setProperty('display', 'none', 'important');
-                      (el as HTMLElement).style.setProperty('margin', '0', 'important');
-                      (el as HTMLElement).style.setProperty('padding', '0', 'important');
-                      (el as HTMLElement).style.setProperty('height', '0', 'important');
-                    } catch (e) {}
-                  }
+                    .replace(/[\\u0300-\\u036f]/g, '');
+                }
+
+                var selectors = ['.item *', '.item-container *', '.resumo-item *', '.template-document *'];
+                var candidates = [];
+                for (var i = 0; i < selectors.length; i++) {
+                  try {
+                    var found = document.querySelectorAll(selectors[i]);
+                    for (var j = 0; j < found.length; j++) candidates.push(found[j]);
+                  } catch (e) {}
+                }
+                if (!candidates.length) {
+                  candidates = Array.from(document.querySelectorAll('body *'));
+                }
+
+                for (var k = 0; k < candidates.length; k++) {
+                  var el = candidates[k];
+                  if (!el) continue;
+
+                  try {
+                    if (el.childNodes && el.childNodes.length) {
+                      for (var n = 0; n < el.childNodes.length; n++) {
+                        var node = el.childNodes[n];
+                        if (node && node.nodeType === 3) {
+                          var rawNode = node.textContent || '';
+                          if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                            node.textContent = '';
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {}
+
+                  var raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+
+                  try {
+                    if (el.querySelector && el.querySelector('img')) continue;
+                  } catch (e) {}
+
+                  try {
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('height', '0', 'important');
+                  } catch (e) {}
                 }
               } catch (e) {}
             }
