@@ -1,46 +1,35 @@
 /**
- * Utilitário para redimensionar imagens antes de converter para base64
+ * Redimensiona uma imagem mantendo a proporção
+ * Define altura fixa de 75mm e calcula largura proporcionalmente
+ * @param imageSrc - Blob URL ou data URL da imagem
+ * @param fixedHeight - Altura fixa em mm (padrão: 75mm)
+ * @returns Promise com a string base64 da imagem redimensionada
  */
-
-const MAX_WIDTH = 1200;
-const MAX_HEIGHT = 1200;
-const QUALITY = 0.85;
-
-/**
- * Redimensiona uma imagem para um tamanho máximo mantendo a proporção
- * @param file Arquivo de imagem original
- * @param maxWidth Largura máxima (padrão: 1200px)
- * @param maxHeight Altura máxima (padrão: 1200px)
- * @param quality Qualidade da compressão (0-1, padrão: 0.85)
- * @returns Promise com a imagem redimensionada como base64
- */
-export function resizeImage(
-  file: File,
-  maxWidth: number = MAX_WIDTH,
-  maxHeight: number = MAX_HEIGHT,
-  quality: number = QUALITY
+export async function resizeImageToBase64(
+  imageSrc: string,
+  fixedHeight: number = 75
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+    const img = new Image();
+    // NÃO definir crossOrigin para blob URLs (causa erro de CORS)
     
-    reader.onload = (e) => {
-      const img = new Image();
-      
-      img.onload = () => {
-        // Calcular novas dimensões mantendo proporção
-        let width = img.width;
-        let height = img.height;
+    img.onload = () => {
+      try {
+        // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
+        const mmToPx = 3.779527559;
+        const fixedHeightPx = fixedHeight * mmToPx;
         
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
-          width = width * ratio;
-          height = height * ratio;
-        }
+        // Calcular largura proporcional baseada na altura fixa
+        const aspectRatio = img.width / img.height;
+        const newWidth = fixedHeightPx * aspectRatio;
+        const newHeight = fixedHeightPx;
         
-        // Criar canvas para redimensionar
+        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}`);
+        
+        // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = Math.round(newWidth);
+        canvas.height = Math.round(newHeight);
         
         const ctx = canvas.getContext('2d');
         if (!ctx) {
@@ -48,30 +37,28 @@ export function resizeImage(
           return;
         }
         
-        // Desenhar imagem redimensionada no canvas
-        ctx.drawImage(img, 0, 0, width, height);
+        // Melhorar qualidade da imagem redimensionada
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         
-        // Converter para base64
-        const resizedBase64 = canvas.toDataURL('image/jpeg', quality);
-        resolve(resizedBase64);
-      };
-      
-      img.onerror = () => {
-        reject(new Error('Erro ao carregar imagem'));
-      };
-      
-      if (typeof e.target?.result === 'string') {
-        img.src = e.target.result;
-      } else {
-        reject(new Error('Erro ao ler arquivo'));
+        // Desenhar imagem redimensionada
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Converter para data URL (JPEG com qualidade 0.9)
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        console.log(`[resizeImageToBase64] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
+        resolve(resizedDataUrl);
+      } catch (error) {
+        console.error('[resizeImageToBase64] ❌ Erro ao redimensionar:', error);
+        reject(error);
       }
     };
     
-    reader.onerror = () => {
-      reject(new Error('Erro ao ler arquivo'));
+    img.onerror = (error) => {
+      console.error('[resizeImageToBase64] ❌ Erro ao carregar imagem:', error);
+      reject(new Error('Erro ao carregar imagem para redimensionamento'));
     };
     
-    reader.readAsDataURL(file);
+    img.src = imageSrc;
   });
 }
-

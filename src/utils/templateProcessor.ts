@@ -1,9 +1,10 @@
 import { OrderWithItems, OrderItem, TemplateFieldConfig as TemplateField, FichaTemplateConfig as FichaTemplate, FichaTemplatesConfig as TemplatesConfig, TemplateType } from '../types';
-import { imageToBase64 } from './imageLoader';
+import { imageToBase64, loadAuthenticatedImage } from './imageLoader';
 import { isValidImagePath } from './path';
 import { apiClient } from '../services/apiClient';
 import { logger } from './logger';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
+import { resizeImageToBase64 } from './imageResizer';
 
 // ============================================================================
 // FUNÇÕES DE AGRUPAMENTO DE ITENS POR PÁGINA
@@ -1478,8 +1479,28 @@ export const generateTemplatePrintContent = async (
         .map(async (item) => {
           try {
             const imagePath = item.imagem!.trim();
-            const base64 = await imageToBase64(imagePath);
-            imageBase64Map.set(imagePath, base64);
+            logger.debug('[templateProcessor] 🔄 Carregando e redimensionando imagem:', imagePath);
+            
+            // Carregar blob da imagem
+            const blobUrl = await loadAuthenticatedImage(imagePath);
+            
+            // Se for base64, usar diretamente
+            if (blobUrl.startsWith('data:image/')) {
+              imageBase64Map.set(imagePath, blobUrl);
+              return;
+            }
+            
+            // Redimensionar imagem para impressão (75mm altura fixa, largura calculada proporcionalmente)
+            try {
+              const resizedBase64 = await resizeImageToBase64(blobUrl, 75);
+              imageBase64Map.set(imagePath, resizedBase64);
+              logger.debug('[templateProcessor] ✅ Imagem redimensionada:', imagePath);
+            } catch (resizeError) {
+              logger.warn('[templateProcessor] ⚠️ Erro ao redimensionar, usando conversão normal:', resizeError);
+              // Fallback: usar conversão normal se redimensionamento falhar
+              const base64 = await imageToBase64(imagePath);
+              imageBase64Map.set(imagePath, base64);
+            }
           } catch (error) {
             logger.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);
             // Continuar mesmo se uma imagem falhar
