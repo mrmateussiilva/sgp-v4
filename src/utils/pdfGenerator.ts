@@ -1169,66 +1169,107 @@ export async function printPdf(
       temPrint: typeof pdfDocGenerator.print === 'function'
     });
 
-    // 2. Obter buffer do PDF usando getBlob (mais confiável no Tauri)
-    console.log('[printPdf] 📦 Tentando obter blob do PDF usando getBlob()...');
-    const buffer = await new Promise<Uint8Array>((resolve, reject) => {
-      let resolved = false;
-      
-      // Timeout de segurança (30 segundos)
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          console.error('[printPdf] ❌ TIMEOUT: getBlob não retornou em 30 segundos');
-          reject(new Error('Timeout ao obter blob do PDF (30s) - O pdfmake pode estar travando'));
-        }
-      }, 30000);
-
-      // Usar getBlob diretamente (mais confiável que getBuffer no Tauri)
-      console.log('[printPdf] 📦 Chamando getBlob()...');
-      try {
-        pdfDocGenerator.getBlob((blob: Blob | null) => {
-          if (resolved) {
-            console.log('[printPdf] ⚠️ Callback já foi resolvido, ignorando...');
-            return;
+    // 2. Obter buffer do PDF - tentar getBase64 primeiro (mais confiável)
+    console.log('[printPdf] 📦 Tentando obter PDF via getBase64...');
+    let buffer: Uint8Array;
+    
+    try {
+      // Primeiro tentar getBase64 (mais confiável e rápido)
+      const base64 = await new Promise<string>((resolve, reject) => {
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.warn('[printPdf] ⚠️ Timeout no getBase64, tentando getBlob...');
+            reject(new Error('Timeout no getBase64'));
           }
-          
+        }, 30000); // Timeout de 30 segundos
+
+        pdfDocGenerator.getBase64((base64: string) => {
+          if (resolved) return;
           resolved = true;
           clearTimeout(timeout);
           
-          console.log('[printPdf] 📦 Blob recebido:', {
-            existe: !!blob,
-            tamanho: blob?.size || 0,
-            tipo: blob?.type || 'desconhecido'
-          });
-          
-          if (!blob) {
-            console.error('[printPdf] ❌ Blob é null ou undefined');
-            reject(new Error('Falha ao gerar blob do PDF - blob é null'));
+          if (!base64) {
+            reject(new Error('Falha ao gerar base64 do PDF'));
             return;
           }
           
-          console.log('[printPdf] 🔄 Convertendo blob para ArrayBuffer...');
-          blob.arrayBuffer()
-            .then((arrayBuffer) => {
-              const uint8Array = new Uint8Array(arrayBuffer);
-              console.log('[printPdf] ✅ Blob convertido para Uint8Array, tamanho:', uint8Array.length, 'bytes');
-              resolve(uint8Array);
-            })
-            .catch((error) => {
-              console.error('[printPdf] ❌ Erro ao converter blob para ArrayBuffer:', error);
-              reject(new Error(`Erro ao converter blob: ${error}`));
-            });
+          resolve(base64);
         });
-        
-        console.log('[printPdf] ✅ getBlob() chamado, aguardando callback...');
-      } catch (error) {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        console.error('[printPdf] ❌ Erro ao chamar getBlob:', error);
-        reject(new Error(`Erro ao chamar getBlob: ${error}`));
+      });
+
+      console.log('[printPdf] ✅ Base64 recebido, convertendo para Uint8Array...');
+      // Converter base64 para Uint8Array
+      const binaryString = atob(base64);
+      buffer = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        buffer[i] = binaryString.charCodeAt(i);
       }
-    });
+      console.log('[printPdf] ✅ Buffer criado a partir de base64, tamanho:', buffer.length, 'bytes');
+      
+    } catch (base64Error) {
+      console.warn('[printPdf] ⚠️ getBase64 falhou, tentando getBlob...', base64Error);
+      
+      // Fallback: tentar getBlob
+      buffer = await new Promise<Uint8Array>((resolve, reject) => {
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.error('[printPdf] ❌ TIMEOUT: getBlob não retornou em 30 segundos');
+            reject(new Error('Timeout ao obter PDF - Tanto getBase64 quanto getBlob falharam (60s total)'));
+          }
+        }, 30000);
+
+        console.log('[printPdf] 📦 Chamando getBlob()...');
+        try {
+          pdfDocGenerator.getBlob((blob: Blob | null) => {
+            if (resolved) {
+              console.log('[printPdf] ⚠️ Callback já foi resolvido, ignorando...');
+              return;
+            }
+            
+            resolved = true;
+            clearTimeout(timeout);
+            
+            console.log('[printPdf] 📦 Blob recebido:', {
+              existe: !!blob,
+              tamanho: blob?.size || 0,
+              tipo: blob?.type || 'desconhecido'
+            });
+            
+            if (!blob) {
+              console.error('[printPdf] ❌ Blob é null ou undefined');
+              reject(new Error('Falha ao gerar blob do PDF - blob é null'));
+              return;
+            }
+            
+            console.log('[printPdf] 🔄 Convertendo blob para ArrayBuffer...');
+            blob.arrayBuffer()
+              .then((arrayBuffer) => {
+                const uint8Array = new Uint8Array(arrayBuffer);
+                console.log('[printPdf] ✅ Blob convertido para Uint8Array, tamanho:', uint8Array.length, 'bytes');
+                resolve(uint8Array);
+              })
+              .catch((error) => {
+                console.error('[printPdf] ❌ Erro ao converter blob para ArrayBuffer:', error);
+                reject(new Error(`Erro ao converter blob: ${error}`));
+              });
+          });
+          
+          console.log('[printPdf] ✅ getBlob() chamado, aguardando callback...');
+        } catch (error) {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
+          console.error('[printPdf] ❌ Erro ao chamar getBlob:', error);
+          reject(new Error(`Erro ao chamar getBlob: ${error}`));
+        }
+      });
+      
+      console.log('[printPdf] ✅ Buffer recebido via getBlob, tamanho:', buffer.length, 'bytes');
+    }
 
     console.log('[printPdf] ✅ PDF gerado, tamanho:', buffer.length, 'bytes');
 
