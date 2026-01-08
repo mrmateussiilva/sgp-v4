@@ -755,8 +755,10 @@ const escapeHtml = (value: string | number | undefined): string => {
  * Remove estilos do template HTML vindo da API para evitar conflitos
  * - Remove blocos <style>...</style>
  * - Remove estilos inline que fixam height/width em template-page/item
+ * @deprecated Desabilitado - agora usamos template diretamente da API
  */
-const sanitizeTemplateHtml = (html: string): string => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _sanitizeTemplateHtml = (html: string): string => {
   let cleaned = html
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/\sstyle="[^"]*(height|min-height|max-height|width)[^"]*"/gi, '');
@@ -1382,10 +1384,10 @@ export const generateTemplatePrintContent = async (
     
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
-      // Saneamento para remover CSS/inline styles conflitantes do template da API
-      const sanitizedHtml = sanitizeTemplateHtml(templateHTML.html);
+      // Usar template diretamente da API sem sanitização
+      const rawHtml = templateHTML.html;
       // Template HTML editado manualmente encontrado - usar ele!
-      logger.debug(`[templateProcessor] ✅ Usando template HTML editado manualmente: ${templateType}`);
+      logger.debug(`[templateProcessor] ✅ Usando template HTML diretamente da API (sem sanitização): ${templateType}`);
       
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
@@ -1428,7 +1430,7 @@ export const generateTemplatePrintContent = async (
         ? itemsToRender 
         : (order.items && order.items.length > 0 ? order.items : undefined);
       
-      const processedHTML = processTemplateHTML(sanitizedHtml, order, itemsForProcessing, imageBase64Map);
+      const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
       
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
       
