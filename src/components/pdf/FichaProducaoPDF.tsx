@@ -11,8 +11,8 @@ import {
   View,
   StyleSheet,
   Image,
-  Font,
 } from '@react-pdf/renderer';
+// Font import removed - not used (commented out below)
 import type { OrderItem } from '@/types';
 
 // Registrar fontes (se necessário)

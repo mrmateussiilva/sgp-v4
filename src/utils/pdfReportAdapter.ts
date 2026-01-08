@@ -142,7 +142,11 @@ async function converterItem(order: OrderWithItems, item: OrderItem): Promise<It
     quantity: item.quantity || 1,
     material: printFields.material || item.tecido,
     emenda_label: formatarEmendaLabel(item),
-    emenda_qtd: item.emenda_qtd || item.emendaQtd,
+    emenda_qtd: typeof item.emenda_qtd === 'number' ? item.emenda_qtd : 
+                typeof item.emendaQtd === 'number' ? item.emendaQtd :
+                typeof item.emenda_qtd === 'string' ? Number.parseInt(item.emenda_qtd, 10) || undefined :
+                typeof item.emendaQtd === 'string' ? Number.parseInt(item.emendaQtd, 10) || undefined :
+                undefined,
     tipo_producao: item.tipo_producao || 'painel',
     
     // Campos específicos - Painel/Tecido
@@ -151,18 +155,24 @@ async function converterItem(order: OrderWithItems, item: OrderItem): Promise<It
     elastico: item.elastico ? 'Sim' : undefined,
     ilhos_resumo: formatarIlhosResumo(item),
     cordinha_resumo: formatarCordinhaResumo(item),
-    quantidade_paineis: item.quantidade_paineis,
+    quantidade_paineis: typeof item.quantidade_paineis === 'number' ? item.quantidade_paineis :
+                        typeof item.quantidade_paineis === 'string' ? Number.parseInt(item.quantidade_paineis, 10) || undefined :
+                        undefined,
     
     // Campos específicos - Totem
     acabamento_totem_resumo: formatarAcabamentoTotem(item),
     acabamento_totem_outro: item.acabamento_totem_outro,
-    quantidade_totem: item.quantidade_totem,
+    quantidade_totem: typeof item.quantidade_totem === 'number' ? item.quantidade_totem :
+                      typeof item.quantidade_totem === 'string' ? Number.parseInt(item.quantidade_totem, 10) || undefined :
+                      undefined,
     
     // Campos específicos - Lona
     acabamento_lona: item.acabamento_lona === 'refilar' ? 'Refilar' : 
                      item.acabamento_lona === 'nao_refilar' ? 'Não refilar' : 
                      item.acabamento_lona,
-    quantidade_lona: item.quantidade_lona,
+    quantidade_lona: typeof item.quantidade_lona === 'number' ? item.quantidade_lona :
+                     typeof item.quantidade_lona === 'string' ? Number.parseInt(item.quantidade_lona, 10) || undefined :
+                     undefined,
     quantidade_ilhos: item.quantidade_ilhos ? Number(item.quantidade_ilhos) : undefined,
     espaco_ilhos: item.espaco_ilhos,
     quantidade_cordinha: item.quantidade_cordinha ? Number(item.quantidade_cordinha) : undefined,
@@ -170,7 +180,9 @@ async function converterItem(order: OrderWithItems, item: OrderItem): Promise<It
     
     // Campos específicos - Adesivo
     tipo_adesivo: item.tipo_adesivo,
-    quantidade_adesivo: item.quantidade_adesivo,
+    quantidade_adesivo: typeof item.quantidade_adesivo === 'number' ? item.quantidade_adesivo :
+                        typeof item.quantidade_adesivo === 'string' ? Number.parseInt(item.quantidade_adesivo, 10) || undefined :
+                        undefined,
     
     // Opcionais gerais
     observacao_item: item.observacao,

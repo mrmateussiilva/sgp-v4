@@ -5,7 +5,7 @@
 
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
-import type { TDocumentDefinitions, Content, StyleDictionary, TableCell } from 'pdfmake/interfaces';
+import type { TDocumentDefinitions, Content, StyleDictionary } from 'pdfmake/interfaces';
 import { isTauri } from './isTauri';
 
 // Configurar fontes
@@ -254,7 +254,7 @@ function gerarObservacao(observacao?: string): Content | null {
         {
           text: [
             { text: '⚠ Observação: ', bold: true },
-            { text: observacao },
+            { text: observacao || '' },
           ],
           style: 'observacao',
           margin: [8, 5, 8, 5],
@@ -289,14 +289,14 @@ function gerarDesignerVendedor(item: ItemRelatorio): Content | null {
       hasDesigner ? {
         text: [
           { text: 'Designer: ', style: 'label' },
-          { text: item.designer, style: 'textoNormal' },
+          { text: item.designer || '', style: 'textoNormal' },
         ],
         width: '*',
       } : { text: '', width: '*' },
       hasVendedor ? {
         text: [
           { text: 'Vendedor: ', style: 'label' },
-          { text: item.vendedor, style: 'textoNormal' },
+          { text: item.vendedor || '', style: 'textoNormal' },
         ],
         width: '*',
       } : { text: '', width: '*' },
@@ -356,7 +356,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
     conteudo.push({
       text: [
         { text: 'Material: ', style: 'label' },
-        { text: item.material, style: 'textoNormal' },
+        { text: item.material || '', style: 'textoNormal' },
       ],
       margin: [0, 0, 0, 2],
     });
@@ -366,7 +366,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
     conteudo.push({
       text: [
         { text: 'Emenda: ', style: 'label' },
-        { text: item.emenda_label, style: 'textoNormal' },
+        { text: item.emenda_label || '', style: 'textoNormal' },
       ],
       margin: [0, 0, 0, 2],
     });
@@ -438,7 +438,7 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
   // Legenda
   if (isValid(item.legenda_imagem)) {
     conteudo.push({
-      text: item.legenda_imagem,
+      text: item.legenda_imagem || '',
       style: 'legenda',
     });
   }
@@ -523,13 +523,15 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
   const colunaDireita = await gerarColunaDireita(item);
   
   // Corpo com colunas
-  const corpo: Content = colunaDireita ? {
+  // Se colunaDireita existe, criar layout em 2 colunas
+  // Type assertion necessária porque pdfmake aceita Content em columns
+  const corpo: Content = colunaDireita ? ({
     columns: [
-      { ...colunaEsquerda, width: '*' },
+      Object.assign({}, colunaEsquerda, { width: '*' }),
       { width: 10, text: '' }, // Espaçador
-      { ...colunaDireita, width: 130 },
+      Object.assign({}, colunaDireita, { width: 130 }),
     ],
-  } : colunaEsquerda;
+  } as Content) : colunaEsquerda;
   
   // Estrutura do item
   const itemContent: Content[] = [cabecalho, corpo];
