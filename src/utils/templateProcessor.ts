@@ -1023,69 +1023,29 @@ export const generateTemplatePrintContent = async (
         css: css
       };
     } else {
-      logger.warn(`[templateProcessor] ⚠️ Template HTML não encontrado, usando fallback JSON`);
+      // Template HTML não encontrado ou vazio - NÃO usar fallback, lançar erro
+      const errorMessage = templateHTML.exists 
+        ? `Template HTML '${templateType}' existe na API mas está vazio. Verifique o conteúdo do template.`
+        : `Template HTML '${templateType}' não encontrado na API. Certifique-se de que o template foi salvo corretamente.`;
+      
+      logger.error(`[templateProcessor] ❌ ${errorMessage}`, {
+        templateType,
+        exists: templateHTML.exists,
+        hasHtml: !!templateHTML.html,
+        htmlLength: templateHTML.html?.length || 0
+      });
+      
+      throw new Error(errorMessage);
     }
   } catch (error) {
-    logger.warn('[templateProcessor] Erro ao buscar template HTML editado, usando fallback:', error);
+    // Se já for um Error que lançamos, re-lançar
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Se for outro tipo de erro (ex: erro de rede), lançar com contexto
+    logger.error('[templateProcessor] ❌ Erro ao buscar template HTML editado:', error);
+    throw new Error(
+      `Erro ao buscar template HTML '${templateType}' da API: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
-
-  // FALLBACK: Usar sistema de templates JSON (comportamento atual)
-  const templates = await loadTemplates();
-  if (!templates) {
-    logger.warn('Templates não encontrados no localStorage');
-    return null;
-  }
-
-  const template = templates[templateType];
-  if (!template) {
-    logger.warn(`Template ${templateType} não encontrado`);
-    return null;
-  }
-
-  // Se não houver itens especificados, usar todos os itens do pedido
-  const itemsToRender = items || order.items || [];
-  
-  // Carregar todas as imagens para base64 antes de renderizar
-  const imageBase64Map = new Map<string, string>();
-  
-  const allItems = itemsToRender.length > 0 ? itemsToRender : (order.items || []);
-  const imagePromises = allItems
-    .filter(item => item.imagem && isValidImagePath(item.imagem))
-    .map(async (item) => {
-      try {
-        const imagePath = item.imagem!.trim();
-        logger.debug('[templateProcessor] 🔄 Carregando imagem para template:', imagePath);
-        const base64 = await imageToBase64(imagePath);
-        imageBase64Map.set(imagePath, base64);
-        logger.debug('[templateProcessor] ✅ Imagem carregada para template:', imagePath);
-      } catch (error) {
-        logger.error('[templateProcessor] ❌ Erro ao carregar imagem para template:', {
-          imagem: item.imagem,
-          error
-        });
-        // Continuar mesmo se uma imagem falhar
-      }
-    });
-  
-  await Promise.all(imagePromises);
-  console.log('[templateProcessor] 📊 Total de imagens carregadas:', imageBase64Map.size);
-  
-  if (itemsToRender.length === 0) {
-    // Renderizar apenas com dados do pedido
-    const html = renderTemplate(template, order, undefined, imageBase64Map);
-    const css = generateTemplateStyles(template);
-    return { html, css };
-  }
-
-  // Renderizar uma ficha por item
-  const pagesHtml = itemsToRender
-    .map(item => renderTemplate(template, order, item, imageBase64Map))
-    .join('\n');
-
-  const css = generateTemplateStyles(template);
-  
-  return {
-    html: pagesHtml,
-    css,
-  };
 };
