@@ -232,7 +232,27 @@ export const printOrderServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            function cleanup(){
+              try {
+                // Remove título "VISUALIZAÇÃO" (varia de tag/classe no template da API)
+                const candidates = Array.from(document.querySelectorAll('.item *'));
+                for (const el of candidates) {
+                  // Só remover nós "folha" (sem filhos) para evitar apagar blocos inteiros
+                  if ((el as HTMLElement).children && (el as HTMLElement).children.length > 0) continue;
+                  const raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  const normalized = raw
+                    .toUpperCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+                  if (normalized === 'VISUALIZACAO') {
+                    (el as HTMLElement).remove();
+                  }
+                }
+              } catch (e) {}
+            }
             function doPrint(){
+              cleanup();
               try { window.focus(); window.print(); } catch(e){}
             }
             window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
@@ -564,7 +584,25 @@ export const printMultipleOrdersServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            function cleanup(){
+              try {
+                const candidates = Array.from(document.querySelectorAll('.item *'));
+                for (const el of candidates) {
+                  if ((el as HTMLElement).children && (el as HTMLElement).children.length > 0) continue;
+                  const raw = (el.textContent || '').trim();
+                  if (!raw) continue;
+                  const normalized = raw
+                    .toUpperCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+                  if (normalized === 'VISUALIZACAO') {
+                    (el as HTMLElement).remove();
+                  }
+                }
+              } catch (e) {}
+            }
             function doPrint(){
+              cleanup();
               try { window.focus(); window.print(); } catch(e){}
             }
             window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
