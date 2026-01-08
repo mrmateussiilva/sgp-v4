@@ -141,21 +141,63 @@ export const printOrderServiceForm = async (
       gap: 2mm !important;
     }
     .item .left-column {
-      width: 44% !important;
-      flex: 0 0 44% !important;
-      max-width: 44% !important;
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
     }
     .item .right-column {
-      width: 56% !important;
-      flex: 1 1 56% !important;
-      max-width: 56% !important;
+      width: 65% !important;
+      flex: 1 1 65% !important;
+      max-width: 65% !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
 
     .item .ficha-image-container,
     .item .image-container,
     .item .visualizacao,
     .item .visualizacao-container {
-      padding: 0.6mm !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    /* Remove título/“moldura” que costuma reduzir a área útil da imagem */
+    .item .visualizacao-title,
+    .item .visualizacao-header,
+    .item .visualizacao h1,
+    .item .visualizacao h2,
+    .item .visualizacao h3,
+    .item .visualizacao h4,
+    .item .visualizacao .title,
+    .item .visualizacao .header,
+    .item .image-title,
+    .item .image-header {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    /* Algumas versões colocam uma borda tracejada/“preview frame” */
+    .item .visualizacao .preview,
+    .item .visualizacao .preview-frame,
+    .item .visualizacao .frame,
+    .item .visualizacao .border,
+    .item .image-container .preview,
+    .item .image-container .preview-frame,
+    .item .image-container .frame,
+    .item .image-container .border {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
 
     /* Garante que a imagem ocupe o máximo possível mantendo proporção */
@@ -408,21 +450,61 @@ export const printMultipleOrdersServiceForm = async (
       gap: 2mm !important;
     }
     .item .left-column {
-      width: 44% !important;
-      flex: 0 0 44% !important;
-      max-width: 44% !important;
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
     }
     .item .right-column {
-      width: 56% !important;
-      flex: 1 1 56% !important;
-      max-width: 56% !important;
+      width: 65% !important;
+      flex: 1 1 65% !important;
+      max-width: 65% !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
 
     .item .ficha-image-container,
     .item .image-container,
     .item .visualizacao,
     .item .visualizacao-container {
-      padding: 0.6mm !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    .item .visualizacao-title,
+    .item .visualizacao-header,
+    .item .visualizacao h1,
+    .item .visualizacao h2,
+    .item .visualizacao h3,
+    .item .visualizacao h4,
+    .item .visualizacao .title,
+    .item .visualizacao .header,
+    .item .image-title,
+    .item .image-header {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    .item .visualizacao .preview,
+    .item .visualizacao .preview-frame,
+    .item .visualizacao .frame,
+    .item .visualizacao .border,
+    .item .image-container .preview,
+    .item .image-container .preview-frame,
+    .item .image-container .frame,
+    .item .image-container .border {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
 
     .item .ficha-image,
