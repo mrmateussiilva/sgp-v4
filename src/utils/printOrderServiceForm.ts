@@ -90,6 +90,47 @@ export const printOrderServiceForm = async (
       }
       /* CSS de 3 itens por página é gerenciado por templateProcessor.ts e generateBasicTemplateCSS */
     }
+
+    /* ============================================================
+       FIX: evitar sobreposição no template RESUMO (3 por página)
+       - quando ESPECIFICAÇÕES cresce, alguns templates usam rodapé absolute
+       - aqui a gente força o rodapé a fluir e corta overflow dentro do slot
+       ============================================================ */
+    ${templateType === 'resumo' ? `
+    .item,
+    .item-container,
+    .resumo-item {
+      box-sizing: border-box !important;
+    }
+
+    /* Slot fixo do resumo (aprox 99mm por item). Corta excesso ao invés de sobrepor. */
+    .item {
+      height: 99mm !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+
+    /* Mata posicionamento absoluto do rodapé (Designer/Vendedor) se existir */
+    .item .designer,
+    .item .vendedor,
+    .item .designer-vendedor,
+    .item .bottom-row,
+    .item .footer-row,
+    .item .meta-row {
+      position: static !important;
+    }
+
+    /* Ajuda a caber mais linhas sem “invadir” o slot */
+    .section-content.especificacoes-content {
+      overflow: hidden !important;
+      max-height: none !important;
+    }
+    .section-content.especificacoes-content .spec-item {
+      font-size: 8.2pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 0.3mm !important;
+    }
+    ` : ''}
   `;
 
   const html = `
@@ -283,6 +324,42 @@ export const printMultipleOrdersServiceForm = async (
       }
       `}
     }
+
+    /* ============================================================
+       FIX: evitar sobreposição no template RESUMO (3 por página)
+       ============================================================ */
+    ${templateType === 'resumo' ? `
+    .item,
+    .item-container,
+    .resumo-item {
+      box-sizing: border-box !important;
+    }
+
+    .item {
+      height: 99mm !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+
+    .item .designer,
+    .item .vendedor,
+    .item .designer-vendedor,
+    .item .bottom-row,
+    .item .footer-row,
+    .item .meta-row {
+      position: static !important;
+    }
+
+    .section-content.especificacoes-content {
+      overflow: hidden !important;
+      max-height: none !important;
+    }
+    .section-content.especificacoes-content .spec-item {
+      font-size: 8.2pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 0.3mm !important;
+    }
+    ` : ''}
   `;
 
   const html = `
