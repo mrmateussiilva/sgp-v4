@@ -213,27 +213,27 @@ export const printMultipleOrdersServiceForm = async (
     throw new Error('Nenhum pedido pôde ser processado para impressão');
   }
 
-  // Para template resumo, organizar como faixas horizontais repetidas
+  // Para template resumo, organizar como EXATAMENTE 3 itens por página (OBRIGATÓRIO)
   let combinedContent: string;
   if (templateType === 'resumo') {
-    // Template resumo: cada item é uma faixa horizontal que se repete
-    // A página controla quantos itens cabem, não o item individual
-    // Usar altura real do template + 2mm spacing
-    const itemHeightWithSpacing = templateHeight + 2; // altura real + 2mm spacing
-    const availableHeight = 190; // 210mm - 20mm margens
-    const itemsPerPage = Math.floor(availableHeight / itemHeightWithSpacing);
+    // Template resumo: EXATAMENTE 3 itens por página (OBRIGATÓRIO)
+    const itemsPerPage = 3; // FORÇAR 3 itens por página
     
     const pages: string[][] = [];
     
-    // Agrupar itens em páginas
+    // Agrupar itens em grupos de 3 (EXATAMENTE 3 por página)
     for (let i = 0; i < validOrdersHtml.length; i += itemsPerPage) {
       pages.push(validOrdersHtml.slice(i, i + itemsPerPage));
     }
     
-    // Cada página contém múltiplas faixas horizontais (itens)
-    // Cada item é uma linha de relatório, não um bloco empilhado
-    combinedContent = pages.map((pageItems) => {
-      return `<div class="resumo-page">
+    // Cada página contém EXATAMENTE 3 itens
+    combinedContent = pages.map((pageItems, pageIndex) => {
+      const isLastPage = pageIndex === pages.length - 1;
+      // Garantir que sempre tenha 3 slots (preencher com vazio se necessário)
+      while (pageItems.length < 3) {
+        pageItems.push('');
+      }
+      return `<div class="resumo-page page-group" style="height: 297mm !important; max-height: 297mm !important; min-height: 297mm !important; overflow: hidden !important; ${isLastPage ? '' : 'page-break-after: always !important;'} page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; box-sizing: border-box !important;">
         ${pageItems.join('\n')}
       </div>`;
     }).join('\n');
