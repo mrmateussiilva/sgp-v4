@@ -88,21 +88,7 @@ export const printOrderServiceForm = async (
       .template-page:last-child {
         page-break-after: auto;
       }
-      /* Para template resumo, forçar altura fixa para exatamente 2 itens */
-      .template-page[style*="187mm"],
-      .template-page[style*="width: 100%"] {
-        height: 274mm !important;
-        max-height: 274mm !important;
-        overflow: hidden !important;
-      }
-      .item-container {
-        height: 135mm !important;
-        max-height: 135mm !important;
-        min-height: 135mm !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-      }
+      /* CSS de 3 itens por página é gerenciado por templateProcessor.ts e generateBasicTemplateCSS */
     }
   `;
 
@@ -274,28 +260,56 @@ export const printMultipleOrdersServiceForm = async (
       color: #1a1a1a;
     }
     ${templateType === 'resumo' ? `
-    .resumo-page {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      page-break-after: always;
-      page-break-inside: avoid;
+    .resumo-page.page-group {
+      width: 210mm !important;
+      height: 297mm !important; /* Altura fixa A4 */
+      max-height: 297mm !important;
+      min-height: 297mm !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
-    /* Cada template-page é uma faixa horizontal única que se repete */
-    .resumo-page .template-page {
-      flex: 0 0 auto;
-      height: ${templateHeight}mm;
-      width: 100%;
-      max-height: ${templateHeight}mm;
-      min-height: ${templateHeight}mm;
+    /* Cada template-page/item-container é um item que ocupa exatamente 1/3 da página */
+    .resumo-page.page-group .template-page,
+    .resumo-page.page-group .item-container {
+      flex: 0 0 auto !important;
+      height: calc(297mm / 3) !important; /* Exatamente 1/3 (33%) */
+      max-height: calc(297mm / 3) !important;
+      min-height: calc(297mm / 3) !important;
+      width: 100% !important;
       page-break-after: auto !important;
-      page-break-inside: avoid;
-      break-inside: avoid;
-      margin-bottom: 2mm;
-      overflow: hidden;
-      position: relative;
-      box-sizing: border-box;
-      border-bottom: 1px solid #e5e7eb;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      overflow: hidden !important;
+      position: relative !important;
+      box-sizing: border-box !important;
+      border-bottom: 1px solid #e5e7eb !important; /* Separador visual */
+      padding: 2mm !important;
+    }
+    .resumo-page.page-group .template-page:last-child,
+    .resumo-page.page-group .item-container:last-child {
+      border-bottom: none !important;
+    }
+    @media print {
+      .resumo-page.page-group {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        min-height: 100vh !important;
+      }
+      .resumo-page.page-group .template-page,
+      .resumo-page.page-group .item-container {
+        height: calc(100vh / 3) !important; /* Exatamente 1/3 da viewport */
+        max-height: calc(100vh / 3) !important;
+        min-height: calc(100vh / 3) !important;
+        orphans: 999 !important;
+        widows: 999 !important;
+      }
     }
     .resumo-page .template-page:last-child {
       margin-bottom: 0;
