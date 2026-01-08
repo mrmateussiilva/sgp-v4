@@ -260,6 +260,34 @@ export const printOrderServiceForm = async (
       box-shadow: none !important;
       background: transparent !important;
     }
+
+    /* Fazer a imagem ocupar o máximo do espaço lateral disponível (mantendo proporção) */
+    .item .content-wrapper {
+      height: 100% !important;
+      align-items: stretch !important;
+    }
+    .item .left-column,
+    .item .right-column {
+      height: 100% !important;
+      min-height: 0 !important;
+    }
+    .item .__sgp_img_wrap__:not(img) {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .item img.__sgp_img_wrap__ {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
+    }
     ` : ''}
   `;
 
@@ -727,6 +755,34 @@ export const printMultipleOrdersServiceForm = async (
       outline: 0 !important;
       box-shadow: none !important;
       background: transparent !important;
+    }
+
+    /* Fazer a imagem ocupar o máximo do espaço lateral disponível (mantendo proporção) */
+    .item .content-wrapper {
+      height: 100% !important;
+      align-items: stretch !important;
+    }
+    .item .left-column,
+    .item .right-column {
+      height: 100% !important;
+      min-height: 0 !important;
+    }
+    .item .__sgp_img_wrap__:not(img) {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+    .item img.__sgp_img_wrap__ {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
     }
     ` : ''}
   `;
