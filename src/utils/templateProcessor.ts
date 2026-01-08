@@ -654,14 +654,26 @@ const processImageTags = (
 
 /**
  * Envolve conteúdo do item em estrutura fixa com seções definidas
- * Garante que cada item ocupe exatamente 33% da página A4
+ * Garante que cada item ocupe exatamente 9,9cm (99mm) da página A4
+ * Corrige encoding e remove seções vazias
  */
 const wrapItemInFixedStructure = (content: string): string => {
+  // Corrigir encoding de caracteres especiais (Õ, É, etc.)
+  const normalizedContent = content
+    .replace(/Õ(?=[\s&<\"'])/g, '&Otilde;')
+    .replace(/É(?=[\s&<\"'])/g, '&Eacute;')
+    .replace(/Õ/g, '&Otilde;')
+    .replace(/É/g, '&Eacute;')
+    .replace(/ã/g, '&atilde;')
+    .replace(/á/g, '&aacute;')
+    .replace(/ê/g, '&ecirc;')
+    .replace(/ê/g, '&ecirc;');
+  
   // Usar estrutura com seções fixas para layout consistente
   // Seções: header, description, specs, visual
   return `<div class="item" itemscope itemtype="http://schema.org/Product">
     <div class="item-content">
-      ${content}
+      ${normalizedContent}
     </div>
   </div>`;
 };
@@ -1002,20 +1014,22 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     
     ${isResumo ? `
     /* ============================================================
-       ESTRUTURA BASE: PÁGINA A4 COM EXATAMENTE 3 ITENS
+       ESTRUTURA BASE: PÁGINA A4 COM MARGENS CORRETAS
        ============================================================ */
     .print-page {
       width: 210mm;
       height: 297mm;
       min-height: 297mm;
       max-height: 297mm;
-      margin: 0;
+      margin: 15mm 15mm 10mm 15mm; /* Superior 1,5cm, Lateral 1,5cm, Inferior 1cm */
       padding: 0;
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
       display: flex;
       flex-direction: column;
+      background: white;
+      box-sizing: border-box;
     }
     
     .items-container {
@@ -1026,29 +1040,33 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       gap: 0;
       padding: 0;
       margin: 0;
+      overflow: hidden;
     }
     
     /* ============================================================
-       ITEM: ALTURA FIXA DE 33% DA PÁGINA A4
+       ITEM: ALTURA FIXA DE 9,9cm (99mm)
+       Área útil A4: 297mm - 15mm (top) - 10mm (bottom) = 272mm
+       272mm / 3 = 90.67mm, arredondado para 99mm (9,9cm) por segurança
        ============================================================ */
     .item {
       width: 100%;
-      height: calc(297mm / 3);
-      min-height: calc(297mm / 3);
-      max-height: calc(297mm / 3);
+      height: 99mm; /* Exatamente 9,9cm */
+      min-height: 99mm;
+      max-height: 99mm;
       overflow: hidden;
       flex-shrink: 0;
       flex-grow: 0;
-      page-break-inside: avoid;
-      break-inside: avoid;
-      orphans: 999;
-      widows: 999;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      orphans: 999 !important;
+      widows: 999 !important;
       border-bottom: 1px solid #d1d5db;
-      padding: 3mm;
+      padding: 2mm 3mm;
       display: flex;
       flex-direction: column;
       background: white;
       position: relative;
+      box-sizing: border-box;
     }
     
     .item:last-child {
@@ -1056,7 +1074,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     
     /* ============================================================
-       CONTEÚDO DO ITEM: FLEX COLUMN COM SEÇÕES
+       CONTEÚDO DO ITEM: FLEX COLUMN COM SEÇÕES FIXAS
        ============================================================ */
     .item-content {
       width: 100%;
@@ -1068,6 +1086,34 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       word-wrap: break-word;
       word-break: break-word;
       hyphens: auto;
+    }
+    
+    /* ============================================================
+       OCULTAR SEÇÕES VAZIAS PARA ECONOMIZAR ESPAÇO
+       ============================================================ */
+    .image-container:empty,
+    .image-container:has(img[src=""]),
+    .image-container:has(img[src*="undefined"]),
+    .image-container:has(img[src*="null"]),
+    .image-container:not(:has(img)) {
+      display: none !important;
+    }
+    
+    .section-content:empty,
+    .observacao-box:empty,
+    .observacao-box:has(span:empty) {
+      display: none !important;
+    }
+    
+    /* Ocultar seção "VISUAL DO ITEM" se não houver imagem */
+    .right-column:has(.image-container:empty),
+    .right-column:not(:has(img[src])) {
+      display: none !important;
+    }
+    
+    /* Quando visual está oculto, expandir coluna esquerda */
+    .content-wrapper:not(:has(.right-column:not([style*="display: none"]))) .left-column {
+      width: 100% !important;
     }
     
     /* ============================================================
@@ -1141,14 +1187,21 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     
     /* ============================================================
-       IMAGENS: AJUSTE AUTOMÁTICO
+       IMAGENS: AJUSTE AUTOMÁTICO E PREVENÇÃO DE ERRO
        ============================================================ */
     .item-content img {
       max-width: 100%;
-      max-height: 50mm;
+      max-height: 60mm;
       height: auto;
       object-fit: contain;
       display: block;
+    }
+    
+    .item-content img[src=""],
+    .item-content img[src*="undefined"],
+    .item-content img[src*="null"],
+    .item-content img:not([src]) {
+      display: none !important;
     }
     
     /* ============================================================
