@@ -1115,27 +1115,38 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     
       ${isResumo ? `
     /* ============================================================
-       ESTRUTURA BASE: PÁGINA A4 COM MARGENS CORRETAS
+       ESTRUTURA BASE: PÁGINA A4 COM 3 ITENS POR PÁGINA
+       A4 = 210mm x 297mm
+       Área útil (com margens): 180mm x 272mm
+       Cada item: ~90mm de altura
        ============================================================ */
     .print-page {
       width: 210mm;
       height: 297mm;
       min-height: 297mm;
       max-height: 297mm;
-      margin: 15mm 15mm 10mm 15mm; /* Superior 1,5cm, Lateral 1,5cm, Inferior 1cm */
-      padding: 0;
+      padding: 12mm 15mm 13mm 15mm; /* Margens internas */
+      margin: 0;
       overflow: hidden;
-        page-break-inside: avoid;
-        break-inside: avoid;
+      page-break-after: always;
+      page-break-inside: avoid;
+      break-after: page;
+      break-inside: avoid;
       display: flex;
       flex-direction: column;
       background: white;
       box-sizing: border-box;
     }
     
+    /* Última página não precisa de quebra depois */
+    .print-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    
     .items-container {
       width: 100%;
-      height: 100%;
+      height: 272mm; /* 297mm - 12mm (top) - 13mm (bottom) = 272mm */
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -1145,13 +1156,12 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     
     /* ============================================================
-       ITEM: ALTURA FIXA DE ~9,0cm (90mm)
-       Área útil A4: 297mm - 15mm (top) - 10mm (bottom) = 272mm
-       272mm / 3 ≈ 90.7mm → usamos 90mm para garantir 3 itens por página
+       ITEM: ALTURA FIXA DE ~90mm (3 itens por página)
+       Área útil: 272mm / 3 ≈ 90.67mm
        ============================================================ */
     .item {
       width: 100%;
-      height: 90mm; /* Aproximadamente 9,0cm para caber 3 itens */
+      height: 90mm;
       min-height: 90mm;
       max-height: 90mm;
       overflow: hidden;
@@ -1356,41 +1366,54 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       ${isResumo ? `
       /* ============================================================
          IMPRESSÃO: PÁGINA A4 COM 3 ITENS FIXOS
+         IMPORTANTE: Usar dimensões fixas em mm para PDF
          ============================================================ */
       .print-page {
         width: 210mm !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        max-height: 100vh !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        padding: 12mm 15mm 13mm 15mm !important;
+        margin: 0 !important;
         page-break-after: always !important;
         page-break-inside: avoid !important;
+        break-after: page !important;
         break-inside: avoid !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      
+      /* Última página não precisa de quebra depois */
+      .print-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      
+      .items-container {
+        width: 100% !important;
+        height: 272mm !important; /* 297mm - 25mm margens */
+        display: flex !important;
+        flex-direction: column !important;
         overflow: hidden !important;
       }
       
-      .print-page[data-page-break="always"] {
-        page-break-after: always !important;
-      }
-      
-      .print-page:last-child {
-          page-break-after: auto !important;
-      }
-      
       /* ============================================================
-         IMPRESSÃO: ITEM COM ALTURA FIXA ~9,0cm
-         Altura disponível: 100vh - 25mm (margens)
-         Cada item: (100vh - 25mm) / 3 ≈ 90mm
+         IMPRESSÃO: ITEM COM ALTURA FIXA 90mm
+         3 itens por página: 272mm / 3 ≈ 90mm
          ============================================================ */
       .item {
         width: 100% !important;
-        height: calc((100vh - 25mm) / 3) !important;
-        min-height: calc((100vh - 25mm) / 3) !important;
-        max-height: calc((100vh - 25mm) / 3) !important;
+        height: 90mm !important;
+        min-height: 90mm !important;
+        max-height: 90mm !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         overflow: hidden !important;
         orphans: 999 !important;
         widows: 999 !important;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
       }
       
       /* Garantir que texto nunca invada outro item */
@@ -1412,7 +1435,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
         word-break: break-word !important;
         overflow-wrap: break-word !important;
         hyphens: auto !important;
-        }
+      }
       ` : `
         .template-page {
           page-break-after: always !important;

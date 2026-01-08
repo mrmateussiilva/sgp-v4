@@ -220,8 +220,11 @@ export const printMultipleOrdersServiceForm = async (
       while (itensParaRenderizar.length < ITENS_POR_PAGINA) {
         itensParaRenderizar.push('');
       }
-      return `<div class="resumo-page page-group" style="height: 297mm !important; max-height: 297mm !important; min-height: 297mm !important; overflow: hidden !important; ${isLastPage ? '' : 'page-break-after: always !important;'} page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; box-sizing: border-box !important;">
-        ${itensParaRenderizar.join('\n')}
+      // Usar classe .print-page para consistência com CSS do templateProcessor
+      return `<div class="print-page"${isLastPage ? '' : ' data-page-break="always"'}>
+        <div class="items-container">
+          ${itensParaRenderizar.join('\n')}
+        </div>
       </div>`;
     }).join('\n');
   } else {
