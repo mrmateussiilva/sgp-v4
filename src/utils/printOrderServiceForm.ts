@@ -308,8 +308,10 @@ export const printOrderServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            var __SGP_IS_RESUMO__ = ${templateType === 'resumo' ? 'true' : 'false'};
             function cleanup(){
               try {
+                if (!__SGP_IS_RESUMO__) return;
                 function normalizeText(s){
                   return String(s || '')
                     .trim()
@@ -345,6 +347,62 @@ export const printOrderServiceForm = async (
 
                   var img = item.querySelector('img');
                   if (!img) continue;
+                  // Layout 95% imagem / 5% texto (robusto, não depende do template da API)
+                  try {
+                    if (item.getAttribute && item.getAttribute('data-sgp-layout') === '1') {
+                      // já aplicado
+                    } else {
+                      if (item.setAttribute) item.setAttribute('data-sgp-layout', '1');
+
+                      // Pega o wrapper mais alto marcado como __sgp_img_wrap__ (fallback: pai do img)
+                      var imgRoot = img;
+                      try {
+                        var cur = img;
+                        while (cur && cur !== item) {
+                          try {
+                            if (cur.classList && cur.classList.contains('__sgp_img_wrap__')) imgRoot = cur;
+                          } catch (e) {}
+                          cur = cur.parentElement;
+                        }
+                      } catch (e) {}
+                      if (imgRoot === img && img.parentElement) imgRoot = img.parentElement;
+
+                      // Monta colunas e move o bloco da imagem para a coluna da direita
+                      var textCol = document.createElement('div');
+                      textCol.className = '__sgp_text_col__';
+                      var imgCol = document.createElement('div');
+                      imgCol.className = '__sgp_img_col__';
+
+                      while (item.firstChild) {
+                        textCol.appendChild(item.firstChild);
+                      }
+                      try { if (imgRoot && imgRoot.parentNode) imgRoot.parentNode.removeChild(imgRoot); } catch (e) {}
+                      try { if (imgRoot) imgCol.appendChild(imgRoot); } catch (e) {}
+                      item.appendChild(textCol);
+                      item.appendChild(imgCol);
+
+                      // Estilos inline para garantir o layout na impressão
+                      try {
+                        item.style.setProperty('display', 'flex', 'important');
+                        item.style.setProperty('flex-direction', 'row', 'important');
+                        item.style.setProperty('align-items', 'stretch', 'important');
+                        item.style.setProperty('gap', '0.5mm', 'important');
+                      } catch (e) {}
+                      try {
+                        textCol.style.setProperty('flex', '0 0 5%', 'important');
+                        textCol.style.setProperty('max-width', '5%', 'important');
+                        textCol.style.setProperty('overflow', 'hidden', 'important');
+                      } catch (e) {}
+                      try {
+                        imgCol.style.setProperty('flex', '1 1 95%', 'important');
+                        imgCol.style.setProperty('max-width', '95%', 'important');
+                        imgCol.style.setProperty('display', 'flex', 'important');
+                        imgCol.style.setProperty('align-items', 'center', 'important');
+                        imgCol.style.setProperty('justify-content', 'center', 'important');
+                        imgCol.style.setProperty('min-height', '0', 'important');
+                      } catch (e) {}
+                    }
+                  } catch (e) {}
 
                   // Preferir limpar apenas a coluna/área da imagem.
                   var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
@@ -831,8 +889,10 @@ export const printMultipleOrdersServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            var __SGP_IS_RESUMO__ = ${templateType === 'resumo' ? 'true' : 'false'};
             function cleanup(){
               try {
+                if (!__SGP_IS_RESUMO__) return;
                 function normalizeText(s){
                   return String(s || '')
                     .trim()
@@ -868,6 +928,58 @@ export const printMultipleOrdersServiceForm = async (
 
                   var img = item.querySelector('img');
                   if (!img) continue;
+                  try {
+                    if (item.getAttribute && item.getAttribute('data-sgp-layout') === '1') {
+                      // já aplicado
+                    } else {
+                      if (item.setAttribute) item.setAttribute('data-sgp-layout', '1');
+
+                      var imgRoot = img;
+                      try {
+                        var cur = img;
+                        while (cur && cur !== item) {
+                          try {
+                            if (cur.classList && cur.classList.contains('__sgp_img_wrap__')) imgRoot = cur;
+                          } catch (e) {}
+                          cur = cur.parentElement;
+                        }
+                      } catch (e) {}
+                      if (imgRoot === img && img.parentElement) imgRoot = img.parentElement;
+
+                      var textCol = document.createElement('div');
+                      textCol.className = '__sgp_text_col__';
+                      var imgCol = document.createElement('div');
+                      imgCol.className = '__sgp_img_col__';
+
+                      while (item.firstChild) {
+                        textCol.appendChild(item.firstChild);
+                      }
+                      try { if (imgRoot && imgRoot.parentNode) imgRoot.parentNode.removeChild(imgRoot); } catch (e) {}
+                      try { if (imgRoot) imgCol.appendChild(imgRoot); } catch (e) {}
+                      item.appendChild(textCol);
+                      item.appendChild(imgCol);
+
+                      try {
+                        item.style.setProperty('display', 'flex', 'important');
+                        item.style.setProperty('flex-direction', 'row', 'important');
+                        item.style.setProperty('align-items', 'stretch', 'important');
+                        item.style.setProperty('gap', '0.5mm', 'important');
+                      } catch (e) {}
+                      try {
+                        textCol.style.setProperty('flex', '0 0 5%', 'important');
+                        textCol.style.setProperty('max-width', '5%', 'important');
+                        textCol.style.setProperty('overflow', 'hidden', 'important');
+                      } catch (e) {}
+                      try {
+                        imgCol.style.setProperty('flex', '1 1 95%', 'important');
+                        imgCol.style.setProperty('max-width', '95%', 'important');
+                        imgCol.style.setProperty('display', 'flex', 'important');
+                        imgCol.style.setProperty('align-items', 'center', 'important');
+                        imgCol.style.setProperty('justify-content', 'center', 'important');
+                        imgCol.style.setProperty('min-height', '0', 'important');
+                      } catch (e) {}
+                    }
+                  } catch (e) {}
 
                   var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
 
