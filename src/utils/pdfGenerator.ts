@@ -746,8 +746,81 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
   
+  console.log('[pdfGenerator] Gerando PDF para impressão...', { totalItens: itens.length });
+  
   const docDefinition = await gerarDocDefinition(itens);
-  pdfMake.createPdf(docDefinition).print();
+  console.log('[pdfGenerator] Documento gerado para impressão');
+  
+  return new Promise((resolve, reject) => {
+    try {
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      
+      pdfDoc.getBlob((blob) => {
+        if (!blob) {
+          console.error('[pdfGenerator] Falha ao gerar blob para impressão');
+          reject(new Error('Falha ao gerar PDF para impressão'));
+          return;
+        }
+        
+        console.log('[pdfGenerator] Blob criado para impressão:', blob.size, 'bytes');
+        
+        // Criar URL do blob
+        const url = URL.createObjectURL(blob);
+        
+        // Criar iframe oculto para imprimir
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = `
+          position: fixed;
+          width: 0;
+          height: 0;
+          border: none;
+          visibility: hidden;
+        `;
+        iframe.src = url;
+        
+        // Aguardar carregamento e então imprimir
+        iframe.onload = () => {
+          console.log('[pdfGenerator] PDF carregado no iframe, abrindo diálogo de impressão...');
+          
+          // Tentar imprimir o iframe
+          try {
+            const iframeWindow = iframe.contentWindow;
+            if (iframeWindow) {
+              iframeWindow.focus();
+              iframeWindow.print();
+              
+              // Limpar após um tempo
+              setTimeout(() => {
+                document.body.removeChild(iframe);
+                URL.revokeObjectURL(url);
+                console.log('[pdfGenerator] Limpeza concluída');
+                resolve();
+              }, 1000);
+            } else {
+              throw new Error('Não foi possível acessar a janela do iframe');
+            }
+          } catch (printError) {
+            console.error('[pdfGenerator] Erro ao imprimir:', printError);
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+            reject(printError);
+          }
+        };
+        
+        iframe.onerror = () => {
+          console.error('[pdfGenerator] Erro ao carregar PDF no iframe');
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+          reject(new Error('Falha ao carregar PDF'));
+        };
+        
+        document.body.appendChild(iframe);
+      });
+    } catch (error) {
+      console.error('[pdfGenerator] Erro na impressão:', error);
+      reject(error);
+    }
+  });
 }
 
 /**

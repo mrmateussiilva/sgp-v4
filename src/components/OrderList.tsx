@@ -1147,7 +1147,8 @@ export default function OrderList() {
       });
 
       // Usar PDFMake para geração de PDF (3 itens por página, sem sobreposição)
-      await gerarRelatorioMultiplosPedidosPDF(orders, 'abrir');
+      // Usar 'imprimir' para abrir diálogo de impressão diretamente
+      await gerarRelatorioMultiplosPedidosPDF(orders, 'imprimir');
       
       toast({
         title: "PDF gerado",
