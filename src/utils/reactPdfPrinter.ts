@@ -58,7 +58,8 @@ export async function printReactPdf(
 
     // Importar React-PDF dinamicamente (lazy load)
     const { renderToBuffer } = await import('@react-pdf/renderer');
-    const React = await import('react');
+    const ReactModule = await import('react');
+    const React = ReactModule.default || ReactModule;
     const { createElement } = React;
 
     // Renderizar o documento React-PDF para buffer
@@ -133,7 +134,8 @@ export async function saveReactPdf(
 
     // Importar React-PDF dinamicamente
     const { renderToBuffer } = await import('@react-pdf/renderer');
-    const React = await import('react');
+    const ReactModule = await import('react');
+    const React = ReactModule.default || ReactModule;
     const { createElement } = React;
 
     // Renderizar para buffer
