@@ -891,7 +891,47 @@ const processItemTemplate = (
   
   // Estruturar item com seções fixas para garantir layout consistente
   // Cada item tem altura fixa de 33% da página A4
-  return normalizeItemContent(processed);
+  const normalized = normalizeItemContent(processed);
+  return injectExtraFieldsIntoItem(normalized, dataMap);
+};
+
+/**
+ * Injeta campos adicionais padronizados no fim da ficha, sem depender do template da API.
+ * Requisitos:
+ * - DATA DE ENTREGA (com este label)
+ * - PRIORIDADE
+ * - FORMA DE ENVIO
+ * - MAQUINA RIP
+ * - DATA DE IMPRESSÃO
+ */
+const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): string => {
+  const entrega = escapeHtml(dataMap.data_entrega);
+  const prioridade = escapeHtml(dataMap.prioridade);
+  const formaEnvio = escapeHtml(dataMap.forma_envio);
+  const maquinaRip = escapeHtml(dataMap.sublimacao_maquina);
+  const dataImpressao = escapeHtml(dataMap.sublimacao_data_impressao);
+
+  const extra = `
+    <div class="__sgp_extra_fields__">
+      <div class="__sgp_row__">
+        <div class="__sgp_field__"><span class="__sgp_label__">DATA DE ENTREGA:</span><span class="__sgp_value__">${entrega || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+        <div class="__sgp_field__"><span class="__sgp_label__">PRIORIDADE:</span><span class="__sgp_value__">${prioridade || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+        <div class="__sgp_field__"><span class="__sgp_label__">FORMA DE ENVIO:</span><span class="__sgp_value__">${formaEnvio || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+      </div>
+      <div class="__sgp_row__">
+        <div class="__sgp_field__"><span class="__sgp_label__">MAQUINA RIP:</span><span class="__sgp_value__">${maquinaRip || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+        <div class="__sgp_field__"><span class="__sgp_label__">DATA DE IMPRESSÃO:</span><span class="__sgp_value__">${dataImpressao || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+      </div>
+    </div>
+  `;
+
+  const trimmed = itemHtml.trim();
+  if (trimmed.includes('__sgp_extra_fields__')) return itemHtml; // idempotente
+
+  const lastDiv = trimmed.lastIndexOf('</div>');
+  if (lastDiv === -1) return `${itemHtml}\n${extra}`;
+
+  return `${trimmed.slice(0, lastDiv)}\n${extra}\n${trimmed.slice(lastDiv)}`;
 };
 
 // ============================================================================
@@ -1200,10 +1240,44 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
       margin: 0;
       padding: 0;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.4;
       color: #1a1a1a;
       background: white;
+    }
+
+    /* Campos extras padronizados (sempre injetados no fim de cada item) */
+    .__sgp_extra_fields__ {
+      margin-top: 1.5mm;
+      padding-top: 1mm;
+      border-top: 1px dashed #c7c7c7;
+      font-size: 11px;
+      line-height: 1.2;
+      color: #111;
+    }
+    .__sgp_extra_fields__ .__sgp_row__ {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3mm;
+      align-items: baseline;
+      margin-top: 0.6mm;
+    }
+    .__sgp_extra_fields__ .__sgp_field__ {
+      display: inline-flex;
+      gap: 1mm;
+      align-items: baseline;
+      white-space: nowrap;
+    }
+    .__sgp_extra_fields__ .__sgp_label__ {
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .__sgp_extra_fields__ .__sgp_fill__ {
+      display: inline-block;
+      min-width: 26mm;
+      border-bottom: 1px solid #222;
+      line-height: 1;
+      transform: translateY(-0.5px);
     }
     
       ${isResumo ? `
@@ -1261,7 +1335,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       }
       
       body {
-        font-size: 10px !important;
+        font-size: 11px !important;
         margin: 0;
         padding: 0;
       }
