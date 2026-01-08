@@ -4,9 +4,10 @@ import { FileText, Save, ArrowLeft, GripVertical, ZoomIn, ZoomOut, Maximize2, Ro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
 import {
@@ -238,6 +239,10 @@ export default function GestaoTemplateFicha() {
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGridEnabled, setSnapToGridEnabled] = useState(true);
+  const [editMode, setEditMode] = useState<'visual' | 'html'>('visual');
+  const [htmlContent, setHtmlContent] = useState<{ geral: string; resumo: string }>({ geral: '', resumo: '' });
+  const [htmlLoading, setHtmlLoading] = useState(false);
+  const [htmlHasChanges, setHtmlHasChanges] = useState(false);
 
   const template = templates[currentTemplateType];
 
@@ -292,6 +297,73 @@ export default function GestaoTemplateFicha() {
       resumo: applyTemplateDefaults(TEMPLATE_RESUMO_DEFAULT, TEMPLATE_RESUMO_DEFAULT),
     });
   }, [toast]);
+
+  const loadHTMLTemplates = useCallback(async () => {
+    setHtmlLoading(true);
+    try {
+      const [geralHTML, resumoHTML] = await Promise.all([
+        api.getFichaTemplateHTML('geral'),
+        api.getFichaTemplateHTML('resumo'),
+      ]);
+      
+      setHtmlContent({
+        geral: geralHTML.html || '',
+        resumo: resumoHTML.html || '',
+      });
+      setHtmlHasChanges(false);
+    } catch (error) {
+      console.error('Erro ao carregar templates HTML:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar templates HTML.',
+        variant: 'destructive',
+      });
+    } finally {
+      setHtmlLoading(false);
+    }
+  }, [toast]);
+
+  const saveHTMLTemplate = useCallback(async () => {
+    if (htmlLoading) return;
+    setHtmlLoading(true);
+    try {
+      await api.saveFichaTemplatesHTML({
+        geral: htmlContent.geral || undefined,
+        resumo: htmlContent.resumo || undefined,
+      });
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Template HTML salvo com sucesso!',
+        variant: 'default',
+      });
+      setHtmlHasChanges(false);
+    } catch (error) {
+      console.error('Erro ao salvar template HTML:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar template HTML.',
+        variant: 'destructive',
+      });
+    } finally {
+      setHtmlLoading(false);
+    }
+  }, [htmlContent, htmlLoading, toast]);
+
+  // Carregar HTML ao mudar para modo HTML
+  useEffect(() => {
+    if (editMode === 'html' && (!htmlContent.geral && !htmlContent.resumo) && !htmlLoading) {
+      loadHTMLTemplates();
+    }
+  }, [editMode, htmlContent.geral, htmlContent.resumo, htmlLoading, loadHTMLTemplates]);
+
+  // Detectar mudanças no HTML
+  useEffect(() => {
+    // Resetar flag de mudanças quando carregar HTML
+    if (editMode === 'html' && !htmlLoading) {
+      // A flag será setada no onChange do textarea
+    }
+  }, [editMode, htmlLoading]);
 
   const saveTemplates = useCallback(async () => {
     if (loading) {
@@ -426,34 +498,42 @@ export default function GestaoTemplateFicha() {
   // Atalhos de teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      // Ctrl+S - sempre permitir (mesmo em textarea para salvar HTML)
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        if (editMode === 'visual' && hasChanges) {
+          saveTemplates();
+        } else if (editMode === 'html' && htmlHasChanges) {
+          saveHTMLTemplate();
+        }
         return;
       }
 
-      // Delete - remover campo selecionado
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedField) {
+      // Ignorar outros atalhos quando está em textarea
+      if (e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ignorar outros atalhos quando está em input normal
+      if (e.target instanceof HTMLInputElement) {
+        return;
+      }
+
+      // Delete - remover campo selecionado (apenas modo visual)
+      if (editMode === 'visual' && (e.key === 'Delete' || e.key === 'Backspace') && selectedField) {
         handleDeleteField(selectedField);
         return;
       }
 
-      // Esc - deselecionar
-      if (e.key === 'Escape') {
+      // Esc - deselecionar (apenas modo visual)
+      if (editMode === 'visual' && e.key === 'Escape') {
         setSelectedField(null);
-      }
-
-      // Ctrl+S - salvar
-      if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        if (hasChanges) {
-          saveTemplates();
-        }
-        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField]);
+  }, [selectedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField, editMode, htmlHasChanges, saveHTMLTemplate]);
 
   const resetCurrentTemplate = () => {
     const defaultTemplate = currentTemplateType === 'geral' 
@@ -473,10 +553,17 @@ export default function GestaoTemplateFicha() {
     });
   };
 
-  const handleTemplateTypeChange = (type: TemplateType) => {
-    if (hasChanges) {
+  const handleTemplateTypeChange = useCallback(async (type: TemplateType) => {
+    if (editMode === 'visual' && hasChanges) {
       const confirmChange = window.confirm(
         'Você tem alterações não salvas. Deseja descartá-las e trocar de template?'
+      );
+      if (!confirmChange) {
+        return;
+      }
+    } else if (editMode === 'html' && htmlHasChanges) {
+      const confirmChange = window.confirm(
+        'Você tem alterações não salvas no HTML. Deseja descartá-las e trocar de template?'
       );
       if (!confirmChange) {
         return;
@@ -485,7 +572,13 @@ export default function GestaoTemplateFicha() {
     setCurrentTemplateType(type);
     setSelectedField(null);
     setHasChanges(false);
-  };
+    setHtmlHasChanges(false);
+    
+    // Se estiver no modo HTML, recarregar HTML do novo template
+    if (editMode === 'html') {
+      await loadHTMLTemplates();
+    }
+  }, [editMode, hasChanges, htmlHasChanges, loadHTMLTemplates]);
 
   const handleDragStart = (e: React.DragEvent, fieldType: string) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -776,9 +869,9 @@ export default function GestaoTemplateFicha() {
             variant="ghost"
             size="icon"
             className="h-10 w-10 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            onClick={saveTemplates}
-            disabled={loading || !hasChanges}
-            title="Salvar (Ctrl+S)"
+            onClick={editMode === 'visual' ? saveTemplates : saveHTMLTemplate}
+            disabled={editMode === 'visual' ? (loading || !hasChanges) : (htmlLoading || !htmlHasChanges)}
+            title={editMode === 'visual' ? "Salvar (Ctrl+S)" : "Salvar HTML (Ctrl+S)"}
           >
             <Save className="h-4 w-4" />
           </Button>
@@ -900,19 +993,32 @@ export default function GestaoTemplateFicha() {
 
       {/* Área Principal */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-100">
-        {/* Barra Superior - Menu e Controles */}
-        <div className="border-b border-gray-200 bg-white flex items-center justify-between px-3 py-1.5 flex-shrink-0 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-900">
-                {currentTemplateType === 'geral' ? 'Template Geral (A4)' : 'Template Resumo (1/3 A4)'}
-              </span>
-            </div>
-            {hasChanges && (
-              <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
-            )}
-          </div>
+        {/* Tabs de Modo de Edição (Visual/HTML) */}
+        <div className="border-b border-gray-200 bg-white px-3 py-2 flex-shrink-0">
+          <Tabs value={editMode} onValueChange={(v) => setEditMode(v as 'visual' | 'html')}>
+            <TabsList className="grid w-auto grid-cols-2">
+              <TabsTrigger value="visual" className="text-xs">Visual (JSON)</TabsTrigger>
+              <TabsTrigger value="html" className="text-xs">HTML</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Conteúdo baseado no modo de edição */}
+        {editMode === 'visual' ? (
+          <>
+            {/* Barra Superior - Menu e Controles */}
+            <div className="border-b border-gray-200 bg-white flex items-center justify-between px-3 py-1.5 flex-shrink-0 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-gray-900">
+                    {currentTemplateType === 'geral' ? 'Template Geral (A4)' : 'Template Resumo (1/3 A4)'}
+                  </span>
+                </div>
+                {hasChanges && (
+                  <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
+                )}
+              </div>
           
           <div className="flex items-center gap-1">
             {/* Controles de Zoom */}
@@ -1155,7 +1261,96 @@ export default function GestaoTemplateFicha() {
             })()}
           </div>
         </div>
+        </>
+        ) : (
+          /* Modo de Edição HTML */
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Barra Superior - Menu e Controles HTML */}
+            <div className="border-b border-gray-200 bg-white flex items-center justify-between px-3 py-2 flex-shrink-0 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-gray-900">
+                    Edição HTML - {currentTemplateType === 'geral' ? 'Template Geral' : 'Template Resumo'}
+                  </span>
+                </div>
+                {htmlHasChanges && (
+                  <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost"
+                  onClick={loadHTMLTemplates}
+                  disabled={htmlLoading}
+                  size="sm"
+                  className="h-7 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  Recarregar
+                </Button>
+                <Button 
+                  onClick={saveHTMLTemplate}
+                  disabled={htmlLoading || !htmlHasChanges}
+                  size="sm"
+                  className="h-7 text-xs"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  Salvar HTML
+                </Button>
+              </div>
+            </div>
 
+            {/* Seleção de Template (Geral/Resumo) */}
+            <div className="border-b border-gray-200 bg-white px-3 py-2 flex-shrink-0">
+              <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)}>
+                <TabsList className="grid w-auto grid-cols-2">
+                  <TabsTrigger value="geral" className="text-xs">Geral</TabsTrigger>
+                  <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Editor HTML */}
+            <div className="flex-1 flex flex-col p-4 min-h-0">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold text-gray-700">Código HTML</Label>
+                <div className="text-xs text-gray-500">
+                  {htmlContent[currentTemplateType]?.length || 0} caracteres
+                </div>
+              </div>
+              <Textarea
+                value={htmlContent[currentTemplateType] || ''}
+                onChange={(e) => {
+                  setHtmlContent(prev => ({ 
+                    ...prev, 
+                    [currentTemplateType]: e.target.value 
+                  }));
+                  setHtmlHasChanges(true);
+                }}
+                className="flex-1 font-mono text-sm resize-none min-h-0"
+                placeholder={htmlLoading ? 'Carregando...' : 'Cole ou edite o HTML do template aqui...\n\nUse {{variavel}} para substituir variáveis.\nExemplo: {{numero}}, {{cliente}}, {{descricao}}'}
+                disabled={htmlLoading}
+              />
+              <div className="mt-2 text-xs text-gray-500">
+                <p className="mb-1"><strong>Variáveis disponíveis:</strong></p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{numero}}</code> - Número do pedido</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{cliente}}</code> - Nome do cliente</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{descricao}}</code> - Descrição do item</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{dimensoes}}</code> - Dimensões</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{material}}</code> - Material/Tecido</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{imagem}}</code> - URL da imagem</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{overloque}}</code> - Overloque (Sim/Não)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{elastico}}</code> - Elástico (Sim/Não)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{emenda_label}}</code> - Emenda</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{acabamentos_painel}}</code> - Acabamentos (Painel)</div>
+                  <div>• <code className="bg-gray-100 px-1 rounded">{{acabamento_totem_resumo}}</code> - Acabamento (Totem)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
