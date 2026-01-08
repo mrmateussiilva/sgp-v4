@@ -466,6 +466,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   // Estado para gerenciar mudanças não salvas de cada item
   const [itemHasUnsavedChanges, setItemHasUnsavedChanges] = useState<Record<string, boolean>>({});
+
+  // Estado para o dialog de duplicação de itens
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateQuantity, setDuplicateQuantity] = useState('1');
   
   // Estado para rastrear dados iniciais (para detectar mudanças)
   const [initialFormData, setInitialFormData] = useState(formData);
@@ -2438,17 +2442,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               {activeTab && tabsData[activeTab] && tabsData[activeTab].tipo_producao && (
                 <Button
                   onClick={() => {
-                    const qtd = prompt('Quantas cópias deseja criar?', '1');
-                    const quantity = parseInt(qtd || '1', 10);
-                    if (quantity > 0 && quantity <= 50) {
-                      handleDuplicateTab(activeTab, quantity);
-                    } else if (quantity > 50) {
-                      toast({
-                        title: "Limite excedido",
-                        description: "Máximo de 50 cópias por vez.",
-                        variant: "destructive",
-                      });
-                    }
+                    setDuplicateQuantity('1');
+                    setDuplicateDialogOpen(true);
                   }}
                   variant="outline"
                   className="h-11 gap-2 border-green-600 text-green-700 hover:bg-green-50"
@@ -3116,6 +3111,77 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {isSaving ? 'Salvando...' : '✓ Confirmar e Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Duplicação de Item */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-green-600" />
+              Duplicar Item
+            </DialogTitle>
+            <DialogDescription>
+              Crie cópias do item atual. Todas as cópias terão os mesmos dados, exceto a imagem que ficará vazia para você preencher.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="duplicate-quantity" className="text-base font-medium">
+                Quantas cópias deseja criar?
+              </Label>
+              <Input
+                id="duplicate-quantity"
+                type="number"
+                min="1"
+                max="50"
+                value={duplicateQuantity}
+                onChange={(e) => setDuplicateQuantity(e.target.value)}
+                className="bg-white h-12 text-center text-lg font-semibold"
+                placeholder="1"
+                autoFocus
+              />
+              <p className="text-sm text-muted-foreground">
+                Máximo: 50 cópias por vez
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDuplicateDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                const quantity = parseInt(duplicateQuantity || '1', 10);
+                if (quantity > 0 && quantity <= 50) {
+                  handleDuplicateTab(activeTab, quantity);
+                  setDuplicateDialogOpen(false);
+                } else if (quantity > 50) {
+                  toast({
+                    title: "Limite excedido",
+                    description: "Máximo de 50 cópias por vez.",
+                    variant: "destructive",
+                  });
+                } else {
+                  toast({
+                    title: "Quantidade inválida",
+                    description: "Digite um número entre 1 e 50.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicar {parseInt(duplicateQuantity) > 1 ? `${duplicateQuantity} itens` : 'item'}
             </Button>
           </DialogFooter>
         </DialogContent>
