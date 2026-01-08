@@ -528,6 +528,43 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
 };
 
 /**
+ * Processa condicionais {{#IF tipo_producao == 'painel'}} ... {{/IF}} no HTML
+ * Suporta:
+ * - {{#IF tipo_producao == 'painel'}} ... {{/IF}}
+ * - {{#IF tipo_producao == 'totem'}} ... {{/IF}}
+ * - {{#IF tipo_producao == 'lona'}} ... {{/IF}}
+ * - {{#IF tipo_producao == 'adesivo'}} ... {{/IF}}
+ * - {{#IF tipo_producao == 'tecido'}} ... {{/IF}}
+ * - {{#IF tipo_producao == 'generica'}} ... {{/IF}}
+ */
+const processConditionals = (
+  html: string,
+  tipoProducao: string
+): string => {
+  let result = html;
+  const normalizedTipo = tipoProducao.toLowerCase().trim();
+  
+  // Regex para encontrar blocos {{#IF tipo_producao == 'valor'}} ... {{/IF}}
+  // Suporta case-insensitive e espaços variáveis
+  const ifRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
+  
+  result = result.replace(ifRegex, (match, tipoEsperado, conteudo) => {
+    const normalizedEsperado = tipoEsperado.toLowerCase().trim();
+    
+    // Verificar se o tipo de produção corresponde
+    if (normalizedTipo === normalizedEsperado) {
+      // Manter o conteúdo
+      return conteudo;
+    } else {
+      // Remover o conteúdo
+      return '';
+    }
+  });
+  
+  return result;
+};
+
+/**
  * Substitui variáveis no HTML com dados do pedido
  * Suporta substituição case-insensitive ({{numero}}, {{NUMERO}}, {{Numero}})
  */
@@ -620,16 +657,20 @@ const processItemTemplate = (
     }
   });
   
-  // 1. Substituir variáveis
-  let processed = replaceVariables(html, dataMap, imageBase64Map, item);
+  // 1. Processar condicionais {{#IF tipo_producao == 'tipo'}} ... {{/IF}}
+  // IMPORTANTE: Processar condicionais ANTES de substituir variáveis para melhor performance
+  let processed = processConditionals(html, tipoProducao);
   
-  // 2. Processar tags de imagem
+  // 2. Substituir variáveis
+  processed = replaceVariables(processed, dataMap, imageBase64Map, item);
+  
+  // 3. Processar tags de imagem
   processed = processImageTags(processed, item.imagem, imageBase64Map);
   
-  // 3. Normalizar tipo de produção
+  // 4. Normalizar tipo de produção
   processed = normalizeTipoProducao(processed, tipoProducao);
   
-  // 4. Aplicar regras de visibilidade
+  // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
   
   logger.debug(`[processItemTemplate] ✅ Item processado:`, {
@@ -867,9 +908,19 @@ const processTemplateHTML = (
   const dataMap = createOrderDataMap(order, undefined);
   const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
   
-  let processed = replaceVariables(html, dataMap, imageBase64Map);
+  // 1. Processar condicionais primeiro
+  let processed = processConditionals(html, tipoProducao);
+  
+  // 2. Substituir variáveis
+  processed = replaceVariables(processed, dataMap, imageBase64Map);
+  
+  // 3. Processar tags de imagem
   processed = processImageTags(processed, undefined, imageBase64Map);
+  
+  // 4. Normalizar tipo de produção
   processed = normalizeTipoProducao(processed, tipoProducao);
+  
+  // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
   
   return `<div class="template-page">${processed}</div>`;
