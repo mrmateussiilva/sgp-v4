@@ -1067,13 +1067,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const validateShippingAndPayment = () => {
     const errors: {[key: string]: string} = {};
+    const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
 
     // Validar forma de envio
     if (!formData.forma_envio || formData.forma_envio.trim().length === 0) {
       errors.forma_envio = 'Forma de envio é obrigatória';
     }
     // Se for Portador, exigir nome
-    if (formData.forma_envio === 'Portador' && (!formData.portador_nome || formData.portador_nome.trim().length === 0)) {
+    if (isPortadorFormaEnvio(formData.forma_envio) && (!formData.portador_nome || formData.portador_nome.trim().length === 0)) {
       errors.portador_nome = 'Nome do portador é obrigatório';
     }
 
@@ -1139,6 +1140,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const validateField = (field: string, value: any) => {
     let error: string | null = null;
+    const isPortadorFormaEnvio = (v: string) => /^portador\b/i.test((v || '').trim());
 
     switch (field) {
       case 'data_entrada':
@@ -1168,7 +1170,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
         break;
       case 'portador_nome':
-        if (formData.forma_envio === 'Portador' && (!value || value.trim().length === 0)) {
+        if (isPortadorFormaEnvio(formData.forma_envio) && (!value || value.trim().length === 0)) {
           error = 'Nome do portador é obrigatório';
         }
         break;
@@ -1701,8 +1703,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     setIsSaving(true);
 
     try {
+      const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
       const finalFormaEnvio =
-        formData.forma_envio === 'Portador'
+        isPortadorFormaEnvio(formData.forma_envio)
           ? `Portador${formData.portador_nome?.trim() ? ` - ${formData.portador_nome.trim()}` : ''}`
           : formData.forma_envio;
       const normalizedItems: NormalizedItem[] = tabs
@@ -2859,12 +2862,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               <Select
                 value={formData.forma_envio}
                 onValueChange={(value) => {
-                  handleChange('forma_envio', value);
-                  if (value !== 'Portador') {
+                  const isPortador = /^portador\b/i.test((value || '').trim());
+                  const normalizedValue = isPortador ? 'Portador' : value;
+                  handleChange('forma_envio', normalizedValue);
+                  if (!isPortador) {
                     handleChange('portador_nome', '');
                     setErrors((prev) => ({ ...prev, portador_nome: '' }));
                   }
-                  const forma = formasEnvio.find(f => f.nome === value);
+                  const forma = formasEnvio.find((f) =>
+                    isPortador ? /^portador\b/i.test((String(f.nome) || '').trim()) : f.nome === value
+                  );
                   if (forma) {
                     handleChange('valor_frete', parseFloat(forma.valor).toFixed(2).replace('.', ','));
                   }
@@ -2875,7 +2882,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 </SelectTrigger>
                 <SelectContent>
                   {formasEnvio.map(fe => (
-                    <SelectItem key={fe.id} value={fe.nome}>
+                    <SelectItem key={fe.id} value={/^portador\b/i.test((String(fe.nome) || '').trim()) ? 'Portador' : fe.nome}>
                       {fe.nome} {parseFloat(fe.valor) > 0 && `- R$ ${parseFloat(fe.valor).toFixed(2)}`}
                     </SelectItem>
                   ))}
@@ -2886,7 +2893,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               )}
             </div>
 
-            {formData.forma_envio === 'Portador' && (
+            {/^portador\b/i.test((formData.forma_envio || '').trim()) && (
               <div className="space-y-2">
                 <Label className="text-base font-medium">Nome do Portador *</Label>
                 <Input
