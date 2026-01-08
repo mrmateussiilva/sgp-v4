@@ -40,6 +40,10 @@
         { "url": "http://192.168.0.*:*" },
         { "url": "http://192.168.0.10:*" }
       ]
-    }
+    },
+    "dialog:default",
+    "dialog:allow-save",
+    "fs:allow-write-binary-file",
+    "shell:allow-open"
   ]
 }

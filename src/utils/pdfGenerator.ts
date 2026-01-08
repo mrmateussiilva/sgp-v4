@@ -6,6 +6,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions, Content, StyleDictionary, TableCell } from 'pdfmake/interfaces';
+import { isTauri } from './isTauri';
 
 // Configurar fontes
 pdfMake.vfs = pdfFonts.vfs;
@@ -609,48 +610,134 @@ async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefi
 }
 
 /**
- * Baixa o PDF gerado
+ * Detecta se está rodando no Tauri
+ */
+function isTauriEnvironment(): boolean {
+  return isTauri();
+}
+
+/**
+ * Salva PDF usando API do Tauri
+ * @returns Caminho do arquivo salvo ou null se cancelado
+ */
+async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAposSalvar: boolean = false): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    pdfDocGenerator.getBuffer(async (buffer: Buffer | ArrayBuffer | Uint8Array) => {
+      try {
+        // Importar APIs do Tauri apenas quando necessário
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
+
+        // Abrir diálogo para escolher onde salvar
+        const filePath = await save({
+          defaultPath: nomeArquivo,
+          filters: [{
+            name: 'PDF',
+            extensions: ['pdf']
+          }]
+        });
+
+        if (!filePath) {
+          console.log('[pdfGenerator] ❌ Usuário cancelou o salvamento');
+          resolve(null);
+          return;
+        }
+
+        // Converter buffer para Uint8Array (compatível com Buffer, ArrayBuffer e Uint8Array)
+        let uint8Array: Uint8Array;
+        if (buffer instanceof Uint8Array) {
+          uint8Array = buffer;
+        } else if (buffer instanceof ArrayBuffer) {
+          uint8Array = new Uint8Array(buffer);
+        } else {
+          // Buffer do Node.js ou similar
+          uint8Array = new Uint8Array(buffer);
+        }
+
+        // Salvar arquivo
+        await writeBinaryFile(filePath, uint8Array);
+
+        console.log('[pdfGenerator] ✅ PDF salvo com sucesso:', filePath);
+
+        // Abrir arquivo no visualizador padrão se solicitado
+        if (abrirAposSalvar) {
+          try {
+            const { open } = await import('@tauri-apps/plugin-shell');
+            await open(filePath);
+            console.log('[pdfGenerator] 📂 PDF aberto no visualizador padrão');
+          } catch (openError) {
+            console.warn('[pdfGenerator] ⚠️ Não foi possível abrir o arquivo automaticamente:', openError);
+          }
+        }
+
+        resolve(filePath);
+      } catch (error) {
+        console.error('[pdfGenerator] ❌ Erro ao salvar PDF:', error);
+        reject(error);
+      }
+    });
+  });
+}
+
+/**
+ * Baixa o PDF gerado (compatível com Tauri e navegador)
  */
 export async function baixarPDF(itens: ItemRelatorio[], nomeArquivo: string = 'relatorio-pedidos.pdf'): Promise<void> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
-  
+
   const docDefinition = await gerarDocDefinition(itens);
-  pdfMake.createPdf(docDefinition).download(nomeArquivo);
+  const pdfDoc = pdfMake.createPdf(docDefinition);
+
+  if (isTauriEnvironment()) {
+    console.log('[pdfGenerator] 🖥️ Rodando no Tauri, usando API nativa');
+    await salvarPDFTauri(pdfDoc, nomeArquivo, false);
+  } else {
+    console.log('[pdfGenerator] 🌐 Rodando no navegador, usando download()');
+    pdfDoc.download(nomeArquivo);
+  }
 }
 
 /**
- * Abre o PDF em uma nova aba para visualização/impressão
+ * Abre o PDF em uma nova aba para visualização/impressão (navegador) ou salva e abre (Tauri)
  */
 export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
-  
+
   console.log('[pdfGenerator] Iniciando geração de PDF...', { totalItens: itens.length });
-  
+
   try {
     const docDefinition = await gerarDocDefinition(itens);
     console.log('[pdfGenerator] Documento gerado com sucesso');
-    
+
+    if (isTauriEnvironment()) {
+      console.log('[pdfGenerator] 🖥️ Tauri detectado, salvando e abrindo');
+      const pdfDoc = pdfMake.createPdf(docDefinition);
+      await salvarPDFTauri(pdfDoc, 'relatorio-pedidos.pdf', true);
+      return;
+    }
+
+    // Código para navegador (mantém comportamento original)
     return new Promise((resolve, reject) => {
       try {
         const pdfDoc = pdfMake.createPdf(docDefinition);
-        
+
         pdfDoc.getBlob((blob) => {
           if (!blob) {
             console.error('[pdfGenerator] Blob é null ou undefined');
             reject(new Error('Falha ao gerar blob do PDF'));
             return;
           }
-          
+
           console.log('[pdfGenerator] Blob criado:', blob.size, 'bytes');
-          
+
           // Criar URL do blob
           const url = URL.createObjectURL(blob);
           console.log('[pdfGenerator] URL criada:', url.substring(0, 50) + '...');
-          
+
           // Tentar abrir em nova janela primeiro
           try {
             const newWindow = window.open(url, '_blank');
@@ -664,7 +751,7 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
           } catch (err) {
             console.warn('[pdfGenerator] window.open falhou, tentando iframe:', err);
           }
-          
+
           // Fallback: usar iframe
           try {
             const iframe = document.createElement('iframe');
@@ -679,7 +766,7 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
               background: white;
             `;
             iframe.src = url;
-            
+
             // Botão de fechar
             const closeBtn = document.createElement('button');
             closeBtn.textContent = '✕ Fechar';
@@ -698,20 +785,20 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
               font-weight: bold;
               box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             `;
-            
+
             const cleanup = () => {
               if (iframe.parentNode) document.body.removeChild(iframe);
               if (closeBtn.parentNode) document.body.removeChild(closeBtn);
               URL.revokeObjectURL(url);
             };
-            
+
             closeBtn.onclick = cleanup;
             iframe.onerror = () => {
               console.error('[pdfGenerator] Erro ao carregar PDF no iframe');
               cleanup();
               reject(new Error('Falha ao carregar PDF'));
             };
-            
+
             document.body.appendChild(iframe);
             document.body.appendChild(closeBtn);
             console.log('[pdfGenerator] PDF exibido em iframe');
@@ -745,21 +832,26 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
-  
+
   console.log('[pdfGenerator] Gerando PDF para impressão...', { totalItens: itens.length });
-  
+
   try {
     const docDefinition = await gerarDocDefinition(itens);
     console.log('[pdfGenerator] Documento gerado');
-    
-    // Usar download() diretamente do PDFMake (mais confiável)
+
     const pdfDoc = pdfMake.createPdf(docDefinition);
     const nomeArquivo = 'relatorio-pedidos-para-imprimir.pdf';
-    
-    console.log('[pdfGenerator] Chamando download() do PDFMake...');
-    pdfDoc.download(nomeArquivo);
-    console.log('[pdfGenerator] download() chamado com sucesso');
-    
+
+    if (isTauriEnvironment()) {
+      console.log('[pdfGenerator] 🖥️ Tauri: salvando para depois imprimir manualmente');
+      const filePath = await salvarPDFTauri(pdfDoc, nomeArquivo, true);
+      if (filePath) {
+        console.log('[pdfGenerator] ✅ PDF salvo e aberto. Você pode imprimir através do visualizador.');
+      }
+    } else {
+      console.log('[pdfGenerator] 🖨️ Chamando print() do PDFMake');
+      pdfDoc.print();
+    }
   } catch (error) {
     console.error('[pdfGenerator] Erro na impressão:', error);
     throw error;
