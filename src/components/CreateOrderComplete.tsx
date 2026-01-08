@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, Save } from 'lucide-react';
+import { Plus, X, Save, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1226,6 +1226,51 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   };
 
+  const handleDuplicateTab = (tabId: string, quantity: number = 1) => {
+    const sourceData = tabsData[tabId];
+    if (!sourceData) return;
+
+    const newTabs: string[] = [];
+    const newTabsDataEntries: Record<string, TabItem> = {};
+
+    for (let i = 0; i < quantity; i++) {
+      const newTabId = `tab-${tabs.length + newTabs.length + 1}-${Date.now()}-${i}`;
+      newTabs.push(newTabId);
+      
+      // Duplicar todos os dados, exceto imagem (fica vazia para o usuário preencher)
+      newTabsDataEntries[newTabId] = {
+        ...sourceData,
+        id: newTabId,
+        orderItemId: undefined, // Novo item, sem ID do banco
+        imagem: '', // Limpar imagem para o usuário selecionar outra
+      };
+    }
+
+    setTabs([...tabs, ...newTabs]);
+    setTabsData(prev => ({
+      ...prev,
+      ...newTabsDataEntries
+    }));
+
+    // Inicializar estados para os novos itens
+    const newUnsavedChanges: Record<string, boolean> = {};
+    newTabs.forEach(id => {
+      newUnsavedChanges[id] = true; // Marcar como com mudanças não salvas
+    });
+    setItemHasUnsavedChanges(prev => ({
+      ...prev,
+      ...newUnsavedChanges
+    }));
+
+    // Ir para a primeira nova aba
+    setActiveTab(newTabs[0]);
+
+    toast({
+      title: "Item duplicado",
+      description: `${quantity} ${quantity === 1 ? 'cópia criada' : 'cópias criadas'}. Altere a imagem de cada uma.`,
+    });
+  };
+
   const validateItemComplete = (tabId: string) => {
     const item = tabsData[tabId];
     if (!item) return { errors: [], warnings: [] };
@@ -2388,13 +2433,38 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <Label className="text-lg font-semibold">Itens do Pedido</Label>
-            <Button
-              onClick={handleAddTab}
-              className="h-11 gap-2 bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="h-5 w-5" />
-              Adicionar
-            </Button>
+            <div className="flex gap-2">
+              {/* Botão Duplicar - só aparece se tiver um item selecionado com dados */}
+              {activeTab && tabsData[activeTab] && tabsData[activeTab].tipo_producao && (
+                <Button
+                  onClick={() => {
+                    const qtd = prompt('Quantas cópias deseja criar?', '1');
+                    const quantity = parseInt(qtd || '1', 10);
+                    if (quantity > 0 && quantity <= 50) {
+                      handleDuplicateTab(activeTab, quantity);
+                    } else if (quantity > 50) {
+                      toast({
+                        title: "Limite excedido",
+                        description: "Máximo de 50 cópias por vez.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  variant="outline"
+                  className="h-11 gap-2 border-green-600 text-green-700 hover:bg-green-50"
+                >
+                  <Copy className="h-5 w-5" />
+                  Duplicar
+                </Button>
+              )}
+              <Button
+                onClick={handleAddTab}
+                className="h-11 gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-5 w-5" />
+                Adicionar
+              </Button>
+            </div>
           </div>
           
           {errors.items && (
