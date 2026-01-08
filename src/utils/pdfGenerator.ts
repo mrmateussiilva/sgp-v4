@@ -983,32 +983,84 @@ export async function printPdf(
     // 1. Gerar PDF usando pdfmake
     console.log('[printPdf] 📄 Gerando PDF...');
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+    console.log('[printPdf] ✅ PDF generator criado');
 
     // 2. Obter buffer do PDF
+    console.log('[printPdf] 📦 Tentando obter buffer do PDF...');
     const buffer = await new Promise<Uint8Array>((resolve, reject) => {
+      let resolved = false;
+      
+      // Timeout de segurança (30 segundos)
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('Timeout ao obter buffer do PDF (30s)'));
+        }
+      }, 30000);
+
       // Tentar getBuffer primeiro (mais eficiente)
       if (typeof pdfDocGenerator.getBuffer === 'function') {
-        pdfDocGenerator.getBuffer((buffer: Buffer | ArrayBuffer | Uint8Array) => {
-          try {
-            const uint8Array = buffer instanceof Uint8Array 
-              ? buffer 
-              : new Uint8Array(buffer);
-            resolve(uint8Array);
-          } catch (error) {
-            reject(new Error(`Erro ao converter buffer: ${error}`));
-          }
-        });
+        console.log('[printPdf] 📦 Usando getBuffer()...');
+        try {
+          pdfDocGenerator.getBuffer((buffer: Buffer | ArrayBuffer | Uint8Array) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timeout);
+            
+            console.log('[printPdf] 📦 Buffer recebido, tamanho:', buffer ? (buffer as any).length || buffer.byteLength || 'desconhecido' : 'null');
+            
+            try {
+              const uint8Array = buffer instanceof Uint8Array 
+                ? buffer 
+                : new Uint8Array(buffer);
+              console.log('[printPdf] ✅ Buffer convertido para Uint8Array, tamanho:', uint8Array.length);
+              resolve(uint8Array);
+            } catch (error) {
+              console.error('[printPdf] ❌ Erro ao converter buffer:', error);
+              reject(new Error(`Erro ao converter buffer: ${error}`));
+            }
+          });
+        } catch (error) {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
+          console.error('[printPdf] ❌ Erro ao chamar getBuffer:', error);
+          reject(error);
+        }
       } else {
         // Fallback: usar getBlob
-        pdfDocGenerator.getBlob((blob: Blob) => {
-          if (!blob) {
-            reject(new Error('Falha ao gerar blob do PDF'));
-            return;
-          }
-          blob.arrayBuffer()
-            .then(arrayBuffer => resolve(new Uint8Array(arrayBuffer)))
-            .catch(reject);
-        });
+        console.log('[printPdf] 📦 getBuffer não disponível, usando getBlob()...');
+        try {
+          pdfDocGenerator.getBlob((blob: Blob) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timeout);
+            
+            console.log('[printPdf] 📦 Blob recebido, tamanho:', blob?.size || 'desconhecido');
+            
+            if (!blob) {
+              reject(new Error('Falha ao gerar blob do PDF'));
+              return;
+            }
+            
+            blob.arrayBuffer()
+              .then(arrayBuffer => {
+                const uint8Array = new Uint8Array(arrayBuffer);
+                console.log('[printPdf] ✅ Blob convertido para Uint8Array, tamanho:', uint8Array.length);
+                resolve(uint8Array);
+              })
+              .catch(error => {
+                console.error('[printPdf] ❌ Erro ao converter blob:', error);
+                reject(error);
+              });
+          });
+        } catch (error) {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
+          console.error('[printPdf] ❌ Erro ao chamar getBlob:', error);
+          reject(error);
+        }
       }
     });
 
