@@ -18,7 +18,10 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$APPDATA/**" }
+        { "path": "$APPDATA/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     "http:default",
@@ -43,7 +46,6 @@
     },
     "dialog:default",
     "dialog:allow-save",
-    "fs:allow-write-binary-file",
     "shell:allow-open"
   ]
 }
