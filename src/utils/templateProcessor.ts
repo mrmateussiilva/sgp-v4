@@ -6,6 +6,155 @@ import { logger } from './logger';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 
 // ============================================================================
+// FUNÇÕES DE AGRUPAMENTO DE ITENS POR PÁGINA
+// ============================================================================
+
+/**
+ * Agrupa itens em arrays de tamanho fixo para paginação
+ * @param itens - Array de itens a serem agrupados
+ * @param itensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @returns Array de arrays, onde cada sub-array representa uma página
+ * 
+ * @example
+ * // Input: 7 itens
+ * const itens = [item1, item2, item3, item4, item5, item6, item7];
+ * // Output: 3 páginas
+ * const paginas = [
+ *   [item1, item2, item3],  // Página 1
+ *   [item4, item5, item6],  // Página 2
+ *   [item7]                 // Página 3 (última página pode ter menos de 3)
+ * ];
+ */
+export function agruparItensPorPagina<T>(itens: T[], itensPorPagina: number = 3): T[][] {
+  if (!itens || itens.length === 0) {
+    return [];
+  }
+  
+  const paginas: T[][] = [];
+  for (let i = 0; i < itens.length; i += itensPorPagina) {
+    paginas.push(itens.slice(i, i + itensPorPagina));
+  }
+  
+  return paginas;
+}
+
+/**
+ * Valida se as páginas estão corretamente agrupadas
+ * @param paginas - Array de páginas a validar
+ * @param maxItensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @returns true se todas as páginas são válidas
+ * 
+ * Regras de validação:
+ * - Cada página deve ter no máximo maxItensPorPagina itens
+ * - Nenhuma página pode estar vazia
+ * - Última página pode ter menos de maxItensPorPagina itens
+ */
+export function validarPaginas<T>(paginas: T[][], maxItensPorPagina: number = 3): boolean {
+  if (!paginas || paginas.length === 0) {
+    return true; // Array vazio é válido (0 itens = 0 páginas)
+  }
+  
+  return paginas.every(pagina => 
+    pagina.length > 0 && pagina.length <= maxItensPorPagina
+  );
+}
+
+/**
+ * Calcula o número de páginas necessárias para uma quantidade de itens
+ * @param totalItens - Total de itens
+ * @param itensPorPagina - Itens por página (padrão: 3)
+ * @returns Número de páginas necessárias
+ */
+export function calcularNumeroPaginas(totalItens: number, itensPorPagina: number = 3): number {
+  if (totalItens <= 0) return 0;
+  return Math.ceil(totalItens / itensPorPagina);
+}
+
+// ============================================================================
+// EXTRAÇÃO DE TEMPLATE HTML
+// ============================================================================
+
+/**
+ * Extrai o template de um único item do HTML completo
+ * O template da API tem a estrutura: <div class="print-page"> <div class="item">...</div> (x3) </div>
+ * Esta função extrai apenas o primeiro .item para usar como template base
+ */
+function extractItemTemplate(fullHtml: string): string {
+  // Regex para encontrar o primeiro <div class="item" ...> ... </div>
+  // Usa um approach mais robusto que lida com divs aninhados
+  const itemStartMatch = fullHtml.match(/<div[^>]*class="item"[^>]*>/i);
+  
+  if (!itemStartMatch) {
+    // Se não encontrar .item, retornar o HTML original (fallback)
+    logger.warn('[extractItemTemplate] Não foi possível encontrar .item no template, usando HTML completo');
+    return fullHtml;
+  }
+  
+  const startIndex = fullHtml.indexOf(itemStartMatch[0]);
+  
+  // Encontrar o </div> correspondente contando níveis de aninhamento
+  let depth = 0;
+  let endIndex = startIndex;
+  let inTag = false;
+  let tagStart = 0;
+  
+  for (let i = startIndex; i < fullHtml.length; i++) {
+    if (fullHtml[i] === '<') {
+      inTag = true;
+      tagStart = i;
+    } else if (fullHtml[i] === '>') {
+      inTag = false;
+      const tag = fullHtml.substring(tagStart, i + 1);
+      
+      if (tag.match(/^<div/i)) {
+        depth++;
+      } else if (tag.match(/^<\/div>/i)) {
+        depth--;
+        if (depth === 0) {
+          endIndex = i + 1;
+          break;
+        }
+      }
+    }
+  }
+  
+  const itemTemplate = fullHtml.substring(startIndex, endIndex);
+  
+  logger.debug('[extractItemTemplate] Template de item extraído:', {
+    originalLength: fullHtml.length,
+    extractedLength: itemTemplate.length,
+    startsWithItem: itemTemplate.startsWith('<div')
+  });
+  
+  return itemTemplate;
+}
+
+/**
+ * Extrai os estilos CSS do template HTML
+ * Preserva os estilos originais definidos no template da API
+ */
+function extractTemplateStyles(fullHtml: string): string {
+  const styleMatches = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  
+  if (!styleMatches) {
+    return '';
+  }
+  
+  // Extrair conteúdo de todas as tags <style>
+  const styles = styleMatches.map(styleTag => {
+    const content = styleTag.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    return content ? content[1] : '';
+  }).join('\n');
+  
+  logger.debug('[extractTemplateStyles] Estilos extraídos:', {
+    styleTagsCount: styleMatches.length,
+    totalStylesLength: styles.length
+  });
+  
+  return styles;
+}
+
+// ============================================================================
 // STORAGE - Leitura e Escrita de Templates
 // ============================================================================
 
@@ -549,38 +698,46 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
 };
 
 /**
- * Processa condicionais {{#IF tipo_producao == 'painel'}} ... {{/IF}} no HTML
- * Suporta:
- * - {{#IF tipo_producao == 'painel'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'totem'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'lona'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'adesivo'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'tecido'}} ... {{/IF}}
- * - {{#IF tipo_producao == 'generica'}} ... {{/IF}}
+ * Processa condicionais no template HTML
+ * Suporta múltiplas sintaxes:
+ * 
+ * 1. Sintaxe legada: {{#IF tipo_producao == 'painel'}} ... {{/IF}}
+ * 2. Sintaxe Handlebars com eq: {{#if (eq tipo_producao 'painel')}} ... {{/if}}
+ * 3. Condicional simples: {{#if variavel}} ... {{/if}}
  */
 const processConditionals = (
   html: string,
-  tipoProducao: string
+  tipoProducao: string,
+  dataMap?: Record<string, string | number | undefined>
 ): string => {
   let result = html;
   const normalizedTipo = tipoProducao.toLowerCase().trim();
   
-  // Regex para encontrar blocos {{#IF tipo_producao == 'valor'}} ... {{/IF}}
-  // Suporta case-insensitive e espaços variáveis
-  const ifRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
-  
-  result = result.replace(ifRegex, (_match, tipoEsperado, conteudo) => {
+  // 1. Sintaxe legada: {{#IF tipo_producao == 'valor'}} ... {{/IF}}
+  const legacyIfRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
+  result = result.replace(legacyIfRegex, (_match, tipoEsperado, conteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
-    
-    // Verificar se o tipo de produção corresponde
-    if (normalizedTipo === normalizedEsperado) {
-      // Manter o conteúdo
-      return conteudo;
-    } else {
-      // Remover o conteúdo
-      return '';
-    }
+    return normalizedTipo === normalizedEsperado ? conteudo : '';
   });
+  
+  // 2. Sintaxe Handlebars: {{#if (eq tipo_producao 'valor')}} ... {{/if}}
+  const handlebarsEqRegex = /\{\{#if\s+\(eq\s+tipo_producao\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
+  result = result.replace(handlebarsEqRegex, (_match, tipoEsperado, conteudo) => {
+    const normalizedEsperado = tipoEsperado.toLowerCase().trim();
+    return normalizedTipo === normalizedEsperado ? conteudo : '';
+  });
+  
+  // 3. Condicional simples: {{#if variavel}} ... {{/if}}
+  // Verifica se a variável tem valor truthy no dataMap
+  if (dataMap) {
+    const simpleIfRegex = /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
+    result = result.replace(simpleIfRegex, (_match, varName, conteudo) => {
+      const value = dataMap[varName];
+      // Truthy: tem valor, não é string vazia, não é "false", não é 0
+      const isTruthy = value !== undefined && value !== null && value !== '' && value !== 'false' && value !== 0;
+      return isTruthy ? conteudo : '';
+    });
+  }
   
   return result;
 };
@@ -653,11 +810,11 @@ const processImageTags = (
 };
 
 /**
- * Envolve conteúdo do item em estrutura fixa com seções definidas
- * Garante que cada item ocupe exatamente 9,9cm (99mm) da página A4
- * Corrige encoding e remove seções vazias
+ * Normaliza o conteúdo do item processado
+ * NÃO adiciona wrapper se o template já contém a estrutura .item
+ * Apenas corrige encoding de caracteres especiais
  */
-const wrapItemInFixedStructure = (content: string): string => {
+const normalizeItemContent = (content: string): string => {
   // Corrigir encoding de caracteres especiais (Õ, É, etc.)
   const normalizedContent = content
     .replace(/Õ(?=[\s&<"'])/g, '&Otilde;')
@@ -668,13 +825,14 @@ const wrapItemInFixedStructure = (content: string): string => {
     .replace(/á/g, '&aacute;')
     .replace(/ê/g, '&ecirc;');
   
-  // Usar estrutura com seções fixas para layout consistente
-  // Seções: header, description, specs, visual
-  return `<div class="item" itemscope itemtype="http://schema.org/Product">
-    <div class="item-content">
-      ${normalizedContent}
-    </div>
-  </div>`;
+  // Se o template já contém a estrutura .item, retornar sem wrapper
+  // O template em /api-sgp/media/templates/template-resumo.html já define a estrutura
+  if (normalizedContent.includes('class="item"') || normalizedContent.includes("class='item'")) {
+    return normalizedContent;
+  }
+  
+  // Caso contrário (template legado), envolver em estrutura padrão
+  return `<div class="item">${normalizedContent}</div>`;
 };
 
 /**
@@ -703,9 +861,9 @@ const processItemTemplate = (
     }
   });
   
-  // 1. Processar condicionais {{#IF tipo_producao == 'tipo'}} ... {{/IF}}
+  // 1. Processar condicionais (suporta sintaxe legada e Handlebars)
   // IMPORTANTE: Processar condicionais ANTES de substituir variáveis para melhor performance
-  let processed = processConditionals(html, tipoProducao);
+  let processed = processConditionals(html, tipoProducao, dataMap);
   
   // 2. Substituir variáveis
   processed = replaceVariables(processed, dataMap, imageBase64Map, item);
@@ -733,7 +891,7 @@ const processItemTemplate = (
   
   // Estruturar item com seções fixas para garantir layout consistente
   // Cada item tem altura fixa de 33% da página A4
-  return wrapItemInFixedStructure(processed);
+  return normalizeItemContent(processed);
 };
 
 // ============================================================================
@@ -954,25 +1112,42 @@ const processTemplateHTML = (
   
   // Múltiplos itens - processar cada um separadamente
   if (items && items.length > 1) {
-    logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos`);
+    const ITENS_POR_PAGINA = 3;
+    logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos (${ITENS_POR_PAGINA} por página)`);
+    
+    // Processar cada item individualmente
     const itemTemplates = items.map(item => 
       processItemTemplate(html, order, item, imageBase64Map)
     );
     
-    // Agrupar itens em grupos de EXATAMENTE 3 por página
-    const pages: string[] = [];
-    for (let i = 0; i < itemTemplates.length; i += 3) {
-      const item1 = itemTemplates[i] || '';
-      const item2 = itemTemplates[i + 1] || '';
-      const item3 = itemTemplates[i + 2] || '';
-      
-      // Determinar se é a última página (para não forçar quebra de página)
-      const isLastPage = i + 3 >= itemTemplates.length;
-      
-      // Envolver os 3 itens em uma página A4 com altura fixa
-      // Cada item ocupa exatamente 1/3 da altura (33%)
-      pages.push(`<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${item1}${item2}${item3}</div></div>`);
+    // Agrupar itens em páginas usando a função de agrupamento
+    const paginas = agruparItensPorPagina(itemTemplates, ITENS_POR_PAGINA);
+    
+    // Validar agrupamento
+    if (!validarPaginas(paginas, ITENS_POR_PAGINA)) {
+      logger.warn(`[processTemplateHTML] ⚠️ Agrupamento de páginas inválido`, {
+        paginasCount: paginas.length,
+        itensPorPagina: paginas.map(p => p.length)
+      });
     }
+    
+    logger.debug(`[processTemplateHTML] 📄 Itens agrupados em ${paginas.length} página(s):`, {
+      totalItens: items.length,
+      itensPorPagina: ITENS_POR_PAGINA,
+      paginasGeradas: paginas.length,
+      distribuicao: paginas.map((p, i) => `Página ${i + 1}: ${p.length} item(s)`)
+    });
+    
+    // Gerar HTML das páginas
+    const pages: string[] = paginas.map((paginaItens, index) => {
+      const isLastPage = index === paginas.length - 1;
+      const itensHtml = paginaItens.join('');
+      
+      // Envolver os itens em uma página A4 com altura fixa
+      // Cada item ocupa exatamente 1/3 da altura (33%)
+      return `<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${itensHtml}</div></div>`;
+    });
+    
     return pages.join('\n');
   }
   
@@ -1033,24 +1208,16 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     
       ${isResumo ? `
     /* ============================================================
-       ESTRUTURA BASE: PÁGINA A4 COM MARGENS CORRETAS
+       ESTRUTURA BASE: PÁGINA A4 COM 3 ITENS POR PÁGINA
+       A4 = 210mm x 297mm
+       Cada item: 99mm de altura (297mm / 3)
+       
+       NOTA: Não sobrescrever estilos do template original!
+       O template em /api-sgp/media/templates/template-resumo.html
+       já define todos os estilos necessários.
        ============================================================ */
-    .print-page {
-      width: 210mm;
-      height: 297mm;
-      min-height: 297mm;
-      max-height: 297mm;
-      margin: 15mm 15mm 10mm 15mm; /* Superior 1,5cm, Lateral 1,5cm, Inferior 1cm */
-      padding: 0;
-      overflow: hidden;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      display: flex;
-      flex-direction: column;
-      background: white;
-      box-sizing: border-box;
-    }
     
+    /* Container de itens quando processado pelo templateProcessor */
     .items-container {
       width: 100%;
       height: 100%;
@@ -1059,189 +1226,17 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       gap: 0;
       padding: 0;
       margin: 0;
-      overflow: hidden;
     }
     
     /* ============================================================
-       ITEM: ALTURA FIXA DE ~9,0cm (90mm)
-       Área útil A4: 297mm - 15mm (top) - 10mm (bottom) = 272mm
-       272mm / 3 ≈ 90.7mm → usamos 90mm para garantir 3 itens por página
+       ESTILOS COMPLEMENTARES (não sobrescrever template)
        ============================================================ */
-    .item {
-      width: 100%;
-      height: 90mm; /* Aproximadamente 9,0cm para caber 3 itens */
-      min-height: 90mm;
-      max-height: 90mm;
-      overflow: hidden;
-      flex-shrink: 0;
-      flex-grow: 0;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-      orphans: 999 !important;
-      widows: 999 !important;
-      border-bottom: 1px solid #d1d5db;
-      padding: 2mm 3mm;
-      display: flex;
-      flex-direction: column;
-      background: white;
-      position: relative;
-      box-sizing: border-box;
-    }
     
-    .item:last-child {
-      border-bottom: none;
-    }
-    
-    /* ============================================================
-       CONTEÚDO DO ITEM: FLEX COLUMN COM SEÇÕES FIXAS
-       ============================================================ */
+    /* Wrapper do item quando processado pelo templateProcessor */
     .item-content {
       width: 100%;
       height: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1mm;
-      overflow: hidden;
-      word-wrap: break-word;
-      word-break: break-word;
-      hyphens: auto;
-    }
-    
-    /* ============================================================
-       OCULTAR SEÇÕES VAZIAS PARA ECONOMIZAR ESPAÇO
-       ============================================================ */
-    .image-container:empty,
-    .image-container:has(img[src=""]),
-    .image-container:has(img[src*="undefined"]),
-    .image-container:has(img[src*="null"]),
-    .image-container:not(:has(img)) {
-      display: none !important;
-    }
-    
-    .section-content:empty,
-    .observacao-box:empty,
-    .observacao-box:has(span:empty) {
-      display: none !important;
-    }
-    
-    /* Ocultar seção "VISUAL DO ITEM" se não houver imagem */
-    .right-column:has(.image-container:empty),
-    .right-column:not(:has(img[src])) {
-      display: none !important;
-    }
-    
-    /* Quando visual está oculto, expandir coluna esquerda */
-    .content-wrapper:not(:has(.right-column:not([style*="display: none"]))) .left-column {
-      width: 100% !important;
-    }
-    
-    /* ============================================================
-       CORREÇÃO DE QUEBRAS DE PALAVRAS
-       ============================================================ */
-    .item-content,
-    .item-content * {
-      word-wrap: break-word;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      hyphens: auto;
-      -webkit-hyphens: auto;
-      -moz-hyphens: auto;
-      -ms-hyphens: auto;
-    }
-    
-    /* Prevenir quebra em palavras importantes */
-    .item-content strong,
-    .item-content b,
-    .item-content .numero,
-    .item-content .cliente {
-      word-break: keep-all;
-      white-space: nowrap;
-    }
-    
-    /* ============================================================
-       MARGENS E ESPAÇAMENTOS REDUZIDOS
-       ============================================================ */
-    .item-content > * {
-      margin-top: 0.5mm;
-      margin-bottom: 0.5mm;
-      line-height: 1.3;
-    }
-    
-    .item-content > *:first-child {
-      margin-top: 0;
-    }
-    
-    .item-content > *:last-child {
-      margin-bottom: 0;
-    }
-    
-    /* ============================================================
-       FONTE: NUNCA MENOR QUE 10px
-       ============================================================ */
-    .item-content,
-    .item-content * {
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content h1,
-    .item-content h2,
-    .item-content h3,
-    .item-content h4,
-    .item-content h5,
-    .item-content h6 {
-      font-size: max(11px, 1.1em);
-      font-weight: 600;
-      margin-top: 1mm;
-      margin-bottom: 0.5mm;
-    }
-    
-    .item-content p,
-    .item-content div,
-    .item-content span {
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content small {
-      font-size: max(9px, 0.9em);
-    }
-    
-    /* ============================================================
-       IMAGENS: AJUSTE AUTOMÁTICO E PREVENÇÃO DE ERRO
-       ============================================================ */
-    .item-content img {
-      max-width: 100%;
-      max-height: 60mm;
-      height: auto;
-      object-fit: contain;
-      display: block;
-    }
-    
-    .item-content img[src=""],
-    .item-content img[src*="undefined"],
-    .item-content img[src*="null"],
-    .item-content img:not([src]) {
-      display: none !important;
-    }
-    
-    /* ============================================================
-       ALINHAMENTO CONSISTENTE
-       ============================================================ */
-    .item-content {
-      text-align: left;
-      vertical-align: top;
-    }
-    
-    .item-content table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content td,
-    .item-content th {
-      padding: 0.5mm 1mm;
-      text-align: left;
-      vertical-align: top;
+      display: contents; /* Permite que o conteúdo interno herde layout do pai */
     }
     ` : `
     .template-page {
@@ -1273,64 +1268,14 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       
       ${isResumo ? `
       /* ============================================================
-         IMPRESSÃO: PÁGINA A4 COM 3 ITENS FIXOS
+         IMPRESSÃO: Respeitar estilos do template original
+         O template define: .item { height: 99mm } e .print-page { 297mm }
          ============================================================ */
-      .print-page {
-        width: 210mm !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        max-height: 100vh !important;
-        page-break-after: always !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-      }
       
-      .print-page[data-page-break="always"] {
-        page-break-after: always !important;
+      /* Apenas garantir que items-container não interfira */
+      .items-container {
+        display: contents;
       }
-      
-      .print-page:last-child {
-          page-break-after: auto !important;
-      }
-      
-      /* ============================================================
-         IMPRESSÃO: ITEM COM ALTURA FIXA ~9,0cm
-         Altura disponível: 100vh - 25mm (margens)
-         Cada item: (100vh - 25mm) / 3 ≈ 90mm
-         ============================================================ */
-      .item {
-        width: 100% !important;
-        height: calc((100vh - 25mm) / 3) !important;
-        min-height: calc((100vh - 25mm) / 3) !important;
-        max-height: calc((100vh - 25mm) / 3) !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-        orphans: 999 !important;
-        widows: 999 !important;
-      }
-      
-      /* Garantir que texto nunca invada outro item */
-      .item-content {
-        overflow: hidden !important;
-        max-height: 100% !important;
-      }
-      
-      /* Fonte mínima garantida em impressão */
-      .item-content,
-      .item-content * {
-        font-size: max(10px, 1em) !important;
-      }
-      
-      /* Quebra de palavras em impressão */
-      .item-content,
-      .item-content * {
-        word-wrap: break-word !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        hyphens: auto !important;
-        }
       ` : `
         .template-page {
           page-break-after: always !important;
@@ -1384,10 +1329,18 @@ export const generateTemplatePrintContent = async (
     
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
-      // Usar template diretamente da API sem sanitização
-      const rawHtml = templateHTML.html;
       // Template HTML editado manualmente encontrado - usar ele!
-      logger.debug(`[templateProcessor] ✅ Usando template HTML diretamente da API (sem sanitização): ${templateType}`);
+      logger.debug(`[templateProcessor] ✅ Usando template HTML da API: ${templateType}`);
+      
+      // Extrair apenas o template de um item (primeiro .item encontrado)
+      // O template completo tem a estrutura: .print-page > .item (x3)
+      // Precisamos apenas do conteúdo de um .item para usar como template
+      const rawHtml = extractItemTemplate(templateHTML.html);
+      
+      // Extrair CSS do template para preservar os estilos originais
+      const templateStyles = extractTemplateStyles(templateHTML.html);
+      
+      logger.debug(`[templateProcessor] Template de item extraído, tamanho: ${rawHtml.length}`);
       
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
@@ -1434,8 +1387,9 @@ export const generateTemplatePrintContent = async (
       
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
       
-      // Gerar CSS básico
-      const css = generateBasicTemplateCSS(templateType);
+      // Combinar CSS: estilos do template original + CSS básico complementar
+      const basicCss = generateBasicTemplateCSS(templateType);
+      const css = `${templateStyles}\n${basicCss}`;
       
       return {
         html: processedHTML,

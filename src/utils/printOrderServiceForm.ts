@@ -1,5 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
-import { generateTemplatePrintContent } from './templateProcessor';
+import { generateTemplatePrintContent, agruparItensPorPagina } from './templateProcessor';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -207,24 +207,24 @@ export const printMultipleOrdersServiceForm = async (
   let combinedContent: string;
   if (templateType === 'resumo') {
     // Template resumo: EXATAMENTE 3 itens por página (OBRIGATÓRIO)
-    const itemsPerPage = 3; // FORÇAR 3 itens por página
+    const ITENS_POR_PAGINA = 3;
     
-    const pages: string[][] = [];
+    // Usar função de agrupamento para organizar os itens em páginas
+    const paginas = agruparItensPorPagina(validOrdersHtml, ITENS_POR_PAGINA);
     
-    // Agrupar itens em grupos de 3 (EXATAMENTE 3 por página)
-    for (let i = 0; i < validOrdersHtml.length; i += itemsPerPage) {
-      pages.push(validOrdersHtml.slice(i, i + itemsPerPage));
-    }
-    
-    // Cada página contém EXATAMENTE 3 itens
-    combinedContent = pages.map((pageItems, pageIndex) => {
-      const isLastPage = pageIndex === pages.length - 1;
-      // Garantir que sempre tenha 3 slots (preencher com vazio se necessário)
-      while (pageItems.length < 3) {
-        pageItems.push('');
+    // Cada página contém no máximo 3 itens (última página pode ter menos)
+    combinedContent = paginas.map((paginaItens, pageIndex) => {
+      const isLastPage = pageIndex === paginas.length - 1;
+      // Preencher com slots vazios se necessário para manter layout consistente
+      const itensParaRenderizar = [...paginaItens];
+      while (itensParaRenderizar.length < ITENS_POR_PAGINA) {
+        itensParaRenderizar.push('');
       }
-      return `<div class="resumo-page page-group" style="height: 297mm !important; max-height: 297mm !important; min-height: 297mm !important; overflow: hidden !important; ${isLastPage ? '' : 'page-break-after: always !important;'} page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; box-sizing: border-box !important;">
-        ${pageItems.join('\n')}
+      // Usar classe .print-page para consistência com CSS do templateProcessor
+      return `<div class="print-page"${isLastPage ? '' : ' data-page-break="always"'}>
+        <div class="items-container">
+          ${itensParaRenderizar.join('\n')}
+        </div>
       </div>`;
     }).join('\n');
   } else {
