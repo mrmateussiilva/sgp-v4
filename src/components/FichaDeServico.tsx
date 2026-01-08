@@ -6,10 +6,10 @@ import { normalizeImagePath, isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
 
 // Função para redimensionar imagem mantendo proporção
-// Define altura fixa de 75mm e calcula largura proporcionalmente
+// Define altura fixa de 80mm e calcula largura proporcionalmente
 const resizeImageForPrint = async (
   imageSrc: string,
-  fixedHeight: number = 75  // Altura fixa em mm (75mm)
+  fixedHeight: number = 80  // Altura fixa em mm (80mm)
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -103,10 +103,10 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
             console.log(`[FichaDeServico] 🔄 Carregando imagem do item ${item.id}:`, item.imagem);
             const blobUrl = await loadAuthenticatedImage(item.imagem);
             
-            // Redimensionar imagem para impressão (75mm altura fixa, largura calculada proporcionalmente)
+            // Redimensionar imagem para impressão (80mm altura fixa, largura calculada proporcionalmente)
             try {
               console.log(`[FichaDeServico] 🔄 Redimensionando imagem do item ${item.id}...`);
-              const resizedImageUrl = await resizeImageForPrint(blobUrl, 75);
+              const resizedImageUrl = await resizeImageForPrint(blobUrl, 80);
               imageUrlMap.set(item.imagem, resizedImageUrl);
               console.log(`[FichaDeServico] ✅ Imagem do item ${item.id} carregada e redimensionada com sucesso`);
             } catch (resizeErr) {
@@ -572,7 +572,7 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           position: relative;
           width: 100%;
           max-width: 100%;
-          height: 75mm;
+          height: 80mm;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -773,8 +773,8 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
           /* Estilos específicos para imagens na impressão */
           .ficha-image-container {
-            height: 75mm !important;
-            max-height: 75mm !important;
+            height: 80mm !important;
+            max-height: 80mm !important;
             width: 100% !important;
             max-width: 100% !important;
             overflow: hidden !important;

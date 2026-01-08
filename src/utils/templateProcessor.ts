@@ -1490,9 +1490,9 @@ export const generateTemplatePrintContent = async (
               return;
             }
             
-            // Redimensionar imagem para impressão (75mm altura fixa, largura calculada proporcionalmente)
+            // Redimensionar imagem para impressão (80mm altura fixa, largura calculada proporcionalmente)
             try {
-              const resizedBase64 = await resizeImageToBase64(blobUrl, 75);
+              const resizedBase64 = await resizeImageToBase64(blobUrl, 80);
               imageBase64Map.set(imagePath, resizedBase64);
               logger.debug('[templateProcessor] ✅ Imagem redimensionada:', imagePath);
             } catch (resizeError) {

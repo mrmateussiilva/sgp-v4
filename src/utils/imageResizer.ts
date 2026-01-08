@@ -1,13 +1,13 @@
 /**
  * Redimensiona uma imagem mantendo a proporção
- * Define altura fixa de 75mm e calcula largura proporcionalmente
+ * Define altura fixa de 80mm e calcula largura proporcionalmente
  * @param imageSrc - Blob URL ou data URL da imagem
- * @param fixedHeight - Altura fixa em mm (padrão: 75mm)
+ * @param fixedHeight - Altura fixa em mm (padrão: 80mm)
  * @returns Promise com a string base64 da imagem redimensionada
  */
 export async function resizeImageToBase64(
   imageSrc: string,
-  fixedHeight: number = 75
+  fixedHeight: number = 80
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
