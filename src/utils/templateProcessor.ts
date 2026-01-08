@@ -896,28 +896,32 @@ const processItemTemplate = (
 };
 
 /**
- * Injeta campos adicionais padronizados no fim da ficha, sem depender do template da API.
+ * Injeta campos adicionais padronizados no header/rodapé da ficha, sem depender do template da API.
  * Requisitos:
- * - DATA DE ENTREGA (com este label)
- * - PRIORIDADE
- * - FORMA DE ENVIO
+ * - No HEADER: DATA DE ENVIO, PRIORIDADE, FORMA DE ENVIO
+ * - No RODAPÉ: MAQUINA RIP, DATA DE IMPRESSÃO
  * - MAQUINA RIP
  * - DATA DE IMPRESSÃO
  */
 const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): string => {
-  const entrega = escapeHtml(dataMap.data_entrega);
+  const dataEnvio = escapeHtml(dataMap.data_entrega);
   const prioridade = escapeHtml(dataMap.prioridade);
   const formaEnvio = escapeHtml(dataMap.forma_envio);
   const maquinaRip = escapeHtml(dataMap.sublimacao_maquina);
   const dataImpressao = escapeHtml(dataMap.sublimacao_data_impressao);
 
-  const extra = `
-    <div class="__sgp_extra_fields__">
+  const header = `
+    <div class="__sgp_header_meta__">
       <div class="__sgp_row__">
-        <div class="__sgp_field__"><span class="__sgp_label__">DATA DE ENTREGA:</span><span class="__sgp_value__">${entrega || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
+        <div class="__sgp_field__"><span class="__sgp_label__">DATA DE ENVIO:</span><span class="__sgp_value__">${dataEnvio || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
         <div class="__sgp_field__"><span class="__sgp_label__">PRIORIDADE:</span><span class="__sgp_value__">${prioridade || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
         <div class="__sgp_field__"><span class="__sgp_label__">FORMA DE ENVIO:</span><span class="__sgp_value__">${formaEnvio || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
       </div>
+    </div>
+  `;
+
+  const footer = `
+    <div class="__sgp_footer_fields__">
       <div class="__sgp_row__">
         <div class="__sgp_field__"><span class="__sgp_label__">MAQUINA RIP:</span><span class="__sgp_value__">${maquinaRip || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
         <div class="__sgp_field__"><span class="__sgp_label__">DATA DE IMPRESSÃO:</span><span class="__sgp_value__">${dataImpressao || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
@@ -926,12 +930,28 @@ const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): str
   `;
 
   const trimmed = itemHtml.trim();
-  if (trimmed.includes('__sgp_extra_fields__')) return itemHtml; // idempotente
+  const hasHeader = trimmed.includes('__sgp_header_meta__');
+  const hasFooter = trimmed.includes('__sgp_footer_fields__');
+  if (hasHeader && hasFooter) return itemHtml; // idempotente
 
-  const lastDiv = trimmed.lastIndexOf('</div>');
-  if (lastDiv === -1) return `${itemHtml}\n${extra}`;
+  let withHeader = trimmed;
+  if (!hasHeader) {
+    // Inserir logo após a abertura do <div class="item"...> se existir
+    const openItemTag = withHeader.match(/<div[^>]*class=["'][^"']*\bitem\b[^"']*["'][^>]*>/i);
+    if (openItemTag && openItemTag.index !== undefined) {
+      const insertAt = openItemTag.index + openItemTag[0].length;
+      withHeader = `${withHeader.slice(0, insertAt)}\n${header}\n${withHeader.slice(insertAt)}`;
+    } else {
+      withHeader = `${header}\n${withHeader}`;
+    }
+  }
 
-  return `${trimmed.slice(0, lastDiv)}\n${extra}\n${trimmed.slice(lastDiv)}`;
+  if (hasFooter) return withHeader;
+
+  const lastDiv = withHeader.lastIndexOf('</div>');
+  if (lastDiv === -1) return `${withHeader}\n${footer}`;
+
+  return `${withHeader.slice(0, lastDiv)}\n${footer}\n${withHeader.slice(lastDiv)}`;
 };
 
 // ============================================================================
@@ -1246,35 +1266,47 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       background: white;
     }
 
-    /* Campos extras padronizados (sempre injetados no fim de cada item) */
-    .__sgp_extra_fields__ {
+    /* Campos extras padronizados (injetados no header e rodapé de cada item) */
+    .__sgp_header_meta__ {
+      margin: 0 0 1mm 0;
+      padding: 0 0 0.8mm 0;
+      border-bottom: 1px dashed #c7c7c7;
+      font-size: 11px;
+      line-height: 1.15;
+      color: #111;
+    }
+    .__sgp_footer_fields__ {
       margin-top: 1.5mm;
       padding-top: 1mm;
       border-top: 1px dashed #c7c7c7;
       font-size: 11px;
-      line-height: 1.2;
+      line-height: 1.15;
       color: #111;
     }
-    .__sgp_extra_fields__ .__sgp_row__ {
+    .__sgp_header_meta__ .__sgp_row__,
+    .__sgp_footer_fields__ .__sgp_row__ {
       display: flex;
       flex-wrap: wrap;
       gap: 3mm;
       align-items: baseline;
       margin-top: 0.6mm;
     }
-    .__sgp_extra_fields__ .__sgp_field__ {
+    .__sgp_header_meta__ .__sgp_field__,
+    .__sgp_footer_fields__ .__sgp_field__ {
       display: inline-flex;
       gap: 1mm;
       align-items: baseline;
       white-space: nowrap;
     }
-    .__sgp_extra_fields__ .__sgp_label__ {
+    .__sgp_header_meta__ .__sgp_label__,
+    .__sgp_footer_fields__ .__sgp_label__ {
       font-weight: 700;
       letter-spacing: 0.2px;
     }
-    .__sgp_extra_fields__ .__sgp_fill__ {
+    .__sgp_header_meta__ .__sgp_fill__,
+    .__sgp_footer_fields__ .__sgp_fill__ {
       display: inline-block;
-      min-width: 26mm;
+      min-width: 22mm;
       border-bottom: 1px solid #222;
       line-height: 1;
       transform: translateY(-0.5px);
