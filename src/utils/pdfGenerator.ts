@@ -622,61 +622,99 @@ function isTauriEnvironment(): boolean {
  */
 async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAposSalvar: boolean = false): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    pdfDocGenerator.getBuffer(async (buffer: Buffer | ArrayBuffer | Uint8Array) => {
-      try {
-        // Importar APIs do Tauri apenas quando necessário
-        const { save } = await import('@tauri-apps/plugin-dialog');
-        const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
-
-        // Abrir diálogo para escolher onde salvar
-        const filePath = await save({
-          defaultPath: nomeArquivo,
-          filters: [{
-            name: 'PDF',
-            extensions: ['pdf']
-          }]
-        });
-
-        if (!filePath) {
-          console.log('[pdfGenerator] ❌ Usuário cancelou o salvamento');
-          resolve(null);
+    console.log('[pdfGenerator] 📦 Iniciando getBuffer do PDFMake...');
+    
+    // Tentar usar getBuffer primeiro
+    if (typeof pdfDocGenerator.getBuffer === 'function') {
+      pdfDocGenerator.getBuffer(async (buffer: Buffer | ArrayBuffer | Uint8Array) => {
+        console.log('[pdfGenerator] 📦 Buffer recebido via getBuffer, tamanho:', buffer ? (buffer as any).length || buffer.byteLength || 'desconhecido' : 'null');
+        await processarESalvarPDF(buffer, nomeArquivo, abrirAposSalvar, resolve, reject);
+      });
+    } else {
+      // Fallback: usar getBlob e converter
+      console.log('[pdfGenerator] 📦 getBuffer não disponível, usando getBlob...');
+      pdfDocGenerator.getBlob(async (blob: Blob) => {
+        console.log('[pdfGenerator] 📦 Blob recebido, tamanho:', blob?.size || 'desconhecido');
+        if (!blob) {
+          reject(new Error('Falha ao gerar blob do PDF'));
           return;
         }
-
-        // Converter buffer para Uint8Array (compatível com Buffer, ArrayBuffer e Uint8Array)
-        let uint8Array: Uint8Array;
-        if (buffer instanceof Uint8Array) {
-          uint8Array = buffer;
-        } else if (buffer instanceof ArrayBuffer) {
-          uint8Array = new Uint8Array(buffer);
-        } else {
-          // Buffer do Node.js ou similar
-          uint8Array = new Uint8Array(buffer);
-        }
-
-        // Salvar arquivo
-        await writeBinaryFile(filePath, uint8Array);
-
-        console.log('[pdfGenerator] ✅ PDF salvo com sucesso:', filePath);
-
-        // Abrir arquivo no visualizador padrão se solicitado
-        if (abrirAposSalvar) {
-          try {
-            const { open } = await import('@tauri-apps/plugin-shell');
-            await open(filePath);
-            console.log('[pdfGenerator] 📂 PDF aberto no visualizador padrão');
-          } catch (openError) {
-            console.warn('[pdfGenerator] ⚠️ Não foi possível abrir o arquivo automaticamente:', openError);
-          }
-        }
-
-        resolve(filePath);
-      } catch (error) {
-        console.error('[pdfGenerator] ❌ Erro ao salvar PDF:', error);
-        reject(error);
-      }
-    });
+        
+        // Converter Blob para ArrayBuffer e depois para Uint8Array
+        const arrayBuffer = await blob.arrayBuffer();
+        await processarESalvarPDF(arrayBuffer, nomeArquivo, abrirAposSalvar, resolve, reject);
+      });
+    }
   });
+}
+
+async function processarESalvarPDF(
+  buffer: Buffer | ArrayBuffer | Uint8Array,
+  nomeArquivo: string,
+  abrirAposSalvar: boolean,
+  resolve: (value: string | null) => void,
+  reject: (reason?: any) => void
+): Promise<void> {
+  try {
+    console.log('[pdfGenerator] 📥 Importando APIs do Tauri...');
+    // Importar APIs do Tauri apenas quando necessário
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
+
+    console.log('[pdfGenerator] 💾 Abrindo diálogo de salvar...');
+    // Abrir diálogo para escolher onde salvar
+    const filePath = await save({
+      defaultPath: nomeArquivo,
+      filters: [{
+        name: 'PDF',
+        extensions: ['pdf']
+      }]
+    });
+
+    console.log('[pdfGenerator] 💾 Diálogo retornou:', filePath || 'null (cancelado)');
+
+    if (!filePath) {
+      console.log('[pdfGenerator] ❌ Usuário cancelou o salvamento');
+      resolve(null);
+      return;
+    }
+
+    console.log('[pdfGenerator] 🔄 Convertendo buffer para Uint8Array...');
+    // Converter buffer para Uint8Array (compatível com Buffer, ArrayBuffer e Uint8Array)
+    let uint8Array: Uint8Array;
+    if (buffer instanceof Uint8Array) {
+      uint8Array = buffer;
+    } else if (buffer instanceof ArrayBuffer) {
+      uint8Array = new Uint8Array(buffer);
+    } else {
+      // Buffer do Node.js ou similar
+      uint8Array = new Uint8Array(buffer);
+    }
+
+    console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
+    // Salvar arquivo
+    await writeBinaryFile(filePath, uint8Array);
+
+    console.log('[pdfGenerator] ✅ PDF salvo com sucesso:', filePath);
+
+    // Abrir arquivo no visualizador padrão se solicitado
+    if (abrirAposSalvar) {
+      try {
+        console.log('[pdfGenerator] 📂 Abrindo PDF no visualizador padrão...');
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(filePath);
+        console.log('[pdfGenerator] 📂 PDF aberto no visualizador padrão');
+      } catch (openError) {
+        console.warn('[pdfGenerator] ⚠️ Não foi possível abrir o arquivo automaticamente:', openError);
+      }
+    }
+
+    resolve(filePath);
+  } catch (error) {
+    console.error('[pdfGenerator] ❌ Erro ao salvar PDF:', error);
+    console.error('[pdfGenerator] ❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
+    reject(error);
+  }
 }
 
 /**
