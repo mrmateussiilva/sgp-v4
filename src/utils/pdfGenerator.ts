@@ -944,29 +944,75 @@ export async function printPdfWindowPrint(
     console.log('[printPdfWindowPrint] 📄 Gerando PDF...');
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
-    // Obter blob do PDF
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      let resolved = false;
-      const timeout = setTimeout(() => {
-        if (!resolved) {
+    // Obter blob do PDF - tentar getBase64 primeiro (mais confiável)
+    console.log('[printPdfWindowPrint] 📦 Tentando obter PDF via getBase64...');
+    let blob: Blob;
+    
+    try {
+      // Primeiro tentar getBase64 (mais confiável)
+      const base64 = await new Promise<string>((resolve, reject) => {
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.warn('[printPdfWindowPrint] ⚠️ Timeout no getBase64, tentando getBlob...');
+            reject(new Error('Timeout no getBase64'));
+          }
+        }, 15000); // Timeout menor para getBase64
+
+        pdfDocGenerator.getBase64((base64: string) => {
+          if (resolved) return;
           resolved = true;
-          reject(new Error('Timeout ao gerar blob do PDF'));
-        }
-      }, 30000);
-
-      pdfDocGenerator.getBlob((blob: Blob | null) => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-
-        if (!blob) {
-          reject(new Error('Falha ao gerar blob do PDF'));
-          return;
-        }
-
-        resolve(blob);
+          clearTimeout(timeout);
+          
+          if (!base64) {
+            reject(new Error('Falha ao gerar base64 do PDF'));
+            return;
+          }
+          
+          resolve(base64);
+        });
       });
-    });
+
+      console.log('[printPdfWindowPrint] ✅ Base64 recebido, convertendo para blob...');
+      // Converter base64 para blob
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: 'application/pdf' });
+      console.log('[printPdfWindowPrint] ✅ Blob criado a partir de base64, tamanho:', blob.size, 'bytes');
+      
+    } catch (base64Error) {
+      console.warn('[printPdfWindowPrint] ⚠️ getBase64 falhou, tentando getBlob...', base64Error);
+      
+      // Fallback: tentar getBlob
+      blob = await new Promise<Blob>((resolve, reject) => {
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            reject(new Error('Timeout ao gerar blob do PDF - Tanto getBase64 quanto getBlob falharam'));
+          }
+        }, 30000);
+
+        pdfDocGenerator.getBlob((blob: Blob | null) => {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timeout);
+
+          if (!blob) {
+            reject(new Error('Falha ao gerar blob do PDF'));
+            return;
+          }
+
+          resolve(blob);
+        });
+      });
+      
+      console.log('[printPdfWindowPrint] ✅ Blob recebido via getBlob, tamanho:', blob.size, 'bytes');
+    }
 
     console.log('[printPdfWindowPrint] ✅ PDF gerado, tamanho:', blob.size, 'bytes');
 
