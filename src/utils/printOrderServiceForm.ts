@@ -236,6 +236,30 @@ export const printOrderServiceForm = async (
       padding: 0 !important;
       margin: 0 !important;
     }
+
+    /* Fallback robusto: remove moldura exatamente na cadeia de wrappers da imagem (independente do template da API) */
+    .item .__sgp_img_wrap__,
+    .item .__sgp_img_wrap__ * {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      background-image: none !important;
+      filter: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+    }
+    .item .__sgp_img_wrap__::before,
+    .item .__sgp_img_wrap__::after,
+    .item .__sgp_img_wrap__ *::before,
+    .item .__sgp_img_wrap__ *::after {
+      content: none !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
     ` : ''}
   `;
 
@@ -274,6 +298,15 @@ export const printOrderServiceForm = async (
                     el.style.setProperty('margin', '0', 'important');
                     el.style.setProperty('border-radius', '0', 'important');
                   } catch (e) {}
+                }
+                function hasOtherText(el){
+                  try {
+                    var raw = (el.textContent || '');
+                    var norm = normalizeText(raw);
+                    norm = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
+                    return norm.length > 0;
+                  } catch (e) {}
+                  return false;
                 }
 
                 var items = document.querySelectorAll('.item');
@@ -323,16 +356,29 @@ export const printOrderServiceForm = async (
 
                   // 2) Remover “molduras” somente na cadeia que contém a imagem (sem apagar outros dados)
                   try {
-                    // zera moldura do próprio right se ele contém a imagem
-                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
+                    // Marca e limpa somente wrappers que realmente pertencem à imagem.
+                    try { if (img.classList) img.classList.add('__sgp_img_wrap__'); } catch (e) {}
 
-                    var p = img;
-                    // caminha para cima até item/right, tirando borda/padding dos wrappers que envolvem a imagem
-                    while (p && p !== item && p !== right) {
+                    var p = img.parentElement;
+                    while (p && p !== item) {
+                      try {
+                        var imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
+                        if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
+                        if (hasOtherText(p)) break;
+                      } catch (e) {}
+
+                      try { if (p.classList) p.classList.add('__sgp_img_wrap__'); } catch (e) {}
                       stripStyles(p);
                       p = p.parentElement;
                     }
-                    if (p) stripStyles(p);
+
+                    // Também limpa o container “right” se ele for “só imagem” (sem outros textos).
+                    try {
+                      if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
+                        try { if (right.classList) right.classList.add('__sgp_img_wrap__'); } catch (e) {}
+                        stripStyles(right);
+                      }
+                    } catch (e) {}
 
                     // garante imagem proporcional e ocupando o container
                     stripStyles(img);
@@ -658,6 +704,30 @@ export const printMultipleOrdersServiceForm = async (
       padding: 0 !important;
       margin: 0 !important;
     }
+
+    /* Fallback robusto: remove moldura exatamente na cadeia de wrappers da imagem (independente do template da API) */
+    .item .__sgp_img_wrap__,
+    .item .__sgp_img_wrap__ * {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      background-image: none !important;
+      filter: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+    }
+    .item .__sgp_img_wrap__::before,
+    .item .__sgp_img_wrap__::after,
+    .item .__sgp_img_wrap__ *::before,
+    .item .__sgp_img_wrap__ *::after {
+      content: none !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
     ` : ''}
   `;
 
@@ -723,6 +793,15 @@ export const printMultipleOrdersServiceForm = async (
                     el.style.setProperty('border-radius', '0', 'important');
                   } catch (e) {}
                 }
+                function hasOtherText(el){
+                  try {
+                    var raw = (el.textContent || '');
+                    var norm = normalizeText(raw);
+                    norm = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
+                    return norm.length > 0;
+                  } catch (e) {}
+                  return false;
+                }
 
                 var items = document.querySelectorAll('.item');
                 for (var idx = 0; idx < items.length; idx++) {
@@ -766,14 +845,27 @@ export const printMultipleOrdersServiceForm = async (
                   } catch (e) {}
 
                   try {
-                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
+                    try { if (img.classList) img.classList.add('__sgp_img_wrap__'); } catch (e) {}
 
-                    var p = img;
-                    while (p && p !== item && p !== right) {
+                    var p = img.parentElement;
+                    while (p && p !== item) {
+                      try {
+                        var imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
+                        if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
+                        if (hasOtherText(p)) break;
+                      } catch (e) {}
+
+                      try { if (p.classList) p.classList.add('__sgp_img_wrap__'); } catch (e) {}
                       stripStyles(p);
                       p = p.parentElement;
                     }
-                    if (p) stripStyles(p);
+
+                    try {
+                      if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
+                        try { if (right.classList) right.classList.add('__sgp_img_wrap__'); } catch (e) {}
+                        stripStyles(right);
+                      }
+                    } catch (e) {}
 
                     stripStyles(img);
                     img.style.setProperty('display', 'block', 'important');
