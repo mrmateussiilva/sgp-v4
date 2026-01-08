@@ -213,6 +213,29 @@ export const printOrderServiceForm = async (
       object-position: center !important;
       display: block !important;
     }
+
+    /* Remove qualquer “moldura”/efeito na coluna da imagem (inclui pseudo-elementos) */
+    .item .right-column,
+    .item .right-column * {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      background-image: none !important;
+      filter: none !important;
+    }
+    .item .right-column *::before,
+    .item .right-column *::after {
+      content: none !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    .item .right-column {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
     ` : ''}
   `;
 
@@ -611,6 +634,29 @@ export const printMultipleOrdersServiceForm = async (
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
+    }
+
+    /* Remove qualquer “moldura”/efeito na coluna da imagem (inclui pseudo-elementos) */
+    .item .right-column,
+    .item .right-column * {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      background-image: none !important;
+      filter: none !important;
+    }
+    .item .right-column *::before,
+    .item .right-column *::after {
+      content: none !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    .item .right-column {
+      padding: 0 !important;
+      margin: 0 !important;
     }
     ` : ''}
   `;
