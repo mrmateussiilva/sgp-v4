@@ -3,6 +3,7 @@
  * Gera PDF, salva usando APIs do Tauri e abre no visualizador padrão
  */
 
+import type React from 'react';
 import { isTauri } from './isTauri';
 import type { OrderItem } from '../types';
 
@@ -13,6 +14,11 @@ import type { OrderItem } from '../types';
 export interface ReactPdfDocumentProps {
   item: OrderItem;
 }
+
+/**
+ * Tipo para o componente de documento React-PDF
+ */
+export type ReactPdfDocumentComponent = React.ComponentType<ReactPdfDocumentProps>;
 
 /**
  * Imprime uma ficha de produção usando React-PDF
@@ -39,7 +45,7 @@ export interface ReactPdfDocumentProps {
  */
 export async function printReactPdf(
   item: OrderItem,
-  DocumentComponent: React.ComponentType<ReactPdfDocumentProps>,
+  DocumentComponent: ReactPdfDocumentComponent,
   nomeArquivoPadrao: string = `ficha-producao-${item.id}.pdf`
 ): Promise<string | null> {
   // Verificar se está rodando no Tauri
@@ -114,7 +120,7 @@ export async function printReactPdf(
  */
 export async function saveReactPdf(
   item: OrderItem,
-  DocumentComponent: React.ComponentType<ReactPdfDocumentProps>,
+  DocumentComponent: ReactPdfDocumentComponent,
   nomeArquivoPadrao: string = `ficha-producao-${item.id}.pdf`
 ): Promise<string | null> {
   // Verificar se está rodando no Tauri
