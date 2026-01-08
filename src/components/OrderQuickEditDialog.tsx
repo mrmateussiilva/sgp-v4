@@ -24,6 +24,7 @@ interface FormState {
   data_entrega: string;
   prioridade: string;
   forma_envio: string;
+  portador_nome: string;
   forma_pagamento_id: string;
   valor_frete: string;
   observacao: string;
@@ -56,6 +57,7 @@ export function OrderQuickEditDialog({
     data_entrega: '',
     prioridade: 'NORMAL',
     forma_envio: '',
+    portador_nome: '',
     forma_pagamento_id: '',
     valor_frete: '',
     observacao: '',
@@ -87,6 +89,17 @@ export function OrderQuickEditDialog({
         setFormasPagamento(pagamento || []);
         setOriginalOrder(order);
 
+        const rawFormaEnvio = (order.forma_envio ?? '').trim();
+        const isPortador = /^portador\b/i.test(rawFormaEnvio);
+        const portadorNome =
+          isPortador
+            ? rawFormaEnvio
+                .replace(/^portador\b/i, '')
+                .replace(/^(\s*[-:]\s*)/, '')
+                .trim()
+            : '';
+        const formaEnvioBase = isPortador ? 'Portador' : (order.forma_envio ?? '');
+
         setForm({
           cliente: order.cliente ?? order.customer_name ?? '',
           telefone_cliente: order.telefone_cliente ?? '',
@@ -94,7 +107,8 @@ export function OrderQuickEditDialog({
           estado_cliente: order.estado_cliente ?? '',
           data_entrega: order.data_entrega ? order.data_entrega.slice(0, 10) : '',
           prioridade: order.prioridade ?? 'NORMAL',
-          forma_envio: order.forma_envio ?? '',
+          forma_envio: formaEnvioBase,
+          portador_nome: portadorNome,
           forma_pagamento_id: order.forma_pagamento_id ? order.forma_pagamento_id.toString() : '',
           valor_frete: normalizeValorFrete(order.valor_frete),
           observacao: order.observacao ?? '',
@@ -129,6 +143,15 @@ export function OrderQuickEditDialog({
 
   const handleSave = async () => {
     if (!orderId || !originalOrder) {
+      return;
+    }
+
+    if (form.forma_envio === 'Portador' && !form.portador_nome.trim()) {
+      toast({
+        title: 'Atenção',
+        description: 'Informe o nome do portador para salvar.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -286,7 +309,12 @@ export function OrderQuickEditDialog({
                 <Label htmlFor="forma_envio">Forma de envio</Label>
                 <Select
                   value={form.forma_envio}
-                  onValueChange={(value) => handleInputChange('forma_envio', value)}
+                  onValueChange={(value) => {
+                    handleInputChange('forma_envio', value);
+                    if (value !== 'Portador') {
+                      handleInputChange('portador_nome', '');
+                    }
+                  }}
                 >
                   <SelectTrigger id="forma_envio">
                     <SelectValue placeholder="Selecione" />
@@ -300,6 +328,18 @@ export function OrderQuickEditDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {form.forma_envio === 'Portador' && (
+                <div className="space-y-2">
+                  <Label htmlFor="portador_nome">Nome do portador *</Label>
+                  <Input
+                    id="portador_nome"
+                    value={form.portador_nome}
+                    onChange={(e) => handleInputChange('portador_nome', e.target.value)}
+                    placeholder="Ex.: João"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="forma_pagamento">Forma de pagamento</Label>
                 <Select
@@ -373,6 +413,11 @@ function hasChanges(original: OrderWithItems, form: FormState): boolean {
   const originalObservacao = original.observacao ?? '';
   const originalStatus = original.status ?? OrderStatus.Pendente;
 
+  const finalFormaEnvio =
+    form.forma_envio === 'Portador'
+      ? `Portador${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
+      : form.forma_envio;
+
   return (
     form.cliente.trim() !== originalCliente ||
     form.telefone_cliente.trim() !== originalTelefone ||
@@ -380,7 +425,7 @@ function hasChanges(original: OrderWithItems, form: FormState): boolean {
     form.estado_cliente.trim() !== originalEstado ||
     form.data_entrega !== originalDataEntrega ||
     form.prioridade !== originalPrioridade ||
-    form.forma_envio !== originalFormaEnvio ||
+    finalFormaEnvio !== originalFormaEnvio ||
     form.forma_pagamento_id !== originalFormaPagamento ||
     normalizeValorFrete(form.valor_frete) !== originalValorFrete ||
     form.observacao.trim() !== originalObservacao ||
@@ -437,8 +482,12 @@ function buildPayload(
   }
 
   const originalFormaEnvio = original.forma_envio ?? '';
-  if (form.forma_envio !== originalFormaEnvio) {
-    payload.forma_envio = form.forma_envio;
+  const finalFormaEnvio =
+    form.forma_envio === 'Portador'
+      ? `Portador${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
+      : form.forma_envio;
+  if (finalFormaEnvio !== originalFormaEnvio) {
+    payload.forma_envio = finalFormaEnvio;
     changed = true;
   }
 
