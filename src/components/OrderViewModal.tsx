@@ -1372,7 +1372,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 {selectedImageCaption && !imageError && selectedImage && (
                   <p
                     className="max-w-3xl text-center text-slate-600"
-                    style={{ fontSize: '32pt', lineHeight: 1.2 }}
+                    style={{ fontSize: '16pt', lineHeight: 1.2 }}
                   >
                     {selectedImageCaption}
                   </p>
