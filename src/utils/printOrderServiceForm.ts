@@ -304,6 +304,13 @@ export const printOrderServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
+      /* Limitar altura máxima para 80mm */
+      max-height: 80mm !important;
+      height: 80mm !important;
+      overflow: hidden !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
 
     /* Remove título/“moldura” que costuma reduzir a área útil da imagem */
@@ -734,6 +741,13 @@ export const printMultipleOrdersServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
+      /* Limitar altura máxima para 80mm */
+      max-height: 80mm !important;
+      height: 80mm !important;
+      overflow: hidden !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
 
     .item .visualizacao-title,
