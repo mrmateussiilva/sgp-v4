@@ -71,6 +71,90 @@ export function calcularNumeroPaginas(totalItens: number, itensPorPagina: number
 }
 
 // ============================================================================
+// EXTRAÇÃO DE TEMPLATE HTML
+// ============================================================================
+
+/**
+ * Extrai o template de um único item do HTML completo
+ * O template da API tem a estrutura: <div class="print-page"> <div class="item">...</div> (x3) </div>
+ * Esta função extrai apenas o primeiro .item para usar como template base
+ */
+function extractItemTemplate(fullHtml: string): string {
+  // Regex para encontrar o primeiro <div class="item" ...> ... </div>
+  // Usa um approach mais robusto que lida com divs aninhados
+  const itemStartMatch = fullHtml.match(/<div[^>]*class="item"[^>]*>/i);
+  
+  if (!itemStartMatch) {
+    // Se não encontrar .item, retornar o HTML original (fallback)
+    logger.warn('[extractItemTemplate] Não foi possível encontrar .item no template, usando HTML completo');
+    return fullHtml;
+  }
+  
+  const startIndex = fullHtml.indexOf(itemStartMatch[0]);
+  
+  // Encontrar o </div> correspondente contando níveis de aninhamento
+  let depth = 0;
+  let endIndex = startIndex;
+  let inTag = false;
+  let tagStart = 0;
+  
+  for (let i = startIndex; i < fullHtml.length; i++) {
+    if (fullHtml[i] === '<') {
+      inTag = true;
+      tagStart = i;
+    } else if (fullHtml[i] === '>') {
+      inTag = false;
+      const tag = fullHtml.substring(tagStart, i + 1);
+      
+      if (tag.match(/^<div/i)) {
+        depth++;
+      } else if (tag.match(/^<\/div>/i)) {
+        depth--;
+        if (depth === 0) {
+          endIndex = i + 1;
+          break;
+        }
+      }
+    }
+  }
+  
+  const itemTemplate = fullHtml.substring(startIndex, endIndex);
+  
+  logger.debug('[extractItemTemplate] Template de item extraído:', {
+    originalLength: fullHtml.length,
+    extractedLength: itemTemplate.length,
+    startsWithItem: itemTemplate.startsWith('<div')
+  });
+  
+  return itemTemplate;
+}
+
+/**
+ * Extrai os estilos CSS do template HTML
+ * Preserva os estilos originais definidos no template da API
+ */
+function extractTemplateStyles(fullHtml: string): string {
+  const styleMatches = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+  
+  if (!styleMatches) {
+    return '';
+  }
+  
+  // Extrair conteúdo de todas as tags <style>
+  const styles = styleMatches.map(styleTag => {
+    const content = styleTag.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    return content ? content[1] : '';
+  }).join('\n');
+  
+  logger.debug('[extractTemplateStyles] Estilos extraídos:', {
+    styleTagsCount: styleMatches.length,
+    totalStylesLength: styles.length
+  });
+  
+  return styles;
+}
+
+// ============================================================================
 // STORAGE - Leitura e Escrita de Templates
 // ============================================================================
 
@@ -718,11 +802,11 @@ const processImageTags = (
 };
 
 /**
- * Envolve conteúdo do item em estrutura fixa com seções definidas
- * Garante que cada item ocupe exatamente 9,9cm (99mm) da página A4
- * Corrige encoding e remove seções vazias
+ * Normaliza o conteúdo do item processado
+ * NÃO adiciona wrapper se o template já contém a estrutura .item
+ * Apenas corrige encoding de caracteres especiais
  */
-const wrapItemInFixedStructure = (content: string): string => {
+const normalizeItemContent = (content: string): string => {
   // Corrigir encoding de caracteres especiais (Õ, É, etc.)
   const normalizedContent = content
     .replace(/Õ(?=[\s&<"'])/g, '&Otilde;')
@@ -733,13 +817,14 @@ const wrapItemInFixedStructure = (content: string): string => {
     .replace(/á/g, '&aacute;')
     .replace(/ê/g, '&ecirc;');
   
-  // Usar estrutura com seções fixas para layout consistente
-  // Seções: header, description, specs, visual
-  return `<div class="item" itemscope itemtype="http://schema.org/Product">
-    <div class="item-content">
-      ${normalizedContent}
-    </div>
-  </div>`;
+  // Se o template já contém a estrutura .item, retornar sem wrapper
+  // O template em /api-sgp/media/templates/template-resumo.html já define a estrutura
+  if (normalizedContent.includes('class="item"') || normalizedContent.includes("class='item'")) {
+    return normalizedContent;
+  }
+  
+  // Caso contrário (template legado), envolver em estrutura padrão
+  return `<div class="item">${normalizedContent}</div>`;
 };
 
 /**
@@ -798,7 +883,7 @@ const processItemTemplate = (
   
   // Estruturar item com seções fixas para garantir layout consistente
   // Cada item tem altura fixa de 33% da página A4
-  return wrapItemInFixedStructure(processed);
+  return normalizeItemContent(processed);
 };
 
 // ============================================================================
@@ -1117,223 +1202,33 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     /* ============================================================
        ESTRUTURA BASE: PÁGINA A4 COM 3 ITENS POR PÁGINA
        A4 = 210mm x 297mm
-       Área útil (com margens): 180mm x 272mm
-       Cada item: ~90mm de altura
+       Cada item: 99mm de altura (297mm / 3)
+       
+       NOTA: Não sobrescrever estilos do template original!
+       O template em /api-sgp/media/templates/template-resumo.html
+       já define todos os estilos necessários.
        ============================================================ */
-    .print-page {
-      width: 210mm;
-      height: 297mm;
-      min-height: 297mm;
-      max-height: 297mm;
-      padding: 12mm 15mm 13mm 15mm; /* Margens internas */
-      margin: 0;
-      overflow: hidden;
-      page-break-after: always;
-      page-break-inside: avoid;
-      break-after: page;
-      break-inside: avoid;
-      display: flex;
-      flex-direction: column;
-      background: white;
-      box-sizing: border-box;
-    }
     
-    /* Última página não precisa de quebra depois */
-    .print-page:last-child {
-      page-break-after: auto;
-      break-after: auto;
-    }
-    
+    /* Container de itens quando processado pelo templateProcessor */
     .items-container {
       width: 100%;
-      height: 272mm; /* 297mm - 12mm (top) - 13mm (bottom) = 272mm */
+      height: 100%;
       display: flex;
       flex-direction: column;
       gap: 0;
       padding: 0;
       margin: 0;
-      overflow: hidden;
     }
     
     /* ============================================================
-       ITEM: ALTURA FIXA DE ~90mm (3 itens por página)
-       Área útil: 272mm / 3 ≈ 90.67mm
+       ESTILOS COMPLEMENTARES (não sobrescrever template)
        ============================================================ */
-    .item {
-      width: 100%;
-      height: 90mm;
-      min-height: 90mm;
-      max-height: 90mm;
-      overflow: hidden;
-      flex-shrink: 0;
-      flex-grow: 0;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-      orphans: 999 !important;
-      widows: 999 !important;
-      border-bottom: 1px solid #d1d5db;
-      padding: 2mm 3mm;
-      display: flex;
-      flex-direction: column;
-      background: white;
-      position: relative;
-      box-sizing: border-box;
-    }
     
-    .item:last-child {
-      border-bottom: none;
-    }
-    
-    /* ============================================================
-       CONTEÚDO DO ITEM: FLEX COLUMN COM SEÇÕES FIXAS
-       ============================================================ */
+    /* Wrapper do item quando processado pelo templateProcessor */
     .item-content {
       width: 100%;
       height: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1mm;
-      overflow: hidden;
-      word-wrap: break-word;
-      word-break: break-word;
-      hyphens: auto;
-    }
-    
-    /* ============================================================
-       OCULTAR SEÇÕES VAZIAS PARA ECONOMIZAR ESPAÇO
-       ============================================================ */
-    .image-container:empty,
-    .image-container:has(img[src=""]),
-    .image-container:has(img[src*="undefined"]),
-    .image-container:has(img[src*="null"]),
-    .image-container:not(:has(img)) {
-      display: none !important;
-    }
-    
-    .section-content:empty,
-    .observacao-box:empty,
-    .observacao-box:has(span:empty) {
-      display: none !important;
-    }
-    
-    /* Ocultar seção "VISUAL DO ITEM" se não houver imagem */
-    .right-column:has(.image-container:empty),
-    .right-column:not(:has(img[src])) {
-      display: none !important;
-    }
-    
-    /* Quando visual está oculto, expandir coluna esquerda */
-    .content-wrapper:not(:has(.right-column:not([style*="display: none"]))) .left-column {
-      width: 100% !important;
-    }
-    
-    /* ============================================================
-       CORREÇÃO DE QUEBRAS DE PALAVRAS
-       ============================================================ */
-    .item-content,
-    .item-content * {
-      word-wrap: break-word;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      hyphens: auto;
-      -webkit-hyphens: auto;
-      -moz-hyphens: auto;
-      -ms-hyphens: auto;
-    }
-    
-    /* Prevenir quebra em palavras importantes */
-    .item-content strong,
-    .item-content b,
-    .item-content .numero,
-    .item-content .cliente {
-      word-break: keep-all;
-      white-space: nowrap;
-    }
-    
-    /* ============================================================
-       MARGENS E ESPAÇAMENTOS REDUZIDOS
-       ============================================================ */
-    .item-content > * {
-      margin-top: 0.5mm;
-      margin-bottom: 0.5mm;
-      line-height: 1.3;
-    }
-    
-    .item-content > *:first-child {
-      margin-top: 0;
-    }
-    
-    .item-content > *:last-child {
-      margin-bottom: 0;
-    }
-    
-    /* ============================================================
-       FONTE: NUNCA MENOR QUE 10px
-       ============================================================ */
-    .item-content,
-    .item-content * {
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content h1,
-    .item-content h2,
-    .item-content h3,
-    .item-content h4,
-    .item-content h5,
-    .item-content h6 {
-      font-size: max(11px, 1.1em);
-      font-weight: 600;
-      margin-top: 1mm;
-      margin-bottom: 0.5mm;
-    }
-    
-    .item-content p,
-    .item-content div,
-    .item-content span {
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content small {
-      font-size: max(9px, 0.9em);
-    }
-    
-    /* ============================================================
-       IMAGENS: AJUSTE AUTOMÁTICO E PREVENÇÃO DE ERRO
-       ============================================================ */
-    .item-content img {
-      max-width: 100%;
-      max-height: 60mm;
-      height: auto;
-      object-fit: contain;
-      display: block;
-    }
-    
-    .item-content img[src=""],
-    .item-content img[src*="undefined"],
-    .item-content img[src*="null"],
-    .item-content img:not([src]) {
-      display: none !important;
-    }
-    
-    /* ============================================================
-       ALINHAMENTO CONSISTENTE
-       ============================================================ */
-    .item-content {
-      text-align: left;
-      vertical-align: top;
-    }
-    
-    .item-content table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: max(10px, 1em);
-    }
-    
-    .item-content td,
-    .item-content th {
-      padding: 0.5mm 1mm;
-      text-align: left;
-      vertical-align: top;
+      display: contents; /* Permite que o conteúdo interno herde layout do pai */
     }
     ` : `
     .template-page {
@@ -1365,76 +1260,13 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       
       ${isResumo ? `
       /* ============================================================
-         IMPRESSÃO: PÁGINA A4 COM 3 ITENS FIXOS
-         IMPORTANTE: Usar dimensões fixas em mm para PDF
+         IMPRESSÃO: Respeitar estilos do template original
+         O template define: .item { height: 99mm } e .print-page { 297mm }
          ============================================================ */
-      .print-page {
-        width: 210mm !important;
-        height: 297mm !important;
-        min-height: 297mm !important;
-        max-height: 297mm !important;
-        padding: 12mm 15mm 13mm 15mm !important;
-        margin: 0 !important;
-        page-break-after: always !important;
-        page-break-inside: avoid !important;
-        break-after: page !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-        display: flex !important;
-        flex-direction: column !important;
-      }
       
-      /* Última página não precisa de quebra depois */
-      .print-page:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
-      
+      /* Apenas garantir que items-container não interfira */
       .items-container {
-        width: 100% !important;
-        height: 272mm !important; /* 297mm - 25mm margens */
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-      }
-      
-      /* ============================================================
-         IMPRESSÃO: ITEM COM ALTURA FIXA 90mm
-         3 itens por página: 272mm / 3 ≈ 90mm
-         ============================================================ */
-      .item {
-        width: 100% !important;
-        height: 90mm !important;
-        min-height: 90mm !important;
-        max-height: 90mm !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-        orphans: 999 !important;
-        widows: 999 !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
-      }
-      
-      /* Garantir que texto nunca invada outro item */
-      .item-content {
-        overflow: hidden !important;
-        max-height: 100% !important;
-      }
-      
-      /* Fonte mínima garantida em impressão */
-      .item-content,
-      .item-content * {
-        font-size: max(10px, 1em) !important;
-      }
-      
-      /* Quebra de palavras em impressão */
-      .item-content,
-      .item-content * {
-        word-wrap: break-word !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        hyphens: auto !important;
+        display: contents;
       }
       ` : `
         .template-page {
@@ -1489,10 +1321,18 @@ export const generateTemplatePrintContent = async (
     
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
-      // Usar template diretamente da API sem sanitização
-      const rawHtml = templateHTML.html;
       // Template HTML editado manualmente encontrado - usar ele!
-      logger.debug(`[templateProcessor] ✅ Usando template HTML diretamente da API (sem sanitização): ${templateType}`);
+      logger.debug(`[templateProcessor] ✅ Usando template HTML da API: ${templateType}`);
+      
+      // Extrair apenas o template de um item (primeiro .item encontrado)
+      // O template completo tem a estrutura: .print-page > .item (x3)
+      // Precisamos apenas do conteúdo de um .item para usar como template
+      const rawHtml = extractItemTemplate(templateHTML.html);
+      
+      // Extrair CSS do template para preservar os estilos originais
+      const templateStyles = extractTemplateStyles(templateHTML.html);
+      
+      logger.debug(`[templateProcessor] Template de item extraído, tamanho: ${rawHtml.length}`);
       
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
@@ -1539,8 +1379,9 @@ export const generateTemplatePrintContent = async (
       
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
       
-      // Gerar CSS básico
-      const css = generateBasicTemplateCSS(templateType);
+      // Combinar CSS: estilos do template original + CSS básico complementar
+      const basicCss = generateBasicTemplateCSS(templateType);
+      const css = `${templateStyles}\n${basicCss}`;
       
       return {
         html: processedHTML,
