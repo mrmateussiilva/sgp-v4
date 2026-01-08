@@ -757,9 +757,16 @@ const escapeHtml = (value: string | number | undefined): string => {
  * - Remove estilos inline que fixam height/width em template-page/item
  */
 const sanitizeTemplateHtml = (html: string): string => {
-  return html
+  let cleaned = html
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/\sstyle="[^"]*(height|min-height|max-height|width)[^"]*"/gi, '');
+
+  // Desembrulhar containers herdados do template da API (template-page, item-container)
+  // Mantém apenas o conteúdo interno para caber no nosso layout de 3 itens/página
+  cleaned = cleaned.replace(/<div[^>]*class="[^"]*\btemplate-page\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, '$1');
+  cleaned = cleaned.replace(/<div[^>]*class="[^"]*\bitem-container\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, '$1');
+
+  return cleaned;
 };
 
 const mmToPx = (mm: number): number => mm * 3.779527559;
@@ -1022,7 +1029,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       background: white;
     }
     
-    ${isResumo ? `
+      ${isResumo ? `
     /* ============================================================
        ESTRUTURA BASE: PÁGINA A4 COM MARGENS CORRETAS
        ============================================================ */
@@ -1034,8 +1041,8 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       margin: 15mm 15mm 10mm 15mm; /* Superior 1,5cm, Lateral 1,5cm, Inferior 1cm */
       padding: 0;
       overflow: hidden;
-      page-break-inside: avoid;
-      break-inside: avoid;
+        page-break-inside: avoid;
+        break-inside: avoid;
       display: flex;
       flex-direction: column;
       background: white;
@@ -1054,15 +1061,15 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     
     /* ============================================================
-       ITEM: ALTURA FIXA DE 9,9cm (99mm)
+       ITEM: ALTURA FIXA DE ~9,0cm (90mm)
        Área útil A4: 297mm - 15mm (top) - 10mm (bottom) = 272mm
-       272mm / 3 = 90.67mm, arredondado para 99mm (9,9cm) por segurança
+       272mm / 3 ≈ 90.7mm → usamos 90mm para garantir 3 itens por página
        ============================================================ */
     .item {
       width: 100%;
-      height: 99mm; /* Exatamente 9,9cm */
-      min-height: 99mm;
-      max-height: 99mm;
+      height: 90mm; /* Aproximadamente 9,0cm para caber 3 itens */
+      min-height: 90mm;
+      max-height: 90mm;
       overflow: hidden;
       flex-shrink: 0;
       flex-grow: 0;
@@ -1236,11 +1243,11 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     ` : `
     .template-page {
-      width: 210mm;
-      min-height: 297mm;
-      page-break-after: always;
-      page-break-inside: avoid;
-      break-inside: avoid;
+        width: 210mm;
+        min-height: 297mm;
+        page-break-after: always;
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     `}
     
@@ -1282,17 +1289,19 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       }
       
       .print-page:last-child {
-        page-break-after: auto !important;
+          page-break-after: auto !important;
       }
       
       /* ============================================================
-         IMPRESSÃO: ITEM COM ALTURA FIXA DE 33%
+         IMPRESSÃO: ITEM COM ALTURA FIXA ~9,0cm
+         Altura disponível: 100vh - 25mm (margens)
+         Cada item: (100vh - 25mm) / 3 ≈ 90mm
          ============================================================ */
       .item {
         width: 100% !important;
-        height: calc(100vh / 3) !important;
-        min-height: calc(100vh / 3) !important;
-        max-height: calc(100vh / 3) !important;
+        height: calc((100vh - 25mm) / 3) !important;
+        min-height: calc((100vh - 25mm) / 3) !important;
+        max-height: calc((100vh - 25mm) / 3) !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         overflow: hidden !important;
@@ -1319,14 +1328,14 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
         word-break: break-word !important;
         overflow-wrap: break-word !important;
         hyphens: auto !important;
-      }
+        }
       ` : `
-      .template-page {
-        page-break-after: always !important;
-      }
-      .template-page:last-child {
-        page-break-after: auto !important;
-      }
+        .template-page {
+          page-break-after: always !important;
+        }
+        .template-page:last-child {
+          page-break-after: auto !important;
+        }
       `}
     }
   `;
@@ -1445,7 +1454,7 @@ export const generateTemplatePrintContent = async (
       
       throw new Error(errorMessage);
     }
-  } catch (error) {
+      } catch (error) {
     // Se já for um Error que lançamos, re-lançar
     if (error instanceof Error) {
       throw error;
