@@ -486,25 +486,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const [duplicateKeepImage, setDuplicateKeepImage] = useState(true);
   
   // Estado para rastrear dados iniciais (para detectar mudanças)
-  const [initialFormData, setInitialFormData] = useState(formData);
-  const [initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
-  
-  // Função para verificar se há mudanças não salvas
-  const hasUnsavedChanges = (): boolean => {
-    // Verificar se há mudanças nos itens
-    const hasItemChanges = Object.values(itemHasUnsavedChanges).some(changed => changed);
-    if (hasItemChanges) return true;
-    
-    // Verificar se há mudanças no formulário principal
-    const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
-    if (formChanged) return true;
-    
-    // Verificar se há mudanças nos dados dos tabs
-    const tabsChanged = JSON.stringify(tabsData) !== JSON.stringify(initialTabsData);
-    if (tabsChanged) return true;
-    
-    return false;
-  };
+  // Desabilitado - não usado atualmente (comentado no useEffect beforeunload)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_initialFormData, setInitialFormData] = useState(formData);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
   
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
@@ -1622,6 +1608,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       status: OrderStatus.Pendente,
       observacao: '',
       forma_envio: '',
+      portador_nome: '',
       tipo_pagamento: '',
       desconto_tipo: '',
       valor_frete: '0,00',

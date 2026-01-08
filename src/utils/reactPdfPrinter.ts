@@ -64,8 +64,9 @@ export async function printReactPdf(
 
     // Renderizar o documento React-PDF para buffer
     console.log('[printReactPdf] 🎨 Renderizando componente React-PDF...');
+    // Type assertion necessário: renderToBuffer aceita qualquer ReactElement válido
     const pdfBuffer = await renderToBuffer(
-      createElement(DocumentComponent, { item })
+      createElement(DocumentComponent, { item }) as React.ReactElement
     );
 
     console.log('[printReactPdf] ✅ PDF gerado, tamanho:', pdfBuffer.length, 'bytes');
@@ -139,8 +140,9 @@ export async function saveReactPdf(
     const { createElement } = React;
 
     // Renderizar para buffer
+    // Type assertion necessário: renderToBuffer aceita qualquer ReactElement válido
     const pdfBuffer = await renderToBuffer(
-      createElement(DocumentComponent, { item })
+      createElement(DocumentComponent, { item }) as React.ReactElement
     );
 
     console.log('[saveReactPdf] ✅ PDF gerado, tamanho:', pdfBuffer.length, 'bytes');

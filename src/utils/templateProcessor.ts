@@ -95,15 +95,12 @@ function extractItemTemplate(fullHtml: string): string {
   // Encontrar o </div> correspondente contando níveis de aninhamento
   let depth = 0;
   let endIndex = startIndex;
-  let inTag = false;
   let tagStart = 0;
   
   for (let i = startIndex; i < fullHtml.length; i++) {
     if (fullHtml[i] === '<') {
-      inTag = true;
       tagStart = i;
     } else if (fullHtml[i] === '>') {
-      inTag = false;
       const tag = fullHtml.substring(tagStart, i + 1);
       
       if (tag.match(/^<div/i)) {
@@ -975,8 +972,10 @@ const escapeHtml = (value: string | number | undefined): string => {
  * - Remove estilos inline que fixam height/width em template-page/item
  * @deprecated Desabilitado - agora usamos template diretamente da API
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _sanitizeTemplateHtml = (html: string): string => {
+// Unused function - kept for reference
+// @ts-expect-error - Function kept for future reference, intentionally unused
+const _sanitizeTemplateHtml = (_html: string): string => {
+  const html = _html;
   let cleaned = html
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/\sstyle="[^"]*(height|min-height|max-height|width)[^"]*"/gi, '');
@@ -988,6 +987,8 @@ const _sanitizeTemplateHtml = (html: string): string => {
 
   return cleaned;
 };
+// Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
+// Função não utilizada atualmente - mantida para referência futura
 
 const mmToPx = (mm: number): number => mm * 3.779527559;
 
@@ -1056,8 +1057,10 @@ const renderField = (
 /**
  * Gera o CSS para o template (função legada, não usada atualmente - mantida para referência)
  */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _generateTemplateStyles = (template: FichaTemplate): string => {
+    // Unused function - kept for reference
+    // @ts-expect-error - Function kept for future reference, intentionally unused
+    const _generateTemplateStyles = (_template: FichaTemplate): string => {
+      const template = _template;
       const isResumo = template.title?.toLowerCase().includes('resumo');
       
       return `
@@ -1121,6 +1124,8 @@ const renderField = (
         }
       `;
     };
+    // Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
+    // Função não utilizada atualmente - mantida para referência futura
 
 /**
  * Gera o HTML completo de uma ficha baseada no template

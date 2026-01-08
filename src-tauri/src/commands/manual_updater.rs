@@ -3,7 +3,7 @@ use tauri::async_runtime;
 use std::collections::HashMap;
 use std::process::Command;
 use std::path::PathBuf;
-use std::io::{Write, Read};
+use std::io::Write;
 use std::fs::OpenOptions;
 use tracing::{info, warn};
 use serde::{Deserialize, Serialize};

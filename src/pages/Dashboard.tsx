@@ -42,7 +42,8 @@ const GestaoTiposProducao = lazy(() => import('./admin/GestaoTiposProducao'));
 const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
-const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
+// Temporarily disabled - template editing via UI is disabled
+// const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
 
 // Componente de loading para rotas lazy
