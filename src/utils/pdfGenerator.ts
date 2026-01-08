@@ -865,6 +865,7 @@ export async function abrirPDF(itens: ItemRelatorio[]): Promise<void> {
 
 /**
  * Abre diálogo de impressão do PDF (faz download automático)
+ * Usa a função profissional printPdf() quando no Tauri
  */
 export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   if (!itens || itens.length === 0) {
@@ -877,17 +878,19 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
     const docDefinition = await gerarDocDefinition(itens);
     console.log('[pdfGenerator] Documento gerado');
 
-    const pdfDoc = pdfMake.createPdf(docDefinition);
-    const nomeArquivo = 'relatorio-pedidos-para-imprimir.pdf';
-
     if (isTauriEnvironment()) {
-      console.log('[pdfGenerator] 🖥️ Tauri: salvando para depois imprimir manualmente');
-      const filePath = await salvarPDFTauri(pdfDoc, nomeArquivo, true);
+      // Usar função profissional de impressão
+      console.log('[pdfGenerator] 🖥️ Tauri: usando fluxo profissional de impressão');
+      const filePath = await printPdf(docDefinition, 'relatorio-pedidos-para-imprimir.pdf');
       if (filePath) {
         console.log('[pdfGenerator] ✅ PDF salvo e aberto. Você pode imprimir através do visualizador.');
+      } else {
+        console.log('[pdfGenerator] ℹ️ Usuário cancelou a operação');
       }
     } else {
+      // Fallback para navegador (usa print() do PDFMake)
       console.log('[pdfGenerator] 🖨️ Chamando print() do PDFMake');
+      const pdfDoc = pdfMake.createPdf(docDefinition);
       pdfDoc.print();
     }
   } catch (error) {
@@ -936,5 +939,118 @@ export async function gerarPDFBase64(itens: ItemRelatorio[]): Promise<string> {
       }
     });
   });
+}
+
+// ============================================================================
+// FUNÇÃO PROFISSIONAL DE IMPRESSÃO
+// ============================================================================
+
+/**
+ * Fluxo profissional de impressão:
+ * 1. Gera PDF usando pdfmake
+ * 2. Abre diálogo para escolher onde salvar
+ * 3. Salva PDF no disco usando API do Tauri
+ * 4. Abre o arquivo no SO (que permite escolher impressora ou salvar como PDF)
+ * 
+ * @param docDefinition - Definição do documento PDF (TDocumentDefinitions do pdfmake)
+ * @param nomeArquivoPadrao - Nome padrão do arquivo (opcional, padrão: 'documento.pdf')
+ * @returns Promise<string | null> - Caminho do arquivo salvo ou null se cancelado
+ * 
+ * @example
+ * ```typescript
+ * const docDefinition = {
+ *   content: [{ text: 'Hello World' }]
+ * };
+ * 
+ * const caminho = await printPdf(docDefinition, 'meu-documento.pdf');
+ * if (caminho) {
+ *   console.log('PDF salvo em:', caminho);
+ * } else {
+ *   console.log('Usuário cancelou');
+ * }
+ * ```
+ */
+export async function printPdf(
+  docDefinition: TDocumentDefinitions,
+  nomeArquivoPadrao: string = 'documento.pdf'
+): Promise<string | null> {
+  // Verificar se está rodando no Tauri
+  if (!isTauriEnvironment()) {
+    throw new Error('printPdf() só funciona no ambiente Tauri. Use as funções de navegador para web.');
+  }
+
+  try {
+    // 1. Gerar PDF usando pdfmake
+    console.log('[printPdf] 📄 Gerando PDF...');
+    const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+
+    // 2. Obter buffer do PDF
+    const buffer = await new Promise<Uint8Array>((resolve, reject) => {
+      // Tentar getBuffer primeiro (mais eficiente)
+      if (typeof pdfDocGenerator.getBuffer === 'function') {
+        pdfDocGenerator.getBuffer((buffer: Buffer | ArrayBuffer | Uint8Array) => {
+          try {
+            const uint8Array = buffer instanceof Uint8Array 
+              ? buffer 
+              : new Uint8Array(buffer);
+            resolve(uint8Array);
+          } catch (error) {
+            reject(new Error(`Erro ao converter buffer: ${error}`));
+          }
+        });
+      } else {
+        // Fallback: usar getBlob
+        pdfDocGenerator.getBlob((blob: Blob) => {
+          if (!blob) {
+            reject(new Error('Falha ao gerar blob do PDF'));
+            return;
+          }
+          blob.arrayBuffer()
+            .then(arrayBuffer => resolve(new Uint8Array(arrayBuffer)))
+            .catch(reject);
+        });
+      }
+    });
+
+    console.log('[printPdf] ✅ PDF gerado, tamanho:', buffer.length, 'bytes');
+
+    // 3. Abrir diálogo para escolher onde salvar
+    console.log('[printPdf] 💾 Abrindo diálogo de salvar...');
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    
+    const filePath = await save({
+      defaultPath: nomeArquivoPadrao,
+      filters: [{
+        name: 'PDF',
+        extensions: ['pdf']
+      }]
+    });
+
+    // 4. Verificar se usuário cancelou
+    if (!filePath) {
+      console.log('[printPdf] ❌ Usuário cancelou o salvamento');
+      return null;
+    }
+
+    // 5. Salvar arquivo no disco
+    console.log('[printPdf] 💾 Salvando arquivo em:', filePath);
+    const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
+    await writeBinaryFile(filePath, buffer);
+    
+    console.log('[printPdf] ✅ PDF salvo com sucesso:', filePath);
+
+    // 6. Abrir arquivo no sistema operacional
+    // O SO vai abrir no visualizador padrão que permite imprimir ou salvar como PDF
+    console.log('[printPdf] 🖨️ Abrindo PDF no sistema operacional...');
+    const { open } = await import('@tauri-apps/plugin-shell');
+    await open(filePath);
+    
+    console.log('[printPdf] ✅ PDF aberto. Usuário pode escolher impressora ou salvar como PDF.');
+
+    return filePath;
+  } catch (error) {
+    console.error('[printPdf] ❌ Erro no fluxo de impressão:', error);
+    throw error;
+  }
 }
 
