@@ -483,15 +483,16 @@ const addHiddenEmptyClass = (html: string): string => {
   // Para elementos com spec-painel ou spec-tecido
   let result = html;
   
-  // Substituir class="..." por class="... hidden-empty" quando encontrar ": Não", ": 0" ou ": "
+  // Substituir class="..." por class="... hidden-empty" quando encontrar ": 0" ou ": "
+  // IMPORTANTE: NÃO esconder valores "Não" — na ficha de resumo queremos ver explicitamente Sim/Não.
   result = result.replace(
-    /(class="([^"]*spec-item[^"]*spec-painel[^"]*))"[^>]*>• [^:]+: (Não|0| )\s*<\/div>/gi,
+    /(class="([^"]*spec-item[^"]*spec-painel[^"]*))"[^>]*>• [^:]+: (0| )\s*<\/div>/gi,
     (match, p1) => {
       return match.replace(p1, `${p1} hidden-empty`);
     }
   );
   result = result.replace(
-    /(class="([^"]*spec-item[^"]*spec-tecido[^"]*))"[^>]*>• [^:]+: (Não|0| )\s*<\/div>/gi,
+    /(class="([^"]*spec-item[^"]*spec-tecido[^"]*))"[^>]*>• [^:]+: (0| )\s*<\/div>/gi,
     (match, p1) => {
       return match.replace(p1, `${p1} hidden-empty`);
     }
