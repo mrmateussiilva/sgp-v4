@@ -130,6 +130,89 @@ export const printOrderServiceForm = async (
       line-height: 1.15 !important;
       margin-bottom: 0.3mm !important;
     }
+
+    /* ============================================================
+       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
+       - mantém slot de 99mm (altura do .item)
+       - só redistribui espaço interno e garante object-fit
+       - regras são “tolerantes”: só aplicam se as classes existirem no template da API
+       ============================================================ */
+    .item .content-wrapper {
+      gap: 2mm !important;
+    }
+    .item .left-column {
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
+    }
+    .item .right-column {
+      width: 65% !important;
+      flex: 1 1 65% !important;
+      max-width: 65% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .item .ficha-image-container,
+    .item .image-container,
+    .item .visualizacao,
+    .item .visualizacao-container {
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    /* Remove título/“moldura” que costuma reduzir a área útil da imagem */
+    .item .visualizacao-title,
+    .item .visualizacao-header,
+    .item .visualizacao h1,
+    .item .visualizacao h2,
+    .item .visualizacao h3,
+    .item .visualizacao h4,
+    .item .visualizacao .title,
+    .item .visualizacao .header,
+    .item .image-title,
+    .item .image-header {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    /* Algumas versões colocam uma borda tracejada/“preview frame” */
+    .item .visualizacao .preview,
+    .item .visualizacao .preview-frame,
+    .item .visualizacao .frame,
+    .item .visualizacao .border,
+    .item .image-container .preview,
+    .item .image-container .preview-frame,
+    .item .image-container .frame,
+    .item .image-container .border {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* Garante que a imagem ocupe o máximo possível mantendo proporção */
+    .item .ficha-image,
+    .item .ficha-image-container img,
+    .item .image-container img,
+    .item .visualizacao img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
+    }
     ` : ''}
   `;
 
@@ -149,7 +232,100 @@ export const printOrderServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            function cleanup(){
+              try {
+                function normalizeText(s){
+                  return String(s || '')
+                    .trim()
+                    .toUpperCase()
+                    .normalize('NFD')
+                    .replace(/[\\u0300-\\u036f]/g, '');
+                }
+                function stripStyles(el){
+                  try {
+                    el.style.setProperty('border', '0', 'important');
+                    el.style.setProperty('outline', '0', 'important');
+                    el.style.setProperty('box-shadow', 'none', 'important');
+                    el.style.setProperty('background', 'transparent', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('border-radius', '0', 'important');
+                  } catch (e) {}
+                }
+
+                var items = document.querySelectorAll('.item');
+                for (var idx = 0; idx < items.length; idx++) {
+                  var item = items[idx];
+                  if (!item) continue;
+
+                  var img = item.querySelector('img');
+                  if (!img) continue;
+
+                  // Preferir limpar apenas a coluna/área da imagem.
+                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
+
+                  // 1) Esconder título "VISUALIZAÇÃO" (sem remover layout inteiro)
+                  try {
+                    var nodes = right.querySelectorAll('*');
+                    for (var i = 0; i < nodes.length; i++) {
+                      var el = nodes[i];
+                      if (!el) continue;
+
+                      // texto solto "VISUALIZAÇÃO" dentro de containers
+                      try {
+                        if (el.childNodes && el.childNodes.length) {
+                          for (var n = 0; n < el.childNodes.length; n++) {
+                            var node = el.childNodes[n];
+                            if (node && node.nodeType === 3) {
+                              var rawNode = node.textContent || '';
+                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
+                            }
+                          }
+                        }
+                      } catch (e) {}
+
+                      // elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
+                      try {
+                        var raw = (el.textContent || '').trim();
+                        if (!raw) continue;
+                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+                        if (el.querySelector && el.querySelector('img')) continue;
+                        el.style.setProperty('display', 'none', 'important');
+                        el.style.setProperty('margin', '0', 'important');
+                        el.style.setProperty('padding', '0', 'important');
+                        el.style.setProperty('height', '0', 'important');
+                      } catch (e) {}
+                    }
+                  } catch (e) {}
+
+                  // 2) Remover “molduras” somente na cadeia que contém a imagem (sem apagar outros dados)
+                  try {
+                    // zera moldura do próprio right se ele contém a imagem
+                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
+
+                    var p = img;
+                    // caminha para cima até item/right, tirando borda/padding dos wrappers que envolvem a imagem
+                    while (p && p !== item && p !== right) {
+                      stripStyles(p);
+                      p = p.parentElement;
+                    }
+                    if (p) stripStyles(p);
+
+                    // garante imagem proporcional e ocupando o container
+                    stripStyles(img);
+                    img.style.setProperty('display', 'block', 'important');
+                    img.style.setProperty('width', '100%', 'important');
+                    img.style.setProperty('height', '100%', 'important');
+                    img.style.setProperty('max-width', '100%', 'important');
+                    img.style.setProperty('max-height', '100%', 'important');
+                    img.style.setProperty('object-fit', 'contain', 'important');
+                    img.style.setProperty('object-position', 'center', 'important');
+                  } catch (e) {}
+                }
+              } catch (e) {}
+            }
             function doPrint(){
+              cleanup();
               try { window.focus(); window.print(); } catch(e){}
             }
             window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
@@ -359,6 +535,83 @@ export const printMultipleOrdersServiceForm = async (
       line-height: 1.15 !important;
       margin-bottom: 0.3mm !important;
     }
+
+    /* ============================================================
+       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
+       ============================================================ */
+    .item .content-wrapper {
+      gap: 2mm !important;
+    }
+    .item .left-column {
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
+    }
+    .item .right-column {
+      width: 65% !important;
+      flex: 1 1 65% !important;
+      max-width: 65% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .item .ficha-image-container,
+    .item .image-container,
+    .item .visualizacao,
+    .item .visualizacao-container {
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    .item .visualizacao-title,
+    .item .visualizacao-header,
+    .item .visualizacao h1,
+    .item .visualizacao h2,
+    .item .visualizacao h3,
+    .item .visualizacao h4,
+    .item .visualizacao .title,
+    .item .visualizacao .header,
+    .item .image-title,
+    .item .image-header {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    .item .visualizacao .preview,
+    .item .visualizacao .preview-frame,
+    .item .visualizacao .frame,
+    .item .visualizacao .border,
+    .item .image-container .preview,
+    .item .image-container .preview-frame,
+    .item .image-container .frame,
+    .item .image-container .border {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .item .ficha-image,
+    .item .ficha-image-container img,
+    .item .image-container img,
+    .item .visualizacao img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
+    }
     ` : ''}
   `;
 
@@ -404,7 +657,92 @@ export const printMultipleOrdersServiceForm = async (
             // Guard para evitar abrir 2 diálogos de impressão
             if (window.__SGP_PRINTED__) return;
             window.__SGP_PRINTED__ = true;
+            function cleanup(){
+              try {
+                function normalizeText(s){
+                  return String(s || '')
+                    .trim()
+                    .toUpperCase()
+                    .normalize('NFD')
+                    .replace(/[\\u0300-\\u036f]/g, '');
+                }
+                function stripStyles(el){
+                  try {
+                    el.style.setProperty('border', '0', 'important');
+                    el.style.setProperty('outline', '0', 'important');
+                    el.style.setProperty('box-shadow', 'none', 'important');
+                    el.style.setProperty('background', 'transparent', 'important');
+                    el.style.setProperty('padding', '0', 'important');
+                    el.style.setProperty('margin', '0', 'important');
+                    el.style.setProperty('border-radius', '0', 'important');
+                  } catch (e) {}
+                }
+
+                var items = document.querySelectorAll('.item');
+                for (var idx = 0; idx < items.length; idx++) {
+                  var item = items[idx];
+                  if (!item) continue;
+
+                  var img = item.querySelector('img');
+                  if (!img) continue;
+
+                  var right = item.querySelector('.right-column') || img.closest('.right-column') || img.parentElement || item;
+
+                  try {
+                    var nodes = right.querySelectorAll('*');
+                    for (var i = 0; i < nodes.length; i++) {
+                      var el = nodes[i];
+                      if (!el) continue;
+
+                      try {
+                        if (el.childNodes && el.childNodes.length) {
+                          for (var n = 0; n < el.childNodes.length; n++) {
+                            var node = el.childNodes[n];
+                            if (node && node.nodeType === 3) {
+                              var rawNode = node.textContent || '';
+                              if (normalizeText(rawNode).startsWith('VISUALIZACAO')) node.textContent = '';
+                            }
+                          }
+                        }
+                      } catch (e) {}
+
+                      try {
+                        var raw = (el.textContent || '').trim();
+                        if (!raw) continue;
+                        if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+                        if (el.querySelector && el.querySelector('img')) continue;
+                        el.style.setProperty('display', 'none', 'important');
+                        el.style.setProperty('margin', '0', 'important');
+                        el.style.setProperty('padding', '0', 'important');
+                        el.style.setProperty('height', '0', 'important');
+                      } catch (e) {}
+                    }
+                  } catch (e) {}
+
+                  try {
+                    try { if (right && right.contains && right.contains(img)) stripStyles(right); } catch (e) {}
+
+                    var p = img;
+                    while (p && p !== item && p !== right) {
+                      stripStyles(p);
+                      p = p.parentElement;
+                    }
+                    if (p) stripStyles(p);
+
+                    stripStyles(img);
+                    img.style.setProperty('display', 'block', 'important');
+                    img.style.setProperty('width', '100%', 'important');
+                    img.style.setProperty('height', '100%', 'important');
+                    img.style.setProperty('max-width', '100%', 'important');
+                    img.style.setProperty('max-height', '100%', 'important');
+                    img.style.setProperty('object-fit', 'contain', 'important');
+                    img.style.setProperty('object-position', 'center', 'important');
+                  } catch (e) {}
+                }
+              } catch (e) {}
+            }
             function doPrint(){
+              cleanup();
               try { window.focus(); window.print(); } catch(e){}
             }
             window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
