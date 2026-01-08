@@ -653,6 +653,20 @@ const processImageTags = (
 };
 
 /**
+ * Envolve conteúdo do item em estrutura fixa com seções definidas
+ * Garante que cada item ocupe exatamente 33% da página A4
+ */
+const wrapItemInFixedStructure = (content: string): string => {
+  // Usar estrutura com seções fixas para layout consistente
+  // Seções: header, description, specs, visual
+  return `<div class="item" itemscope itemtype="http://schema.org/Product">
+    <div class="item-content">
+      ${content}
+    </div>
+  </div>`;
+};
+
+/**
  * Processa um único item no template HTML
  */
 const processItemTemplate = (
@@ -706,8 +720,9 @@ const processItemTemplate = (
     hasEmenda: processed.includes('Emenda')
   });
   
-  // Envolver em container com altura fixa de 1/3 da página (33%)
-  return `<div class="item-container" style="height: calc(297mm / 3) !important; max-height: calc(297mm / 3) !important; min-height: calc(297mm / 3) !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; border-bottom: 1px solid #e5e7eb !important; box-sizing: border-box !important;">${processed}</div>`;
+  // Estruturar item com seções fixas para garantir layout consistente
+  // Cada item tem altura fixa de 33% da página A4
+  return wrapItemInFixedStructure(processed);
 };
 
 // ============================================================================
@@ -913,7 +928,7 @@ const processTemplateHTML = (
       processItemTemplate(html, order, item, imageBase64Map)
     );
     
-    // Agrupar itens em grupos de 3 (EXATAMENTE 3 itens por página)
+    // Agrupar itens em grupos de EXATAMENTE 3 por página
     const pages: string[] = [];
     for (let i = 0; i < itemTemplates.length; i += 3) {
       const item1 = itemTemplates[i] || '';
@@ -923,9 +938,9 @@ const processTemplateHTML = (
       // Determinar se é a última página (para não forçar quebra de página)
       const isLastPage = i + 3 >= itemTemplates.length;
       
-      // Envolver os 3 itens em uma template-page com altura fixa A4
+      // Envolver os 3 itens em uma página A4 com altura fixa
       // Cada item ocupa exatamente 1/3 da altura (33%)
-      pages.push(`<div class="template-page page-group" style="height: 297mm !important; max-height: 297mm !important; min-height: 297mm !important; overflow: hidden !important; ${isLastPage ? '' : 'page-break-after: always !important;'} page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; box-sizing: border-box !important;">${item1}${item2}${item3}</div>`);
+      pages.push(`<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${item1}${item2}${item3}</div></div>`);
     }
     return pages.join('\n');
   }
@@ -962,73 +977,199 @@ const processTemplateHTML = (
 
 /**
  * Gera CSS básico para templates HTML
- * Para resumo: 3 itens por página, cada um ocupando exatamente 1/3 (33%)
+ * Para resumo: 3 itens por página A4, cada um ocupando exatamente 1/3 (33%)
+ * Reestruturação completa com seções fixas
  */
 const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
   const isResumo = templateType === 'resumo';
   
   return `
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
       margin: 0;
       padding: 0;
-      font-size: 10px; /* Tamanho mínimo de fonte (nunca reduzir abaixo de 10px) */
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1a1a1a;
+      background: white;
     }
     
-    /* Regras para template resumo - 3 itens por página */
     ${isResumo ? `
-    .template-page.page-group {
-      width: 210mm !important;
-      height: 297mm !important; /* Altura fixa A4 */
-      max-height: 297mm !important;
-      min-height: 297mm !important;
-      overflow: hidden !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      box-sizing: border-box !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
+    /* ============================================================
+       ESTRUTURA BASE: PÁGINA A4 COM EXATAMENTE 3 ITENS
+       ============================================================ */
+    .print-page {
+      width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      max-height: 297mm;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
     }
     
-    .item-container {
-      width: 100% !important;
-      height: calc(297mm / 3) !important; /* Exatamente 1/3 da página (33%) */
-      max-height: calc(297mm / 3) !important;
-      min-height: calc(297mm / 3) !important;
-      overflow: hidden !important;
-      flex-shrink: 0 !important;
-      flex-grow: 0 !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-      display: flex !important;
-      flex-direction: column !important;
-      border-bottom: 1px solid #e5e7eb !important; /* Separador visual */
-      box-sizing: border-box !important;
-      padding: 2mm !important; /* Padding mínimo para reduzir espaçamentos */
+    .items-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 0;
+      margin: 0;
     }
     
-    .item-container:last-child {
-      border-bottom: none !important; /* Último item não precisa de separador */
+    /* ============================================================
+       ITEM: ALTURA FIXA DE 33% DA PÁGINA A4
+       ============================================================ */
+    .item {
+      width: 100%;
+      height: calc(297mm / 3);
+      min-height: calc(297mm / 3);
+      max-height: calc(297mm / 3);
+      overflow: hidden;
+      flex-shrink: 0;
+      flex-grow: 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      orphans: 999;
+      widows: 999;
+      border-bottom: 1px solid #d1d5db;
+      padding: 3mm;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      position: relative;
     }
     
-    /* Reduzir espaçamentos mantendo legibilidade */
-    .item-container * {
-      margin-top: 0.5mm !important;
-      margin-bottom: 0.5mm !important;
-      line-height: 1.2 !important;
-      font-size: min(10px, 1em) !important; /* Nunca menor que 10px */
+    .item:last-child {
+      border-bottom: none;
     }
     
-    .item-container h1,
-    .item-container h2,
-    .item-container h3,
-    .item-container h4 {
-      margin-top: 1mm !important;
-      margin-bottom: 1mm !important;
-      font-size: min(12px, 1.2em) !important;
+    /* ============================================================
+       CONTEÚDO DO ITEM: FLEX COLUMN COM SEÇÕES
+       ============================================================ */
+    .item-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+      overflow: hidden;
+      word-wrap: break-word;
+      word-break: break-word;
+      hyphens: auto;
+    }
+    
+    /* ============================================================
+       CORREÇÃO DE QUEBRAS DE PALAVRAS
+       ============================================================ */
+    .item-content,
+    .item-content * {
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -moz-hyphens: auto;
+      -ms-hyphens: auto;
+    }
+    
+    /* Prevenir quebra em palavras importantes */
+    .item-content strong,
+    .item-content b,
+    .item-content .numero,
+    .item-content .cliente {
+      word-break: keep-all;
+      white-space: nowrap;
+    }
+    
+    /* ============================================================
+       MARGENS E ESPAÇAMENTOS REDUZIDOS
+       ============================================================ */
+    .item-content > * {
+      margin-top: 0.5mm;
+      margin-bottom: 0.5mm;
+      line-height: 1.3;
+    }
+    
+    .item-content > *:first-child {
+      margin-top: 0;
+    }
+    
+    .item-content > *:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* ============================================================
+       FONTE: NUNCA MENOR QUE 10px
+       ============================================================ */
+    .item-content,
+    .item-content * {
+      font-size: max(10px, 1em);
+    }
+    
+    .item-content h1,
+    .item-content h2,
+    .item-content h3,
+    .item-content h4,
+    .item-content h5,
+    .item-content h6 {
+      font-size: max(11px, 1.1em);
+      font-weight: 600;
+      margin-top: 1mm;
+      margin-bottom: 0.5mm;
+    }
+    
+    .item-content p,
+    .item-content div,
+    .item-content span {
+      font-size: max(10px, 1em);
+    }
+    
+    .item-content small {
+      font-size: max(9px, 0.9em);
+    }
+    
+    /* ============================================================
+       IMAGENS: AJUSTE AUTOMÁTICO
+       ============================================================ */
+    .item-content img {
+      max-width: 100%;
+      max-height: 50mm;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    
+    /* ============================================================
+       ALINHAMENTO CONSISTENTE
+       ============================================================ */
+    .item-content {
+      text-align: left;
+      vertical-align: top;
+    }
+    
+    .item-content table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: max(10px, 1em);
+    }
+    
+    .item-content td,
+    .item-content th {
+      padding: 0.5mm 1mm;
+      text-align: left;
+      vertical-align: top;
     }
     ` : `
     .template-page {
@@ -1041,56 +1182,88 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     `}
     
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        color-adjust: exact !important;
       }
       
       body {
-        font-size: 10px !important; /* Tamanho mínimo garantido */
+        font-size: 10px !important;
+        margin: 0;
+        padding: 0;
       }
       
       ${isResumo ? `
-        /* Regras de impressão para template resumo */
-        @page {
-          size: A4 portrait;
-          margin: 0 !important;
-        }
-        
-        .template-page.page-group {
-          height: 100vh !important; /* Altura fixa da viewport */
-          max-height: 100vh !important;
-          min-height: 100vh !important;
-          page-break-after: always !important; /* Quebra após cada grupo de 3 */
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        
-        .template-page.page-group:last-child {
-          page-break-after: auto !important; /* Última página não quebra */
-        }
-        
-        .item-container {
-          height: calc(100vh / 3) !important; /* Exatamente 1/3 da altura */
-          max-height: calc(100vh / 3) !important;
-          min-height: calc(100vh / 3) !important;
-          page-break-inside: avoid !important; /* NUNCA quebrar dentro de um item */
-          break-inside: avoid !important;
-          orphans: 999 !important; /* Evitar órfãos */
-          widows: 999 !important; /* Evitar viúvas */
-        }
-        
-        /* Garantir que fontes nunca fiquem menores que 10px */
-        .item-container * {
-          font-size: max(10px, 1em) !important;
-        }
+      /* ============================================================
+         IMPRESSÃO: PÁGINA A4 COM 3 ITENS FIXOS
+         ============================================================ */
+      .print-page {
+        width: 210mm !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
+      }
+      
+      .print-page[data-page-break="always"] {
+        page-break-after: always !important;
+      }
+      
+      .print-page:last-child {
+        page-break-after: auto !important;
+      }
+      
+      /* ============================================================
+         IMPRESSÃO: ITEM COM ALTURA FIXA DE 33%
+         ============================================================ */
+      .item {
+        width: 100% !important;
+        height: calc(100vh / 3) !important;
+        min-height: calc(100vh / 3) !important;
+        max-height: calc(100vh / 3) !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
+        orphans: 999 !important;
+        widows: 999 !important;
+      }
+      
+      /* Garantir que texto nunca invada outro item */
+      .item-content {
+        overflow: hidden !important;
+        max-height: 100% !important;
+      }
+      
+      /* Fonte mínima garantida em impressão */
+      .item-content,
+      .item-content * {
+        font-size: max(10px, 1em) !important;
+      }
+      
+      /* Quebra de palavras em impressão */
+      .item-content,
+      .item-content * {
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+      }
       ` : `
-        .template-page {
-          page-break-after: always !important;
-        }
-        .template-page:last-child {
-          page-break-after: auto !important;
-        }
+      .template-page {
+        page-break-after: always !important;
+      }
+      .template-page:last-child {
+        page-break-after: auto !important;
+      }
       `}
     }
   `;
