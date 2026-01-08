@@ -657,9 +657,9 @@ async function processarESalvarPDF(
 ): Promise<void> {
   try {
     console.log('[pdfGenerator] 📥 Importando APIs do Tauri...');
-    // Importar APIs do Tauri apenas quando necessário
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
+        // Importar APIs do Tauri apenas quando necessário
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
 
     console.log('[pdfGenerator] 💾 Abrindo diálogo de salvar...');
     // Abrir diálogo para escolher onde salvar
@@ -691,9 +691,9 @@ async function processarESalvarPDF(
       uint8Array = new Uint8Array(buffer);
     }
 
-    console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
-    // Salvar arquivo
-    await writeBinaryFile(filePath, uint8Array);
+        console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
+        // Salvar arquivo
+        await writeFile(filePath, uint8Array);
 
     console.log('[pdfGenerator] ✅ PDF salvo com sucesso:', filePath);
 
@@ -998,8 +998,8 @@ export async function printPdf(
       temPrint: typeof pdfDocGenerator.print === 'function'
     });
 
-    // 2. Obter buffer do PDF
-    console.log('[printPdf] 📦 Tentando obter buffer do PDF...');
+    // 2. Obter buffer do PDF usando getBlob (mais confiável no Tauri)
+    console.log('[printPdf] 📦 Tentando obter blob do PDF usando getBlob()...');
     const buffer = await new Promise<Uint8Array>((resolve, reject) => {
       let resolved = false;
       
@@ -1007,73 +1007,55 @@ export async function printPdf(
       const timeout = setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          reject(new Error('Timeout ao obter buffer do PDF (30s)'));
+          console.error('[printPdf] ❌ TIMEOUT: getBlob não retornou em 30 segundos');
+          reject(new Error('Timeout ao obter blob do PDF (30s) - O pdfmake pode estar travando'));
         }
       }, 30000);
 
-      // Tentar getBuffer primeiro (mais eficiente)
-      if (typeof pdfDocGenerator.getBuffer === 'function') {
-        console.log('[printPdf] 📦 Usando getBuffer()...');
-        try {
-          pdfDocGenerator.getBuffer((buffer: Buffer | ArrayBuffer | Uint8Array) => {
-            if (resolved) return;
-            resolved = true;
-            clearTimeout(timeout);
-            
-            console.log('[printPdf] 📦 Buffer recebido, tamanho:', buffer ? (buffer as any).length || buffer.byteLength || 'desconhecido' : 'null');
-            
-            try {
-              const uint8Array = buffer instanceof Uint8Array 
-                ? buffer 
-                : new Uint8Array(buffer);
-              console.log('[printPdf] ✅ Buffer convertido para Uint8Array, tamanho:', uint8Array.length);
+      // Usar getBlob diretamente (mais confiável que getBuffer no Tauri)
+      console.log('[printPdf] 📦 Chamando getBlob()...');
+      try {
+        pdfDocGenerator.getBlob((blob: Blob | null) => {
+          if (resolved) {
+            console.log('[printPdf] ⚠️ Callback já foi resolvido, ignorando...');
+            return;
+          }
+          
+          resolved = true;
+          clearTimeout(timeout);
+          
+          console.log('[printPdf] 📦 Blob recebido:', {
+            existe: !!blob,
+            tamanho: blob?.size || 0,
+            tipo: blob?.type || 'desconhecido'
+          });
+          
+          if (!blob) {
+            console.error('[printPdf] ❌ Blob é null ou undefined');
+            reject(new Error('Falha ao gerar blob do PDF - blob é null'));
+            return;
+          }
+          
+          console.log('[printPdf] 🔄 Convertendo blob para ArrayBuffer...');
+          blob.arrayBuffer()
+            .then((arrayBuffer) => {
+              const uint8Array = new Uint8Array(arrayBuffer);
+              console.log('[printPdf] ✅ Blob convertido para Uint8Array, tamanho:', uint8Array.length, 'bytes');
               resolve(uint8Array);
-            } catch (error) {
-              console.error('[printPdf] ❌ Erro ao converter buffer:', error);
-              reject(new Error(`Erro ao converter buffer: ${error}`));
-            }
-          });
-        } catch (error) {
-          if (resolved) return;
-          resolved = true;
-          clearTimeout(timeout);
-          console.error('[printPdf] ❌ Erro ao chamar getBuffer:', error);
-          reject(error);
-        }
-      } else {
-        // Fallback: usar getBlob
-        console.log('[printPdf] 📦 getBuffer não disponível, usando getBlob()...');
-        try {
-          pdfDocGenerator.getBlob((blob: Blob) => {
-            if (resolved) return;
-            resolved = true;
-            clearTimeout(timeout);
-            
-            console.log('[printPdf] 📦 Blob recebido, tamanho:', blob?.size || 'desconhecido');
-            
-            if (!blob) {
-              reject(new Error('Falha ao gerar blob do PDF'));
-              return;
-            }
-            
-            blob.arrayBuffer()
-              .then(arrayBuffer => {
-                const uint8Array = new Uint8Array(arrayBuffer);
-                console.log('[printPdf] ✅ Blob convertido para Uint8Array, tamanho:', uint8Array.length);
-                resolve(uint8Array);
-              })
-              .catch(error => {
-                console.error('[printPdf] ❌ Erro ao converter blob:', error);
-                reject(error);
-              });
-          });
-        } catch (error) {
-          if (resolved) return;
-          resolved = true;
-          clearTimeout(timeout);
-          console.error('[printPdf] ❌ Erro ao chamar getBlob:', error);
-          reject(error);
-        }
+            })
+            .catch((error) => {
+              console.error('[printPdf] ❌ Erro ao converter blob para ArrayBuffer:', error);
+              reject(new Error(`Erro ao converter blob: ${error}`));
+            });
+        });
+        
+        console.log('[printPdf] ✅ getBlob() chamado, aguardando callback...');
+      } catch (error) {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+        console.error('[printPdf] ❌ Erro ao chamar getBlob:', error);
+        reject(new Error(`Erro ao chamar getBlob: ${error}`));
       }
     });
 
@@ -1099,8 +1081,8 @@ export async function printPdf(
 
     // 5. Salvar arquivo no disco
     console.log('[printPdf] 💾 Salvando arquivo em:', filePath);
-    const { writeBinaryFile } = await import('@tauri-apps/plugin-fs');
-    await writeBinaryFile(filePath, buffer);
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    await writeFile(filePath, buffer);
     
     console.log('[printPdf] ✅ PDF salvo com sucesso:', filePath);
 
