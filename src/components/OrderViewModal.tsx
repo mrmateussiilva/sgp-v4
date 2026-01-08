@@ -1147,7 +1147,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               {legendaImagem && (
                 <p
                   className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
-                  style={{ fontSize: '32pt', lineHeight: 1.2 }}
+                  style={{ fontSize: '14pt', lineHeight: 1.2 }}
                 >
                   {legendaImagem}
                 </p>
@@ -1372,7 +1372,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 {selectedImageCaption && !imageError && selectedImage && (
                   <p
                     className="max-w-3xl text-center text-slate-600"
-                    style={{ fontSize: '16pt', lineHeight: 1.2 }}
+                    style={{ fontSize: '14pt', lineHeight: 1.2 }}
                   >
                     {selectedImageCaption}
                   </p>
