@@ -344,35 +344,8 @@ export const printMultipleOrdersServiceForm = async (
       }
       
       ${templateType === 'resumo' ? `
-      .resumo-page {
-        width: 100% !important;
-        display: flex !important;
-        flex-direction: column !important;
-        page-break-after: always !important;
-        page-break-inside: avoid !important;
-      }
-      /* Faixa horizontal única - altura fixa, nunca cresce */
-      .resumo-page .template-page {
-        flex: 0 0 auto !important;
-        height: ${templateHeight}mm !important;
-        max-height: ${templateHeight}mm !important;
-        min-height: ${templateHeight}mm !important;
-        width: 100% !important;
-        page-break-after: auto !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        margin-bottom: 2mm !important;
-        overflow: hidden !important;
-      }
-      .resumo-page .template-page:last-child {
-        margin-bottom: 0 !important;
-        border-bottom: none !important;
-      }
-      /* Campos nunca crescem verticalmente */
-      .resumo-page .template-page .template-field {
-        overflow: hidden !important;
-        max-height: 100% !important;
-      }
+      /* Regras de impressão para 3 itens por página - já definidas acima em @media print dentro do bloco ${templateType === 'resumo'} */
+      /* Não duplicar regras aqui - usar apenas .resumo-page.page-group já definido acima */
       ` : `
       .template-page {
         page-break-after: always;
