@@ -508,35 +508,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
-    if (hasUnsavedChanges()) {
-      const confirmed = window.confirm(
-        'Você tem alterações não salvas. Deseja realmente sair? As alterações serão perdidas.'
-      );
-      if (confirmed) {
-        navigate(path);
-      }
-    } else {
-      navigate(path);
-    }
+    // Desativado a pedido do usuário: não exibir popup de confirmação de saída
+    navigate(path);
   };
   
   // Prevenir fechamento da janela/aba se houver mudanças não salvas
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Verificar mudanças diretamente aqui para evitar problemas de dependências
-      const hasItemChanges = Object.values(itemHasUnsavedChanges).some(changed => changed);
-      const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
-      const tabsChanged = JSON.stringify(tabsData) !== JSON.stringify(initialTabsData);
-      
-      if (hasItemChanges || formChanged || tabsChanged) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [formData, tabsData, itemHasUnsavedChanges, initialFormData, initialTabsData]);
+  // useEffect(() => {
+  //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  //     const hasItemChanges = Object.values(itemHasUnsavedChanges).some(changed => changed);
+  //     const formChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  //     const tabsChanged = JSON.stringify(tabsData) !== JSON.stringify(initialTabsData);
+  //
+  //     if (hasItemChanges || formChanged || tabsChanged) {
+  //       e.preventDefault();
+  //       e.returnValue = '';
+  //     }
+  //   };
+  //
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
+  //   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  // }, [formData, tabsData, itemHasUnsavedChanges, initialFormData, initialTabsData]);
 
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
