@@ -238,8 +238,8 @@ export const printMultipleOrdersServiceForm = async (
       background: white;
     }
     @page {
-      size: ${templateType === 'resumo' ? 'A4 landscape' : 'A4 portrait'};
-      margin: 10mm;
+      size: ${templateType === 'resumo' ? 'A4 portrait' : 'A4 portrait'};
+      margin: ${templateType === 'resumo' ? '0' : '10mm'};
     }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
@@ -249,68 +249,8 @@ export const printMultipleOrdersServiceForm = async (
       color: #1a1a1a;
     }
     ${templateType === 'resumo' ? `
-    .resumo-page.page-group {
-      width: 210mm !important;
-      height: 297mm !important; /* Altura fixa A4 */
-      max-height: 297mm !important;
-      min-height: 297mm !important;
-      overflow: hidden !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      box-sizing: border-box !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
-    /* Cada template-page/item-container é um item que ocupa exatamente 1/3 da página */
-    .resumo-page.page-group .template-page,
-    .resumo-page.page-group .item-container {
-      flex: 0 0 auto !important;
-      height: calc(297mm / 3) !important; /* Exatamente 1/3 (33%) */
-      max-height: calc(297mm / 3) !important;
-      min-height: calc(297mm / 3) !important;
-      width: 100% !important;
-      page-break-after: auto !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-      overflow: hidden !important;
-      position: relative !important;
-      box-sizing: border-box !important;
-      border-bottom: 1px solid #e5e7eb !important; /* Separador visual */
-      padding: 2mm !important;
-    }
-    .resumo-page.page-group .template-page:last-child,
-    .resumo-page.page-group .item-container:last-child {
-      border-bottom: none !important;
-    }
-    @media print {
-      .resumo-page.page-group {
-        height: 100vh !important;
-        max-height: 100vh !important;
-        min-height: 100vh !important;
-      }
-      .resumo-page.page-group .template-page,
-      .resumo-page.page-group .item-container {
-        height: calc(100vh / 3) !important; /* Exatamente 1/3 da viewport */
-        max-height: calc(100vh / 3) !important;
-        min-height: calc(100vh / 3) !important;
-        orphans: 999 !important;
-        widows: 999 !important;
-      }
-    }
-    .resumo-page .template-page:last-child {
-      margin-bottom: 0;
-      border-bottom: none;
-    }
-    /* Campos dentro da faixa não podem crescer verticalmente */
-    .resumo-page .template-page .template-field {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      word-wrap: break-word;
-      max-height: 100%;
-    }
+    /* CSS de impressão para 3 itens por página está no generateBasicTemplateCSS */
+    /* Manter apenas regras específicas adicionais se necessário */
     ` : ''}
     @media print {
       * {
