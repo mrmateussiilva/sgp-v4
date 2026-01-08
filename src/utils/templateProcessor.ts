@@ -6,6 +6,71 @@ import { logger } from './logger';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 
 // ============================================================================
+// FUNÇÕES DE AGRUPAMENTO DE ITENS POR PÁGINA
+// ============================================================================
+
+/**
+ * Agrupa itens em arrays de tamanho fixo para paginação
+ * @param itens - Array de itens a serem agrupados
+ * @param itensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @returns Array de arrays, onde cada sub-array representa uma página
+ * 
+ * @example
+ * // Input: 7 itens
+ * const itens = [item1, item2, item3, item4, item5, item6, item7];
+ * // Output: 3 páginas
+ * const paginas = [
+ *   [item1, item2, item3],  // Página 1
+ *   [item4, item5, item6],  // Página 2
+ *   [item7]                 // Página 3 (última página pode ter menos de 3)
+ * ];
+ */
+export function agruparItensPorPagina<T>(itens: T[], itensPorPagina: number = 3): T[][] {
+  if (!itens || itens.length === 0) {
+    return [];
+  }
+  
+  const paginas: T[][] = [];
+  for (let i = 0; i < itens.length; i += itensPorPagina) {
+    paginas.push(itens.slice(i, i + itensPorPagina));
+  }
+  
+  return paginas;
+}
+
+/**
+ * Valida se as páginas estão corretamente agrupadas
+ * @param paginas - Array de páginas a validar
+ * @param maxItensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @returns true se todas as páginas são válidas
+ * 
+ * Regras de validação:
+ * - Cada página deve ter no máximo maxItensPorPagina itens
+ * - Nenhuma página pode estar vazia
+ * - Última página pode ter menos de maxItensPorPagina itens
+ */
+export function validarPaginas<T>(paginas: T[][], maxItensPorPagina: number = 3): boolean {
+  if (!paginas || paginas.length === 0) {
+    return true; // Array vazio é válido (0 itens = 0 páginas)
+  }
+  
+  return paginas.every(pagina => 
+    pagina.length > 0 && pagina.length <= maxItensPorPagina
+  );
+}
+
+/**
+ * Calcula o número de páginas necessárias para uma quantidade de itens
+ * @param totalItens - Total de itens
+ * @param itensPorPagina - Itens por página (padrão: 3)
+ * @returns Número de páginas necessárias
+ */
+export function calcularNumeroPaginas(totalItens: number, itensPorPagina: number = 3): number {
+  if (totalItens <= 0) return 0;
+  return Math.ceil(totalItens / itensPorPagina);
+}
+
+// ============================================================================
 // STORAGE - Leitura e Escrita de Templates
 // ============================================================================
 
@@ -954,25 +1019,42 @@ const processTemplateHTML = (
   
   // Múltiplos itens - processar cada um separadamente
   if (items && items.length > 1) {
-    logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos`);
+    const ITENS_POR_PAGINA = 3;
+    logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos (${ITENS_POR_PAGINA} por página)`);
+    
+    // Processar cada item individualmente
     const itemTemplates = items.map(item => 
       processItemTemplate(html, order, item, imageBase64Map)
     );
     
-    // Agrupar itens em grupos de EXATAMENTE 3 por página
-    const pages: string[] = [];
-    for (let i = 0; i < itemTemplates.length; i += 3) {
-      const item1 = itemTemplates[i] || '';
-      const item2 = itemTemplates[i + 1] || '';
-      const item3 = itemTemplates[i + 2] || '';
-      
-      // Determinar se é a última página (para não forçar quebra de página)
-      const isLastPage = i + 3 >= itemTemplates.length;
-      
-      // Envolver os 3 itens em uma página A4 com altura fixa
-      // Cada item ocupa exatamente 1/3 da altura (33%)
-      pages.push(`<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${item1}${item2}${item3}</div></div>`);
+    // Agrupar itens em páginas usando a função de agrupamento
+    const paginas = agruparItensPorPagina(itemTemplates, ITENS_POR_PAGINA);
+    
+    // Validar agrupamento
+    if (!validarPaginas(paginas, ITENS_POR_PAGINA)) {
+      logger.warn(`[processTemplateHTML] ⚠️ Agrupamento de páginas inválido`, {
+        paginasCount: paginas.length,
+        itensPorPagina: paginas.map(p => p.length)
+      });
     }
+    
+    logger.debug(`[processTemplateHTML] 📄 Itens agrupados em ${paginas.length} página(s):`, {
+      totalItens: items.length,
+      itensPorPagina: ITENS_POR_PAGINA,
+      paginasGeradas: paginas.length,
+      distribuicao: paginas.map((p, i) => `Página ${i + 1}: ${p.length} item(s)`)
+    });
+    
+    // Gerar HTML das páginas
+    const pages: string[] = paginas.map((paginaItens, index) => {
+      const isLastPage = index === paginas.length - 1;
+      const itensHtml = paginaItens.join('');
+      
+      // Envolver os itens em uma página A4 com altura fixa
+      // Cada item ocupa exatamente 1/3 da altura (33%)
+      return `<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${itensHtml}</div></div>`;
+    });
+    
     return pages.join('\n');
   }
   
