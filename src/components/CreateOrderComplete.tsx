@@ -374,6 +374,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   function populateFormFromOrder(order: OrderWithItems) {
     try {
+      const rawFormaEnvio = (order.forma_envio ?? '').trim();
+      const isPortador = /^portador\b/i.test(rawFormaEnvio);
+      const portadorNome =
+        isPortador
+          ? rawFormaEnvio
+              .replace(/^portador\b/i, '')
+              .replace(/^(\s*[-:]\s*)/, '')
+              .trim()
+          : '';
+      const formaEnvioBase = isPortador ? 'Portador' : (order.forma_envio ?? '');
+
       const orderStatus = order.status ?? OrderStatus.Pendente;
       const isConcluido = orderStatus === OrderStatus.Concluido;
       
@@ -392,7 +403,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         prioridade: order.prioridade ?? 'NORMAL',
         status: isConcluido ? OrderStatus.EmProcessamento : orderStatus, // Permite edição mudando para EmProcessamento
         observacao: order.observacao ?? '',
-        forma_envio: order.forma_envio ?? '',
+        forma_envio: formaEnvioBase,
+        portador_nome: portadorNome,
         tipo_pagamento: order.forma_pagamento_id
           ? order.forma_pagamento_id.toString()
           : '',
@@ -453,6 +465,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     status: OrderStatus.Pendente,
     observacao: '',
     forma_envio: '',
+    portador_nome: '',
     tipo_pagamento: '',
     desconto_tipo: '',
     valor_frete: '0,00',
@@ -1059,6 +1072,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     if (!formData.forma_envio || formData.forma_envio.trim().length === 0) {
       errors.forma_envio = 'Forma de envio é obrigatória';
     }
+    // Se for Portador, exigir nome
+    if (formData.forma_envio === 'Portador' && (!formData.portador_nome || formData.portador_nome.trim().length === 0)) {
+      errors.portador_nome = 'Nome do portador é obrigatório';
+    }
 
     // Validar valor do frete (deve ser um número válido)
     const valorFrete = parseLocaleNumber(formData.valor_frete);
@@ -1148,6 +1165,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       case 'forma_envio':
         if (!value || value.trim().length === 0) {
           error = 'Forma de envio é obrigatória';
+        }
+        break;
+      case 'portador_nome':
+        if (formData.forma_envio === 'Portador' && (!value || value.trim().length === 0)) {
+          error = 'Nome do portador é obrigatório';
         }
         break;
       case 'valor_frete':
@@ -1679,6 +1701,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     setIsSaving(true);
 
     try {
+      const finalFormaEnvio =
+        formData.forma_envio === 'Portador'
+          ? `Portador${formData.portador_nome?.trim() ? ` - ${formData.portador_nome.trim()}` : ''}`
+          : formData.forma_envio;
       const normalizedItems: NormalizedItem[] = tabs
         .filter((tabId) => {
           const item = tabsData[tabId];
@@ -1992,7 +2018,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           estado_cliente: formData.estado_cliente,
           data_entrega: dataEntregaFormatted || undefined,
           prioridade: formData.prioridade,
-          forma_envio: formData.forma_envio,
+          forma_envio: finalFormaEnvio,
           forma_pagamento_id: formData.tipo_pagamento ? Number.parseInt(formData.tipo_pagamento, 10) : undefined,
           observacao: formData.observacao,
         };
@@ -2042,7 +2068,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         );
         assignMetadataIfDiff(
           'forma_envio',
-          formData.forma_envio || '',
+          finalFormaEnvio || '',
           updatedOrder.forma_envio ?? '',
         );
         assignMetadataIfDiff(
@@ -2139,7 +2165,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         items: createItems,
         data_entrada: formData.data_entrada,
         ...(dataEntregaFormatted && { data_entrega: dataEntregaFormatted }),
-        ...(formData.forma_envio && { forma_envio: formData.forma_envio }),
+        ...(finalFormaEnvio && { forma_envio: finalFormaEnvio }),
         ...(formData.tipo_pagamento && {
           forma_pagamento_id: Number.parseInt(formData.tipo_pagamento, 10),
         }),
@@ -2177,6 +2203,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         status: OrderStatus.Pendente,
         observacao: '',
         forma_envio: '',
+        portador_nome: '',
         tipo_pagamento: '',
         desconto_tipo: '',
         valor_frete: '0,00',
@@ -2833,6 +2860,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 value={formData.forma_envio}
                 onValueChange={(value) => {
                   handleChange('forma_envio', value);
+                  if (value !== 'Portador') {
+                    handleChange('portador_nome', '');
+                    setErrors((prev) => ({ ...prev, portador_nome: '' }));
+                  }
                   const forma = formasEnvio.find(f => f.nome === value);
                   if (forma) {
                     handleChange('valor_frete', parseFloat(forma.valor).toFixed(2).replace('.', ','));
@@ -2854,6 +2885,21 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 <p className="text-red-500 text-sm">{errors.forma_envio}</p>
               )}
             </div>
+
+            {formData.forma_envio === 'Portador' && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Nome do Portador *</Label>
+                <Input
+                  value={formData.portador_nome}
+                  onChange={(e) => handleChange('portador_nome', e.target.value)}
+                  placeholder="Ex.: João"
+                  className={`bg-white h-12 text-base ${errors.portador_nome ? 'border-red-500 focus:border-red-500' : ''}`}
+                />
+                {errors.portador_nome && (
+                  <p className="text-red-500 text-sm">{errors.portador_nome}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-base font-medium">Forma de Pagamento</Label>

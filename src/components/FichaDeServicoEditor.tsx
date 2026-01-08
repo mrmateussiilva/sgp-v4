@@ -13,12 +13,31 @@ import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 import { useToast } from '@/hooks/use-toast';
 
+type FormaEnvioOption = { id: number; nome: string; valor?: string | number };
+
 interface FichaDeServicoEditorProps {
   orderId: number;
   isOpen: boolean;
   onClose: () => void;
   onSave: (editedFicha: OrderFicha) => void;
 }
+
+const parseFormaEnvioPortador = (raw: string | null | undefined): { base: string; portadorNome: string } => {
+  const value = (raw ?? '').trim();
+  const isPortador = /^portador\b/i.test(value);
+  if (!isPortador) return { base: value, portadorNome: '' };
+  const portadorNome = value
+    .replace(/^portador\b/i, '')
+    .replace(/^(\s*[-:]\s*)/, '')
+    .trim();
+  return { base: 'Portador', portadorNome };
+};
+
+const buildFormaEnvioPortador = (base: string, portadorNome: string): string => {
+  if (base !== 'Portador') return base;
+  const nome = portadorNome.trim();
+  return `Portador${nome ? ` - ${nome}` : ''}`;
+};
 
 const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
   orderId,
@@ -31,11 +50,15 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
   const [saving, setSaving] = useState(false);
   const [fichaData, setFichaData] = useState<OrderFicha | null>(null);
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
+  const [formasEnvio, setFormasEnvio] = useState<FormaEnvioOption[]>([]);
+  const [formaEnvioBase, setFormaEnvioBase] = useState<string>('');
+  const [portadorNome, setPortadorNome] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && orderId) {
       loadFichaData();
       loadFormasPagamento();
+      loadFormasEnvio();
     }
   }, [isOpen, orderId]);
 
@@ -44,6 +67,9 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
       setLoading(true);
       const data = await api.getOrderFicha(orderId);
       setFichaData(data);
+      const parsed = parseFormaEnvioPortador(data.forma_envio);
+      setFormaEnvioBase(parsed.base);
+      setPortadorNome(parsed.portadorNome);
     } catch (error) {
       console.error('Erro ao carregar dados da ficha:', error);
       toast({
@@ -62,6 +88,24 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
       setFormasPagamento(formas);
     } catch (error) {
       console.error('Erro ao carregar formas de pagamento:', error);
+    }
+  };
+
+  const loadFormasEnvio = async () => {
+    try {
+      const formas = await api.getFormasEnvioAtivas();
+      const list: FormaEnvioOption[] = Array.isArray(formas) ? formas : [];
+      // Garantir que Portador exista como opção selecionável
+      const hasPortador = list.some((f) => String(f.nome).toLowerCase() === 'portador');
+      setFormasEnvio(
+        hasPortador
+          ? list
+          : [{ id: -1, nome: 'Portador', valor: 0 }, ...list]
+      );
+    } catch (error) {
+      console.error('Erro ao carregar formas de envio:', error);
+      // Mesmo se falhar, ainda permitir Portador
+      setFormasEnvio([{ id: -1, nome: 'Portador', valor: 0 }]);
     }
   };
 
@@ -103,7 +147,21 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
     if (!fichaData) return;
     setSaving(true);
     try {
-      onSave(fichaData);
+      if (formaEnvioBase === 'Portador' && !portadorNome.trim()) {
+        toast({
+          title: 'Atenção',
+          description: 'Informe o nome do portador para salvar.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      // Garantir persistência no formato "Portador - Nome"
+      const finalFormaEnvio = buildFormaEnvioPortador(formaEnvioBase, portadorNome);
+      const fichaToSave: OrderFicha = {
+        ...fichaData,
+        forma_envio: finalFormaEnvio,
+      };
+      onSave(fichaToSave);
       toast({
         title: 'Sucesso',
         description: 'Dados da ficha salvos com sucesso!',
@@ -238,13 +296,50 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="forma_envio">Forma de Envio</Label>
-                    <Input
-                      id="forma_envio"
-                      value={fichaData.forma_envio || ''}
-                      onChange={(e) => updateOrderField('forma_envio', e.target.value)}
-                      placeholder="Forma de envio"
-                    />
+                    <Select
+                      value={formaEnvioBase || ''}
+                      onValueChange={(value) => {
+                        setFormaEnvioBase(value);
+                        if (value !== 'Portador') {
+                          setPortadorNome('');
+                          updateOrderField('forma_envio', value);
+                        } else {
+                          updateOrderField('forma_envio', buildFormaEnvioPortador('Portador', portadorNome));
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="forma_envio">
+                        <SelectValue placeholder="Selecione a forma de envio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Nenhuma</SelectItem>
+                        {formasEnvio.map((forma) => (
+                          <SelectItem key={forma.id} value={forma.nome}>
+                            {forma.nome}
+                            {forma.valor !== undefined &&
+                              forma.valor !== null &&
+                              Number(forma.valor) > 0 &&
+                              ` - R$ ${Number(forma.valor).toFixed(2)}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {formaEnvioBase === 'Portador' && (
+                    <div>
+                      <Label htmlFor="portador_nome">Nome do Portador *</Label>
+                      <Input
+                        id="portador_nome"
+                        value={portadorNome}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPortadorNome(value);
+                          updateOrderField('forma_envio', buildFormaEnvioPortador('Portador', value));
+                        }}
+                        placeholder="Ex.: João"
+                      />
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="forma_pagamento">Forma de Pagamento</Label>
                     <Select
