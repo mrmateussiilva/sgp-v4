@@ -68,7 +68,7 @@ export default function OrderList() {
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState(''); // Termo de busca ativo (após clicar em buscar)
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -82,12 +82,14 @@ export default function OrderList() {
   const [selectedVendedor, setSelectedVendedor] = useState<string>('');
   const [selectedDesigner, setSelectedDesigner] = useState<string>('');
   const [selectedCidade, setSelectedCidade] = useState<string>('');
+  const [selectedFormaEnvio, setSelectedFormaEnvio] = useState<string>('');
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [cidades, setCidades] = useState<string[]>([]);
+  const [formasEnvio, setFormasEnvio] = useState<Array<{ id: number; nome: string; valor: number }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -128,20 +130,22 @@ export default function OrderList() {
   // useOrderAutoSync já gerencia todas as atualizações via WebSocket
   // Não precisamos de uma segunda assinatura que cria conexões duplicadas
 
-  // Carregar dados para filtros (vendedores + designers)
+  // Carregar dados para filtros (vendedores + designers + formas de envio)
   useEffect(() => {
     let isMounted = true;
     const loadFilterData = async () => {
       try {
-        const [vendedoresData, designersData] = await Promise.all([
+        const [vendedoresData, designersData, formasEnvioData] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
+          api.getFormasEnvioAtivas(),
         ]);
         if (!isMounted) {
           return;
         }
         setVendedores(vendedoresData);
         setDesigners(designersData);
+        setFormasEnvio(formasEnvioData);
       } catch (error) {
         if (isMounted) {
           console.error('Erro ao carregar dados para filtros:', error);
@@ -282,19 +286,23 @@ export default function OrderList() {
     try {
       const currentPage = page;
       const currentPageSize = rowsPerPage;
+      // Se houver busca ativa, sempre carregar dataset maior para filtrar localmente
+      const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
       const clientSideFiltersActive =
-        selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade);
+        hasSearch ||
+        selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
 
       if (dateFrom || dateTo) {
         // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
         // precisamos trazer um conjunto maior e filtrar localmente.
         if (clientSideFiltersActive) {
           const bigPageSize = 5000;
+          // Não passar cliente para backend quando há busca - vamos filtrar localmente
           const paginatedData = await api.getOrdersPaginated(
             1,
             bigPageSize,
             undefined, // status
-            debouncedSearchTerm || undefined, // cliente
+            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - só se não houver busca
             dateFrom || undefined, // data_inicio
             dateTo || undefined, // data_fim
           );
@@ -312,7 +320,7 @@ export default function OrderList() {
                 : productionStatusFilter === 'pending'
                   ? OrderStatus.Pendente
                   : OrderStatus.Concluido,
-            cliente: debouncedSearchTerm || undefined,
+            cliente: hasSearch ? undefined : (activeSearchTerm || undefined), // Não passar cliente se há busca - vamos filtrar localmente
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
             page: currentPage + 1,
@@ -328,7 +336,7 @@ export default function OrderList() {
           setTotalOrders(paginatedData.total);
         }
       } else if (productionStatusFilter === 'pending') {
-        if (clientSideFiltersActive) {
+        if (clientSideFiltersActive || hasSearch) {
           const all = await api.getPendingOrdersLight();
           if (loadRequestRef.current !== requestId) {
             return;
@@ -346,7 +354,7 @@ export default function OrderList() {
           setTotalOrders(paginatedData.total);
         }
       } else if (productionStatusFilter === 'ready') {
-        if (clientSideFiltersActive) {
+        if (clientSideFiltersActive || hasSearch) {
           const all = await api.getReadyOrdersLight();
           if (loadRequestRef.current !== requestId) {
             return;
@@ -367,11 +375,12 @@ export default function OrderList() {
         // Usar paginação do backend mesmo para 'all' para evitar carregar todos os pedidos
         if (clientSideFiltersActive) {
           const bigPageSize = 5000;
+          // Não passar cliente para backend quando há busca - vamos filtrar localmente
           const paginatedData = await api.getOrdersPaginated(
             1,
             bigPageSize,
             undefined, // status
-            debouncedSearchTerm || undefined, // cliente
+            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - só se não houver busca
             undefined,
             undefined,
           );
@@ -386,7 +395,7 @@ export default function OrderList() {
             currentPage + 1,
             currentPageSize,
             undefined, // status
-            debouncedSearchTerm || undefined, // cliente
+            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - não passar se há busca
             dateFrom || undefined, // data_inicio
             dateTo || undefined // data_fim
           );
@@ -428,11 +437,12 @@ export default function OrderList() {
     page,
     rowsPerPage,
     productionStatusFilter,
-    debouncedSearchTerm,
+    activeSearchTerm, // Usar activeSearchTerm (busca só após clicar no botão)
     selectedStatuses.length,
     selectedVendedor,
     selectedDesigner,
     selectedCidade,
+    selectedFormaEnvio,
     toast,
     logout,
     navigate,
@@ -476,18 +486,9 @@ export default function OrderList() {
     }
   }, [viewModalOpen, loadOrders]);
 
-  // Debounce na busca para evitar requisições a cada tecla digitada
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 400); // 400ms de delay
-    
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
   useEffect(() => {
     setPage(0);
-  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, debouncedSearchTerm, rowsPerPage]);
+  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, activeSearchTerm, rowsPerPage]);
 
   const handleEdit = (order: OrderWithItems) => {
     // Navegar para a página de edição completa usando a nova rota
@@ -788,13 +789,22 @@ export default function OrderList() {
     return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
+  // Função para executar busca
+  const handleSearch = () => {
+    console.log('[OrderList] handleSearch chamado com termo:', searchTerm);
+    setActiveSearchTerm(searchTerm.trim());
+    setPage(0); // Resetar para primeira página
+  };
+
   // Função para limpar todos os filtros
   const clearAllFilters = () => {
     setSelectedStatuses([]);
     setSelectedVendedor('');
     setSelectedDesigner('');
     setSelectedCidade('');
+    setSelectedFormaEnvio('');
     setSearchTerm('');
+    setActiveSearchTerm('');
     setDateFrom('');
     setDateTo('');
     setProductionStatusFilter('pending');
@@ -869,10 +879,13 @@ export default function OrderList() {
       });
     }
     
-    if (searchTerm) {
+    if (activeSearchTerm) {
       filters.push({
-        label: `Busca: "${searchTerm}"`,
-        onRemove: () => setSearchTerm(''),
+        label: `Busca: "${activeSearchTerm}"`,
+        onRemove: () => {
+          setActiveSearchTerm('');
+          setSearchTerm('');
+        },
       });
     }
     
@@ -912,8 +925,15 @@ export default function OrderList() {
       });
     }
     
+    if (selectedFormaEnvio) {
+      filters.push({
+        label: `Forma de Envio: ${selectedFormaEnvio}`,
+        onRemove: () => setSelectedFormaEnvio(''),
+      });
+    }
+    
     return filters;
-  }, [productionStatusFilter, dateFrom, dateTo, searchTerm, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade]);
+  }, [productionStatusFilter, dateFrom, dateTo, activeSearchTerm, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio]);
 
   // Contar filtros ativos
   const activeFiltersCount = useMemo(() => {
@@ -922,16 +942,18 @@ export default function OrderList() {
     if (selectedVendedor) count++;
     if (selectedDesigner) count++;
     if (selectedCidade) count++;
-    if (searchTerm) count++;
+    if (selectedFormaEnvio) count++;
+    if (activeSearchTerm) count++;
     if (dateFrom || dateTo) count++;
     return count;
-  }, [selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, searchTerm, dateFrom, dateTo]);
+  }, [selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, activeSearchTerm, dateFrom, dateTo]);
 
   // Verificar se estamos usando paginação do backend
   // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
   // carregamos um dataset maior e fazemos paginação local.
   const clientSideFiltersActive =
-    selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade);
+    Boolean(activeSearchTerm) || // Busca só ativa após clicar no botão
+    selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
   const isBackendPaginated =
     !clientSideFiltersActive &&
     (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready' || productionStatusFilter === 'all');
@@ -941,19 +963,42 @@ export default function OrderList() {
     // Aplicar apenas filtros avançados que não estão disponíveis no backend
     let filtered = orders;
 
+    const normalizeText = (value: string) =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    // Aplicar busca apenas quando activeSearchTerm estiver definido (após clicar em buscar)
+    if (activeSearchTerm && activeSearchTerm.trim().length > 0) {
+      const normalizedTerm = normalizeText(activeSearchTerm);
+      const termDigits = normalizedTerm.replace(/\D/g, '');
+      const beforeCount = filtered.length;
+      filtered = filtered.filter((order) => {
+        const clienteName = order.cliente || order.customer_name || '';
+        const normalizedCliente = normalizeText(clienteName);
+        const idStr = String(order.id ?? '');
+        const numeroStr = order.numero ? String(order.numero) : '';
+        const numeroStrNoZeros = numeroStr.replace(/^0+/, '');
+
+        const matches = (
+          (normalizedTerm.length > 0 && normalizedCliente.includes(normalizedTerm)) ||
+          (termDigits.length > 0 &&
+            (idStr.includes(termDigits) ||
+              numeroStr.includes(termDigits) ||
+              numeroStrNoZeros.includes(termDigits)))
+        );
+        return matches;
+      });
+      // Debug: log apenas em desenvolvimento
+      if (import.meta.env.DEV && beforeCount > 0) {
+        console.log(`[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`);
+      }
+    }
+
     // Se não estamos usando paginação do backend, aplicar todos os filtros localmente
     if (!isBackendPaginated) {
-      // Filtro de busca por cliente/ID
-      if (searchTerm) {
-        filtered = filtered.filter((order) => {
-          const clienteName = order.cliente || order.customer_name || '';
-          return (
-            clienteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.id.toString().includes(searchTerm) ||
-            (order.numero && order.numero.toString().includes(searchTerm))
-          );
-        });
-      }
 
       // Filtro por status de produção
       if (productionStatusFilter === 'pending') {
@@ -998,6 +1043,13 @@ export default function OrderList() {
       });
     }
 
+    // Filtro por forma de envio
+    if (selectedFormaEnvio) {
+      filtered = filtered.filter((order) => {
+        return order.forma_envio === selectedFormaEnvio;
+      });
+    }
+
     // Ordenação (sempre aplicada localmente para consistência)
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
@@ -1036,7 +1088,7 @@ export default function OrderList() {
     }
 
     return filtered;
-  }, [orders, searchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, sortColumn, sortDirection, isBackendPaginated]);
+  }, [orders, activeSearchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, sortColumn, sortDirection, isBackendPaginated]);
 
   // Calcular total de páginas baseado nos pedidos filtrados
   const totalPagesFiltered = useMemo(() => {
@@ -1496,15 +1548,31 @@ export default function OrderList() {
                 {/* Linha 1: Busca e Status */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Busca - Prioridade 1 */}
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nome do cliente, ID ou número do pedido"
-                      ref={searchInputRef}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 h-10"
-                    />
+                  <div className="flex-1 flex gap-2 items-center">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                        ref={searchInputRef}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSearch();
+                          }
+                        }}
+                        className="pl-10 h-10"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleSearch}
+                      className="h-10 px-4 whitespace-nowrap"
+                      variant="default"
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      Buscar
+                    </Button>
                   </div>
                   
                   {/* Status - Prioridade 1 */}
@@ -1718,6 +1786,26 @@ export default function OrderList() {
                                 {cidades.filter(c => c && c.trim()).map((cidade) => (
                                   <SelectItem key={cidade} value={cidade}>
                                     {cidade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">Forma de Envio</Label>
+                            <Select 
+                              value={selectedFormaEnvio || "all"} 
+                              onValueChange={(value) => setSelectedFormaEnvio(value === "all" ? "" : value)}
+                            >
+                              <SelectTrigger id="forma-envio-filter" className="h-9">
+                                <SelectValue placeholder="Todas as formas de envio" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Todas</SelectItem>
+                                {formasEnvio.filter(f => f.nome).map((forma) => (
+                                  <SelectItem key={forma.id} value={forma.nome}>
+                                    {forma.nome}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

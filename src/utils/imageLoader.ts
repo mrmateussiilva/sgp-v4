@@ -291,9 +291,13 @@ export function revokeImageUrl(imagePath: string): void {
 /**
  * Converte uma imagem para base64 (útil para impressão)
  * @param imagePath - Caminho da imagem (pode ser relativo ou absoluto)
+ * @param options - Opções de redimensionamento (opcional)
  * @returns Promise com a string base64 da imagem
  */
-export async function imageToBase64(imagePath: string): Promise<string> {
+export async function imageToBase64(
+  imagePath: string,
+  options?: { resize?: boolean; fixedHeight?: number }
+): Promise<string> {
   try {
     // Normalizar caminho para usar chave consistente do cache
     const normalized = normalizeImageUrl(imagePath);
@@ -329,6 +333,19 @@ export async function imageToBase64(imagePath: string): Promise<string> {
       }
     }
     
+    // Se redimensionamento foi solicitado, processar antes de converter para base64
+    if (options?.resize && blob) {
+      try {
+        const blobUrl = URL.createObjectURL(blob);
+        const resizedBase64 = await resizeImageToBase64(blobUrl, options.fixedHeight || 75);
+        URL.revokeObjectURL(blobUrl);
+        return resizedBase64;
+      } catch (resizeError) {
+        console.warn('[imageToBase64] ⚠️ Erro ao redimensionar, usando original:', resizeError);
+        // Continuar com conversão normal se redimensionamento falhar
+      }
+    }
+    
     // Converter blob para base64
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -348,3 +365,67 @@ export async function imageToBase64(imagePath: string): Promise<string> {
   }
 }
 
+/**
+ * Redimensiona uma imagem e converte para base64
+ * Define altura fixa de 75mm e calcula largura proporcionalmente
+ * @param imageSrc - Blob URL ou data URL da imagem
+ * @param fixedHeight - Altura fixa em mm (padrão: 75mm)
+ * @returns Promise com a string base64 da imagem redimensionada
+ */
+async function resizeImageToBase64(
+  imageSrc: string,
+  fixedHeight: number = 75
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    // NÃO definir crossOrigin para blob URLs (causa erro de CORS)
+    
+    img.onload = () => {
+      try {
+        // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
+        const mmToPx = 3.779527559;
+        const fixedHeightPx = fixedHeight * mmToPx;
+        
+        // Calcular largura proporcional baseada na altura fixa
+        const aspectRatio = img.width / img.height;
+        const newWidth = fixedHeightPx * aspectRatio;
+        const newHeight = fixedHeightPx;
+        
+        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}`);
+        
+        // Criar canvas e redimensionar
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(newWidth);
+        canvas.height = Math.round(newHeight);
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Não foi possível criar contexto do canvas'));
+          return;
+        }
+        
+        // Melhorar qualidade da imagem redimensionada
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Desenhar imagem redimensionada
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Converter para data URL (JPEG com qualidade 0.9)
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        console.log(`[resizeImageToBase64] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
+        resolve(resizedDataUrl);
+      } catch (error) {
+        console.error('[resizeImageToBase64] ❌ Erro ao redimensionar:', error);
+        reject(error);
+      }
+    };
+    
+    img.onerror = (error) => {
+      console.error('[resizeImageToBase64] ❌ Erro ao carregar imagem:', error);
+      reject(new Error('Erro ao carregar imagem para redimensionamento'));
+    };
+    
+    img.src = imageSrc;
+  });
+}
