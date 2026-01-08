@@ -476,6 +476,27 @@ const normalizeTipoProducao = (html: string, tipoProducao: string): string => {
 };
 
 /**
+ * Remove variáveis não renderizadas do HTML ({{...}}, #IF, #ELSE, #ENDIF, etc.)
+ */
+const removeUnrenderedVariables = (html: string): string => {
+  let result = html;
+  
+  // Remover blocos condicionais não processados ({{#IF ...}}, {{#ELSE}}, {{#ENDIF}}, {{/IF}})
+  result = result.replace(/\{\{#IF[^}]*\}\}/gi, '');
+  result = result.replace(/\{\{#ELSE\}\}/gi, '');
+  result = result.replace(/\{\{#ENDIF\}\}/gi, '');
+  result = result.replace(/\{\{\/IF\}\}/gi, '');
+  
+  // Remover variáveis não substituídas ({{...}})
+  result = result.replace(/\{\{[^}]+\}\}/g, '');
+  
+  // Remover linhas vazias extras (máximo 2 linhas vazias consecutivas)
+  result = result.replace(/\n\s*\n\s*\n+/g, '\n\n');
+  
+  return result;
+};
+
+/**
  * Adiciona classe CSS "hidden-empty" em campos com "Não" ou vazio para painel/tecido
  */
 const addHiddenEmptyClass = (html: string): string => {
@@ -548,7 +569,7 @@ const processConditionals = (
   // Suporta case-insensitive e espaços variáveis
   const ifRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
   
-  result = result.replace(ifRegex, (match, tipoEsperado, conteudo) => {
+  result = result.replace(ifRegex, (_match, tipoEsperado, conteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
     
     // Verificar se o tipo de produção corresponde
@@ -673,6 +694,9 @@ const processItemTemplate = (
   // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
   
+  // 6. Remover variáveis não renderizadas ({{...}}, #IF, #ELSE, etc.)
+  processed = removeUnrenderedVariables(processed);
+  
   logger.debug(`[processItemTemplate] ✅ Item processado:`, {
     itemId: item.id,
     tipoProducao,
@@ -682,8 +706,8 @@ const processItemTemplate = (
     hasEmenda: processed.includes('Emenda')
   });
   
-  // 5. Envolver em container com altura fixa
-  return `<div class="item-container" style="height: 140mm !important; max-height: 140mm !important; min-height: 140mm !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important;">${processed}</div>`;
+  // Envolver em container com altura fixa de 1/3 da página (33%)
+  return `<div class="item-container" style="height: calc(297mm / 3) !important; max-height: calc(297mm / 3) !important; min-height: calc(297mm / 3) !important; overflow: hidden !important; flex-shrink: 0 !important; flex-grow: 0 !important; page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; border-bottom: 1px solid #e5e7eb !important; box-sizing: border-box !important;">${processed}</div>`;
 };
 
 // ============================================================================
@@ -766,9 +790,10 @@ const renderField = (
 };
 
 /**
- * Gera o CSS para o template
+ * Gera o CSS para o template (função legada, não usada atualmente - mantida para referência)
  */
-    const generateTemplateStyles = (template: FichaTemplate): string => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _generateTemplateStyles = (template: FichaTemplate): string => {
       const isResumo = template.title?.toLowerCase().includes('resumo');
       
       return `
@@ -888,13 +913,19 @@ const processTemplateHTML = (
       processItemTemplate(html, order, item, imageBase64Map)
     );
     
-    // Agrupar itens em pares (2 por página) - FORÇAR exatamente 2 itens por página com estilos inline
+    // Agrupar itens em grupos de 3 (EXATAMENTE 3 itens por página)
     const pages: string[] = [];
-    for (let i = 0; i < itemTemplates.length; i += 2) {
-      const item1 = itemTemplates[i];
+    for (let i = 0; i < itemTemplates.length; i += 3) {
+      const item1 = itemTemplates[i] || '';
       const item2 = itemTemplates[i + 1] || '';
-      // Envolver o par de itens em uma template-page com estilos inline para garantir altura fixa
-      pages.push(`<div class="template-page" style="height: 280mm !important; max-height: 280mm !important; min-height: 280mm !important; overflow: hidden !important; page-break-after: always !important; page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 187mm !important;">${item1}${item2}</div>`);
+      const item3 = itemTemplates[i + 2] || '';
+      
+      // Determinar se é a última página (para não forçar quebra de página)
+      const isLastPage = i + 3 >= itemTemplates.length;
+      
+      // Envolver os 3 itens em uma template-page com altura fixa A4
+      // Cada item ocupa exatamente 1/3 da altura (33%)
+      pages.push(`<div class="template-page page-group" style="height: 297mm !important; max-height: 297mm !important; min-height: 297mm !important; overflow: hidden !important; ${isLastPage ? '' : 'page-break-after: always !important;'} page-break-inside: avoid !important; break-inside: avoid !important; display: flex !important; flex-direction: column !important; gap: 0 !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; box-sizing: border-box !important;">${item1}${item2}${item3}</div>`);
     }
     return pages.join('\n');
   }
@@ -923,11 +954,15 @@ const processTemplateHTML = (
   // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
   
+  // 6. Remover variáveis não renderizadas
+  processed = removeUnrenderedVariables(processed);
+  
   return `<div class="template-page">${processed}</div>`;
 };
 
 /**
  * Gera CSS básico para templates HTML
+ * Para resumo: 3 itens por página, cada um ocupando exatamente 1/3 (33%)
  */
 const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
   const isResumo = templateType === 'resumo';
@@ -937,37 +972,117 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       margin: 0;
       padding: 0;
+      font-size: 10px; /* Tamanho mínimo de fonte (nunca reduzir abaixo de 10px) */
     }
+    
+    /* Regras para template resumo - 3 itens por página */
+    ${isResumo ? `
+    .template-page.page-group {
+      width: 210mm !important;
+      height: 297mm !important; /* Altura fixa A4 */
+      max-height: 297mm !important;
+      min-height: 297mm !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    .item-container {
+      width: 100% !important;
+      height: calc(297mm / 3) !important; /* Exatamente 1/3 da página (33%) */
+      max-height: calc(297mm / 3) !important;
+      min-height: calc(297mm / 3) !important;
+      overflow: hidden !important;
+      flex-shrink: 0 !important;
+      flex-grow: 0 !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      display: flex !important;
+      flex-direction: column !important;
+      border-bottom: 1px solid #e5e7eb !important; /* Separador visual */
+      box-sizing: border-box !important;
+      padding: 2mm !important; /* Padding mínimo para reduzir espaçamentos */
+    }
+    
+    .item-container:last-child {
+      border-bottom: none !important; /* Último item não precisa de separador */
+    }
+    
+    /* Reduzir espaçamentos mantendo legibilidade */
+    .item-container * {
+      margin-top: 0.5mm !important;
+      margin-bottom: 0.5mm !important;
+      line-height: 1.2 !important;
+      font-size: min(10px, 1em) !important; /* Nunca menor que 10px */
+    }
+    
+    .item-container h1,
+    .item-container h2,
+    .item-container h3,
+    .item-container h4 {
+      margin-top: 1mm !important;
+      margin-bottom: 1mm !important;
+      font-size: min(12px, 1.2em) !important;
+    }
+    ` : `
     .template-page {
-      ${isResumo ? `
-        width: 100%;
-        height: auto !important;
-        min-height: 92mm;
-        max-height: none !important;
-        overflow: visible !important;
-        page-break-inside: avoid;
-        break-inside: avoid;
-        margin-bottom: 2mm;
-      ` : `
-        width: 210mm;
-        min-height: 297mm;
-        page-break-after: always;
-        page-break-inside: avoid;
-        break-inside: avoid;
-      `}
+      width: 210mm;
+      min-height: 297mm;
+      page-break-after: always;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
+    `}
+    
     @media print {
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
+      
+      body {
+        font-size: 10px !important; /* Tamanho mínimo garantido */
+      }
+      
       ${isResumo ? `
-        .template-page {
-          page-break-after: auto !important;
+        /* Regras de impressão para template resumo */
+        @page {
+          size: A4 portrait;
+          margin: 0 !important;
+        }
+        
+        .template-page.page-group {
+          height: 100vh !important; /* Altura fixa da viewport */
+          max-height: 100vh !important;
+          min-height: 100vh !important;
+          page-break-after: always !important; /* Quebra após cada grupo de 3 */
           page-break-inside: avoid !important;
-          overflow: visible !important;
-          height: auto !important;
-          max-height: none !important;
+          break-inside: avoid !important;
+        }
+        
+        .template-page.page-group:last-child {
+          page-break-after: auto !important; /* Última página não quebra */
+        }
+        
+        .item-container {
+          height: calc(100vh / 3) !important; /* Exatamente 1/3 da altura */
+          max-height: calc(100vh / 3) !important;
+          min-height: calc(100vh / 3) !important;
+          page-break-inside: avoid !important; /* NUNCA quebrar dentro de um item */
+          break-inside: avoid !important;
+          orphans: 999 !important; /* Evitar órfãos */
+          widows: 999 !important; /* Evitar viúvas */
+        }
+        
+        /* Garantir que fontes nunca fiquem menores que 10px */
+        .item-container * {
+          font-size: max(10px, 1em) !important;
         }
       ` : `
         .template-page {
