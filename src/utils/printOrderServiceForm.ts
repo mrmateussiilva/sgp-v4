@@ -130,6 +130,47 @@ export const printOrderServiceForm = async (
       line-height: 1.15 !important;
       margin-bottom: 0.3mm !important;
     }
+
+    /* ============================================================
+       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
+       - mantém slot de 99mm (altura do .item)
+       - só redistribui espaço interno e garante object-fit
+       - regras são “tolerantes”: só aplicam se as classes existirem no template da API
+       ============================================================ */
+    .item .content-wrapper {
+      gap: 2mm !important;
+    }
+    .item .left-column {
+      width: 44% !important;
+      flex: 0 0 44% !important;
+      max-width: 44% !important;
+    }
+    .item .right-column {
+      width: 56% !important;
+      flex: 1 1 56% !important;
+      max-width: 56% !important;
+    }
+
+    .item .ficha-image-container,
+    .item .image-container,
+    .item .visualizacao,
+    .item .visualizacao-container {
+      padding: 0.6mm !important;
+    }
+
+    /* Garante que a imagem ocupe o máximo possível mantendo proporção */
+    .item .ficha-image,
+    .item .ficha-image-container img,
+    .item .image-container img,
+    .item .visualizacao img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
+    }
     ` : ''}
   `;
 
@@ -358,6 +399,43 @@ export const printMultipleOrdersServiceForm = async (
       font-size: 8.2pt !important;
       line-height: 1.15 !important;
       margin-bottom: 0.3mm !important;
+    }
+
+    /* ============================================================
+       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
+       ============================================================ */
+    .item .content-wrapper {
+      gap: 2mm !important;
+    }
+    .item .left-column {
+      width: 44% !important;
+      flex: 0 0 44% !important;
+      max-width: 44% !important;
+    }
+    .item .right-column {
+      width: 56% !important;
+      flex: 1 1 56% !important;
+      max-width: 56% !important;
+    }
+
+    .item .ficha-image-container,
+    .item .image-container,
+    .item .visualizacao,
+    .item .visualizacao-container {
+      padding: 0.6mm !important;
+    }
+
+    .item .ficha-image,
+    .item .ficha-image-container img,
+    .item .image-container img,
+    .item .visualizacao img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      display: block !important;
     }
     ` : ''}
   `;
