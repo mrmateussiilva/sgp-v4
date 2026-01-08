@@ -54,7 +54,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
+import { gerarRelatorioMultiplosPedidosPDF } from '@/utils/pdfReportAdapter';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 import { isTauri } from '@/utils/isTauri';
@@ -1141,22 +1141,19 @@ export default function OrderList() {
   const printSelectedOrders = async (orders: OrderWithItems[]) => {
     try {
       // Mostrar loading enquanto processa
-    toast({
-      title: "Preparando impressão",
-        description: "Gerando fichas usando templates da API...",
-    });
-
-      // Usar templates da API para impressão múltipla (template resumo para impressão em lote)
-      const printContent = await printMultipleOrdersServiceForm(orders, 'resumo');
-    
-    // Usar a função universal de visualização
-    const { openInViewer } = await import('../utils/exportUtils');
-    await openInViewer({ 
-      type: 'html', 
-      html: printContent, 
-        title: `Fichas de Serviço - ${orders.length} pedido(s)` 
+      toast({
+        title: "Preparando impressão",
+        description: "Gerando PDF com PDFMake...",
       });
-        } catch (error) {
+
+      // Usar PDFMake para geração de PDF (3 itens por página, sem sobreposição)
+      await gerarRelatorioMultiplosPedidosPDF(orders, 'abrir');
+      
+      toast({
+        title: "PDF gerado",
+        description: `${orders.length} pedido(s) processado(s) com sucesso.`,
+      });
+    } catch (error) {
       console.error('Erro ao imprimir múltiplos pedidos:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao preparar impressão.';
       toast({

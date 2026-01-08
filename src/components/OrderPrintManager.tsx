@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { OrderItem, OrderWithItems } from '../types';
 import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { printOrderServiceForm } from '../utils/printOrderServiceForm';
+import { 
+  baixarRelatorioResumoPDF, 
+  imprimirRelatorioResumoPDF 
+} from '../utils/pdfReportAdapter';
 import { isTauri } from '@/utils/isTauri';
 
 interface OrderPrintManagerProps {
@@ -52,28 +55,16 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     };
   };
 
-  // Função auxiliar para parsear valores monetários
+  // Função auxiliar para formatar valores monetários na exibição
   const parseCurrencyValue = (value: unknown): number => {
     if (value === null || value === undefined) return 0;
     if (typeof value === 'number') return value;
-    const raw = String(value).trim();
-    if (!raw) return 0;
-    const cleaned = raw.replace(/[^\d.,-]/g, '');
-    const lastComma = cleaned.lastIndexOf(',');
-    const lastDot = cleaned.lastIndexOf('.');
-    let normalized = cleaned;
-    if (lastComma > -1 && lastComma > lastDot) {
-      normalized = cleaned.replace(/\./g, '').replace(',', '.');
-    } else if (lastDot > -1 && lastDot > lastComma) {
-      normalized = cleaned.replace(/,/g, '');
-    } else {
-      normalized = cleaned.replace(',', '.');
-    }
-    const parsed = parseFloat(normalized);
+    const raw = String(value).replace(/[^\d.,-]/g, '').replace(',', '.');
+    const parsed = parseFloat(raw);
     return Number.isNaN(parsed) ? 0 : parsed;
   };
 
-  // Salvar em PDF
+  // Salvar em PDF usando PDFMake
   const handleSavePDF = async () => {
     if (!order) return;
     
@@ -82,133 +73,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Usar jsPDF para gerar PDF
-      const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-
-      // Configurações da página
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-      let yPosition = margin;
-
-      // Cabeçalho
-      doc.setFontSize(18);
-      doc.text(`Pedido #${order.numero || order.id}`, margin, yPosition);
-      yPosition += 10;
-
-      doc.setFontSize(12);
-      doc.text(`Cliente: ${order.customer_name || order.cliente || 'Não informado'}`, margin, yPosition);
-      yPosition += 8;
-      doc.text(`Telefone: ${order.telefone_cliente || 'Não informado'}`, margin, yPosition);
-      yPosition += 8;
-      doc.text(`Cidade: ${order.cidade_cliente || 'Não informado'}`, margin, yPosition);
-      yPosition += 8;
-      
-      if (order.data_entrada) {
-        const entradaDate = new Date(order.data_entrada).toLocaleDateString('pt-BR');
-        doc.text(`Data de Entrada: ${entradaDate}`, margin, yPosition);
-        yPosition += 8;
-      }
-      
-      if (order.data_entrega) {
-        const entregaDate = new Date(order.data_entrega).toLocaleDateString('pt-BR');
-        doc.text(`Data de Entrega: ${entregaDate}`, margin, yPosition);
-        yPosition += 8;
-      }
-      
-      yPosition += 5;
-
-      // Linha separadora
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 10;
-
-      // Itens reordenados
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Itens do Pedido:', margin, yPosition);
-      yPosition += 10;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      
-      let totalItems = 0;
-      orderedItems.forEach((item, index) => {
-        // Verificar se precisa de nova página
-        if (yPosition > pageHeight - 50) {
-          doc.addPage();
-          yPosition = margin;
-        }
-
-        const itemNumber = index + 1;
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${itemNumber}. ${item.item_name}`, margin, yPosition);
-        yPosition += 7;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        
-        if (item.descricao) {
-          const descricao = doc.splitTextToSize(`   Descrição: ${item.descricao}`, pageWidth - margin * 2 - 5);
-          doc.text(descricao, margin + 5, yPosition);
-          yPosition += descricao.length * 6;
-        }
-        
-        if (item.largura && item.altura) {
-          doc.text(`   Dimensões: ${item.largura} x ${item.altura}`, margin + 5, yPosition);
-          yPosition += 6;
-        }
-        
-        if (item.metro_quadrado) {
-          doc.text(`   Área: ${item.metro_quadrado} m²`, margin + 5, yPosition);
-          yPosition += 6;
-        }
-        
-        if (item.tipo_producao) {
-          doc.text(`   Tipo de Produção: ${item.tipo_producao}`, margin + 5, yPosition);
-          yPosition += 6;
-        }
-        
-        if (item.tecido) {
-          doc.text(`   Tecido: ${item.tecido}`, margin + 5, yPosition);
-          yPosition += 6;
-        }
-        
-        doc.text(`   Quantidade: ${item.quantity}`, margin + 5, yPosition);
-        yPosition += 6;
-        
-        const subtotal = parseCurrencyValue(item.subtotal);
-        doc.text(`   Subtotal: R$ ${subtotal.toFixed(2)}`, margin + 5, yPosition);
-        yPosition += 10;
-        
-        totalItems += item.quantity;
-      });
-
-      // Total
-      yPosition += 5;
-      doc.setLineWidth(0.5);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 10;
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Total de Itens: ${totalItems}`, margin, yPosition);
-      yPosition += 8;
-      
-      const freightValue = parseCurrencyValue(order.valor_frete || order.valor_frete || 0);
-      if (freightValue > 0) {
-        doc.text(`Frete: R$ ${freightValue.toFixed(2)}`, margin, yPosition);
-        yPosition += 8;
-      }
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      const totalValue = parseCurrencyValue(order.total_value || order.valor_total || 0);
-      doc.text(`Total: R$ ${totalValue.toFixed(2)}`, margin, yPosition);
-
-      // Salvar PDF
+      // Gerar nome do arquivo
       const orderIdentifier = String(order.numero || order.id || 'pedido').trim();
       const sanitizedIdentifier = orderIdentifier
         .normalize('NFD')
@@ -216,34 +81,8 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         .replace(/[^a-zA-Z0-9-_]+/g, '-');
       const filename = `Pedido-${sanitizedIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
 
-      // Verificar se está no Tauri
-      const tauriCheck = isTauri();
-
-      if (tauriCheck) {
-        try {
-          const { save } = await import('@tauri-apps/plugin-dialog');
-          const { writeFile } = await import('@tauri-apps/plugin-fs');
-          const { open } = await import('@tauri-apps/plugin-shell');
-
-          const filePath = await save({
-            defaultPath: filename,
-            filters: [{ name: 'PDF', extensions: ['pdf'] }],
-          });
-
-          if (filePath) {
-            const blob = doc.output('blob');
-            const arrayBuffer = await blob.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            await writeFile(filePath, uint8Array);
-            await open(filePath);
-          }
-        } catch (error) {
-          console.error('Erro ao salvar PDF via Tauri:', error);
-          doc.save(filename);
-        }
-      } else {
-        doc.save(filename);
-      }
+      // Usar PDFMake para gerar PDF (3 itens por página, layout profissional)
+      await baixarRelatorioResumoPDF(reorderedOrder, orderedItems, filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       alert('Erro ao gerar PDF. Tente novamente.');
@@ -252,7 +91,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     }
   };
 
-  // Imprimir
+  // Imprimir usando PDFMake
   const handlePrint = async () => {
     if (!order) return;
     
@@ -261,8 +100,8 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Usar template da API (sempre usa template 'geral')
-      await printOrderServiceForm(reorderedOrder, 'geral');
+      // Usar PDFMake para impressão (3 itens por página, sem sobreposição)
+      await imprimirRelatorioResumoPDF(reorderedOrder, orderedItems);
     } catch (error) {
       console.error('Erro ao imprimir:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao imprimir. Tente novamente.';
