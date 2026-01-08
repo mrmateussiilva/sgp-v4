@@ -470,6 +470,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Estado para o dialog de duplicação de itens
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateQuantity, setDuplicateQuantity] = useState('1');
+  const [duplicateKeepImage, setDuplicateKeepImage] = useState(true);
   
   // Estado para rastrear dados iniciais (para detectar mudanças)
   const [initialFormData, setInitialFormData] = useState(formData);
@@ -1230,7 +1231,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   };
 
-  const handleDuplicateTab = (tabId: string, quantity: number = 1) => {
+  const handleDuplicateTab = (tabId: string, quantity: number = 1, keepImage: boolean = true) => {
     const sourceData = tabsData[tabId];
     if (!sourceData) return;
 
@@ -1241,12 +1242,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const newTabId = `tab-${tabs.length + newTabs.length + 1}-${Date.now()}-${i}`;
       newTabs.push(newTabId);
       
-      // Duplicar todos os dados, exceto imagem (fica vazia para o usuário preencher)
+      // Duplicar todos os dados, opcionalmente manter a imagem
       newTabsDataEntries[newTabId] = {
         ...sourceData,
         id: newTabId,
         orderItemId: undefined, // Novo item, sem ID do banco
-        imagem: '', // Limpar imagem para o usuário selecionar outra
+        imagem: keepImage ? sourceData.imagem : '', // Manter ou limpar imagem
       };
     }
 
@@ -1269,9 +1270,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     // Ir para a primeira nova aba
     setActiveTab(newTabs[0]);
 
+    const imageMessage = keepImage 
+      ? 'com a mesma imagem.' 
+      : 'Altere a imagem de cada uma.';
+    
     toast({
       title: "Item duplicado",
-      description: `${quantity} ${quantity === 1 ? 'cópia criada' : 'cópias criadas'}. Altere a imagem de cada uma.`,
+      description: `${quantity} ${quantity === 1 ? 'cópia criada' : 'cópias criadas'} ${imageMessage}`,
     });
   };
 
@@ -2443,6 +2448,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 <Button
                   onClick={() => {
                     setDuplicateQuantity('1');
+                    setDuplicateKeepImage(true);
                     setDuplicateDialogOpen(true);
                   }}
                   variant="outline"
@@ -3125,7 +3131,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               Duplicar Item
             </DialogTitle>
             <DialogDescription>
-              Crie cópias do item atual. Todas as cópias terão os mesmos dados, exceto a imagem que ficará vazia para você preencher.
+              Crie cópias do item atual com os mesmos dados.
             </DialogDescription>
           </DialogHeader>
           
@@ -3149,6 +3155,23 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 Máximo: 50 cópias por vez
               </p>
             </div>
+
+            {/* Opção para manter imagem */}
+            <div className="flex items-center space-x-3 pt-2 border-t">
+              <Checkbox
+                id="duplicate-keep-image"
+                checked={duplicateKeepImage}
+                onCheckedChange={(checked) => setDuplicateKeepImage(checked === true)}
+              />
+              <Label htmlFor="duplicate-keep-image" className="text-sm font-medium cursor-pointer">
+                Manter a mesma imagem nas cópias
+              </Label>
+            </div>
+            {!duplicateKeepImage && (
+              <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+                As cópias serão criadas sem imagem. Você precisará adicionar uma imagem em cada item.
+              </p>
+            )}
           </div>
 
           <DialogFooter className="gap-2">
@@ -3162,7 +3185,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               onClick={() => {
                 const quantity = parseInt(duplicateQuantity || '1', 10);
                 if (quantity > 0 && quantity <= 50) {
-                  handleDuplicateTab(activeTab, quantity);
+                  handleDuplicateTab(activeTab, quantity, duplicateKeepImage);
                   setDuplicateDialogOpen(false);
                 } else if (quantity > 50) {
                   toast({
