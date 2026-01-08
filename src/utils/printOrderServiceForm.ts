@@ -90,6 +90,47 @@ export const printOrderServiceForm = async (
       }
       /* CSS de 3 itens por página é gerenciado por templateProcessor.ts e generateBasicTemplateCSS */
     }
+
+    /* ============================================================
+       FIX: evitar sobreposição no template RESUMO (3 por página)
+       - quando ESPECIFICAÇÕES cresce, alguns templates usam rodapé absolute
+       - aqui a gente força o rodapé a fluir e corta overflow dentro do slot
+       ============================================================ */
+    ${templateType === 'resumo' ? `
+    .item,
+    .item-container,
+    .resumo-item {
+      box-sizing: border-box !important;
+    }
+
+    /* Slot fixo do resumo (aprox 99mm por item). Corta excesso ao invés de sobrepor. */
+    .item {
+      height: 99mm !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+
+    /* Mata posicionamento absoluto do rodapé (Designer/Vendedor) se existir */
+    .item .designer,
+    .item .vendedor,
+    .item .designer-vendedor,
+    .item .bottom-row,
+    .item .footer-row,
+    .item .meta-row {
+      position: static !important;
+    }
+
+    /* Ajuda a caber mais linhas sem “invadir” o slot */
+    .section-content.especificacoes-content {
+      overflow: hidden !important;
+      max-height: none !important;
+    }
+    .section-content.especificacoes-content .spec-item {
+      font-size: 8.2pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 0.3mm !important;
+    }
+    ` : ''}
   `;
 
   const html = `
@@ -105,6 +146,9 @@ export const printOrderServiceForm = async (
         ${content}
         <script>
           (function(){
+            // Guard para evitar abrir 2 diálogos de impressão
+            if (window.__SGP_PRINTED__) return;
+            window.__SGP_PRINTED__ = true;
             function doPrint(){
               try { window.focus(); window.print(); } catch(e){}
             }
@@ -137,21 +181,14 @@ export const printOrderServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
+      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
       setTimeout(() => {
-        try { 
-          temp.contentWindow?.focus(); 
-          temp.contentWindow?.print(); 
+        try {
+          document.body.removeChild(temp);
         } catch {
-          // Ignorar erros de impressão
+          // Ignorar erros de remoção
         }
-        setTimeout(() => { 
-          try { 
-            document.body.removeChild(temp); 
-          } catch {
-            // Ignorar erros de remoção
-          }
-        }, 1000);
-      }, 300);
+      }, 4000);
     }
     return;
   }
@@ -169,7 +206,7 @@ export const printOrderServiceForm = async (
 export const printMultipleOrdersServiceForm = async (
   orders: OrderWithItems[],
   templateType: 'geral' | 'resumo' = 'geral'
-): Promise<string> => {
+): Promise<void> => {
   if (orders.length === 0) {
     throw new Error('Nenhum pedido fornecido para impressão');
   }
@@ -287,6 +324,42 @@ export const printMultipleOrdersServiceForm = async (
       }
       `}
     }
+
+    /* ============================================================
+       FIX: evitar sobreposição no template RESUMO (3 por página)
+       ============================================================ */
+    ${templateType === 'resumo' ? `
+    .item,
+    .item-container,
+    .resumo-item {
+      box-sizing: border-box !important;
+    }
+
+    .item {
+      height: 99mm !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+
+    .item .designer,
+    .item .vendedor,
+    .item .designer-vendedor,
+    .item .bottom-row,
+    .item .footer-row,
+    .item .meta-row {
+      position: static !important;
+    }
+
+    .section-content.especificacoes-content {
+      overflow: hidden !important;
+      max-height: none !important;
+    }
+    .section-content.especificacoes-content .spec-item {
+      font-size: 8.2pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 0.3mm !important;
+    }
+    ` : ''}
   `;
 
   const html = `
@@ -326,9 +399,56 @@ export const printMultipleOrdersServiceForm = async (
             }, { once: true });
           })();
         </script>
+        <script>
+          (function(){
+            // Guard para evitar abrir 2 diálogos de impressão
+            if (window.__SGP_PRINTED__) return;
+            window.__SGP_PRINTED__ = true;
+            function doPrint(){
+              try { window.focus(); window.print(); } catch(e){}
+            }
+            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
+          })();
+        </script>
       </body>
     </html>
   `;
 
-  return html;
+  // Abrir nova janela e imprimir
+  let win: Window | null = null;
+  try {
+    win = window.open('', '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('Não foi possível abrir janela de impressão:', err);
+    win = null;
+  }
+  
+  if (!win) {
+    // Fallback: usa iframe oculto
+    const temp = document.createElement('iframe');
+    temp.style.position = 'fixed';
+    temp.style.width = '0';
+    temp.style.height = '0';
+    temp.style.border = '0';
+    document.body.appendChild(temp);
+    const doc = temp.contentDocument || temp.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      // Não chamar print() aqui: o HTML já chama (e tem guard). Evita dupla impressão.
+      setTimeout(() => {
+        try {
+          document.body.removeChild(temp);
+        } catch {
+          // Ignorar erros de remoção
+        }
+      }, 4000);
+    }
+    return;
+  }
+  
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 };

@@ -54,7 +54,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { gerarRelatorioMultiplosPedidosPDF } from '@/utils/pdfReportAdapter';
+import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 import { isTauri } from '@/utils/isTauri';
@@ -1143,16 +1143,16 @@ export default function OrderList() {
       // Mostrar loading enquanto processa
       toast({
         title: "Preparando impressão",
-        description: "Gerando PDF com PDFMake...",
+        description: "Abrindo janela de impressão...",
       });
 
-      // Usar PDFMake para geração de PDF (3 itens por página, sem sobreposição)
-      // Usar 'imprimir' para fazer download do PDF
-      await gerarRelatorioMultiplosPedidosPDF(orders, 'imprimir');
+      // Usar HTML + window.print() (abre seletor de impressora no WebView/Tauri)
+      // Template 'resumo' mantém layout compacto (até 3 itens por página)
+      await printMultipleOrdersServiceForm(orders, 'resumo');
       
       toast({
-        title: "PDF baixado",
-        description: `PDF gerado com sucesso! Abra o arquivo e pressione Ctrl+P para imprimir.`,
+        title: "Impressão aberta",
+        description: "A janela de impressão foi aberta. Selecione a impressora e confirme.",
       });
     } catch (error) {
       console.error('Erro ao imprimir múltiplos pedidos:', error);
