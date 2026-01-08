@@ -279,17 +279,17 @@ export const printOrderServiceForm = async (
        - regras são “tolerantes”: só aplicam se as classes existirem no template da API
        ============================================================ */
     .item .content-wrapper {
-      gap: 0.5mm !important;
+      gap: 2mm !important;
     }
     .item .left-column {
-      width: 5% !important;
-      flex: 0 0 5% !important;
-      max-width: 5% !important;
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
     }
     .item .right-column {
-      width: 95% !important;
-      flex: 1 1 95% !important;
-      max-width: 95% !important;
+      width: 63% !important;
+      flex: 1 1 63% !important;
+      max-width: 63% !important;
       padding: 0 !important;
       margin: 0 !important;
     }
@@ -716,17 +716,17 @@ export const printMultipleOrdersServiceForm = async (
        MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
        ============================================================ */
     .item .content-wrapper {
-      gap: 0.5mm !important;
+      gap: 2mm !important;
     }
     .item .left-column {
-      width: 5% !important;
-      flex: 0 0 5% !important;
-      max-width: 5% !important;
+      width: 35% !important;
+      flex: 0 0 35% !important;
+      max-width: 35% !important;
     }
     .item .right-column {
-      width: 95% !important;
-      flex: 1 1 95% !important;
-      max-width: 95% !important;
+      width: 63% !important;
+      flex: 1 1 63% !important;
+      max-width: 63% !important;
       padding: 0 !important;
       margin: 0 !important;
     }
