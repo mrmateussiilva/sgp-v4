@@ -750,46 +750,16 @@ export async function imprimirPDF(itens: ItemRelatorio[]): Promise<void> {
   
   try {
     const docDefinition = await gerarDocDefinition(itens);
-    console.log('[pdfGenerator] Documento gerado, criando blob...');
+    console.log('[pdfGenerator] Documento gerado');
     
-    return new Promise((resolve, reject) => {
-      const pdfDoc = pdfMake.createPdf(docDefinition);
-      
-      pdfDoc.getBlob((blob) => {
-        console.log('[pdfGenerator] getBlob callback executado', blob ? `blob OK (${blob.size} bytes)` : 'blob NULL');
-        
-        if (!blob) {
-          console.error('[pdfGenerator] Blob é null!');
-          reject(new Error('Falha ao gerar blob do PDF'));
-          return;
-        }
-        
-        console.log('[pdfGenerator] Blob criado com sucesso:', blob.size, 'bytes');
-        
-        // Criar URL do blob
-        const url = URL.createObjectURL(blob);
-        console.log('[pdfGenerator] URL criada');
-        
-        // Fazer download automático (mais confiável que abrir janelas)
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'relatorio-pedidos-para-imprimir.pdf';
-        link.target = '_blank';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        console.log('[pdfGenerator] Download iniciado');
-        
-        // Limpar após um tempo
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          console.log('[pdfGenerator] Limpeza concluída');
-        }, 1000);
-        
-        resolve();
-      });
-    });
+    // Usar download() diretamente do PDFMake (mais confiável)
+    const pdfDoc = pdfMake.createPdf(docDefinition);
+    const nomeArquivo = 'relatorio-pedidos-para-imprimir.pdf';
+    
+    console.log('[pdfGenerator] Chamando download() do PDFMake...');
+    pdfDoc.download(nomeArquivo);
+    console.log('[pdfGenerator] download() chamado com sucesso');
+    
   } catch (error) {
     console.error('[pdfGenerator] Erro na impressão:', error);
     throw error;
