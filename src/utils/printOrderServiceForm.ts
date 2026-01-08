@@ -14,6 +14,147 @@ const escapeHtml = (value: string): string =>
     .replace(/'/g, '&#39;');
 
 /**
+ * Função compartilhada para fazer cleanup de imagens no documento de impressão
+ * Remove molduras, títulos "VISUALIZAÇÃO" e garante que imagens ocupem o máximo de espaço
+ */
+const performCleanup = (doc: Document) => {
+  try {
+    const normalizeText = (s: string) => {
+      return String(s || '')
+        .trim()
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const stripStyles = (el: Element) => {
+      try {
+        (el as HTMLElement).style.setProperty('border', '0', 'important');
+        (el as HTMLElement).style.setProperty('outline', '0', 'important');
+        (el as HTMLElement).style.setProperty('box-shadow', 'none', 'important');
+        (el as HTMLElement).style.setProperty('background', 'transparent', 'important');
+        (el as HTMLElement).style.setProperty('padding', '0', 'important');
+        (el as HTMLElement).style.setProperty('margin', '0', 'important');
+        (el as HTMLElement).style.setProperty('border-radius', '0', 'important');
+      } catch (e) {
+        // Ignorar erros
+      }
+    };
+
+    const hasOtherText = (el: Element) => {
+      try {
+        const raw = (el.textContent || '').trim();
+        const norm = normalizeText(raw);
+        const cleaned = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
+        return cleaned.length > 0;
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const items = doc.querySelectorAll('.item');
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      if (!item) continue;
+
+      const img = item.querySelector('img');
+      if (!img) continue;
+
+      const right = item.querySelector('.right-column') || 
+                   (img.closest && img.closest('.right-column')) || 
+                   img.parentElement || 
+                   item;
+
+      // 1) Esconder título "VISUALIZAÇÃO"
+      try {
+        const nodes = right.querySelectorAll('*');
+        for (let i = 0; i < nodes.length; i++) {
+          const el = nodes[i];
+          if (!el) continue;
+
+          // Texto solto "VISUALIZAÇÃO" dentro de containers
+          try {
+            if (el.childNodes && el.childNodes.length) {
+              for (let n = 0; n < el.childNodes.length; n++) {
+                const node = el.childNodes[n];
+                if (node && node.nodeType === 3) {
+                  const rawNode = node.textContent || '';
+                  if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
+                    node.textContent = '';
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Ignorar erros
+          }
+
+          // Elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
+          try {
+            const raw = (el.textContent || '').trim();
+            if (!raw) continue;
+            if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
+            if (el.querySelector && el.querySelector('img')) continue;
+            (el as HTMLElement).style.setProperty('display', 'none', 'important');
+            (el as HTMLElement).style.setProperty('margin', '0', 'important');
+            (el as HTMLElement).style.setProperty('padding', '0', 'important');
+            (el as HTMLElement).style.setProperty('height', '0', 'important');
+          } catch (e) {
+            // Ignorar erros
+          }
+        }
+      } catch (e) {
+        // Ignorar erros
+      }
+
+      // 2) Remover "molduras" somente na cadeia que contém a imagem
+      try {
+        if (img.classList) img.classList.add('__sgp_img_wrap__');
+
+        let p: Element | null = img.parentElement;
+        while (p && p !== item) {
+          try {
+            const imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
+            if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
+            if (hasOtherText(p)) break;
+          } catch (e) {
+            // Ignorar erros
+          }
+
+          if (p.classList) p.classList.add('__sgp_img_wrap__');
+          stripStyles(p);
+          p = p.parentElement;
+        }
+
+        // Também limpa o container "right" se ele for "só imagem"
+        try {
+          if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
+            if (right.classList) right.classList.add('__sgp_img_wrap__');
+            stripStyles(right);
+          }
+        } catch (e) {
+          // Ignorar erros
+        }
+
+        // Garante imagem proporcional e ocupando o container
+        stripStyles(img);
+        (img as HTMLElement).style.setProperty('display', 'block', 'important');
+        (img as HTMLElement).style.setProperty('width', '100%', 'important');
+        (img as HTMLElement).style.setProperty('height', '100%', 'important');
+        (img as HTMLElement).style.setProperty('max-width', '100%', 'important');
+        (img as HTMLElement).style.setProperty('max-height', '100%', 'important');
+        (img as HTMLElement).style.setProperty('object-fit', 'contain', 'important');
+        (img as HTMLElement).style.setProperty('object-position', 'center', 'important');
+      } catch (e) {
+        // Ignorar erros
+      }
+    }
+  } catch (e) {
+    console.warn('Erro durante cleanup:', e);
+  }
+};
+
+/**
  * Imprime ficha de serviço usando template da API
  * @param order - Pedido a ser impresso
  * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
@@ -291,144 +432,6 @@ export const printOrderServiceForm = async (
     }
     ` : ''}
   `;
-
-  // Função de cleanup (executada via TypeScript, não inline)
-  const performCleanup = (doc: Document) => {
-    try {
-      const normalizeText = (s: string) => {
-        return String(s || '')
-          .trim()
-          .toUpperCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-      };
-
-      const stripStyles = (el: Element) => {
-        try {
-          (el as HTMLElement).style.setProperty('border', '0', 'important');
-          (el as HTMLElement).style.setProperty('outline', '0', 'important');
-          (el as HTMLElement).style.setProperty('box-shadow', 'none', 'important');
-          (el as HTMLElement).style.setProperty('background', 'transparent', 'important');
-          (el as HTMLElement).style.setProperty('padding', '0', 'important');
-          (el as HTMLElement).style.setProperty('margin', '0', 'important');
-          (el as HTMLElement).style.setProperty('border-radius', '0', 'important');
-        } catch (e) {
-          // Ignorar erros
-        }
-      };
-
-      const hasOtherText = (el: Element) => {
-        try {
-          const raw = (el.textContent || '').trim();
-          const norm = normalizeText(raw);
-          const cleaned = norm.replace(/VISUALIZACAO[ A-Z]*/g, '').trim();
-          return cleaned.length > 0;
-        } catch (e) {
-          return false;
-        }
-      };
-
-      const items = doc.querySelectorAll('.item');
-      for (let idx = 0; idx < items.length; idx++) {
-        const item = items[idx];
-        if (!item) continue;
-
-        const img = item.querySelector('img');
-        if (!img) continue;
-
-        const right = item.querySelector('.right-column') || 
-                     (img.closest && img.closest('.right-column')) || 
-                     img.parentElement || 
-                     item;
-
-        // 1) Esconder título "VISUALIZAÇÃO"
-        try {
-          const nodes = right.querySelectorAll('*');
-          for (let i = 0; i < nodes.length; i++) {
-            const el = nodes[i];
-            if (!el) continue;
-
-            // Texto solto "VISUALIZAÇÃO" dentro de containers
-            try {
-              if (el.childNodes && el.childNodes.length) {
-                for (let n = 0; n < el.childNodes.length; n++) {
-                  const node = el.childNodes[n];
-                  if (node && node.nodeType === 3) {
-                    const rawNode = node.textContent || '';
-                    if (normalizeText(rawNode).startsWith('VISUALIZACAO')) {
-                      node.textContent = '';
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              // Ignorar erros
-            }
-
-            // Elementos cujo conteúdo é "VISUALIZAÇÃO..." e não contém imagem
-            try {
-              const raw = (el.textContent || '').trim();
-              if (!raw) continue;
-              if (!normalizeText(raw).startsWith('VISUALIZACAO')) continue;
-              if (el.querySelector && el.querySelector('img')) continue;
-              (el as HTMLElement).style.setProperty('display', 'none', 'important');
-              (el as HTMLElement).style.setProperty('margin', '0', 'important');
-              (el as HTMLElement).style.setProperty('padding', '0', 'important');
-              (el as HTMLElement).style.setProperty('height', '0', 'important');
-            } catch (e) {
-              // Ignorar erros
-            }
-          }
-        } catch (e) {
-          // Ignorar erros
-        }
-
-        // 2) Remover "molduras" somente na cadeia que contém a imagem
-        try {
-          if (img.classList) img.classList.add('__sgp_img_wrap__');
-
-          let p: Element | null = img.parentElement;
-          while (p && p !== item) {
-            try {
-              const imgs = p.querySelectorAll ? p.querySelectorAll('img') : [];
-              if (!imgs || imgs.length !== 1 || imgs[0] !== img) break;
-              if (hasOtherText(p)) break;
-            } catch (e) {
-              // Ignorar erros
-            }
-
-            if (p.classList) p.classList.add('__sgp_img_wrap__');
-            stripStyles(p);
-            p = p.parentElement;
-          }
-
-          // Também limpa o container "right" se ele for "só imagem"
-          try {
-            if (right && right !== item && right.contains && right.contains(img) && !hasOtherText(right)) {
-              if (right.classList) right.classList.add('__sgp_img_wrap__');
-              stripStyles(right);
-            }
-          } catch (e) {
-            // Ignorar erros
-          }
-
-          // Garante imagem proporcional e ocupando o container
-          stripStyles(img);
-          (img as HTMLElement).style.setProperty('display', 'block', 'important');
-          (img as HTMLElement).style.setProperty('width', '100%', 'important');
-          (img as HTMLElement).style.setProperty('height', '100%', 'important');
-          (img as HTMLElement).style.setProperty('max-width', '100%', 'important');
-          (img as HTMLElement).style.setProperty('max-height', '100%', 'important');
-          (img as HTMLElement).style.setProperty('object-fit', 'contain', 'important');
-          (img as HTMLElement).style.setProperty('object-position', 'center', 'important');
-        } catch (e) {
-          // Ignorar erros
-        }
-      }
-    } catch (e) {
-      console.warn('Erro durante cleanup:', e);
-    }
-  };
 
   const html = `
     <!DOCTYPE html>
