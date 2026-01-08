@@ -46,6 +46,7 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
   onSave,
 }) => {
   const { toast } = useToast();
+  const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fichaData, setFichaData] = useState<OrderFicha | null>(null);
@@ -147,7 +148,7 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
     if (!fichaData) return;
     setSaving(true);
     try {
-      if (formaEnvioBase === 'Portador' && !portadorNome.trim()) {
+      if (isPortadorFormaEnvio(formaEnvioBase) && !portadorNome.trim()) {
         toast({
           title: 'Atenção',
           description: 'Informe o nome do portador para salvar.',
@@ -156,7 +157,8 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
         return;
       }
       // Garantir persistência no formato "Portador - Nome"
-      const finalFormaEnvio = buildFormaEnvioPortador(formaEnvioBase, portadorNome);
+      const normalizedBase = isPortadorFormaEnvio(formaEnvioBase) ? 'Portador' : formaEnvioBase;
+      const finalFormaEnvio = buildFormaEnvioPortador(normalizedBase, portadorNome);
       const fichaToSave: OrderFicha = {
         ...fichaData,
         forma_envio: finalFormaEnvio,
@@ -299,8 +301,9 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                     <Select
                       value={formaEnvioBase || ''}
                       onValueChange={(value) => {
-                        setFormaEnvioBase(value);
-                        if (value !== 'Portador') {
+                        const normalizedValue = isPortadorFormaEnvio(value) ? 'Portador' : value;
+                        setFormaEnvioBase(normalizedValue);
+                        if (!isPortadorFormaEnvio(value)) {
                           setPortadorNome('');
                           updateOrderField('forma_envio', value);
                         } else {
@@ -314,7 +317,7 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                       <SelectContent>
                         <SelectItem value="">Nenhuma</SelectItem>
                         {formasEnvio.map((forma) => (
-                          <SelectItem key={forma.id} value={forma.nome}>
+                          <SelectItem key={forma.id} value={isPortadorFormaEnvio(String(forma.nome)) ? 'Portador' : forma.nome}>
                             {forma.nome}
                             {forma.valor !== undefined &&
                               forma.valor !== null &&
@@ -325,7 +328,7 @@ const FichaDeServicoEditor: React.FC<FichaDeServicoEditorProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  {formaEnvioBase === 'Portador' && (
+                  {isPortadorFormaEnvio(formaEnvioBase) && (
                     <div>
                       <Label htmlFor="portador_nome">Nome do Portador *</Label>
                       <Input
