@@ -169,7 +169,7 @@ export const printOrderServiceForm = async (
 export const printMultipleOrdersServiceForm = async (
   orders: OrderWithItems[],
   templateType: 'geral' | 'resumo' = 'geral'
-): Promise<string> => {
+): Promise<void> => {
   if (orders.length === 0) {
     throw new Error('Nenhum pedido fornecido para impressão');
   }
@@ -326,9 +326,60 @@ export const printMultipleOrdersServiceForm = async (
             }, { once: true });
           })();
         </script>
+        <script>
+          (function(){
+            function doPrint(){
+              try { window.focus(); window.print(); } catch(e){}
+            }
+            window.addEventListener('load', function(){ setTimeout(doPrint, 150); }, { once:true });
+          })();
+        </script>
       </body>
     </html>
   `;
 
-  return html;
+  // Abrir nova janela e imprimir
+  let win: Window | null = null;
+  try {
+    win = window.open('', '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('Não foi possível abrir janela de impressão:', err);
+    win = null;
+  }
+  
+  if (!win) {
+    // Fallback: usa iframe oculto
+    const temp = document.createElement('iframe');
+    temp.style.position = 'fixed';
+    temp.style.width = '0';
+    temp.style.height = '0';
+    temp.style.border = '0';
+    document.body.appendChild(temp);
+    const doc = temp.contentDocument || temp.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        try { 
+          temp.contentWindow?.focus(); 
+          temp.contentWindow?.print(); 
+        } catch {
+          // Ignorar erros de impressão
+        }
+        setTimeout(() => { 
+          try { 
+            document.body.removeChild(temp); 
+          } catch {
+            // Ignorar erros de remoção
+          }
+        }, 1000);
+      }, 300);
+    }
+    return;
+  }
+  
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 };
