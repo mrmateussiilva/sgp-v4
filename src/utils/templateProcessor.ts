@@ -751,6 +751,17 @@ const escapeHtml = (value: string | number | undefined): string => {
     .replace(/'/g, '&#39;');
 };
 
+/**
+ * Remove estilos do template HTML vindo da API para evitar conflitos
+ * - Remove blocos <style>...</style>
+ * - Remove estilos inline que fixam height/width em template-page/item
+ */
+const sanitizeTemplateHtml = (html: string): string => {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/\sstyle="[^"]*(height|min-height|max-height|width)[^"]*"/gi, '');
+};
+
 const mmToPx = (mm: number): number => mm * 3.779527559;
 
 /**
@@ -1362,6 +1373,8 @@ export const generateTemplatePrintContent = async (
     
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
+      // Saneamento para remover CSS/inline styles conflitantes do template da API
+      const sanitizedHtml = sanitizeTemplateHtml(templateHTML.html);
       // Template HTML editado manualmente encontrado - usar ele!
       logger.debug(`[templateProcessor] ✅ Usando template HTML editado manualmente: ${templateType}`);
       
@@ -1406,7 +1419,7 @@ export const generateTemplatePrintContent = async (
         ? itemsToRender 
         : (order.items && order.items.length > 0 ? order.items : undefined);
       
-      const processedHTML = processTemplateHTML(templateHTML.html, order, itemsForProcessing, imageBase64Map);
+      const processedHTML = processTemplateHTML(sanitizedHtml, order, itemsForProcessing, imageBase64Map);
       
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
       
