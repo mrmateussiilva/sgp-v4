@@ -26,8 +26,9 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2 } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, DollarSign, Truck, Package, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { SummaryCard } from '@/components/analytics/SummaryCard';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
 
@@ -276,6 +277,51 @@ export default function Fechamentos() {
     
     return { totalGroups, totalSubgroups, totalRows };
   }, [report]);
+
+  // Calcular cards de resumo executivo
+  const summaryCards = useMemo(() => {
+    if (!report) return null;
+
+    const totalGeral = report.total.valor_frete + report.total.valor_servico;
+    const totalFrete = report.total.valor_frete;
+    const totalServico = report.total.valor_servico;
+    const totalItens = reportStats?.totalRows || 0;
+
+    // Calcular percentual de frete e serviço
+    const percentFrete = totalGeral > 0 ? (totalFrete / totalGeral) * 100 : 0;
+    const percentServico = totalGeral > 0 ? (totalServico / totalGeral) * 100 : 0;
+
+    return [
+      {
+        title: 'Total Geral',
+        value: formatCurrency(totalGeral),
+        subtitle: 'Frete + Serviços',
+        icon: <DollarSign className="h-5 w-5 text-blue-600" />,
+        className: 'border-blue-200 bg-blue-50/30',
+      },
+      {
+        title: 'Total Frete',
+        value: formatCurrency(totalFrete),
+        subtitle: `${percentFrete.toFixed(1)}% do total`,
+        icon: <Truck className="h-5 w-5 text-green-600" />,
+        className: 'border-green-200 bg-green-50/30',
+      },
+      {
+        title: 'Total Serviços',
+        value: formatCurrency(totalServico),
+        subtitle: `${percentServico.toFixed(1)}% do total`,
+        icon: <Package className="h-5 w-5 text-purple-600" />,
+        className: 'border-purple-200 bg-purple-50/30',
+      },
+      {
+        title: 'Total de Itens',
+        value: totalItens.toString(),
+        subtitle: `${reportStats?.totalGroups || 0} grupo(s)`,
+        icon: <TrendingUp className="h-5 w-5 text-orange-600" />,
+        className: 'border-orange-200 bg-orange-50/30',
+      },
+    ];
+  }, [report, reportStats]);
 
   const handleGenerate = async () => {
     // Validar datas antes de gerar
@@ -994,6 +1040,22 @@ export default function Fechamentos() {
           </CardContent>
         </Card>
       ) : filteredReport ? (
+        <>
+          {/* Cards de Resumo Executivo */}
+          {summaryCards && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {summaryCards.map((card, index) => (
+                <SummaryCard
+                  key={index}
+                  title={card.title}
+                  value={card.value}
+                  subtitle={card.subtitle}
+                  icon={card.icon}
+                  className={card.className}
+                />
+              ))}
+            </div>
+          )}
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
@@ -1078,6 +1140,7 @@ export default function Fechamentos() {
             </div>
           </CardContent>
         </Card>
+        </>
       ) : (
         <Card className="border-dashed border-slate-200 bg-slate-50">
           <CardContent className="py-16 text-center text-muted-foreground">
