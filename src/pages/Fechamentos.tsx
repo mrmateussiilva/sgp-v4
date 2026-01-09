@@ -132,10 +132,12 @@ export default function Fechamentos() {
     dateMode: 'entrega',
   });
   const [loading, setLoading] = useState<boolean>(false);
+  const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [nomeFilter, setNomeFilter] = useState<string>('');
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
+  const [dateError, setDateError] = useState<string>('');
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -156,7 +158,15 @@ export default function Fechamentos() {
         setDesigners(designersResponse);
       } catch (error) {
         if (!isMounted) return;
-        console.error('Erro ao carregar vendedores/designers para filtros de fechamento:', error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível carregar a lista de vendedores e designers.';
+        toast({
+          title: 'Erro ao carregar filtros',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       }
     };
 
@@ -180,10 +190,26 @@ export default function Fechamentos() {
     key: Key,
     value: FiltersState[Key],
   ) => {
-    setFilters((previous) => ({
-      ...previous,
-      [key]: value,
-    }));
+    setFilters((previous) => {
+      const newFilters = {
+        ...previous,
+        [key]: value,
+      };
+
+      // Validação de datas: verificar se data final é anterior à inicial
+      if (key === 'startDate' || key === 'endDate') {
+        const startDate = key === 'startDate' ? value : newFilters.startDate;
+        const endDate = key === 'endDate' ? value : newFilters.endDate;
+
+        if (startDate && endDate && startDate > endDate) {
+          setDateError('A data final não pode ser anterior à data inicial.');
+        } else {
+          setDateError('');
+        }
+      }
+
+      return newFilters;
+    });
   };
 
   const applyQuickRange = (rangeValue: (typeof QUICK_RANGES)[number]['value']) => {
@@ -196,6 +222,18 @@ export default function Fechamentos() {
   };
 
   const handleGenerate = async () => {
+    // Validar datas antes de gerar
+    if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+      setDateError('A data final não pode ser anterior à data inicial.');
+      toast({
+        title: 'Erro de validação',
+        description: 'A data final não pode ser anterior à data inicial.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDateError('');
     const payload: ReportRequestPayload = {
       report_type: filters.reportType,
       start_date: filters.startDate || undefined,
@@ -210,9 +248,18 @@ export default function Fechamentos() {
     try {
       const response = await api.generateReport(payload);
       setReport(response);
+      const groupsCount = response.groups.length;
+      const totalRows = response.groups.reduce(
+        (acc, group) =>
+          acc +
+          (group.rows?.length || 0) +
+          (group.subgroups?.reduce((subAcc, sub) => subAcc + (sub.rows?.length || 0), 0) || 0),
+        0,
+      );
       toast({
-        title: 'Relatório atualizado',
-        description: 'Dados agrupados com sucesso.',
+        title: 'Relatório gerado com sucesso',
+        description: `${groupsCount} grupo(s) encontrado(s) com ${totalRows} item(ns) total(is).`,
+        variant: 'default',
       });
     } catch (error) {
       const message =
@@ -241,10 +288,7 @@ export default function Fechamentos() {
   };
 
   const exportToPdf = async () => {
-    console.log('[exportToPdf] Função chamada');
-    
     if (!report) {
-      console.log('[exportToPdf] Nenhum relatório disponível');
       toast({
         title: 'Nenhum relatório disponível',
         description: 'Gere um relatório antes de exportar.',
@@ -253,10 +297,9 @@ export default function Fechamentos() {
       return;
     }
 
-    console.log('[exportToPdf] Relatório disponível, carregando bibliotecas...');
+    setExportingPdf(true);
     try {
       const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
-      console.log('[exportToPdf] Bibliotecas carregadas, criando documento PDF...');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
 
@@ -367,41 +410,37 @@ export default function Fechamentos() {
     );
     doc.setTextColor(0, 0, 0);
 
-      console.log('[exportToPdf] PDF renderizado, gerando nome do arquivo...');
       const filenameSuffix =
         filters.startDate && filters.endDate && filters.endDate !== filters.startDate
           ? `${filters.startDate}_${filters.endDate}`
           : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
       const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.pdf`;
-      console.log('[exportToPdf] Nome do arquivo:', filename);
 
       // Abrir PDF em nova janela para o usuário escolher salvar ou imprimir
       try {
-        console.log('[exportToPdf] Chamando openPdfInWindow...');
         await openPdfInWindow(doc, filename);
-        console.log('[exportToPdf] openPdfInWindow concluída com sucesso');
         toast({
-          title: 'Relatório aberto',
+          title: 'Relatório exportado',
           description: 'O relatório foi aberto. Você pode salvar ou imprimir.',
+          variant: 'default',
         });
       } catch (error) {
-        console.error('[exportToPdf] Erro ao abrir PDF:', error);
         // Fallback: download direto
-        console.log('[exportToPdf] Usando fallback: save direto');
         doc.save(filename);
         toast({
           title: 'Relatório exportado',
           description: 'O arquivo foi baixado com sucesso.',
+          variant: 'default',
         });
       }
     } catch (error) {
-      console.error('[exportToPdf] Erro geral ao exportar relatório de fechamentos:', error);
-      console.error('[exportToPdf] Stack trace:', error instanceof Error ? error.stack : 'N/A');
       toast({
         title: 'Falha ao exportar relatório',
         description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado ao exportar o relatório.',
         variant: 'destructive',
       });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -563,21 +602,22 @@ export default function Fechamentos() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filtro por Nome (cliente, vendedor, designer, etc.) */}
-          {report && (
-            <div className="space-y-2">
-              <Label>Filtrar por nome</Label>
-              <Input
-                type="text"
-                placeholder="Buscar por cliente, vendedor, designer ou descrição..."
-                value={nomeFilter}
-                onChange={(e) => setNomeFilter(e.target.value)}
-                className="bg-white"
-              />
+          <div className="space-y-2">
+            <Label>Filtrar por nome</Label>
+            <Input
+              type="text"
+              placeholder="Buscar por cliente, vendedor, designer ou descrição..."
+              value={nomeFilter}
+              onChange={(e) => setNomeFilter(e.target.value)}
+              className="bg-white"
+              disabled={!report && !loading}
+            />
+            {report && (
               <p className="text-sm text-muted-foreground">
                 Digite um trecho do nome (cliente, vendedor, designer) ou da descrição para filtrar os resultados.
               </p>
-            </div>
-          )}
+            )}
+          </div>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as 'analitico' | 'sintetico')}
@@ -647,8 +687,11 @@ export default function Fechamentos() {
                 type="date"
                 value={filters.startDate}
                 onChange={(event) => updateFilter('startDate', event.target.value)}
-                className="bg-white"
+                className={`bg-white ${dateError ? 'border-red-500' : ''}`}
               />
+              {dateError && (
+                <p className="text-sm text-red-600">{dateError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -657,8 +700,12 @@ export default function Fechamentos() {
                 type="date"
                 value={filters.endDate}
                 onChange={(event) => updateFilter('endDate', event.target.value)}
-                className="bg-white"
+                className={`bg-white ${dateError ? 'border-red-500' : ''}`}
+                min={filters.startDate || undefined}
               />
+              {dateError && (
+                <p className="text-sm text-red-600">{dateError}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -752,7 +799,7 @@ export default function Fechamentos() {
               <Button
                 className="w-full gap-2"
                 onClick={handleGenerate}
-                disabled={loading}
+                disabled={loading || !!dateError}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
                 {loading ? 'Gerando...' : 'Gerar Relatório'}
@@ -762,17 +809,36 @@ export default function Fechamentos() {
                 variant="outline"
                 className="w-full gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
                 onClick={exportToPdf}
-                disabled={!report || loading}
+                disabled={!report || loading || exportingPdf}
               >
-                <FileDown className="h-4 w-4" />
-                Exportar PDF
+                {exportingPdf ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Exportando...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="h-4 w-4" />
+                    Exportar PDF
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {filteredReport ? (
+      {loading ? (
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
+              <p className="text-base text-slate-600">Gerando relatório...</p>
+              <p className="text-sm text-slate-500">Por favor, aguarde enquanto processamos os dados.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredReport ? (
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
