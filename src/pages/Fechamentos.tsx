@@ -26,10 +26,10 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, DollarSign, Truck, Package, TrendingUp, BarChart3, Minus, Maximize2, Target, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, DollarSign, Truck, Package, TrendingUp, BarChart3, Minus, Maximize2, Target, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { SummaryCard } from '@/components/analytics/SummaryCard';
-import { openPdfInWindow } from '@/utils/exportUtils';
+import { openPdfInWindow, exportToCSV } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
 
 // Lazy load de bibliotecas pesadas
@@ -135,6 +135,7 @@ export default function Fechamentos() {
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
+  const [exportingCsv, setExportingCsv] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [nomeFilter, setNomeFilter] = useState<string>('');
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
@@ -620,6 +621,110 @@ export default function Fechamentos() {
       });
     } finally {
       setExportingPdf(false);
+    }
+  };
+
+  // Função para exportar relatório em CSV
+  const exportToCsv = async () => {
+    if (!report) {
+      toast({
+        title: 'Nenhum relatório disponível',
+        description: 'Gere um relatório antes de exportar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setExportingCsv(true);
+    try {
+      // Coletar todas as linhas do relatório
+      const csvRows: Array<{
+        Grupo: string;
+        Subgrupo?: string;
+        Ficha: string;
+        Descricao: string;
+        'Valor Frete': string;
+        'Valor Servicos': string;
+        'Total': string;
+      }> = [];
+
+      const collectRows = (group: ReportGroup, parentGroup?: string) => {
+        if (group.rows && group.rows.length > 0) {
+          group.rows.forEach((row) => {
+            const total = row.valor_frete + row.valor_servico;
+            csvRows.push({
+              Grupo: parentGroup || group.label,
+              Subgrupo: parentGroup ? group.label : undefined,
+              Ficha: row.ficha || '',
+              Descricao: row.descricao || '',
+              'Valor Frete': formatCurrency(row.valor_frete),
+              'Valor Servicos': formatCurrency(row.valor_servico),
+              'Total': formatCurrency(total),
+            });
+          });
+        }
+
+        if (group.subgroups) {
+          group.subgroups.forEach((subgroup) => {
+            collectRows(subgroup, group.label);
+          });
+        }
+      };
+
+      report.groups.forEach((group) => {
+        collectRows(group);
+      });
+
+      // Adicionar linha de totais
+      csvRows.push({
+        Grupo: '',
+        Ficha: '',
+        Descricao: 'TOTAL GERAL',
+        'Valor Frete': formatCurrency(report.total.valor_frete),
+        'Valor Servicos': formatCurrency(report.total.valor_servico),
+        'Total': formatCurrency(report.total.valor_frete + report.total.valor_servico),
+      });
+
+      // Gerar CSV
+      const Papa = await import('papaparse');
+      const csv = Papa.default.unparse(csvRows, {
+        header: true,
+        delimiter: ';',
+        newline: '\n',
+        encoding: 'utf-8',
+      });
+
+      // Criar blob e fazer download
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM para Excel
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      const filenameSuffix =
+        filters.startDate && filters.endDate && filters.endDate !== filters.startDate
+          ? `${filters.startDate}_${filters.endDate}`
+          : filters.startDate || report.generated_at.replace(/[^\d-]/g, '');
+      const filename = `relatorio_fechamentos_${filenameSuffix || 'periodo'}.csv`;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'CSV exportado',
+        description: `O arquivo ${filename} foi baixado com sucesso.`,
+        variant: 'default',
+      });
+    } catch (error) {
+      toast({
+        title: 'Falha ao exportar CSV',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado ao exportar o CSV.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingCsv(false);
     }
   };
 
@@ -1190,6 +1295,25 @@ export default function Fechamentos() {
           <Separator />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+              variant="outline"
+              className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+              onClick={exportToCsv}
+              disabled={!report || loading || exportingCsv}
+            >
+              {exportingCsv ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Exportar CSV
+                </>
+              )}
+              </Button>
+
               <Button
                 variant="outline"
               className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
