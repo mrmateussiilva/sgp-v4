@@ -1127,15 +1127,101 @@ export default function Fechamentos() {
               </div>
             )}
 
-            <div className="rounded border border-slate-200 bg-white">
-              <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100 px-6 py-3 text-base text-slate-700 md:flex-row md:items-center md:justify-between">
-                <span>Total do período</span>
-                <span className="font-semibold text-slate-900">
-                  Total: {formatCurrency(filteredReport.total.valor_frete + filteredReport.total.valor_servico)}
-                </span>
+            {/* Card destacado com totais */}
+            <div className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg">
+              <div className="border-b border-blue-200 bg-blue-100/50 px-6 py-4">
+                <h3 className="text-lg font-semibold text-blue-900">Resumo Financeiro do Período</h3>
               </div>
-              <div className="bg-slate-50 px-6 py-3 text-base text-slate-500">
-                Relatório analítico clássico em conformidade com fechamento produtivo.
+              <div className="px-6 py-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {/* Total Frete */}
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-green-200 bg-white p-4 text-center shadow-sm">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <Truck className="h-4 w-4 text-green-600" />
+                      Total Frete
+                    </div>
+                    <p className="text-2xl font-bold text-green-700">
+                      {formatCurrency(filteredReport.total.valor_frete)}
+                    </p>
+                    {reportStats && reportStats.totalRows > 0 && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Média: {formatCurrency(filteredReport.total.valor_frete / reportStats.totalRows)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Total Serviços */}
+                  <div className="flex flex-col items-center justify-center rounded-lg border border-purple-200 bg-white p-4 text-center shadow-sm">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <Package className="h-4 w-4 text-purple-600" />
+                      Total Serviços
+                    </div>
+                    <p className="text-2xl font-bold text-purple-700">
+                      {formatCurrency(filteredReport.total.valor_servico)}
+                    </p>
+                    {reportStats && reportStats.totalRows > 0 && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Média: {formatCurrency(filteredReport.total.valor_servico / reportStats.totalRows)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Total Geral */}
+                  <div className="flex flex-col items-center justify-center rounded-lg border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-center shadow-md">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-900">
+                      <DollarSign className="h-5 w-5 text-blue-700" />
+                      Total Geral
+                    </div>
+                    <p className="text-3xl font-bold text-blue-900">
+                      {formatCurrency(filteredReport.total.valor_frete + filteredReport.total.valor_servico)}
+                    </p>
+                    {reportStats && reportStats.totalRows > 0 && (
+                      <p className="mt-1 text-xs font-medium text-blue-700">
+                        Média por item: {formatCurrency((filteredReport.total.valor_frete + filteredReport.total.valor_servico) / reportStats.totalRows)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Percentuais e distribuição */}
+                {filteredReport.total.valor_frete + filteredReport.total.valor_servico > 0 && (
+                  <div className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-blue-200 bg-white p-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-600">Distribuição</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full bg-green-500"
+                            style={{
+                              width: `${((filteredReport.total.valor_frete / (filteredReport.total.valor_frete + filteredReport.total.valor_servico)) * 100).toFixed(1)}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-green-700">
+                          {((filteredReport.total.valor_frete / (filteredReport.total.valor_frete + filteredReport.total.valor_servico)) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">Frete</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-600">Composição</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full bg-purple-500"
+                            style={{
+                              width: `${((filteredReport.total.valor_servico / (filteredReport.total.valor_frete + filteredReport.total.valor_servico)) * 100).toFixed(1)}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-purple-700">
+                          {((filteredReport.total.valor_servico / (filteredReport.total.valor_frete + filteredReport.total.valor_servico)) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">Serviços</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
