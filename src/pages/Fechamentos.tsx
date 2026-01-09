@@ -26,7 +26,8 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
 
@@ -220,6 +221,61 @@ export default function Fechamentos() {
     updateFilter('startDate', formatInputDate(start));
     updateFilter('endDate', formatInputDate(end));
   };
+
+  // Função para limpar todos os filtros
+  const clearFilters = () => {
+    setFilters({
+      reportType: REPORT_OPTIONS.analitico[0].value,
+      startDate: formatInputDate(firstDayOfMonth),
+      endDate: formatInputDate(today),
+      status: STATUS_OPTIONS[0],
+      dateMode: 'entrega',
+      vendedor: undefined,
+      designer: undefined,
+    });
+    setNomeFilter('');
+    setDateError('');
+    setReport(null);
+  };
+
+  // Verificar se há filtros ativos além dos padrões
+  const hasActiveFilters = useMemo(() => {
+    const defaultFilters = {
+      reportType: REPORT_OPTIONS.analitico[0].value,
+      status: STATUS_OPTIONS[0],
+      dateMode: 'entrega' as const,
+    };
+    
+    return (
+      filters.vendedor ||
+      filters.designer ||
+      nomeFilter.trim() !== '' ||
+      filters.status !== defaultFilters.status ||
+      filters.reportType !== defaultFilters.reportType ||
+      filters.startDate !== formatInputDate(firstDayOfMonth) ||
+      filters.endDate !== formatInputDate(today)
+    );
+  }, [filters, nomeFilter, firstDayOfMonth, today]);
+
+  // Calcular estatísticas do relatório
+  const reportStats = useMemo(() => {
+    if (!report) return null;
+    
+    const totalGroups = report.groups.length;
+    const totalSubgroups = report.groups.reduce(
+      (acc, group) => acc + (group.subgroups?.length || 0),
+      0,
+    );
+    const totalRows = report.groups.reduce(
+      (acc, group) =>
+        acc +
+        (group.rows?.length || 0) +
+        (group.subgroups?.reduce((subAcc, sub) => subAcc + (sub.rows?.length || 0), 0) || 0),
+      0,
+    );
+    
+    return { totalGroups, totalSubgroups, totalRows };
+  }, [report]);
 
   const handleGenerate = async () => {
     // Validar datas antes de gerar
@@ -601,23 +657,112 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Filtro por Nome (cliente, vendedor, designer, etc.) */}
-          <div className="space-y-2">
-            <Label>Filtrar por nome</Label>
-            <Input
-              type="text"
-              placeholder="Buscar por cliente, vendedor, designer ou descrição..."
-              value={nomeFilter}
-              onChange={(e) => setNomeFilter(e.target.value)}
-              className="bg-white"
-              disabled={!report && !loading}
-            />
-            {report && (
-              <p className="text-sm text-muted-foreground">
-                Digite um trecho do nome (cliente, vendedor, designer) ou da descrição para filtrar os resultados.
-              </p>
+          {/* Cabeçalho com ações rápidas */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <Label>Filtrar por nome</Label>
+              <Input
+                type="text"
+                placeholder="Buscar por cliente, vendedor, designer ou descrição..."
+                value={nomeFilter}
+                onChange={(e) => setNomeFilter(e.target.value)}
+                className="bg-white"
+                disabled={!report && !loading}
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-2 mt-6"
+                title="Limpar todos os filtros"
+              >
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
             )}
           </div>
+
+          {/* Indicador de filtros ativos */}
+          {hasActiveFilters && report && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 pb-2 border-t border-slate-200">
+              <Filter className="h-4 w-4 text-slate-500" />
+              <span className="text-sm text-slate-600 font-medium">Filtros ativos:</span>
+              {filters.status !== STATUS_OPTIONS[0] && (
+                <Badge 
+                  variant="secondary" 
+                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
+                  onClick={() => updateFilter('status', STATUS_OPTIONS[0])}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      updateFilter('status', STATUS_OPTIONS[0]);
+                    }
+                  }}
+                >
+                  Status: {filters.status}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
+              {filters.vendedor && (
+                <Badge 
+                  variant="secondary" 
+                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
+                  onClick={() => updateFilter('vendedor', '')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      updateFilter('vendedor', '');
+                    }
+                  }}
+                >
+                  Vendedor: {filters.vendedor}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
+              {filters.designer && (
+                <Badge 
+                  variant="secondary" 
+                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
+                  onClick={() => updateFilter('designer', '')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      updateFilter('designer', '');
+                    }
+                  }}
+                >
+                  Designer: {filters.designer}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
+              {nomeFilter.trim() && (
+                <Badge 
+                  variant="secondary" 
+                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
+                  onClick={() => setNomeFilter('')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setNomeFilter('');
+                    }
+                  }}
+                >
+                  Busca: {nomeFilter}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
+            </div>
+          )}
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as 'analitico' | 'sintetico')}
@@ -630,15 +775,16 @@ export default function Fechamentos() {
                 Relatórios Sintéticos
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="analitico" className="mt-4 text-base text-muted-foreground">
-              Para entender detalhes por ficha ou agrupamento específico.
+            <TabsContent value="analitico" className="mt-4 text-sm text-muted-foreground">
+              Detalhes por ficha ou agrupamento específico.
             </TabsContent>
-            <TabsContent value="sintetico" className="mt-4 text-base text-muted-foreground">
-              Para uma visão resumida com totais por eixo de comparação.
+            <TabsContent value="sintetico" className="mt-4 text-sm text-muted-foreground">
+              Visão resumida com totais por eixo.
             </TabsContent>
           </Tabs>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* Tipo de relatório e ações principais */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Tipo de relatório</Label>
               <Select
@@ -658,28 +804,33 @@ export default function Fechamentos() {
               </Select>
               <p className="text-sm text-muted-foreground">
                 {activeTab === 'analitico'
-                  ? 'Escolha o agrupamento que melhor combina com a análise detalhada que você precisa.'
-                  : 'Selecione a forma de sumarizar os valores para uma visão rápida do período.'}
+                  ? 'Agrupamento detalhado para análise.'
+                  : 'Visão resumida com totais.'}
               </p>
+            </div>
+
+            {/* Botões de ação rápida */}
+            <div className="flex flex-col gap-2 md:justify-end">
+              <div className="flex flex-wrap gap-2">
+                {QUICK_RANGES.map((range) => (
+                  <Button
+                    key={range.value}
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-200 text-slate-600 hover:bg-slate-100"
+                    onClick={() => applyQuickRange(range.value)}
+                    type="button"
+                  >
+                    {range.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
 
           <Separator />
 
-          <div className="flex flex-wrap items-center gap-2">
-            {QUICK_RANGES.map((range) => (
-              <Button
-                key={range.value}
-                variant="outline"
-                className="border-slate-200 text-slate-600 hover:bg-slate-100"
-                onClick={() => applyQuickRange(range.value)}
-                type="button"
-              >
-                {range.label}
-              </Button>
-            ))}
-          </div>
-
+          {/* Filtros de data, status e pessoas */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Data inicial</Label>
@@ -766,7 +917,7 @@ export default function Fechamentos() {
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                Use para fechamento de comissão por vendedor. A lista vem automaticamente do cadastro.
+                Para fechamento de comissão por vendedor.
               </p>
             </div>
 
@@ -791,39 +942,43 @@ export default function Fechamentos() {
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                Combine com o vendedor para fechar comissão por par vendedor/designer.
+                Para comissão por designer ou par vendedor/designer.
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 md:justify-end">
-              <Button
-                className="w-full gap-2"
-                onClick={handleGenerate}
-                disabled={loading || !!dateError}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                {loading ? 'Gerando...' : 'Gerar Relatório'}
-              </Button>
+          </div>
 
-              <Button
-                variant="outline"
-                className="w-full gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
-                onClick={exportToPdf}
-                disabled={!report || loading || exportingPdf}
-              >
-                {exportingPdf ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Exportando...
-                  </>
-                ) : (
-                  <>
-                    <FileDown className="h-4 w-4" />
-                    Exportar PDF
-                  </>
-                )}
-              </Button>
-            </div>
+          {/* Botões de ação principais */}
+          <Separator />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+              onClick={exportToPdf}
+              disabled={!report || loading || exportingPdf}
+            >
+              {exportingPdf ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <FileDown className="h-4 w-4" />
+                  Exportar PDF
+                </>
+              )}
+            </Button>
+
+            <Button
+              className="gap-2"
+              onClick={handleGenerate}
+              disabled={loading || !!dateError}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+              {loading ? 'Gerando...' : 'Gerar Relatório'}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -842,7 +997,19 @@ export default function Fechamentos() {
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-              <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
+                {reportStats && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span>
+                      {reportStats.totalGroups} grupo(s)
+                      {reportStats.totalSubgroups > 0 && `, ${reportStats.totalSubgroups} subgrupo(s)`}
+                      {reportStats.totalRows > 0 && `, ${reportStats.totalRows} item(ns)`}
+                    </span>
+                  </div>
+                )}
+              </div>
               <span className="text-base text-slate-500">Página {filteredReport.page}</span>
             </div>
             <div className="mt-3 grid gap-2 text-base text-slate-500 md:grid-cols-4">
@@ -854,10 +1021,43 @@ export default function Fechamentos() {
           </CardHeader>
           <CardContent className="space-y-6 bg-slate-50 py-6">
             {filteredReport.groups.length === 0 ? (
-              <div className="rounded border border-dashed border-slate-200 bg-white py-12 text-center text-muted-foreground">
-                {nomeFilter.trim() 
-                  ? 'Nenhum resultado encontrado para o filtro de nome selecionado.'
-                  : 'Nenhum dado encontrado para os filtros selecionados.'}
+              <div className="rounded border border-dashed border-slate-200 bg-white py-12 text-center">
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  {nomeFilter.trim() ? (
+                    <>
+                      <p className="text-base font-medium">Nenhum resultado encontrado para "{nomeFilter}"</p>
+                      <p className="text-sm">Tente ajustar os termos de busca ou verificar a ortografia.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNomeFilter('')}
+                        className="mt-2 gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Limpar busca
+                      </Button>
+                    </>
+                  ) : hasActiveFilters ? (
+                    <>
+                      <p className="text-base font-medium">Nenhum dado encontrado para os filtros selecionados</p>
+                      <p className="text-sm">Tente ajustar as datas, status ou outros filtros aplicados.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFilters}
+                        className="mt-2 gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Limpar filtros
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-base font-medium">Nenhum dado encontrado para o período selecionado</p>
+                      <p className="text-sm">Verifique se há pedidos no intervalo de datas escolhido.</p>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
