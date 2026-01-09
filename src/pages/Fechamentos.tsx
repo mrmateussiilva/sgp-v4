@@ -26,7 +26,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, DollarSign, Truck, Package, TrendingUp, BarChart3, Minus, Maximize2, Target } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, DollarSign, Truck, Package, TrendingUp, BarChart3, Minus, Maximize2, Target, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { SummaryCard } from '@/components/analytics/SummaryCard';
 import { openPdfInWindow } from '@/utils/exportUtils';
@@ -140,6 +140,14 @@ export default function Fechamentos() {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
+  
+  // Estado para ordenação de tabelas
+  type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
+  type SortDirection = 'asc' | 'desc' | null;
+  const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection }>({
+    field: null,
+    direction: null,
+  });
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -194,8 +202,8 @@ export default function Fechamentos() {
   ) => {
     setFilters((previous) => {
       const newFilters = {
-        ...previous,
-        [key]: value,
+      ...previous,
+      [key]: value,
       };
 
       // Validação de datas: verificar se data final é anterior à inicial
@@ -663,12 +671,91 @@ export default function Fechamentos() {
     };
   }, [report, nomeFilter]);
 
+  // Função para ordenar linhas da tabela
+  const sortRows = (rows: Array<{ ficha: string; descricao: string; valor_frete: number; valor_servico: number }>) => {
+    if (!sortConfig.field || !sortConfig.direction) {
+      return rows;
+    }
+
+    const sorted = [...rows].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortConfig.field) {
+        case 'ficha':
+          aValue = a.ficha || '';
+          bValue = b.ficha || '';
+          // Tentar comparar como números se ambos forem numéricos
+          const aNum = Number.parseInt(aValue.toString(), 10);
+          const bNum = Number.parseInt(bValue.toString(), 10);
+          if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+            return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum;
+          }
+          // Caso contrário, comparar como strings
+          return sortConfig.direction === 'asc'
+            ? aValue.toString().localeCompare(bValue.toString(), 'pt-BR')
+            : bValue.toString().localeCompare(aValue.toString(), 'pt-BR');
+        case 'descricao':
+          aValue = a.descricao || '';
+          bValue = b.descricao || '';
+          return sortConfig.direction === 'asc'
+            ? aValue.toString().localeCompare(bValue.toString(), 'pt-BR')
+            : bValue.toString().localeCompare(aValue.toString(), 'pt-BR');
+        case 'valor_frete':
+          aValue = a.valor_frete || 0;
+          bValue = b.valor_frete || 0;
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        case 'valor_servico':
+          aValue = a.valor_servico || 0;
+          bValue = b.valor_servico || 0;
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  };
+
+  // Função para lidar com clique no header da tabela
+  const handleSort = (field: SortField) => {
+    setSortConfig((current) => {
+      if (current.field === field) {
+        // Ciclar: asc -> desc -> null
+        if (current.direction === 'asc') {
+          return { field, direction: 'desc' };
+        } else if (current.direction === 'desc') {
+          return { field: null, direction: null };
+        }
+      }
+      // Novo campo, começar com asc
+      return { field, direction: 'asc' };
+    });
+  };
+
+  // Componente para renderizar ícone de ordenação
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortConfig.field !== field) {
+      return <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />;
+    }
+    if (sortConfig.direction === 'asc') {
+      return <ArrowUp className="h-3.5 w-3.5 text-blue-600" />;
+    }
+    if (sortConfig.direction === 'desc') {
+      return <ArrowDown className="h-3.5 w-3.5 text-blue-600" />;
+    }
+    return <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />;
+  };
+
   const renderGroup = (group: ReportGroup, depth = 0, path = group.key): JSX.Element => {
     const marginLeft = depth * 16;
     const subgroups = group.subgroups ?? [];
     const rows = group.rows ?? [];
     const hasSubgroups = subgroups.length > 0;
     const hasRows = rows.length > 0;
+    
+    // Ordenar linhas se houver ordenação ativa
+    const sortedRows = hasRows ? sortRows(rows) : [];
 
     return (
       <div key={path} className="space-y-3">
@@ -696,14 +783,50 @@ export default function Fechamentos() {
             <table className="w-full border-collapse text-base">
               <thead className="bg-slate-50 text-slate-600">
                 <tr className="text-sm font-medium">
-                  <th className="px-4 py-2 text-left">Ficha</th>
-                  <th className="px-4 py-2 text-left">Descrição</th>
-                  <th className="px-4 py-2 text-right">Valor Frete</th>
-                  <th className="px-4 py-2 text-right">Valor Serviços</th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('ficha')}
+                    title="Clique para ordenar por Ficha"
+                  >
+                    <div className="flex items-center gap-2">
+                      Ficha
+                      <SortIcon field="ficha" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('descricao')}
+                    title="Clique para ordenar por Descrição"
+                  >
+                    <div className="flex items-center gap-2">
+                      Descrição
+                      <SortIcon field="descricao" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('valor_frete')}
+                    title="Clique para ordenar por Valor Frete"
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Valor Frete
+                      <SortIcon field="valor_frete" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('valor_servico')}
+                    title="Clique para ordenar por Valor Serviços"
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Valor Serviços
+                      <SortIcon field="valor_servico" />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
+                {sortedRows.map((row, index) => (
                   <tr
                     key={`${path}-row-${index}`}
                     className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
@@ -922,23 +1045,23 @@ export default function Fechamentos() {
                   ? 'Agrupamento detalhado para análise.'
                   : 'Visão resumida com totais.'}
               </p>
-            </div>
+          </div>
 
             {/* Botões de ação rápida */}
             <div className="flex flex-col gap-2 md:justify-end">
               <div className="flex flex-wrap gap-2">
-                {QUICK_RANGES.map((range) => (
-                  <Button
-                    key={range.value}
-                    variant="outline"
+            {QUICK_RANGES.map((range) => (
+              <Button
+                key={range.value}
+                variant="outline"
                     size="sm"
-                    className="border-slate-200 text-slate-600 hover:bg-slate-100"
-                    onClick={() => applyQuickRange(range.value)}
-                    type="button"
-                  >
-                    {range.label}
-                  </Button>
-                ))}
+                className="border-slate-200 text-slate-600 hover:bg-slate-100"
+                onClick={() => applyQuickRange(range.value)}
+                type="button"
+              >
+                {range.label}
+              </Button>
+            ))}
               </div>
             </div>
           </div>
@@ -1067,10 +1190,10 @@ export default function Fechamentos() {
           <Separator />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              variant="outline"
+              <Button
+                variant="outline"
               className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
-              onClick={exportToPdf}
+                onClick={exportToPdf}
               disabled={!report || loading || exportingPdf}
             >
               {exportingPdf ? (
@@ -1080,8 +1203,8 @@ export default function Fechamentos() {
                 </>
               ) : (
                 <>
-                  <FileDown className="h-4 w-4" />
-                  Exportar PDF
+                <FileDown className="h-4 w-4" />
+                Exportar PDF
                 </>
               )}
             </Button>
@@ -1093,8 +1216,8 @@ export default function Fechamentos() {
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               {loading ? 'Gerando...' : 'Gerar Relatório'}
-            </Button>
-          </div>
+              </Button>
+            </div>
         </CardContent>
       </Card>
 
@@ -1105,9 +1228,9 @@ export default function Fechamentos() {
               <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
               <p className="text-base text-slate-600">Gerando relatório...</p>
               <p className="text-sm text-slate-500">Por favor, aguarde enquanto processamos os dados.</p>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
       ) : filteredReport ? (
         <>
           {/* Cards de Resumo Executivo */}
@@ -1226,7 +1349,7 @@ export default function Fechamentos() {
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
+              <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
                 {reportStats && (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -1365,8 +1488,8 @@ export default function Fechamentos() {
                         </div>
                         <span className="text-sm font-semibold text-green-700">
                           {((filteredReport.total.valor_frete / (filteredReport.total.valor_frete + filteredReport.total.valor_servico)) * 100).toFixed(1)}%
-                        </span>
-                      </div>
+                </span>
+              </div>
                       <p className="mt-1 text-xs text-slate-500">Frete</p>
                     </div>
                     <div>
