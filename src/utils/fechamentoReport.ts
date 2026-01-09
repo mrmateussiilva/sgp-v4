@@ -84,15 +84,24 @@ const safeLabel = (value: string | null | undefined, fallback: string): string =
   return trimmed.length > 0 ? trimmed : fallback;
 };
 
+/**
+ * Formata uma data para exibição no formato brasileiro (DD/MM/YYYY)
+ * Corrigido para não ter problemas de timezone
+ */
 const formatDateLabel = (value: string | null | undefined): string => {
   if (!value) {
     return 'Sem data';
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  
+  // Extrair apenas a parte da data (YYYY-MM-DD)
+  const dateOnly = extractDateOnly(value);
+  if (!dateOnly) {
     return 'Sem data';
   }
-  return date.toLocaleDateString('pt-BR');
+  
+  // Formatar diretamente sem usar Date para evitar timezone
+  const [year, month, day] = dateOnly.split('-');
+  return `${day}/${month}/${year}`;
 };
 
 const slugify = (value: string): string =>
@@ -166,6 +175,66 @@ const splitFrete = (totalFrete: number, itemsLength: number): number[] => {
 };
 
 type DateReferenceMode = 'entrada' | 'entrega' | 'auto';
+
+// ============================================================================
+// FUNÇÕES AUXILIARES PARA TRABALHAR COM DATAS SEM PROBLEMAS DE TIMEZONE
+// ============================================================================
+
+/**
+ * Cria uma data local a partir de uma string no formato YYYY-MM-DD
+ * Evita problemas de timezone usando o construtor Date local
+ */
+const createDateFromString = (dateString: string): Date => {
+  // Se a string já está no formato YYYY-MM-DD, cria data local direto
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number.parseInt(year, 10), Number.parseInt(month, 10) - 1, Number.parseInt(day, 10));
+  }
+  // Fallback: tenta parsear normalmente
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Data inválida: ${dateString}`);
+  }
+  return date;
+};
+
+/**
+ * Normaliza uma data para meia-noite local (00:00:00.000)
+ * Isso garante comparações apenas por dia, sem considerar horas
+ */
+const normalizeDateToMidnight = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+/**
+ * Extrai apenas a parte da data (YYYY-MM-DD) de uma string
+ * Útil para normalizar datas que podem vir com hora/timezone
+ */
+const extractDateOnly = (dateString: string): string => {
+  // Se já está no formato YYYY-MM-DD, retorna direto
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Tenta extrair YYYY-MM-DD do início da string
+  const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) {
+    return match[1];
+  }
+  
+  // Fallback: parseia e extrai
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getOrderReferenceDate = (
   order: OrderWithItems,
@@ -313,29 +382,58 @@ const filterOrdersByStatus = (orders: OrderWithItems[], statusFilter?: string) =
   return orders.filter((order) => order.status === statusFilter);
 };
 
-const filterOrdersByDate = (orders: OrderWithItems[], startDate?: string, endDate?: string) => {
+/**
+ * Filtra pedidos por intervalo de datas
+ * Corrigido para:
+ * 1. Receber e usar o dateMode correto
+ * 2. Evitar problemas de timezone usando datas locais
+ * 3. Comparar apenas por dia, não por hora
+ */
+const filterOrdersByDate = (
+  orders: OrderWithItems[],
+  startDate?: string,
+  endDate?: string,
+  dateMode: DateReferenceMode = 'auto'
+) => {
   if (!startDate && !endDate) {
     return orders;
   }
 
-  const start = startDate ? new Date(startDate) : null;
-  const end = endDate ? new Date(endDate) : null;
+  // Criar datas de filtro sem problemas de timezone (usando data local)
+  const start = startDate ? normalizeDateToMidnight(createDateFromString(startDate)) : null;
+  let end: Date | null = null;
+  if (endDate) {
+    end = normalizeDateToMidnight(createDateFromString(endDate));
+    end.setHours(23, 59, 59, 999); // Final do dia
+  }
 
   return orders.filter((order) => {
-    const referenceDate = getOrderReferenceDate(order, 'auto');
-    if (!referenceDate) {
+    // Usar o dateMode passado como parâmetro
+    const referenceDateString = getOrderReferenceDate(order, dateMode);
+    if (!referenceDateString) {
       return true;
     }
-    const current = new Date(referenceDate);
+    
+    // Extrair apenas a parte da data e criar data local normalizada
+    const dateOnly = extractDateOnly(referenceDateString);
+    if (!dateOnly) {
+      return true;
+    }
+    
+    let current: Date;
+    try {
+      current = normalizeDateToMidnight(createDateFromString(dateOnly));
+    } catch {
+      return true; // Se não conseguir parsear, mantém o pedido
+    }
+    
     if (Number.isNaN(current.getTime())) {
       return true;
     }
+    
+    // Comparações usando datas normalizadas (apenas dia, sem hora/timezone)
     if (start && current < start) return false;
-    if (end) {
-      const adjustedEnd = new Date(end);
-      adjustedEnd.setHours(23, 59, 59, 999);
-      if (current > adjustedEnd) return false;
-    }
+    if (end && current > end) return false;
     return true;
   });
 };
@@ -401,7 +499,12 @@ export const generateFechamentoReport = (
       : 'auto';
 
   const filteredByStatus = filterOrdersByStatus(orders, payload.status);
-  const filteredOrders = filterOrdersByDate(filteredByStatus, payload.start_date, payload.end_date);
+  const filteredOrders = filterOrdersByDate(
+    filteredByStatus,
+    payload.start_date,
+    payload.end_date,
+    dateMode // ✅ Passa o dateMode para o filtro
+  );
 
   const baseRowsAll = filteredOrders.flatMap((order) => buildRowsFromOrder(order, dateMode));
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
