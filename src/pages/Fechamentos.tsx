@@ -28,7 +28,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { openPdfInWindow, exportToCSV } from '@/utils/exportUtils';
+import { openPdfInWindow } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
 
 // Lazy load de bibliotecas pesadas
@@ -576,7 +576,6 @@ export default function Fechamentos() {
         header: true,
         delimiter: ';',
         newline: '\n',
-        encoding: 'utf-8',
       });
 
       // Criar blob e fazer download
