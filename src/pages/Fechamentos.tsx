@@ -1329,7 +1329,6 @@ export default function Fechamentos() {
             </div>
           </CardContent>
         </Card>
-        </>
       ) : (
         <Card className="border-dashed border-slate-200 bg-slate-50">
           <CardContent className="py-16 text-center text-muted-foreground">
