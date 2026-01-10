@@ -582,10 +582,70 @@ const buildPeriodLabel = (startDate?: string, endDate?: string): string => {
   return 'Período não especificado';
 };
 
+/**
+ * Valida o payload de requisição do relatório.
+ * Verifica formato de datas, tipos de relatório e outras regras de negócio.
+ * 
+ * @param payload - Payload a ser validado
+ * @returns Objeto com validade e lista de erros encontrados
+ */
+const validateReportRequest = (payload: ReportRequestPayload): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  // Validar datas
+  if (payload.start_date && payload.end_date) {
+    if (payload.start_date > payload.end_date) {
+      errors.push('Data inicial não pode ser posterior à data final');
+    }
+  }
+  
+  // Validar formato de datas (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (payload.start_date && !dateRegex.test(payload.start_date)) {
+    errors.push('Data inicial deve estar no formato YYYY-MM-DD');
+  }
+  
+  if (payload.end_date && !dateRegex.test(payload.end_date)) {
+    errors.push('Data final deve estar no formato YYYY-MM-DD');
+  }
+  
+  // Validar tipo de relatório
+  const validReportTypes = [
+    'analitico_designer_cliente',
+    'analitico_cliente_designer',
+    'analitico_cliente_painel',
+    'analitico_designer_painel',
+    'analitico_entrega_painel',
+    'sintetico_data',
+    'sintetico_data_entrada',
+    'sintetico_data_entrega',
+    'sintetico_designer',
+    'sintetico_vendedor',
+    'sintetico_vendedor_designer',
+    'sintetico_cliente',
+    'sintetico_entrega',
+  ];
+  
+  if (!validReportTypes.includes(payload.report_type)) {
+    errors.push(`Tipo de relatório inválido: ${payload.report_type}`);
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+};
+
 export const generateFechamentoReport = (
   orders: OrderWithItems[],
   payload: ReportRequestPayload,
 ): ReportResponse => {
+  // Validar payload
+  const validation = validateReportRequest(payload);
+  if (!validation.valid) {
+    throw new Error(`Payload inválido: ${validation.errors.join('; ')}`);
+  }
+  
   const dateMode: DateReferenceMode =
     payload.date_mode === 'entrada' || payload.date_mode === 'entrega'
       ? payload.date_mode
