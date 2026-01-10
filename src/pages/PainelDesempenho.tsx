@@ -9,6 +9,7 @@ import {
   AnalyticsTopProduct,
   ReportResponse,
   ReportRequestPayload,
+  OrderWithItems,
 } from '@/types';
 import {
   AnalyticsFilterBar,
@@ -21,6 +22,7 @@ import { TrendChartCard } from '@/components/analytics/TrendChartCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { MOCK_ANALYTICS_RESPONSE } from '@/data/mockAnalytics';
+import { calculateOrderAnalytics } from '@/utils/orderAnalytics';
 
 const numberFormatter = new Intl.NumberFormat('pt-BR');
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -90,7 +92,9 @@ export default function PainelDesempenho() {
   const [filters, setFilters] = useState<AnalyticsFilterState>(initialFilterState);
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
   const [fechamentoData, setFechamentoData] = useState<ReportResponse | null>(null);
+  const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [loadingFechamento, setLoadingFechamento] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +128,25 @@ export default function PainelDesempenho() {
     [],
   );
 
+  // Carregar pedidos do backend
+  const loadOrders = useCallback(async () => {
+    try {
+      setLoadingOrders(true);
+      const fetchedOrders = await api.getOrders();
+      setOrders(fetchedOrders);
+      console.info(`[PainelDesempenho] ${fetchedOrders.length} pedidos carregados para analytics`);
+    } catch (loadError) {
+      console.error('Erro ao carregar pedidos:', loadError);
+      toast({
+        title: 'Aviso',
+        description: 'Não foi possível carregar todos os pedidos. Alguns dados podem estar incompletos.',
+        variant: 'default',
+      });
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [toast]);
+
   const loadAnalytics = useCallback(
     async (filtersPayload: AnalyticsFilters, isInitialLoad = false) => {
       try {
@@ -134,27 +157,67 @@ export default function PainelDesempenho() {
         }
         setError(null);
 
-        const response = await analyticsService.getAnalytics(filtersPayload);
-
-        const effectiveData =
-          isAnalyticsEmpty(response) && shouldUseMockAnalytics()
-            ? (() => {
-                console.info(
-                  '[PainelDesempenho] Nenhum dado retornado pelo backend. Carregando dataset mock para visualização.',
-                );
-                return MOCK_ANALYTICS_RESPONSE;
-              })()
-            : response;
-
-        setAnalytics(effectiveData);
-
-        if (effectiveData.available_product_types) {
-          setProductTypes(
-            effectiveData.available_product_types.map((name) => ({
-              value: name,
-              label: name,
-            })),
+        // Priorizar cálculo a partir de pedidos reais se disponíveis
+        if (orders.length > 0) {
+          console.info('[PainelDesempenho] Calculando analytics a partir de pedidos reais');
+          
+          // Criar mapas de ID -> nome para vendedores e designers
+          const vendedorNameMap = new Map<number, string>();
+          vendedores.forEach((v) => {
+            const id = Number(v.value);
+            if (!Number.isNaN(id)) {
+              vendedorNameMap.set(id, v.label);
+            }
+          });
+          
+          const designerNameMap = new Map<number, string>();
+          designers.forEach((d) => {
+            const id = Number(d.value);
+            if (!Number.isNaN(id)) {
+              designerNameMap.set(id, d.label);
+            }
+          });
+          
+          const calculatedAnalytics = calculateOrderAnalytics(
+            orders,
+            filtersPayload,
+            vendedorNameMap,
+            designerNameMap,
           );
+          setAnalytics(calculatedAnalytics);
+
+          if (calculatedAnalytics.available_product_types) {
+            setProductTypes(
+              calculatedAnalytics.available_product_types.map((name) => ({
+                value: name,
+                label: name,
+              })),
+            );
+          }
+        } else {
+          // Fallback: tentar API de analytics ou mock
+          const response = await analyticsService.getAnalytics(filtersPayload);
+
+          const effectiveData =
+            isAnalyticsEmpty(response) && shouldUseMockAnalytics()
+              ? (() => {
+                  console.info(
+                    '[PainelDesempenho] Nenhum dado retornado pelo backend. Carregando dataset mock para visualização.',
+                  );
+                  return MOCK_ANALYTICS_RESPONSE;
+                })()
+              : response;
+
+          setAnalytics(effectiveData);
+
+          if (effectiveData.available_product_types) {
+            setProductTypes(
+              effectiveData.available_product_types.map((name) => ({
+                value: name,
+                label: name,
+              })),
+            );
+          }
         }
       } catch (loadError) {
         console.error('Erro ao buscar analytics:', loadError);
@@ -182,7 +245,7 @@ export default function PainelDesempenho() {
         setRefreshing(false);
       }
     },
-    [toast],
+    [orders, vendedores, designers, toast],
   );
 
   // Função para buscar dados de fechamento
@@ -217,11 +280,22 @@ export default function PainelDesempenho() {
     [vendedores, designers],
   );
 
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  // Carregar pedidos e catálogos na inicialização
   useEffect(() => {
     loadCatalogs();
-    const initialPayload = buildFiltersPayload(initialFilterState);
-    loadAnalytics(initialPayload, true);
-  }, [buildFiltersPayload, loadAnalytics, loadCatalogs]);
+    loadOrders();
+  }, [loadCatalogs, loadOrders]);
+
+  // Quando pedidos são carregados, calcular analytics inicial
+  useEffect(() => {
+    if (!loadingOrders && !initialLoadDone) {
+      const initialPayload = buildFiltersPayload(initialFilterState);
+      loadAnalytics(initialPayload, true);
+      setInitialLoadDone(true);
+    }
+  }, [loadingOrders, initialLoadDone, buildFiltersPayload, loadAnalytics]);
 
   useEffect(() => {
     const payload = buildFiltersPayload(filters);
@@ -237,6 +311,7 @@ export default function PainelDesempenho() {
 
   const handleApplyFilters = () => {
     const payload = buildFiltersPayload(filters);
+    setRefreshing(true);
     loadAnalytics(payload, false);
   };
 
@@ -469,7 +544,7 @@ export default function PainelDesempenho() {
         </div>
       ) : null}
 
-      {loading ? (
+      {(loading || loadingOrders) ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
@@ -712,20 +787,20 @@ export default function PainelDesempenho() {
         </>
       ) : null}
 
-      {refreshing && !loading ? (
+      {refreshing && !loading && !loadingOrders ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Atualizando dados...
         </div>
       ) : null}
 
-      {!loading && !hasData ? (
+      {!loading && !loadingOrders && !hasData ? (
         <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
           Nenhum dado disponível para os filtros selecionados. Ajuste os parâmetros e tente novamente.
         </div>
       ) : null}
 
-      {!loading && analytics ? (
+      {!loading && !loadingOrders && analytics ? (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
             <TrendChartCard
