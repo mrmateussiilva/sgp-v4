@@ -197,6 +197,30 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'grupo';
 
+/**
+ * Calcula os totais de frete e serviço a partir de linhas normalizadas.
+ * 
+ * IMPORTANTE: O frete é agrupado por orderId para evitar duplicação no total geral,
+ * já que cada item de um pedido pode estar em grupos diferentes no relatório.
+ * Cada item de um pedido repete o valor do frete, mas no total geral o frete
+ * é contado apenas uma vez por pedido.
+ * 
+ * @param rows - Array de linhas normalizadas (uma linha por item de pedido)
+ * @returns Totais de frete e serviço calculados
+ * 
+ * @example
+ * ```typescript
+ * const rows = [
+ *   { orderId: 1, valorFrete: 50, valorServico: 100 },
+ *   { orderId: 1, valorFrete: 50, valorServico: 150 }, // Mesmo pedido
+ *   { orderId: 2, valorFrete: 30, valorServico: 80 }
+ * ];
+ * const totals = computeTotalsFromRows(rows);
+ * // totals = { valor_frete: 80, valor_servico: 330 }
+ * // Frete: 50 (pedido 1) + 30 (pedido 2) = 80
+ * // Serviço: 100 + 150 + 80 = 330
+ * ```
+ */
 const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals => {
   // Agrupar por orderId para contar frete apenas uma vez por pedido
   const fretePorPedido = new Map<number, number>();
@@ -341,6 +365,18 @@ const getOrderReferenceDate = (
   return order.data_entrega ?? order.data_entrada ?? order.created_at ?? null;
 };
 
+/**
+ * Converte um pedido em linhas normalizadas para o relatório.
+ * 
+ * Cada item do pedido gera uma linha separada. O frete do pedido é repetido
+ * para cada item, já que cada item pode ser agrupado de forma diferente
+ * no relatório. Isso permite que o frete apareça corretamente em cada grupo,
+ * mas será deduplicado no total geral pela função computeTotalsFromRows().
+ * 
+ * @param order - Pedido a ser convertido
+ * @param dateMode - Modo de referência de data ('entrada', 'entrega' ou 'auto')
+ * @returns Array de linhas normalizadas (uma por item, ou uma se não houver itens)
+ */
 const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode): NormalizedRow[] => {
   const items = order.items ?? [];
   const cliente = safeLabel(order.cliente ?? order.customer_name, 'Cliente não informado');
@@ -636,6 +672,26 @@ const validateReportRequest = (payload: ReportRequestPayload): { valid: boolean;
   };
 };
 
+/**
+ * Gera um relatório de fechamentos a partir de pedidos.
+ * 
+ * Esta é a função principal que processa os pedidos, aplica filtros,
+ * agrupa os dados conforme o tipo de relatório solicitado e calcula os totais.
+ * 
+ * Fluxo de processamento:
+ * 1. Valida o payload de entrada
+ * 2. Filtra pedidos por status
+ * 3. Filtra pedidos por data (conforme date_mode)
+ * 4. Converte pedidos em linhas normalizadas
+ * 5. Filtra linhas por vendedor/designer/cliente (se especificado)
+ * 6. Agrupa linhas conforme report_type
+ * 7. Calcula totais por grupo e total geral
+ * 
+ * @param orders - Array de pedidos com itens para processar
+ * @param payload - Parâmetros do relatório (tipo, filtros, datas, etc.)
+ * @returns Relatório completo com grupos, subtotais e totais
+ * @throws Error se o payload for inválido
+ */
 export const generateFechamentoReport = (
   orders: OrderWithItems[],
   payload: ReportRequestPayload,
