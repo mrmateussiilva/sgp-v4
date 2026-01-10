@@ -104,10 +104,20 @@ export const useRealtimeNotifications = () => {
       return;
     }
 
-    // IMPORTANTE:
-    // Não filtrar por user_id aqui.
-    // Em cenários onde múltiplos computadores usam o mesmo login, filtrar por user_id
-    // faria os outros clientes ignorarem notificações legítimas.
+    // Filtrar notificações do próprio usuário (exceto delete que é sempre importante)
+    if (
+      extractedUserId !== undefined &&
+      userId !== undefined &&
+      extractedUserId === userId &&
+      notification.notification_type !== NotificationType.OrderDeleted
+    ) {
+      console.log('🔇 Notificação do próprio usuário ignorada:', notification);
+      // Ainda recarregar a lista, mas sem mostrar toast
+      if (notification.notification_type !== NotificationType.OrderDeleted) {
+        refreshOrders();
+      }
+      return;
+    }
 
     // Log para debug
     console.log('✅ Notificação será exibida:', {
@@ -120,32 +130,30 @@ export const useRealtimeNotifications = () => {
 
     // Extrair informações adicionais do pedido
     const clienteName = orderPayload?.cliente || orderPayload?.customer_name || 'Cliente';
-    const statusInfo = orderPayload?.status ? `Status: ${orderPayload.status}` : '';
     const orderNum = notification.order_numero || notification.order_id;
     
-    // Mostrar toast baseado no tipo de notificação com mais detalhes
+    // Mostrar toast baseado no tipo de notificação (mais sutis e concisos)
     switch (notification.notification_type) {
       case NotificationType.OrderCreated:
         toast({
-          title: "✨ Novo Pedido Criado",
-          description: `Pedido #${orderNum}\n${clienteName}${statusInfo ? `\n${statusInfo}` : ''}`,
+          title: "Novo Pedido",
+          description: `#${orderNum} - ${clienteName}`,
           variant: "success",
+          duration: 3000,
         });
         break;
 
       case NotificationType.OrderUpdated:
-        toast({
-          title: "📝 Pedido Atualizado",
-          description: `Pedido #${orderNum}\n${clienteName}`,
-          variant: "info",
-        });
+        // Silenciar atualizações menores - não são críticas e apenas poluem a tela
+        // A lista será atualizada automaticamente via refreshOrders()
         break;
 
       case NotificationType.OrderDeleted:
         toast({
-          title: "🗑️ Pedido Excluído",
-          description: `Pedido #${orderNum}\n${clienteName}`,
+          title: "Pedido Excluído",
+          description: `#${orderNum}`,
           variant: "destructive",
+          duration: 3000,
         });
         // Remover pedido da lista local
         removeOrder(notification.order_id);
@@ -155,9 +163,10 @@ export const useRealtimeNotifications = () => {
         // Extrair detalhes da mudança de status
         const statusDetails = extractStatusDetails(orderPayload);
         toast({
-          title: "🔄 Status Atualizado",
-          description: `Pedido #${orderNum}\n${clienteName}${statusDetails ? `\n${statusDetails}` : ''}`,
+          title: "Status Atualizado",
+          description: `#${orderNum} - ${statusDetails || clienteName}`,
           variant: "warning",
+          duration: 3000,
         });
         break;
       }
