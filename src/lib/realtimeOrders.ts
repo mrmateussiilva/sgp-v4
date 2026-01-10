@@ -507,10 +507,15 @@ class OrdersWebSocketManager {
    * @param order - Dados do pedido (opcional, para incluir na notificação)
    */
   broadcastOrderStatusUpdate(orderId: number, order?: unknown): void {
+    // Obter user_id do store para incluir na mensagem
+    const authState = useAuthStore.getState();
+    const userId = authState.userId;
+
     const message: OrderEventMessage = {
       type: 'order_status_updated',
       order_id: orderId,
       order: order,
+      user_id: userId,
       timestamp: Date.now(),
       broadcast: true, // Flag para indicar que é um broadcast do cliente
     };
@@ -523,10 +528,15 @@ class OrdersWebSocketManager {
    * @param order - Dados do pedido (opcional)
    */
   broadcastOrderUpdate(orderId: number, order?: unknown): void {
+    // Obter user_id do store para incluir na mensagem
+    const authState = useAuthStore.getState();
+    const userId = authState.userId;
+
     const message: OrderEventMessage = {
       type: 'order_updated',
       order_id: orderId,
       order: order,
+      user_id: userId,
       timestamp: Date.now(),
       broadcast: true,
     };
@@ -539,13 +549,27 @@ class OrdersWebSocketManager {
    * @param order - Dados do pedido (opcional)
    */
   broadcastOrderCreated(orderId: number, order?: unknown): void {
+    // Obter user_id do store para incluir na mensagem
+    const authState = useAuthStore.getState();
+    const userId = authState.userId;
+
     const message: OrderEventMessage = {
       type: 'order_created',
       order_id: orderId,
       order: order,
+      user_id: userId, // Incluir user_id para o servidor redistribuir corretamente
       timestamp: Date.now(),
       broadcast: true,
     };
+    
+    if (import.meta.env.DEV) {
+      console.log('📤 Enviando broadcast order_created:', {
+        order_id: orderId,
+        user_id: userId,
+        has_order: !!order,
+      });
+    }
+    
     this.sendMessage(message);
   }
 
@@ -554,9 +578,14 @@ class OrdersWebSocketManager {
    * @param orderId - ID do pedido excluído
    */
   broadcastOrderDeleted(orderId: number): void {
+    // Obter user_id do store para incluir na mensagem
+    const authState = useAuthStore.getState();
+    const userId = authState.userId;
+
     const message: OrderEventMessage = {
       type: 'order_deleted',
       order_id: orderId,
+      user_id: userId,
       timestamp: Date.now(),
       broadcast: true,
     };

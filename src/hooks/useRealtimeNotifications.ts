@@ -56,11 +56,27 @@ export const useRealtimeNotifications = () => {
       type: message.type,
       message_user_id: (message as Record<string, unknown>).user_id,
       message_username: (message as Record<string, unknown>).username,
+      broadcast: (message as Record<string, unknown>).broadcast,
       order: (message as Record<string, unknown>).order,
     });
     
     if (!message || !message.type) {
       return;
+    }
+
+    // Ignorar mensagens que foram enviadas por este cliente (broadcast: true)
+    // Essas mensagens são apenas para o servidor redistribuir, não devem ser processadas aqui
+    if ((message as Record<string, unknown>).broadcast === true) {
+      const messageUserId = typeof (message as Record<string, unknown>).user_id === 'number'
+        ? (message as Record<string, unknown>).user_id as number
+        : undefined;
+      
+      // Se é do próprio usuário E tem flag broadcast, ignorar completamente
+      // Essa mensagem foi enviada por nós e será redistribuída pelo servidor
+      if (messageUserId !== undefined && userId !== undefined && messageUserId === userId) {
+        console.log('🔇 Ignorando mensagem broadcast do próprio cliente:', message.type);
+        return;
+      }
     }
 
     const orderPayload = (message as OrderEventMessage & { order?: Record<string, unknown> }).order;
