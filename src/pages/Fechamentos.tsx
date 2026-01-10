@@ -38,6 +38,7 @@ import { FechamentoRankings } from '@/components/fechamentos/FechamentoRankings'
 import { FechamentoPieChart } from '@/components/fechamentos/FechamentoPieChart';
 import { FechamentoAreaChart } from '@/components/fechamentos/FechamentoAreaChart';
 import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComposedChart';
+import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadialChart';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -1371,8 +1372,11 @@ export default function Fechamentos() {
             loading={loadingStats}
           />
 
-          {/* Gráfico de Distribuição */}
-          <FechamentoPieChart stats={stats} loading={loadingStats} />
+          {/* Gráficos de Distribuição */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <FechamentoPieChart stats={stats} loading={loadingStats} />
+            <FechamentoRadialChart stats={stats} loading={loadingStats} />
+          </div>
 
           {/* Gráfico de Área */}
           <FechamentoAreaChart trends={trends} loading={loadingStats} />
