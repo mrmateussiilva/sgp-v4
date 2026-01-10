@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ReportGroup,
@@ -28,13 +28,10 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
-import { FechamentoStatsCards } from '@/components/fechamentos/FechamentoStatsCards';
-import { FechamentoTrendsChart } from '@/components/fechamentos/FechamentoTrendsChart';
-import { FechamentoRankings } from '@/components/fechamentos/FechamentoRankings';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -145,14 +142,6 @@ export default function Fechamentos() {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
-  
-  // Estados para estatísticas e gráficos
-  const [stats, setStats] = useState<any>(null);
-  const [trends, setTrends] = useState<any>(null);
-  const [rankingsVendedor, setRankingsVendedor] = useState<any>(null);
-  const [rankingsDesigner, setRankingsDesigner] = useState<any>(null);
-  const [rankingsCliente, setRankingsCliente] = useState<any>(null);
-  const [loadingStats, setLoadingStats] = useState<boolean>(false);
   
   // Estado para ordenação de tabelas
   type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
@@ -301,49 +290,6 @@ export default function Fechamentos() {
     return { totalGroups, totalSubgroups, totalRows };
   }, [report]);
 
-  // Função para carregar estatísticas e gráficos
-  const loadStatistics = useCallback(async () => {
-    if (!filters.startDate || !filters.endDate) return;
-    
-    setLoadingStats(true);
-    try {
-      const params = {
-        start_date: filters.startDate,
-        end_date: filters.endDate,
-        status: filters.status === 'Todos' ? undefined : filters.status,
-        date_mode: filters.dateMode,
-        vendedor: filters.vendedor,
-        designer: filters.designer,
-        cliente: filters.cliente,
-      };
-
-      const [statsData, trendsData, vendedorData, designerData, clienteData] = await Promise.all([
-        api.getFechamentoStatistics(params),
-        api.getFechamentoTrends({ ...params, group_by: 'day' }),
-        api.getFechamentoRankings('vendedor', { ...params, limit: 10 }),
-        api.getFechamentoRankings('designer', { ...params, limit: 10 }),
-        api.getFechamentoRankings('cliente', { ...params, limit: 10 }),
-      ]);
-
-      setStats(statsData);
-      setTrends(trendsData.trends);
-      setRankingsVendedor(vendedorData.rankings);
-      setRankingsDesigner(designerData.rankings);
-      setRankingsCliente(clienteData.rankings);
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [filters]);
-
-  // Carregar estatísticas quando os filtros mudarem
-  useEffect(() => {
-    if (filters.startDate && filters.endDate) {
-      loadStatistics();
-    }
-  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, loadStatistics]);
-
   const handleGenerate = async () => {
     // Validar datas antes de gerar
     if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
@@ -372,9 +318,6 @@ export default function Fechamentos() {
     try {
       const response = await api.generateReport(payload);
       setReport(response);
-      
-      // Carregar estatísticas após gerar relatório
-      await loadStatistics();
       const groupsCount = response.groups.length;
       const totalRows = response.groups.reduce(
         (acc, group) =>
@@ -1350,27 +1293,6 @@ export default function Fechamentos() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Seção de Estatísticas e Gráficos */}
-      {(stats || trends || loadingStats) && (
-        <div className="space-y-6">
-          {/* Cards de Estatísticas */}
-          <FechamentoStatsCards stats={stats} loading={loadingStats} />
-
-          {/* Gráficos de Tendências */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <FechamentoTrendsChart trends={trends} loading={loadingStats} chartType="line" />
-            <FechamentoTrendsChart trends={trends} loading={loadingStats} chartType="bar" />
-          </div>
-
-          {/* Rankings */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <FechamentoRankings rankings={rankingsVendedor} loading={loadingStats} category="vendedor" />
-            <FechamentoRankings rankings={rankingsDesigner} loading={loadingStats} category="designer" />
-            <FechamentoRankings rankings={rankingsCliente} loading={loadingStats} category="cliente" />
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <Card className="border-slate-200 shadow-sm">

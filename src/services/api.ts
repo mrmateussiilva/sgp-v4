@@ -2165,6 +2165,71 @@ export const api = {
     
     return generateFechamentoReport(orders, request);
   },
+
+  // Estatísticas de Fechamentos
+  getFechamentoStatistics: async (params: {
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+    date_mode?: string;
+    vendedor?: string;
+    designer?: string;
+    cliente?: string;
+  }): Promise<{
+    total_pedidos: number;
+    total_items: number;
+    total_revenue: number;
+    total_frete: number;
+    total_servico: number;
+    average_ticket: number;
+  }> => {
+    requireSessionToken();
+    const response = await apiClient.get('/relatorios/fechamentos/statistics', { params });
+    return response.data;
+  },
+
+  getFechamentoTrends: async (params: {
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+    date_mode?: string;
+    group_by?: 'day' | 'week' | 'month';
+  }): Promise<{
+    trends: Array<{
+      period: string;
+      pedidos: number;
+      revenue: number;
+      frete: number;
+      servico: number;
+    }>;
+  }> => {
+    requireSessionToken();
+    const response = await apiClient.get('/relatorios/fechamentos/trends', { params });
+    return response.data;
+  },
+
+  getFechamentoRankings: async (
+    category: 'vendedor' | 'designer' | 'cliente' | 'tipo_producao',
+    params: {
+      start_date?: string;
+      end_date?: string;
+      status?: string;
+      date_mode?: string;
+      limit?: number;
+    },
+  ): Promise<{
+    category: string;
+    rankings: Array<{
+      name: string;
+      pedidos: number;
+      items: number;
+      revenue: number;
+    }>;
+  }> => {
+    requireSessionToken();
+    const response = await apiClient.get(`/relatorios/fechamentos/rankings/${category}`, { params });
+    return response.data;
+  },
 };
 
 export async function getMateriais(_sessionToken: string): Promise<MaterialEntity[]> {
