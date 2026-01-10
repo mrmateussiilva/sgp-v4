@@ -139,7 +139,6 @@ export default function Fechamentos() {
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [exportingCsv, setExportingCsv] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
-  const [nomeFilter, setNomeFilter] = useState<string>('');
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
@@ -248,7 +247,6 @@ export default function Fechamentos() {
       designer: undefined,
       cliente: undefined,
     });
-    setNomeFilter('');
     setDateError('');
     setReport(null);
   };
@@ -265,13 +263,12 @@ export default function Fechamentos() {
       filters.vendedor ||
       filters.designer ||
       filters.cliente ||
-      nomeFilter.trim() !== '' ||
       filters.status !== defaultFilters.status ||
       filters.reportType !== defaultFilters.reportType ||
       filters.startDate !== formatInputDate(firstDayOfMonth) ||
       filters.endDate !== formatInputDate(today)
     );
-  }, [filters, nomeFilter, firstDayOfMonth, today]);
+  }, [filters, firstDayOfMonth, today]);
 
   // Calcular estatísticas do relatório
   const reportStats = useMemo(() => {
@@ -620,53 +617,6 @@ export default function Fechamentos() {
     }
   };
 
-  // Função para filtrar grupos recursivamente por nome
-  const filterGroupByName = (group: ReportGroup, filterText: string): ReportGroup | null => {
-    if (!filterText.trim()) {
-      return group;
-    }
-
-    const filterLower = filterText.toLowerCase().trim();
-    const filteredSubgroups = (group.subgroups ?? [])
-      .map((sub) => filterGroupByName(sub, filterText))
-      .filter((sub): sub is ReportGroup => sub !== null);
-
-    const filteredRows = (group.rows ?? []).filter(
-      (row) =>
-        row.ficha?.toLowerCase().includes(filterLower) ||
-        row.descricao?.toLowerCase().includes(filterLower)
-    );
-
-    // Se não há subgrupos nem linhas após filtrar, retornar null
-    if (filteredSubgroups.length === 0 && filteredRows.length === 0) {
-      // Mas se o próprio label do grupo contém o filtro, manter o grupo
-      if (group.label?.toLowerCase().includes(filterLower)) {
-        return { ...group, subgroups: [], rows: [] };
-      }
-      return null;
-    }
-
-    return {
-      ...group,
-      subgroups: filteredSubgroups,
-      rows: filteredRows,
-    };
-  };
-
-  const filteredReport = useMemo(() => {
-    if (!report || !nomeFilter.trim()) {
-      return report;
-    }
-
-    const filteredGroups = report.groups
-      .map((group) => filterGroupByName(group, nomeFilter))
-      .filter((group): group is ReportGroup => group !== null);
-
-    return {
-      ...report,
-      groups: filteredGroups,
-    };
-  }, [report, nomeFilter]);
 
   // Função para ordenar linhas da tabela
   const sortRows = (rows: Array<{ ficha: string; descricao: string; valor_frete: number; valor_servico: number }>) => {
@@ -892,32 +842,21 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Cabeçalho com ações rápidas */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <Label>Filtrar por nome</Label>
-              <Input
-                type="text"
-                placeholder="Buscar por cliente, vendedor, designer ou descrição..."
-                value={nomeFilter}
-                onChange={(e) => setNomeFilter(e.target.value)}
-                className="bg-white"
-                disabled={!report && !loading}
-              />
-            </div>
-            {hasActiveFilters && (
+          {/* Botão de limpar filtros */}
+          {hasActiveFilters && (
+            <div className="flex justify-end">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                className="gap-2 mt-6"
+                className="gap-2"
                 title="Limpar todos os filtros"
               >
                 <X className="h-4 w-4" />
                 Limpar Filtros
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Indicador de filtros ativos */}
           {hasActiveFilters && report && (
@@ -993,24 +932,6 @@ export default function Fechamentos() {
                   }}
                 >
                   Cliente: {filters.cliente}
-                  <X className="h-3 w-3 ml-1" />
-                </Badge>
-              )}
-              {nomeFilter.trim() && (
-                <Badge 
-                  variant="secondary" 
-                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
-                  onClick={() => setNomeFilter('')}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setNomeFilter('');
-                    }
-                  }}
-                >
-                  Busca: {nomeFilter}
                   <X className="h-3 w-3 ml-1" />
                 </Badge>
               )}
@@ -1271,7 +1192,7 @@ export default function Fechamentos() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               {loading ? 'Gerando...' : 'Gerar Relatório'}
               </Button>
-            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1285,12 +1206,12 @@ export default function Fechamentos() {
           </div>
         </CardContent>
       </Card>
-      ) : filteredReport ? (
+      ) : report ? (
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-200 bg-white text-slate-900">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-              <CardTitle className="text-lg font-semibold">{filteredReport.title}</CardTitle>
+              <CardTitle className="text-lg font-semibold">{report.title}</CardTitle>
                 {reportStats && (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -1302,34 +1223,20 @@ export default function Fechamentos() {
                   </div>
                 )}
               </div>
-              <span className="text-base text-slate-500">Página {filteredReport.page}</span>
+              <span className="text-base text-slate-500">Página {report.page}</span>
             </div>
             <div className="mt-3 grid gap-2 text-base text-slate-500 md:grid-cols-4">
-              <div>{filteredReport.period_label}</div>
-              <div>{filteredReport.status_label}</div>
-              <div>Tipo: {filteredReport.report_type.replace(/_/g, ' ').toUpperCase()}</div>
-              <div className="md:text-right">Emitido em: {filteredReport.generated_at}</div>
+              <div>{report.period_label}</div>
+              <div>{report.status_label}</div>
+              <div>Tipo: {report.report_type.replace(/_/g, ' ').toUpperCase()}</div>
+              <div className="md:text-right">Emitido em: {report.generated_at}</div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6 bg-slate-50 py-6">
-            {filteredReport.groups.length === 0 ? (
+            {report.groups.length === 0 ? (
               <div className="rounded border border-dashed border-slate-200 bg-white py-12 text-center">
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  {nomeFilter.trim() ? (
-                    <>
-                      <p className="text-base font-medium">Nenhum resultado encontrado para "{nomeFilter}"</p>
-                      <p className="text-sm">Tente ajustar os termos de busca ou verificar a ortografia.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setNomeFilter('')}
-                        className="mt-2 gap-2"
-                      >
-                        <X className="h-4 w-4" />
-                        Limpar busca
-                      </Button>
-                    </>
-                  ) : hasActiveFilters ? (
+                  {hasActiveFilters ? (
                     <>
                       <p className="text-base font-medium">Nenhum dado encontrado para os filtros selecionados</p>
                       <p className="text-sm">Tente ajustar as datas, status ou outros filtros aplicados.</p>
@@ -1353,7 +1260,7 @@ export default function Fechamentos() {
               </div>
             ) : (
               <div className="space-y-6">
-                {filteredReport.groups.map((group, index) => renderGroup(group, 0, `root-${index}`))}
+                {report.groups.map((group, index) => renderGroup(group, 0, `root-${index}`))}
               </div>
             )}
 
@@ -1362,9 +1269,9 @@ export default function Fechamentos() {
               <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-100 px-6 py-3 text-base text-slate-700 md:flex-row md:items-center md:justify-between">
                 <span>Total do período</span>
                 <span className="font-semibold text-slate-900">
-                  Total: {formatCurrency(filteredReport.total.valor_frete + filteredReport.total.valor_servico)}
+                  Total: {formatCurrency(report.total.valor_frete + report.total.valor_servico)}
                   <span className="ml-4 text-sm font-normal text-slate-600">
-                    (Frete: {formatCurrency(filteredReport.total.valor_frete)} + Serviços: {formatCurrency(filteredReport.total.valor_servico)})
+                    (Frete: {formatCurrency(report.total.valor_frete)} + Serviços: {formatCurrency(report.total.valor_servico)})
                   </span>
                 </span>
               </div>
