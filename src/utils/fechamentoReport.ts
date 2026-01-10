@@ -829,6 +829,19 @@ export const generateFechamentoReport = (
     dateMode // ✅ Passa o dateMode para o filtro
   );
 
+  // Validar consistência dos pedidos e logar avisos se houver problemas
+  const validationWarnings: string[] = [];
+  filteredOrders.forEach((order) => {
+    const validation = validateOrderTotals(order);
+    if (!validation.valid) {
+      validationWarnings.push(`Pedido #${order.id} (${order.numero ?? 'sem número'}): ${validation.issues.join('; ')}`);
+    }
+  });
+  
+  if (validationWarnings.length > 0) {
+    console.warn('[fechamentoReport] Avisos de validação de pedidos:', validationWarnings);
+  }
+
   const baseRowsAll = filteredOrders.flatMap((order) => buildRowsFromOrder(order, dateMode));
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
   const totals = computeTotalsFromRows(baseRows);
