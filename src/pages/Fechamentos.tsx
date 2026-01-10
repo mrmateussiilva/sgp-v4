@@ -37,6 +37,7 @@ import { FechamentoTrendsChart } from '@/components/fechamentos/FechamentoTrends
 import { FechamentoRankings } from '@/components/fechamentos/FechamentoRankings';
 import { FechamentoPieChart } from '@/components/fechamentos/FechamentoPieChart';
 import { FechamentoAreaChart } from '@/components/fechamentos/FechamentoAreaChart';
+import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComposedChart';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -1371,6 +1372,9 @@ export default function Fechamentos() {
 
           {/* Gráfico de Área */}
           <FechamentoAreaChart trends={trends} loading={loadingStats} />
+
+          {/* Gráfico Combinado */}
+          <FechamentoComposedChart trends={trends} loading={loadingStats} />
 
           {/* Gráficos de Tendências */}
           <div className="grid gap-6 md:grid-cols-2">
