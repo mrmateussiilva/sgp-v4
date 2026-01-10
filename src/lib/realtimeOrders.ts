@@ -234,6 +234,27 @@ class OrdersWebSocketManager {
       // Resetar flag de conexão
       this.isConnecting = false;
       
+      // Log SEMPRE em dev para debug (mesmo se for fechamento limpo)
+      if (import.meta.env.DEV) {
+        console.log('🔌 WebSocket fechado:', {
+          code: event.code,
+          reason: event.reason || 'Sem razão fornecida',
+          wasClean: event.wasClean,
+          wasConnected,
+          consecutiveFailures: this.consecutiveFailures,
+          url: this.currentUrl,
+        });
+        
+        // Mensagens específicas por código de erro
+        if (event.code === 1008) {
+          console.error('❌ Código 1008: Token inválido ou ausente. Verifique autenticação.');
+        } else if (event.code === 1006) {
+          console.warn('⚠️ Código 1006: Conexão anormalmente fechada. Pode ser problema de rede ou servidor.');
+        } else if (event.code === 1000) {
+          console.log('ℹ️ Código 1000: Fechamento normal.');
+        }
+      }
+      
       // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
       // (código 1000 com razão "Nova conexão do mesmo usuário")
       if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
@@ -251,30 +272,28 @@ class OrdersWebSocketManager {
         return; // NÃO reconectar
       }
       
+      // Não reconectar se token inválido (código 1008)
+      if (event.code === 1008) {
+        if (import.meta.env.DEV) {
+          console.error('❌ WebSocket: Token inválido. Não reconectando até que o token seja atualizado.');
+        }
+        this.updateStatus({
+          isConnected: false,
+          lastError: event.reason || 'Token inválido ou ausente',
+        });
+        this.stopPing();
+        this.socket = null;
+        this.consecutiveFailures = 0;
+        // NÃO reconectar - o usuário precisa fazer login novamente
+        return;
+      }
+      
       // Incrementar contador de falhas se não foi um fechamento limpo
       if (!event.wasClean) {
         this.consecutiveFailures++;
       } else {
         // Resetar se foi fechamento limpo (mas não o caso especial acima)
         this.consecutiveFailures = 0;
-      }
-      
-      // Log detalhado em desenvolvimento para debug
-      if (import.meta.env.DEV) {
-        if (!event.wasClean) {
-          console.warn('⚠️ WebSocket fechado:', {
-            code: event.code,
-            reason: event.reason || 'Sem razão fornecida',
-            wasClean: event.wasClean,
-            wasConnected,
-            url: this.currentUrl,
-          });
-          
-          // Mensagens específicas por código de erro
-          if (event.code === 1006) {
-            console.warn('💡 Dica: Código 1006 geralmente indica que o servidor rejeitou a conexão. Verifique se o token de autenticação está sendo enviado corretamente.');
-          }
-        }
       }
       
       this.updateStatus({
@@ -292,10 +311,14 @@ class OrdersWebSocketManager {
     };
 
     this.socket.onerror = (event) => {
-      // Silenciar erros de conexão esperados (servidor não disponível)
-      // Apenas logar em modo debug
+      // Log detalhado em desenvolvimento
       if (import.meta.env.DEV) {
-        console.warn('⚠️ Erro no WebSocket:', event);
+        console.error('❌ Erro no WebSocket:', {
+          type: event.type,
+          target: event.target,
+          url: this.currentUrl,
+          socketState: this.socket?.readyState,
+        });
       }
       
       // Não fechar imediatamente - deixar o onclose lidar com isso
