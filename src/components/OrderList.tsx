@@ -1106,13 +1106,51 @@ export default function OrderList() {
   // A paginação já foi feita no backend, então retornar os pedidos diretamente
   const paginatedOrders = useMemo(() => {
     if (isBackendPaginated) {
+      // Mesmo com paginação do backend, aplicar ordenação local se houver
+      if (sortColumn) {
+        let sorted = [...orders];
+        sorted = sorted.sort((a, b) => {
+          let aValue: any;
+          let bValue: any;
+
+          switch (sortColumn) {
+            case 'id':
+              aValue = a.id;
+              bValue = b.id;
+              break;
+            case 'cliente':
+              aValue = (a.cliente || a.customer_name || '').toLowerCase();
+              bValue = (b.cliente || b.customer_name || '').toLowerCase();
+              break;
+            case 'data_entrega':
+              aValue = a.data_entrega ? new Date(a.data_entrega).getTime() : 0;
+              bValue = b.data_entrega ? new Date(b.data_entrega).getTime() : 0;
+              break;
+            case 'prioridade':
+              aValue = a.prioridade === 'ALTA' ? 1 : 0;
+              bValue = b.prioridade === 'ALTA' ? 1 : 0;
+              break;
+            case 'cidade':
+              aValue = (a.cidade_cliente || '').toLowerCase();
+              bValue = (b.cidade_cliente || '').toLowerCase();
+              break;
+            default:
+              return 0;
+          }
+
+          if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        });
+        return sorted;
+      }
       return orders; // orders já vem paginado do backend
     }
     // Paginação local (permite filtros avançados funcionarem em pending/ready/all quando necessário)
     const startIndex = page * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     return filteredOrders.slice(startIndex, endIndex);
-  }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated]);
+  }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated, sortColumn, sortDirection]);
 
   // Handlers para painel lateral - DESABILITADO
   // const handleOpenContextPanel = (order: OrderWithItems) => {
