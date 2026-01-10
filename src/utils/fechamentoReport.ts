@@ -590,6 +590,24 @@ const buildRowsFromOrder = (
   });
 };
 
+/**
+ * Agrupa linhas em dois níveis (ex: Designer → Cliente).
+ * 
+ * PERFORMANCE: Para grandes volumes (milhares de pedidos), considere:
+ * - Processamento em lotes
+ * - Usar estruturas de dados mais eficientes (ex: IndexedDB)
+ * - Implementar paginação de resultados
+ * - Cache de resultados intermediários
+ * 
+ * @param rows - Linhas normalizadas para agrupar
+ * @param getTopKey - Função para obter chave do primeiro nível
+ * @param getTopLabel - Função para obter label do primeiro nível
+ * @param getSubKey - Função para obter chave do segundo nível
+ * @param getSubLabel - Função para obter label do segundo nível
+ * @param ordersMap - Mapa de pedidos para cálculo de desconto
+ * @param freteDistribution - Modo de distribuição de frete
+ * @returns Array de grupos com subgrupos
+ */
 const buildTwoLevelGroups = (
   rows: NormalizedRow[],
   getTopKey: (row: NormalizedRow) => string,
