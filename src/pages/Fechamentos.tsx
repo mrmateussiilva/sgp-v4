@@ -75,6 +75,7 @@ type FiltersState = {
   dateMode: 'entrada' | 'entrega';
   vendedor?: string;
   designer?: string;
+  cliente?: string;
 };
 
 const QUICK_RANGES = [
@@ -139,6 +140,7 @@ export default function Fechamentos() {
   const [nomeFilter, setNomeFilter] = useState<string>('');
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
+  const [clientes, setClientes] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
   
   // Estado para ordenação de tabelas
@@ -151,32 +153,35 @@ export default function Fechamentos() {
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
-  // Carregar listas de vendedores e designers ativos para os filtros
+  // Carregar listas de vendedores, designers e clientes ativos para os filtros
   useEffect(() => {
     let isMounted = true;
 
     const loadPeople = async () => {
       try {
-        const [vendedoresResponse, designersResponse] = await Promise.all([
+        const [vendedoresResponse, designersResponse, clientesResponse] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
+          api.getClientes(),
         ]);
 
         if (!isMounted) return;
 
         setVendedores(vendedoresResponse);
         setDesigners(designersResponse);
+        setClientes(clientesResponse.map(c => ({ id: c.id, nome: c.nome })));
       } catch (error) {
         if (!isMounted) return;
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Não foi possível carregar a lista de vendedores e designers.';
+            : 'Não foi possível carregar a lista de vendedores, designers e clientes.';
         toast({
           title: 'Erro ao carregar filtros',
           description: errorMessage,
           variant: 'destructive',
         });
+        console.error('Erro ao carregar pessoas para filtros:', error);
       }
     };
 
@@ -241,6 +246,7 @@ export default function Fechamentos() {
       dateMode: 'entrega',
       vendedor: undefined,
       designer: undefined,
+      cliente: undefined,
     });
     setNomeFilter('');
     setDateError('');
@@ -258,6 +264,7 @@ export default function Fechamentos() {
     return (
       filters.vendedor ||
       filters.designer ||
+      filters.cliente ||
       nomeFilter.trim() !== '' ||
       filters.status !== defaultFilters.status ||
       filters.reportType !== defaultFilters.reportType ||
@@ -307,6 +314,7 @@ export default function Fechamentos() {
       date_mode: filters.dateMode,
       vendedor: filters.vendedor || undefined,
       designer: filters.designer || undefined,
+      cliente: filters.cliente || undefined,
     };
 
     setLoading(true);
@@ -970,6 +978,24 @@ export default function Fechamentos() {
                   <X className="h-3 w-3 ml-1" />
                 </Badge>
               )}
+              {filters.cliente && (
+                <Badge 
+                  variant="secondary" 
+                  className="gap-1 cursor-pointer hover:bg-slate-300 flex items-center" 
+                  onClick={() => updateFilter('cliente', '')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      updateFilter('cliente', '');
+                    }
+                  }}
+                >
+                  Cliente: {filters.cliente}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              )}
               {nomeFilter.trim() && (
                 <Badge 
                   variant="secondary" 
@@ -1170,6 +1196,31 @@ export default function Fechamentos() {
               </Select>
               <p className="text-sm text-muted-foreground">
                 Para comissão por designer ou par vendedor/designer.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <Select
+                value={filters.cliente && filters.cliente.length > 0 ? filters.cliente : 'all'}
+                onValueChange={(value) =>
+                  updateFilter('cliente', value === 'all' ? '' : (value as string))
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.nome}>
+                      {cliente.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Para relatório específico do cliente.
               </p>
             </div>
 
