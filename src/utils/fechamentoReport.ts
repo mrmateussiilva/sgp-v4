@@ -665,6 +665,71 @@ const buildPeriodLabel = (startDate?: string, endDate?: string): string => {
 };
 
 /**
+ * Valida a consistência dos totais calculados no relatório.
+ * Verifica se os subtotais de grupos/subgrupos batem com os totais calculados,
+ * com margem de erro para arredondamentos.
+ * 
+ * @param groups - Grupos do relatório
+ * @param total - Total geral calculado
+ * @returns Objeto com validade e lista de avisos encontrados
+ */
+const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { valid: boolean; warnings: string[] } => {
+  const warnings: string[] = [];
+  
+  // Calcular soma de todos os grupos
+  const sumGroups = groups.reduce(
+    (acc, group) => ({
+      valor_frete: acc.valor_frete + (group.subtotal?.valor_frete ?? 0),
+      valor_servico: acc.valor_servico + (group.subtotal?.valor_servico ?? 0),
+    }),
+    { valor_frete: 0, valor_servico: 0 }
+  );
+  
+  // Verificar se totais dos grupos batem com total geral (com margem de erro de arredondamento)
+  const freteDiff = Math.abs(sumGroups.valor_frete - total.valor_frete);
+  const servicoDiff = Math.abs(sumGroups.valor_servico - total.valor_servico);
+  
+  if (freteDiff > 0.01) { // Mais de 1 centavo de diferença
+    warnings.push(
+      `Diferença entre soma de grupos e total geral no frete: ${freteDiff.toFixed(2)}`
+    );
+  }
+  
+  if (servicoDiff > 0.01) {
+    warnings.push(
+      `Diferença entre soma de grupos e total geral no serviço: ${servicoDiff.toFixed(2)}`
+    );
+  }
+  
+  // Validar subgrupos
+  groups.forEach((group) => {
+    if (group.subgroups && group.subgroups.length > 0) {
+      const sumSubgroups = group.subgroups.reduce(
+        (acc, sub) => ({
+          valor_frete: acc.valor_frete + (sub.subtotal?.valor_frete ?? 0),
+          valor_servico: acc.valor_servico + (sub.subtotal?.valor_servico ?? 0),
+        }),
+        { valor_frete: 0, valor_servico: 0 }
+      );
+      
+      const subFreteDiff = Math.abs(sumSubgroups.valor_frete - (group.subtotal?.valor_frete ?? 0));
+      const subServicoDiff = Math.abs(sumSubgroups.valor_servico - (group.subtotal?.valor_servico ?? 0));
+      
+      if (subFreteDiff > 0.01 || subServicoDiff > 0.01) {
+        warnings.push(
+          `Inconsistência nos subtotais do grupo "${group.label}": frete diff=${subFreteDiff.toFixed(2)}, serviço diff=${subServicoDiff.toFixed(2)}`
+        );
+      }
+    }
+  });
+  
+  return {
+    valid: warnings.length === 0,
+    warnings
+  };
+};
+
+/**
  * Valida o payload de requisição do relatório.
  * Verifica formato de datas, tipos de relatório e outras regras de negócio.
  * 
@@ -867,6 +932,12 @@ export const generateFechamentoReport = (
 
   const statusLabelRaw = payload.status ?? 'Todos';
   const statusLabel = STATUS_FILTER_LABEL[statusLabelRaw] ?? statusLabelRaw;
+
+  // Validar consistência dos totais calculados
+  const validation = validateReportTotals(groups, totals);
+  if (validation.warnings.length > 0) {
+    console.warn('[fechamentoReport] Avisos de validação dos totais:', validation.warnings);
+  }
 
   return {
     title: REPORT_TITLES[reportType] ?? 'Relatório de Fechamentos',
