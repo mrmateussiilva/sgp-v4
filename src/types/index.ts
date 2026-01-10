@@ -458,6 +458,11 @@ export interface ReportRequestPayload {
    * Usado para fechamento de comissão por designer.
    */
   designer?: string;
+  /**
+   * Filtro opcional por cliente (parcial, case-insensitive).
+   * Usado para gerar relatório específico de um cliente.
+   */
+  cliente?: string;
 }
 
 export interface ReportTotals {
