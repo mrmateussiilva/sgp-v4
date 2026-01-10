@@ -4,34 +4,44 @@ import { fetch } from '@tauri-apps/plugin-http';
 import { isTauri } from '@/utils/isTauri';
 
 function resolveUrl(config: AxiosRequestConfig): string {
-  const { url = '', baseURL } = config;
+  let { url = '', baseURL } = config;
 
-  if (/^https?:\/\//i.test(url)) {
-    return url;
-  }
-
-  if (baseURL) {
-    try {
-      // Tentar construir URL usando URL constructor
-      const fullUrl = new URL(url, baseURL);
-      return fullUrl.toString();
-    } catch (error) {
-      // Se falhar, fazer concatenação manual mais robusta
-      const trimmedBase = baseURL.replace(/\/+$/, '');
-      const trimmedUrl = url.replace(/^\/+/, '');
-      const combined = `${trimmedBase}/${trimmedUrl}`;
-      
-      // Validar se a URL resultante é válida
+  // Primeiro, resolver a URL base
+  if (!/^https?:\/\//i.test(url)) {
+    if (baseURL) {
       try {
-        new URL(combined);
-        return combined;
-      } catch {
-        // Se ainda falhar, retornar a URL combinada mesmo assim
-        // O fetch do Tauri pode aceitar URLs relativas
-        console.warn('URL construction warning:', { baseURL, url, combined, error });
-        return combined;
+        // Tentar construir URL usando URL constructor
+        const fullUrl = new URL(url, baseURL);
+        url = fullUrl.toString();
+      } catch (error) {
+        // Se falhar, fazer concatenação manual mais robusta
+        const trimmedBase = baseURL.replace(/\/+$/, '');
+        const trimmedUrl = url.replace(/^\/+/, '');
+        const combined = `${trimmedBase}/${trimmedUrl}`;
+        
+        // Validar se a URL resultante é válida
+        try {
+          new URL(combined);
+          url = combined;
+        } catch {
+          // Se ainda falhar, retornar a URL combinada mesmo assim
+          // O fetch do Tauri pode aceitar URLs relativas
+          console.warn('URL construction warning:', { baseURL, url: url, combined, error });
+          url = combined;
+        }
       }
     }
+  }
+
+  // Adicionar query parameters se existirem
+  if (config.params) {
+    const urlObj = new URL(url);
+    Object.entries(config.params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        urlObj.searchParams.append(key, String(value));
+      }
+    });
+    url = urlObj.toString();
   }
 
   return url;
@@ -54,6 +64,11 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
   const method = (config.method ?? 'GET').toUpperCase();
+  
+  // Log para debug de query parameters
+  if (config.params && Object.keys(config.params).length > 0) {
+    console.log('[tauriAxiosAdapter] 📡 Query params:', config.params, 'URL final:', url);
+  }
 
   const headers = new Headers();
   if (config.headers) {

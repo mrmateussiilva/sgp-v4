@@ -927,6 +927,10 @@ const fetchOrdersPaginated = async (
     limit,
   };
   
+  // Log para debug
+  console.log('[fetchOrdersPaginated] 📡 Parâmetros da requisição:', { page, pageSize, skip, limit, params });
+  console.log('[fetchOrdersPaginated] 📡 URL da requisição:', `/pedidos/`, 'Params:', JSON.stringify(params));
+  
   if (status) {
     // Converter OrderStatus para formato da API
     const statusMap: Record<OrderStatus, string> = {

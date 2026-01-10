@@ -292,7 +292,31 @@ export default function OrderList() {
         hasSearch ||
         selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
 
-      if (dateFrom || dateTo) {
+      // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
+      if (productionStatusFilter === 'all') {
+        const bigPageSize = 10000; // Limite alto para buscar todos os pedidos
+        console.log('[OrderList] Buscando TODOS os pedidos com bigPageSize:', bigPageSize);
+        const paginatedData = await api.getOrdersPaginated(
+          1, // Sempre começar da página 1 quando buscando 'all'
+          bigPageSize,
+          undefined, // status - todos
+          hasSearch ? undefined : (activeSearchTerm || undefined), // cliente
+          dateFrom || undefined, // data_inicio
+          dateTo || undefined // data_fim
+        );
+        console.log('[OrderList] Pedidos recebidos:', paginatedData.orders.length, 'Total:', paginatedData.total);
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        
+        // Quando buscamos 'all' com bigPageSize, sempre paginar no frontend
+        // Os filtros client-side serão aplicados através de filteredOrders
+        setOrders(paginatedData.orders);
+        // TotalPages será calculado no useMemo baseado em filteredOrders e rowsPerPage
+        // TotalOrders será o número total de pedidos retornados
+        setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
+        setTotalOrders(paginatedData.orders.length);
+      } else if (dateFrom || dateTo) {
         // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
         // precisamos trazer um conjunto maior e filtrar localmente.
         if (clientSideFiltersActive) {
@@ -315,11 +339,9 @@ export default function OrderList() {
         } else {
           const filters = {
             status:
-              productionStatusFilter === 'all'
-                ? undefined
-                : productionStatusFilter === 'pending'
-                  ? OrderStatus.Pendente
-                  : OrderStatus.Concluido,
+              productionStatusFilter === 'pending'
+                ? OrderStatus.Pendente
+                : OrderStatus.Concluido,
             cliente: hasSearch ? undefined : (activeSearchTerm || undefined), // Não passar cliente se há busca - vamos filtrar localmente
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
@@ -364,41 +386,6 @@ export default function OrderList() {
           setTotalOrders(all.length);
         } else {
           const paginatedData = await api.getReadyOrdersPaginated(currentPage + 1, currentPageSize);
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
-          setOrders(paginatedData.orders);
-          setTotalPages(paginatedData.total_pages);
-          setTotalOrders(paginatedData.total);
-        }
-      } else {
-        // Usar paginação do backend mesmo para 'all' para evitar carregar todos os pedidos
-        if (clientSideFiltersActive) {
-          const bigPageSize = 5000;
-          // Não passar cliente para backend quando há busca - vamos filtrar localmente
-          const paginatedData = await api.getOrdersPaginated(
-            1,
-            bigPageSize,
-            undefined, // status
-            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - só se não houver busca
-            undefined,
-            undefined,
-          );
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
-          setOrders(paginatedData.orders);
-          setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
-          setTotalOrders(paginatedData.orders.length);
-        } else {
-          const paginatedData = await api.getOrdersPaginated(
-            currentPage + 1,
-            currentPageSize,
-            undefined, // status
-            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - não passar se há busca
-            dateFrom || undefined, // data_inicio
-            dateTo || undefined // data_fim
-          );
           if (loadRequestRef.current !== requestId) {
             return;
           }
@@ -954,9 +941,11 @@ export default function OrderList() {
   const clientSideFiltersActive =
     Boolean(activeSearchTerm) || // Busca só ativa após clicar no botão
     selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
+  // Quando 'all' é selecionado, sempre usamos paginação frontend porque buscamos todos os pedidos de uma vez
   const isBackendPaginated =
     !clientSideFiltersActive &&
-    (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready' || productionStatusFilter === 'all');
+    productionStatusFilter !== 'all' && // 'all' sempre usa paginação frontend
+    (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready');
 
   const filteredOrders = useMemo(() => {
     // Se estamos usando paginação do backend, os pedidos já vêm filtrados e paginados
@@ -2263,15 +2252,18 @@ export default function OrderList() {
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <Select
                 value={rowsPerPage.toString()}
-                onValueChange={(value) => setRowsPerPage(Number(value))}
+                onValueChange={(value) => {
+                  setRowsPerPage(Number(value));
+                  setPage(0); // Resetar para primeira página ao mudar tamanho
+                }}
               >
                 <SelectTrigger className="h-9 w-[140px]">
                   <SelectValue placeholder="Itens por página" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[10, 20, 50, 100].map((size) => (
+                  {[10, 20, 50, 100, 500].map((size) => (
                     <SelectItem key={size} value={size.toString()}>
-                      {size} por página
+                      {size === 500 ? 'Todos' : `${size} por página`}
                     </SelectItem>
                   ))}
                 </SelectContent>
