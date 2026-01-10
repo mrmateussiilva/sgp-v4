@@ -1365,7 +1365,11 @@ export default function Fechamentos() {
       {(stats || trends || loadingStats) && (
         <div className="space-y-6">
           {/* Cards de Estatísticas */}
-          <FechamentoStatsCards stats={stats} loading={loadingStats} />
+          <FechamentoStatsCards
+            stats={stats}
+            previousStats={previousPeriodStats}
+            loading={loadingStats}
+          />
 
           {/* Gráfico de Distribuição */}
           <FechamentoPieChart stats={stats} loading={loadingStats} />
