@@ -69,14 +69,52 @@ const parseCurrency = (value: unknown): number => {
   return 0;
 };
 
+/**
+ * Calcula o valor do subtotal de um item de pedido.
+ * Tenta múltiplos métodos em ordem de prioridade para garantir o cálculo correto.
+ * 
+ * @param orderItem - Item do pedido
+ * @returns Valor do subtotal calculado (arredondado para 2 casas decimais)
+ */
 const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number => {
+  // Prioridade 1: Tentar subtotal direto
   if (typeof orderItem.subtotal === 'number' && Number.isFinite(orderItem.subtotal)) {
-    return roundCurrency(orderItem.subtotal);
+    if (orderItem.subtotal >= 0) {
+      return roundCurrency(orderItem.subtotal);
+    }
+    console.warn('[fechamentoReport] Subtotal negativo encontrado para item:', {
+      item_id: orderItem.id,
+      subtotal: orderItem.subtotal,
+    });
   }
+  
+  // Prioridade 2: Calcular a partir de quantity * unit_price
   if (typeof orderItem.quantity === 'number' && typeof orderItem.unit_price === 'number') {
-    return roundCurrency(orderItem.quantity * orderItem.unit_price);
+    if (orderItem.quantity > 0 && orderItem.unit_price >= 0) {
+      return roundCurrency(orderItem.quantity * orderItem.unit_price);
+    }
+    console.warn('[fechamentoReport] Quantidade ou preço inválido para item:', {
+      item_id: orderItem.id,
+      quantity: orderItem.quantity,
+      unit_price: orderItem.unit_price,
+    });
   }
-  return parseCurrency(orderItem.valor_unitario);
+  
+  // Prioridade 3: Tentar parsear string
+  const parsed = parseCurrency(orderItem.valor_unitario);
+  if (parsed > 0) {
+    return parsed;
+  }
+  
+  // Fallback: logar erro e retornar 0
+  console.error('[fechamentoReport] Não foi possível calcular subtotal para item:', {
+    item_id: orderItem.id,
+    subtotal: orderItem.subtotal,
+    quantity: orderItem.quantity,
+    unit_price: orderItem.unit_price,
+    valor_unitario: orderItem.valor_unitario,
+  });
+  return 0;
 };
 
 const safeLabel = (value: string | null | undefined, fallback: string): string => {
