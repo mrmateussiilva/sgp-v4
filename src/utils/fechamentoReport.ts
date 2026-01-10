@@ -244,15 +244,46 @@ const slugify = (value: string): string =>
     .replace(/^-+|-+$/g, '') || 'grupo';
 
 /**
- * Calcula os totais de frete e serviço a partir de linhas normalizadas.
+ * Calcula o desconto de um pedido inferindo a partir dos valores.
+ * Desconto = (somaItens + frete) - total_value (quando positivo)
  * 
- * IMPORTANTE: O frete é agrupado por orderId para evitar duplicação no total geral,
+ * @param order - Pedido para calcular desconto
+ * @returns Valor do desconto calculado
+ */
+const calculateOrderDiscount = (order: OrderWithItems): number => {
+  const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
+  const valorTotal = parseCurrencyCached(order.total_value ?? 0);
+  
+  // Calcular soma de itens
+  const somaItens = (order.items ?? []).reduce((sum, item) => {
+    return sum + getSubtotalValue(item);
+  }, 0);
+  
+  // Se não há itens, calcular a partir do total
+  if (order.items?.length === 0) {
+    const expectedTotal = valorFrete;
+    const desconto = Math.max(0, expectedTotal - valorTotal);
+    return roundCurrency(desconto);
+  }
+  
+  // Desconto = (itens + frete) - total
+  const totalBeforeDiscount = somaItens + valorFrete;
+  const desconto = Math.max(0, totalBeforeDiscount - valorTotal);
+  
+  return roundCurrency(desconto);
+};
+
+/**
+ * Calcula os totais de frete, serviço e desconto a partir de linhas normalizadas.
+ * 
+ * IMPORTANTE: O frete e desconto são agrupados por orderId para evitar duplicação no total geral,
  * já que cada item de um pedido pode estar em grupos diferentes no relatório.
  * Cada item de um pedido repete o valor do frete, mas no total geral o frete
  * é contado apenas uma vez por pedido.
  * 
  * @param rows - Array de linhas normalizadas (uma linha por item de pedido)
- * @returns Totais de frete e serviço calculados
+ * @param ordersMap - Mapa opcional de pedidos por ID para calcular desconto (orderId -> OrderWithItems)
+ * @returns Totais de frete, serviço, desconto e valor líquido calculados
  * 
  * @example
  * ```typescript
@@ -261,15 +292,17 @@ const slugify = (value: string): string =>
  *   { orderId: 1, valorFrete: 50, valorServico: 150 }, // Mesmo pedido
  *   { orderId: 2, valorFrete: 30, valorServico: 80 }
  * ];
- * const totals = computeTotalsFromRows(rows);
- * // totals = { valor_frete: 80, valor_servico: 330 }
- * // Frete: 50 (pedido 1) + 30 (pedido 2) = 80
- * // Serviço: 100 + 150 + 80 = 330
+ * const totals = computeTotalsFromRows(rows, ordersMap);
+ * // totals = { valor_frete: 80, valor_servico: 330, desconto: X, valor_liquido: Y }
  * ```
  */
-const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals => {
-  // Agrupar por orderId para contar frete apenas uma vez por pedido
+const computeTotalsFromRows = (
+  rows: NormalizedRow[], 
+  ordersMap?: Map<number, OrderWithItems>
+): ReportTotals => {
+  // Agrupar por orderId para contar frete e desconto apenas uma vez por pedido
   const fretePorPedido = new Map<number, number>();
+  const descontoPorPedido = new Map<number, number>();
   let totalServico = 0;
 
   rows.forEach((row) => {
@@ -279,6 +312,17 @@ const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals => {
     // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
     if (!fretePorPedido.has(row.orderId)) {
       fretePorPedido.set(row.orderId, row.valorFrete);
+      
+      // Calcular desconto se ordersMap foi fornecido
+      if (ordersMap) {
+        const order = ordersMap.get(row.orderId);
+        if (order) {
+          const desconto = calculateOrderDiscount(order);
+          if (desconto > 0) {
+            descontoPorPedido.set(row.orderId, desconto);
+          }
+        }
+      }
     }
   });
 
@@ -287,11 +331,28 @@ const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals => {
     (sum, frete) => roundCurrency(sum + frete),
     0
   );
+  
+  // Somar descontos únicos de cada pedido
+  const totalDesconto = Array.from(descontoPorPedido.values()).reduce(
+    (sum, desconto) => roundCurrency(sum + desconto),
+    0
+  );
+  
+  // Calcular valor líquido
+  const valorLiquido = roundCurrency(totalFrete + totalServico - totalDesconto);
 
-  return {
+  const result: ReportTotals = {
     valor_frete: totalFrete,
     valor_servico: totalServico,
   };
+  
+  // Adicionar desconto e valor líquido apenas se houver desconto
+  if (totalDesconto > 0) {
+    result.desconto = totalDesconto;
+    result.valor_liquido = valorLiquido;
+  }
+
+  return result;
 };
 
 const convertRowsToReportRows = (rows: NormalizedRow[]) =>
@@ -302,11 +363,16 @@ const convertRowsToReportRows = (rows: NormalizedRow[]) =>
     valor_servico: roundCurrency(row.valorServico),
   }));
 
-const createLeafGroup = (label: string, key: string, rows: NormalizedRow[]): ReportGroup => ({
+const createLeafGroup = (
+  label: string, 
+  key: string, 
+  rows: NormalizedRow[],
+  ordersMap?: Map<number, OrderWithItems>
+): ReportGroup => ({
   key,
   label,
   rows: convertRowsToReportRows(rows),
-  subtotal: computeTotalsFromRows(rows),
+  subtotal: computeTotalsFromRows(rows, ordersMap),
 });
 
 const createAggregateGroupRow = (
@@ -314,8 +380,9 @@ const createAggregateGroupRow = (
   key: string,
   rows: NormalizedRow[],
   description: string,
+  ordersMap?: Map<number, OrderWithItems>
 ): ReportGroup => {
-  const totals = computeTotalsFromRows(rows);
+  const totals = computeTotalsFromRows(rows, ordersMap);
   return {
     key,
     label,
@@ -486,6 +553,7 @@ const buildTwoLevelGroups = (
   getTopLabel: (key: string) => string,
   getSubKey: (row: NormalizedRow) => string,
   getSubLabel: (key: string) => string,
+  ordersMap?: Map<number, OrderWithItems>
 ): ReportGroup[] => {
   const topMap = new Map<string, Map<string, NormalizedRow[]>>();
 
@@ -508,12 +576,23 @@ const buildTwoLevelGroups = (
     .map(([topKey, subMap]) => {
       const subgroups = Array.from(subMap.entries())
         .sort((a, b) => getSubLabel(a[0]).localeCompare(getSubLabel(b[0]), 'pt-BR'))
-        .map(([subKey, subRows]) => createLeafGroup(getSubLabel(subKey), slugify(`${topKey}-${subKey}`), subRows));
+        .map(([subKey, subRows]) => createLeafGroup(getSubLabel(subKey), slugify(`${topKey}-${subKey}`), subRows, ordersMap));
       const subtotal = subgroups.reduce<ReportTotals>(
-        (acc, group) => ({
-          valor_frete: roundCurrency(acc.valor_frete + group.subtotal.valor_frete),
-          valor_servico: roundCurrency(acc.valor_servico + group.subtotal.valor_servico),
-        }),
+        (acc, group) => {
+          const result: ReportTotals = {
+            valor_frete: roundCurrency(acc.valor_frete + (group.subtotal.valor_frete ?? 0)),
+            valor_servico: roundCurrency(acc.valor_servico + (group.subtotal.valor_servico ?? 0)),
+          };
+          
+          // Somar descontos
+          const totalDesconto = roundCurrency((acc.desconto ?? 0) + (group.subtotal.desconto ?? 0));
+          if (totalDesconto > 0) {
+            result.desconto = totalDesconto;
+            result.valor_liquido = roundCurrency(result.valor_frete + result.valor_servico - totalDesconto);
+          }
+          
+          return result;
+        },
         { valor_frete: 0, valor_servico: 0 },
       );
 
@@ -530,6 +609,7 @@ const buildSingleLevelAggregate = (
   rows: NormalizedRow[],
   getKey: (row: NormalizedRow) => string,
   getLabel: (key: string) => string,
+  ordersMap?: Map<number, OrderWithItems>
 ): ReportGroup[] => {
   const map = new Map<string, NormalizedRow[]>();
 
@@ -546,7 +626,7 @@ const buildSingleLevelAggregate = (
     .map(([key, groupRows]) => {
       const uniqueOrders = new Set(groupRows.map((row) => row.orderId));
       const description = `Pedidos: ${uniqueOrders.size} · Itens: ${groupRows.length}`;
-      return createAggregateGroupRow(getLabel(key), slugify(key), groupRows, description);
+      return createAggregateGroupRow(getLabel(key), slugify(key), groupRows, description, ordersMap);
     });
 };
 
@@ -681,8 +761,9 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
     (acc, group) => ({
       valor_frete: acc.valor_frete + (group.subtotal?.valor_frete ?? 0),
       valor_servico: acc.valor_servico + (group.subtotal?.valor_servico ?? 0),
+      desconto: (acc.desconto ?? 0) + (group.subtotal?.desconto ?? 0),
     }),
-    { valor_frete: 0, valor_servico: 0 }
+    { valor_frete: 0, valor_servico: 0, desconto: 0 }
   );
   
   // Verificar se totais dos grupos batem com total geral (com margem de erro de arredondamento)
@@ -701,6 +782,30 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
     );
   }
   
+  // Validar desconto se presente
+  if (total.desconto !== undefined || sumGroups.desconto > 0) {
+    const descontoTotal = total.desconto ?? 0;
+    const descontoGroups = sumGroups.desconto ?? 0;
+    const descontoDiff = Math.abs(descontoGroups - descontoTotal);
+    
+    if (descontoDiff > 0.01) {
+      warnings.push(
+        `Diferença entre soma de grupos e total geral no desconto: ${descontoDiff.toFixed(2)}`
+      );
+    }
+    
+    // Validar valor líquido
+    const expectedLiquido = (total.valor_frete + total.valor_servico) - (total.desconto ?? 0);
+    const actualLiquido = total.valor_liquido ?? expectedLiquido;
+    const liquidoDiff = Math.abs(expectedLiquido - actualLiquido);
+    
+    if (liquidoDiff > 0.01) {
+      warnings.push(
+        `Inconsistência no valor líquido: esperado ${expectedLiquido.toFixed(2)}, calculado ${actualLiquido.toFixed(2)}`
+      );
+    }
+  }
+  
   // Validar subgrupos
   groups.forEach((group) => {
     if (group.subgroups && group.subgroups.length > 0) {
@@ -708,16 +813,18 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
         (acc, sub) => ({
           valor_frete: acc.valor_frete + (sub.subtotal?.valor_frete ?? 0),
           valor_servico: acc.valor_servico + (sub.subtotal?.valor_servico ?? 0),
+          desconto: (acc.desconto ?? 0) + (sub.subtotal?.desconto ?? 0),
         }),
-        { valor_frete: 0, valor_servico: 0 }
+        { valor_frete: 0, valor_servico: 0, desconto: 0 }
       );
       
       const subFreteDiff = Math.abs(sumSubgroups.valor_frete - (group.subtotal?.valor_frete ?? 0));
       const subServicoDiff = Math.abs(sumSubgroups.valor_servico - (group.subtotal?.valor_servico ?? 0));
+      const subDescontoDiff = Math.abs((sumSubgroups.desconto ?? 0) - (group.subtotal?.desconto ?? 0));
       
-      if (subFreteDiff > 0.01 || subServicoDiff > 0.01) {
+      if (subFreteDiff > 0.01 || subServicoDiff > 0.01 || subDescontoDiff > 0.01) {
         warnings.push(
-          `Inconsistência nos subtotais do grupo "${group.label}": frete diff=${subFreteDiff.toFixed(2)}, serviço diff=${subServicoDiff.toFixed(2)}`
+          `Inconsistência nos subtotais do grupo "${group.label}": frete diff=${subFreteDiff.toFixed(2)}, serviço diff=${subServicoDiff.toFixed(2)}, desconto diff=${subDescontoDiff.toFixed(2)}`
         );
       }
     }
@@ -844,7 +951,14 @@ export const generateFechamentoReport = (
 
   const baseRowsAll = filteredOrders.flatMap((order) => buildRowsFromOrder(order, dateMode));
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
-  const totals = computeTotalsFromRows(baseRows);
+  
+  // Criar mapa de pedidos por ID para calcular desconto
+  const ordersMap = new Map<number, OrderWithItems>();
+  filteredOrders.forEach((order) => {
+    ordersMap.set(order.id, order);
+  });
+  
+  const totals = computeTotalsFromRows(baseRows, ordersMap);
 
   const reportType = payload.report_type;
   const groups: ReportGroup[] = (() => {
@@ -856,6 +970,7 @@ export const generateFechamentoReport = (
           (value) => `Designer: ${value}`,
           (row) => row.cliente,
           (value) => `Cliente: ${value}`,
+          ordersMap
         );
       case 'analitico_cliente_designer':
         return buildTwoLevelGroups(
@@ -864,6 +979,7 @@ export const generateFechamentoReport = (
           (value) => `Cliente: ${value}`,
           (row) => row.designer,
           (value) => `Designer: ${value}`,
+          ordersMap
         );
       case 'analitico_cliente_painel':
         return buildTwoLevelGroups(
@@ -872,6 +988,7 @@ export const generateFechamentoReport = (
           (value) => `Cliente: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
+          ordersMap
         );
       case 'analitico_designer_painel':
         return buildTwoLevelGroups(
@@ -880,6 +997,7 @@ export const generateFechamentoReport = (
           (value) => `Designer: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
+          ordersMap
         );
       case 'analitico_entrega_painel':
         return buildTwoLevelGroups(
@@ -888,6 +1006,7 @@ export const generateFechamentoReport = (
           (value) => `Entrega: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
+          ordersMap
         );
       case 'sintetico_data':
         // Mantém o comportamento antigo (referência automática) para compatibilidade
@@ -895,48 +1014,56 @@ export const generateFechamentoReport = (
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data: ${value}`,
+          ordersMap
         );
       case 'sintetico_data_entrada':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data de Entrada: ${value}`,
+          ordersMap
         );
       case 'sintetico_data_entrega':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data de Entrega: ${value}`,
+          ordersMap
         );
       case 'sintetico_designer':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.designer,
           (value) => `Designer: ${value}`,
+          ordersMap
         );
       case 'sintetico_vendedor':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.vendedor,
           (value) => `Vendedor: ${value}`,
+          ordersMap
         );
       case 'sintetico_vendedor_designer':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => `${row.vendedor} / ${row.designer}`,
           (value) => `Vendedor/Designer: ${value}`,
+          ordersMap
         );
       case 'sintetico_cliente':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.cliente,
           (value) => `Cliente: ${value}`,
+          ordersMap
         );
       case 'sintetico_entrega':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.formaEnvio,
           (value) => `Entrega: ${value}`,
+          ordersMap
         );
       default:
         return [];

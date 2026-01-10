@@ -468,6 +468,8 @@ export interface ReportRequestPayload {
 export interface ReportTotals {
   valor_frete: number;
   valor_servico: number;
+  desconto?: number;  // Desconto aplicado (opcional)
+  valor_liquido?: number;  // Valor líquido (frete + serviço - desconto) (opcional)
 }
 
 export interface ReportRowData {
