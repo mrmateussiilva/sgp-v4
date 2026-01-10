@@ -117,6 +117,52 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
   return 0;
 };
 
+/**
+ * Valida a consistência dos totais de um pedido.
+ * Verifica se os valores de frete, itens e total fazem sentido entre si.
+ * 
+ * @param order - Pedido a ser validado
+ * @returns Objeto com validade e lista de problemas encontrados
+ */
+const validateOrderTotals = (order: OrderWithItems): { valid: boolean; issues: string[] } => {
+  const issues: string[] = [];
+  const valorFrete = parseCurrency(order.valor_frete ?? 0);
+  const valorTotal = parseCurrency(order.total_value ?? 0);
+  
+  // Calcular soma de itens
+  const somaItens = (order.items ?? []).reduce((sum, item) => {
+    return sum + getSubtotalValue(item);
+  }, 0);
+  
+  // Validar se total_value faz sentido em relação a somaItens + frete
+  // Descontos podem reduzir o total, então permitir diferença
+  const expectedMin = somaItens + valorFrete;
+  const expectedMax = expectedMin * 1.15; // Permitir até 15% de margem para descontos/arredondamentos
+  
+  if (valorTotal < 0) {
+    issues.push(`Total do pedido negativo: ${valorTotal.toFixed(2)}`);
+  }
+  
+  if (valorTotal > expectedMax) {
+    issues.push(
+      `Total do pedido (${valorTotal.toFixed(2)}) muito maior que soma de itens + frete (${expectedMin.toFixed(2)}). Diferença: ${(valorTotal - expectedMin).toFixed(2)}`
+    );
+  }
+  
+  if (valorFrete < 0) {
+    issues.push(`Valor de frete negativo: ${valorFrete.toFixed(2)}`);
+  }
+  
+  if (somaItens < 0) {
+    issues.push(`Soma de itens negativa: ${somaItens.toFixed(2)}`);
+  }
+  
+  return {
+    valid: issues.length === 0,
+    issues
+  };
+};
+
 const safeLabel = (value: string | null | undefined, fallback: string): string => {
   const trimmed = (value ?? '').toString().trim();
   return trimmed.length > 0 ? trimmed : fallback;
