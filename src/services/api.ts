@@ -2118,7 +2118,7 @@ export const api = {
           page,
           pageSize,
           statusFilter,
-          undefined, // cliente
+          request.cliente, // cliente
           request.start_date,
           request.end_date
         );
@@ -2149,7 +2149,7 @@ export const api = {
           page,
           pageSize,
           statusFilter,
-          undefined
+          request.cliente
         );
         
         allOrders.push(...result.orders);
