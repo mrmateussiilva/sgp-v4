@@ -386,6 +386,30 @@ export default function Fechamentos() {
     cursorY += 6;
     doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
     doc.text(`Pág: ${report.page}`, 196, 20, { align: 'right' });
+    cursorY += 6;
+    
+    // Calcular e adicionar metadados
+    const uniqueFichas = new Set<string>();
+    let totalItems = 0;
+    
+    const countMetadata = (group: ReportGroup) => {
+      if (group.rows && group.rows.length > 0) {
+        group.rows.forEach((row) => {
+          if (row.ficha && row.descricao !== 'Subtotal') {
+            uniqueFichas.add(row.ficha);
+            totalItems++;
+          }
+        });
+      }
+      if (group.subgroups) {
+        group.subgroups.forEach((subgroup) => countMetadata(subgroup));
+      }
+    };
+    
+    report.groups.forEach((group) => countMetadata(group));
+    
+    doc.setFontSize(9);
+    doc.text(`Pedidos únicos: ${uniqueFichas.size} | Itens totais: ${totalItems}`, 14, cursorY);
     cursorY += 8;
 
     const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
@@ -472,12 +496,26 @@ export default function Fechamentos() {
     doc.setTextColor(255, 255, 255);
     doc.rect(14, cursorY - 6, 182, 8, 'F');
     doc.text('TOTAL GERAL', 18, cursorY - 1);
+    const totalGeralPdf = report.total.valor_liquido ?? (report.total.valor_frete + report.total.valor_servico - (report.total.desconto ?? 0));
     doc.text(
-      `Total: ${formatCurrency(report.total.valor_frete + report.total.valor_servico)}`,
+      `Total: ${formatCurrency(totalGeralPdf)}`,
       196,
       cursorY - 1,
       { align: 'right' },
     );
+    
+    // Adicionar linha adicional com detalhamento se houver desconto
+    if (report.total.desconto && report.total.desconto > 0) {
+      cursorY += 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        `(Frete: ${formatCurrency(report.total.valor_frete)} + Serviços: ${formatCurrency(report.total.valor_servico)} - Desconto: ${formatCurrency(report.total.desconto)})`,
+        196,
+        cursorY,
+        { align: 'right' },
+      );
+    }
     doc.setTextColor(0, 0, 0);
 
       const filenameSuffix =
@@ -527,55 +565,115 @@ export default function Fechamentos() {
 
     setExportingCsv(true);
     try {
-      // Coletar todas as linhas do relatório
-      const csvRows: Array<{
-        Grupo: string;
-        Subgrupo?: string;
-        Ficha: string;
-        Descricao: string;
-        'Valor Frete': string;
-        'Valor Servicos': string;
-        'Total': string;
-      }> = [];
+      // Calcular metadados do relatório
+      const uniqueFichas = new Set<string>();
+      let totalItems = 0;
 
-      const collectRows = (group: ReportGroup, parentGroup?: string) => {
+      const countMetadata = (group: ReportGroup) => {
         if (group.rows && group.rows.length > 0) {
           group.rows.forEach((row) => {
-            const total = row.valor_frete + row.valor_servico;
-            csvRows.push({
-              Grupo: parentGroup || group.label,
-              Subgrupo: parentGroup ? group.label : undefined,
-              Ficha: row.ficha || '',
-              Descricao: row.descricao || '',
+            // Contar apenas linhas reais de itens, não subtotais
+            if (row.ficha && row.descricao && row.descricao !== 'Subtotal') {
+              uniqueFichas.add(row.ficha);
+              totalItems++;
+            }
+          });
+        }
+        if (group.subgroups) {
+          group.subgroups.forEach((subgroup) => countMetadata(subgroup));
+        }
+      };
+
+      report.groups.forEach((group) => countMetadata(group));
+
+      // Coletar todas as linhas do relatório
+      const hasDesconto = report.total.desconto && report.total.desconto > 0;
+      const csvRows: Array<Record<string, string>> = [];
+
+      // Adicionar linha de metadados no início
+      const metadataRow: Record<string, string> = {
+        'Grupo': 'METADADOS',
+        'Ficha': '',
+        'Descricao': `Pedidos únicos: ${uniqueFichas.size} | Itens totais: ${totalItems} | Gerado em: ${report.generated_at}`,
+        'Valor Frete': '',
+        'Valor Servicos': '',
+        'Total': '',
+      };
+      
+      if (hasDesconto) {
+        metadataRow['Desconto'] = '';
+      }
+      
+      csvRows.push(metadataRow);
+      
+      // Linha em branco para separar
+      const emptyRow: Record<string, string> = {
+        'Grupo': '',
+        'Ficha': '',
+        'Descricao': '',
+        'Valor Frete': '',
+        'Valor Servicos': '',
+        'Total': '',
+      };
+      
+      if (hasDesconto) {
+        emptyRow['Desconto'] = '';
+      }
+      
+      csvRows.push(emptyRow);
+
+      const collectRowsData = (group: ReportGroup, parentGroup?: string) => {
+        if (group.rows && group.rows.length > 0) {
+          group.rows.forEach((row) => {
+            const totalItem = row.valor_frete + row.valor_servico;
+            const rowData: Record<string, string> = {
+              'Grupo': parentGroup || group.label,
+              'Subgrupo': parentGroup ? group.label : '',
+              'Ficha': row.ficha || '',
+              'Descricao': row.descricao || '',
               'Valor Frete': formatCurrency(row.valor_frete),
               'Valor Servicos': formatCurrency(row.valor_servico),
-              'Total': formatCurrency(total),
-            });
+              'Total': formatCurrency(totalItem),
+            };
+            
+            if (hasDesconto) {
+              rowData['Desconto'] = '';
+            }
+            
+            csvRows.push(rowData);
           });
         }
 
         if (group.subgroups) {
           group.subgroups.forEach((subgroup) => {
-            collectRows(subgroup, group.label);
+            collectRowsData(subgroup, group.label);
           });
         }
       };
 
       report.groups.forEach((group) => {
-        collectRows(group);
+        collectRowsData(group);
       });
 
       // Adicionar linha de totais
-      csvRows.push({
-        Grupo: '',
-        Ficha: '',
-        Descricao: 'TOTAL GERAL',
+      const totalGeral = report.total.valor_liquido ?? (report.total.valor_frete + report.total.valor_servico - (report.total.desconto ?? 0));
+      const totalRow: Record<string, string> = {
+        'Grupo': '',
+        'Ficha': '',
+        'Descricao': 'TOTAL GERAL',
         'Valor Frete': formatCurrency(report.total.valor_frete),
         'Valor Servicos': formatCurrency(report.total.valor_servico),
-        'Total': formatCurrency(report.total.valor_frete + report.total.valor_servico),
-      });
+        'Total': formatCurrency(totalGeral),
+      };
+      
+      if (hasDesconto) {
+        totalRow['Desconto'] = formatCurrency(report.total.desconto!);
+        totalRow['Total'] = formatCurrency(report.total.valor_liquido ?? totalGeral);
+      }
+      
+      csvRows.push(totalRow);
 
-      // Gerar CSV
+      // Gerar CSV (remover campos vazios de desconto se não houver desconto)
       const Papa = await import('papaparse');
       const csv = Papa.default.unparse(csvRows, {
         header: true,
