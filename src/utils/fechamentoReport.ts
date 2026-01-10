@@ -48,6 +48,52 @@ const STATUS_FILTER_LABEL: Record<string, string> = {
 
 const roundCurrency = (value: number): number => Math.round(value * 100) / 100;
 
+/**
+ * Cache para valores de moeda parseados.
+ * Limpa automaticamente quando atinge o tamanho máximo para evitar consumo excessivo de memória.
+ */
+const currencyCache = new Map<string | number, number>();
+const MAX_CACHE_SIZE = 1000;
+
+/**
+ * Limpa o cache de parsing de moeda.
+ * Útil após processar um lote grande de pedidos.
+ */
+const clearCurrencyCache = (): void => {
+  currencyCache.clear();
+};
+
+/**
+ * Parseia um valor de moeda com cache para melhor performance.
+ * 
+ * @param value - Valor a ser parseado (string, number, null, undefined)
+ * @returns Valor numérico parseado ou 0 se inválido
+ */
+const parseCurrencyCached = (value: unknown): number => {
+  // Se cache muito grande, limpar para evitar consumo excessivo de memória
+  if (currencyCache.size > MAX_CACHE_SIZE) {
+    clearCurrencyCache();
+  }
+  
+  // Criar chave única para o cache
+  const key = typeof value === 'string' 
+    ? value 
+    : (value !== null && value !== undefined ? String(value) : 'null');
+  
+  // Verificar se já está no cache
+  if (currencyCache.has(key)) {
+    return currencyCache.get(key)!;
+  }
+  
+  // Parsear o valor
+  const parsed = parseCurrency(value);
+  
+  // Armazenar no cache
+  currencyCache.set(key, parsed);
+  
+  return parsed;
+};
+
 const parseCurrency = (value: unknown): number => {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? roundCurrency(value) : 0;
@@ -100,8 +146,8 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
     });
   }
   
-  // Prioridade 3: Tentar parsear string
-  const parsed = parseCurrency(orderItem.valor_unitario);
+  // Prioridade 3: Tentar parsear string (usando cache)
+  const parsed = parseCurrencyCached(orderItem.valor_unitario);
   if (parsed > 0) {
     return parsed;
   }
@@ -126,8 +172,8 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
  */
 const validateOrderTotals = (order: OrderWithItems): { valid: boolean; issues: string[] } => {
   const issues: string[] = [];
-  const valorFrete = parseCurrency(order.valor_frete ?? 0);
-  const valorTotal = parseCurrency(order.total_value ?? 0);
+  const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
+  const valorTotal = parseCurrencyCached(order.total_value ?? 0);
   
   // Calcular soma de itens
   const somaItens = (order.items ?? []).reduce((sum, item) => {
@@ -383,10 +429,10 @@ const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode):
   const formaEnvio = safeLabel(order.forma_envio, 'Sem forma de envio');
   const ordemDataRef = getOrderReferenceDate(order, dateMode);
   const dataLabel = formatDateLabel(ordemDataRef);
-  const valorFreteTotal = parseCurrency(order.valor_frete ?? 0);
+  const valorFreteTotal = parseCurrencyCached(order.valor_frete ?? 0);
 
   if (items.length === 0) {
-    const totalServico = roundCurrency(parseCurrency(order.total_value ?? 0) - valorFreteTotal);
+    const totalServico = roundCurrency(parseCurrencyCached(order.total_value ?? 0) - valorFreteTotal);
     return [
       {
         orderId: order.id,
@@ -696,6 +742,9 @@ export const generateFechamentoReport = (
   orders: OrderWithItems[],
   payload: ReportRequestPayload,
 ): ReportResponse => {
+  // Limpar cache no início do processamento para garantir dados frescos
+  clearCurrencyCache();
+  
   // Validar payload
   const validation = validateReportRequest(payload);
   if (!validation.valid) {
