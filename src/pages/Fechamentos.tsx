@@ -322,7 +322,7 @@ export default function Fechamentos() {
 
       const [statsData, trendsData, vendedorData, designerData, clienteData] = await Promise.all([
         api.getFechamentoStatistics(params),
-        api.getFechamentoTrends({ ...params, group_by: 'day' }),
+        api.getFechamentoTrends({ ...params, group_by: groupBy }),
         api.getFechamentoRankings('vendedor', { ...params, limit: 10 }),
         api.getFechamentoRankings('designer', { ...params, limit: 10 }),
         api.getFechamentoRankings('cliente', { ...params, limit: 10 }),
