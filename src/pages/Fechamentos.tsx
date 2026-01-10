@@ -5,8 +5,10 @@ import {
   ReportResponse,
   ReportTypeKey,
   ReportRequestPayload,
+  Cliente,
 } from '@/types';
 import { api } from '@/services/api';
+import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,7 +142,6 @@ export default function Fechamentos() {
   const [nomeFilter, setNomeFilter] = useState<string>('');
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
-  const [clientes, setClientes] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
   
   // Estado para ordenação de tabelas
@@ -153,29 +154,28 @@ export default function Fechamentos() {
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
-  // Carregar listas de vendedores, designers e clientes ativos para os filtros
+  // Carregar listas de vendedores e designers ativos para os filtros
+  // Nota: clientes são carregados automaticamente pelo ClienteAutocomplete
   useEffect(() => {
     let isMounted = true;
 
     const loadPeople = async () => {
       try {
-        const [vendedoresResponse, designersResponse, clientesResponse] = await Promise.all([
+        const [vendedoresResponse, designersResponse] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
-          api.getClientes(),
         ]);
 
         if (!isMounted) return;
 
         setVendedores(vendedoresResponse);
         setDesigners(designersResponse);
-        setClientes(clientesResponse.map(c => ({ id: c.id, nome: c.nome })));
       } catch (error) {
         if (!isMounted) return;
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Não foi possível carregar a lista de vendedores, designers e clientes.';
+            : 'Não foi possível carregar a lista de vendedores e designers.';
         toast({
           title: 'Erro ao carregar filtros',
           description: errorMessage,
@@ -1201,24 +1201,19 @@ export default function Fechamentos() {
 
             <div className="space-y-2">
               <Label>Cliente</Label>
-              <Select
-                value={filters.cliente && filters.cliente.length > 0 ? filters.cliente : 'all'}
-                onValueChange={(value) =>
-                  updateFilter('cliente', value === 'all' ? '' : (value as string))
-                }
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {clientes.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.nome}>
-                      {cliente.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ClienteAutocomplete
+                value={filters.cliente || ''}
+                onSelect={(cliente: Cliente | null) => {
+                  updateFilter('cliente', cliente ? cliente.nome : '');
+                }}
+                onInputChange={(value: string) => {
+                  // Limpar filtro se o campo ficar vazio
+                  if (value.trim() === '' && filters.cliente) {
+                    updateFilter('cliente', '');
+                  }
+                }}
+                className="w-full"
+              />
               <p className="text-sm text-muted-foreground">
                 Para relatório específico do cliente.
               </p>
