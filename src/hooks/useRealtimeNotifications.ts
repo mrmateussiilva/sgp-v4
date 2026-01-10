@@ -3,27 +3,10 @@ import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 import { useToast } from './use-toast';
 import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
-import { NotificationManager } from './notificationManager';
+import { NotificationManager, NotificationType, OrderNotification } from './notificationManager';
 
-// ========================================
-// TIPOS DE NOTIFICAÇÃO
-// ========================================
-
-export enum NotificationType {
-  OrderCreated = 'OrderCreated',
-  OrderUpdated = 'OrderUpdated',
-  OrderDeleted = 'OrderDeleted',
-  OrderStatusChanged = 'OrderStatusChanged',
-}
-
-export interface OrderNotification {
-  notification_type: NotificationType;
-  order_id: number;
-  order_numero?: string;
-  timestamp: string;
-  user_id?: number;
-  details?: string;
-}
+// Re-exportar tipos para compatibilidade com outros arquivos que importam de useRealtimeNotifications
+export { NotificationType, type OrderNotification };
 
 // ========================================
 // HOOK DE NOTIFICAÇÕES
