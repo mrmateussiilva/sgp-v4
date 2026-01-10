@@ -31,6 +31,16 @@
             }
         ]
     },
+    "plugins": {
+        "updater": {
+            "active": true,
+            "endpoints": [
+                "https://sgp.finderbit.com.br/update/{{target}}/{{arch}}/{{current_version}}"
+            ],
+            "dialog": true,
+            "pubkey": "INSERIR_SUA_CHAVE_PUBLICA_MINISIGN_AQUI"
+        }
+    },
     "bundle": {
         "active": true,
         "targets": [
