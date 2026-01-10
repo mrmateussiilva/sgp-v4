@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 import { useToast } from './use-toast';
 import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
+import { NotificationManager } from './notificationManager';
 
 // ========================================
 // TIPOS DE NOTIFICAÇÃO
@@ -36,6 +37,17 @@ export const useRealtimeNotifications = () => {
   const [subscriberCount, setSubscriberCount] = useState(0);
   const subscriptionRef = useRef<(() => void) | null>(null);
   const statusSubscriptionRef = useRef<(() => void) | null>(null);
+  
+  // Gerenciador inteligente de notificações
+  const notificationManagerRef = useRef<NotificationManager | null>(null);
+  
+  // Inicializar gerenciador de notificações
+  useEffect(() => {
+    notificationManagerRef.current = new NotificationManager(toast);
+    return () => {
+      notificationManagerRef.current?.clear();
+    };
+  }, [toast]);
 
   const updateStatusFromManager = useCallback(() => {
     const status = ordersSocket.getCurrentStatus();
@@ -113,67 +125,33 @@ export const useRealtimeNotifications = () => {
     ) {
       console.log('🔇 Notificação do próprio usuário ignorada:', notification);
       // Ainda recarregar a lista, mas sem mostrar toast
-      if (notification.notification_type !== NotificationType.OrderDeleted) {
-        refreshOrders();
-      }
+      refreshOrders();
       return;
     }
 
+    // Extrair informações adicionais do pedido para detalhes
+    const statusDetails = extractStatusDetails(orderPayload);
+    if (statusDetails) {
+      notification.details = statusDetails;
+    }
+
     // Log para debug
-    console.log('✅ Notificação será exibida:', {
+    console.log('✅ Notificação processada:', {
       type: notification.notification_type,
       order_id: notification.order_id,
       notification_user_id: notification.user_id,
       current_user_id: userId,
-      will_show: true,
     });
 
-    // Extrair informações adicionais do pedido
-    const clienteName = orderPayload?.cliente || orderPayload?.customer_name || 'Cliente';
-    const orderNum = notification.order_numero || notification.order_id;
-    
-    // Mostrar toast baseado no tipo de notificação (mais sutis e concisos)
-    switch (notification.notification_type) {
-      case NotificationType.OrderCreated:
-        toast({
-          title: "Novo Pedido",
-          description: `#${orderNum} - ${clienteName}`,
-          variant: "success",
-          duration: 3000,
-        });
-        break;
+    // Processar notificação usando o gerenciador inteligente
+    notificationManagerRef.current?.processNotification(notification);
 
-      case NotificationType.OrderUpdated:
-        // Silenciar atualizações menores - não são críticas e apenas poluem a tela
-        // A lista será atualizada automaticamente via refreshOrders()
-        break;
-
-      case NotificationType.OrderDeleted:
-        toast({
-          title: "Pedido Excluído",
-          description: `#${orderNum}`,
-          variant: "destructive",
-          duration: 3000,
-        });
-        // Remover pedido da lista local
-        removeOrder(notification.order_id);
-        break;
-
-      case NotificationType.OrderStatusChanged: {
-        // Extrair detalhes da mudança de status
-        const statusDetails = extractStatusDetails(orderPayload);
-        toast({
-          title: "Status Atualizado",
-          description: `#${orderNum} - ${statusDetails || clienteName}`,
-          variant: "warning",
-          duration: 3000,
-        });
-        break;
-      }
-    }
-
-    // Sempre recarregar lista de pedidos para qualquer notificação (exceto delete)
-    if (notification.notification_type !== NotificationType.OrderDeleted) {
+    // Sempre processar ações necessárias independente de mostrar toast
+    if (notification.notification_type === NotificationType.OrderDeleted) {
+      // Remover pedido da lista local quando deletado
+      removeOrder(notification.order_id);
+    } else {
+      // Recarregar lista de pedidos para outras notificações
       refreshOrders();
     }
   }, [parseOrderId, removeOrder, toast, userId]);
