@@ -517,16 +517,6 @@ export default function PainelDesempenho() {
         </p>
       </div>
 
-      <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm text-primary-800">
-        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary-600" />
-        <div>
-          <p className="font-medium uppercase tracking-[0.08em]">Prévia em desenvolvimento</p>
-          <p className="mt-1 text-primary-700">
-            Esta página ainda está em construção. Os dados exibidos são demonstrativos e servem apenas como preview do layout final.
-          </p>
-        </div>
-      </div>
-
       <AnalyticsFilterBar
         filters={filters}
         vendedores={vendedores}
