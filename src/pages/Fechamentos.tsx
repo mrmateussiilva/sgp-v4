@@ -35,6 +35,7 @@ import { useAuthStore } from '@/store/authStore';
 import { FechamentoStatsCards } from '@/components/fechamentos/FechamentoStatsCards';
 import { FechamentoTrendsChart } from '@/components/fechamentos/FechamentoTrendsChart';
 import { FechamentoRankings } from '@/components/fechamentos/FechamentoRankings';
+import { FechamentoPieChart } from '@/components/fechamentos/FechamentoPieChart';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -1363,6 +1364,9 @@ export default function Fechamentos() {
         <div className="space-y-6">
           {/* Cards de Estatísticas */}
           <FechamentoStatsCards stats={stats} loading={loadingStats} />
+
+          {/* Gráfico de Distribuição */}
+          <FechamentoPieChart stats={stats} loading={loadingStats} />
 
           {/* Gráficos de Tendências */}
           <div className="grid gap-6 md:grid-cols-2">
