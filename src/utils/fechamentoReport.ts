@@ -1002,9 +1002,9 @@ export const generateFechamentoReport = (
   // Validar consistência dos pedidos e logar avisos se houver problemas
   const validationWarnings: string[] = [];
   filteredOrders.forEach((order) => {
-    const validation = validateOrderTotals(order);
-    if (!validation.valid) {
-      validationWarnings.push(`Pedido #${order.id} (${order.numero ?? 'sem número'}): ${validation.issues.join('; ')}`);
+    const orderValidation = validateOrderTotals(order);
+    if (!orderValidation.valid) {
+      validationWarnings.push(`Pedido #${order.id} (${order.numero ?? 'sem número'}): ${orderValidation.issues.join('; ')}`);
     }
   });
   
@@ -1155,9 +1155,9 @@ export const generateFechamentoReport = (
   const statusLabel = STATUS_FILTER_LABEL[statusLabelRaw] ?? statusLabelRaw;
 
   // Validar consistência dos totais calculados
-  const validation = validateReportTotals(groups, totals);
-  if (validation.warnings.length > 0) {
-    console.warn('[fechamentoReport] Avisos de validação dos totais:', validation.warnings);
+  const totalsValidation = validateReportTotals(groups, totals);
+  if (totalsValidation.warnings.length > 0) {
+    console.warn('[fechamentoReport] Avisos de validação dos totais:', totalsValidation.warnings);
   }
 
   return {
