@@ -113,14 +113,32 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'grupo';
 
-const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals =>
-  rows.reduce<ReportTotals>(
-    (acc, row) => ({
-      valor_frete: roundCurrency(acc.valor_frete + row.valorFrete),
-      valor_servico: roundCurrency(acc.valor_servico + row.valorServico),
-    }),
-    { valor_frete: 0, valor_servico: 0 },
+const computeTotalsFromRows = (rows: NormalizedRow[]): ReportTotals => {
+  // Agrupar por orderId para contar frete apenas uma vez por pedido
+  const fretePorPedido = new Map<number, number>();
+  let totalServico = 0;
+
+  rows.forEach((row) => {
+    // Serviços: somar todos (por item)
+    totalServico = roundCurrency(totalServico + row.valorServico);
+    
+    // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
+    if (!fretePorPedido.has(row.orderId)) {
+      fretePorPedido.set(row.orderId, row.valorFrete);
+    }
+  });
+
+  // Somar fretes únicos de cada pedido
+  const totalFrete = Array.from(fretePorPedido.values()).reduce(
+    (sum, frete) => roundCurrency(sum + frete),
+    0
   );
+
+  return {
+    valor_frete: totalFrete,
+    valor_servico: totalServico,
+  };
+};
 
 const convertRowsToReportRows = (rows: NormalizedRow[]) =>
   rows.map((row) => ({
@@ -159,20 +177,9 @@ const createAggregateGroupRow = (
   };
 };
 
-const splitFrete = (totalFrete: number, itemsLength: number): number[] => {
-  if (itemsLength <= 0) {
-    return [];
-  }
-  const totalCents = Math.round(totalFrete * 100);
-  const baseShare = Math.floor(totalCents / itemsLength);
-  const remainder = totalCents - baseShare * itemsLength;
-  const shares: number[] = [];
-  for (let index = 0; index < itemsLength; index += 1) {
-    const extraCent = index < remainder ? 1 : 0;
-    shares.push((baseShare + extraCent) / 100);
-  }
-  return shares;
-};
+// Função removida: splitFrete não é mais necessária
+// O frete é por pedido e não deve ser dividido entre itens
+// Cada item mostra o frete total do pedido
 
 type DateReferenceMode = 'entrada' | 'entrega' | 'auto';
 
@@ -278,15 +285,17 @@ const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode):
     ];
   }
 
-  const freteShares = splitFrete(valorFreteTotal, items.length);
+  // Frete é por pedido, não divide entre itens
+  // Cada item mostra o frete TOTAL do pedido
 
-  return items.map((item, index) => {
+  return items.map((item) => {
     const designer = safeLabel(item.designer, 'Sem designer');
     const vendedor = safeLabel(item.vendedor, 'Sem vendedor');
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
     const descricao = safeLabel(item.descricao ?? item.item_name, 'Item sem descrição');
     const valorServico = getSubtotalValue(item);
-    const valorFrete = freteShares[index] ?? 0;
+    // Cada item mostra o frete TOTAL do pedido (não dividido)
+    const valorFrete = valorFreteTotal;
 
     return {
       orderId: order.id,
