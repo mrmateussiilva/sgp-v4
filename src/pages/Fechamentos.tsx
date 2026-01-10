@@ -971,6 +971,13 @@ export default function Fechamentos() {
     );
   };
 
+  // Carregar estatísticas automaticamente quando os filtros mudarem
+  useEffect(() => {
+    if (filters.startDate && filters.endDate) {
+      loadStatistics();
+    }
+  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, loadStatistics]);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
