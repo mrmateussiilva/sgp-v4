@@ -35,10 +35,10 @@
         "updater": {
             "active": true,
             "endpoints": [
-                "https://sgp.finderbit.com.br/update/{{target}}/{{arch}}/{{current_version}}"
+                "https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/updater/latest.json"
             ],
             "dialog": true,
-            "pubkey": "INSERIR_SUA_CHAVE_PUBLICA_MINISIGN_AQUI"
+            "pubkey":"dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcyNTFERTEzMzdGOTlDNEIKUldSTG5QazNFOTVSY3U0QnRmQnJoMEl6dnBNdGxwazN3MU5QSisvbmJDZWxQdGlTNFJmQjEzdnQK "
         }
     },
     "bundle": {
