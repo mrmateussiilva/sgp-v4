@@ -276,45 +276,39 @@ const calculateOrderDiscount = (order: OrderWithItems): number => {
 /**
  * Calcula os totais de frete, serviço e desconto a partir de linhas normalizadas.
  * 
- * IMPORTANTE: O frete e desconto são agrupados por orderId para evitar duplicação no total geral,
- * já que cada item de um pedido pode estar em grupos diferentes no relatório.
- * Cada item de um pedido repete o valor do frete, mas no total geral o frete
- * é contado apenas uma vez por pedido.
+ * IMPORTANTE sobre frete:
+ * - 'por_pedido': O frete é agrupado por orderId para evitar duplicação no total geral,
+ *   já que cada item de um pedido pode estar em grupos diferentes no relatório.
+ *   Cada item de um pedido repete o valor do frete total, mas no total geral o frete
+ *   é contado apenas uma vez por pedido.
+ * 
+ * - 'proporcional': Quando o frete é distribuído proporcionalmente, cada linha já contém
+ *   sua parte proporcional do frete. Nesse caso, somamos todos os valores de frete diretamente,
+ *   pois a soma já representa o frete total corretamente.
  * 
  * @param rows - Array de linhas normalizadas (uma linha por item de pedido)
  * @param ordersMap - Mapa opcional de pedidos por ID para calcular desconto (orderId -> OrderWithItems)
+ * @param freteDistribution - Modo de distribuição de frete ('por_pedido' ou 'proporcional')
  * @returns Totais de frete, serviço, desconto e valor líquido calculados
- * 
- * @example
- * ```typescript
- * const rows = [
- *   { orderId: 1, valorFrete: 50, valorServico: 100 },
- *   { orderId: 1, valorFrete: 50, valorServico: 150 }, // Mesmo pedido
- *   { orderId: 2, valorFrete: 30, valorServico: 80 }
- * ];
- * const totals = computeTotalsFromRows(rows, ordersMap);
- * // totals = { valor_frete: 80, valor_servico: 330, desconto: X, valor_liquido: Y }
- * ```
  */
 const computeTotalsFromRows = (
   rows: NormalizedRow[], 
-  ordersMap?: Map<number, OrderWithItems>
+  ordersMap?: Map<number, OrderWithItems>,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportTotals => {
-  // Agrupar por orderId para contar frete e desconto apenas uma vez por pedido
-  const fretePorPedido = new Map<number, number>();
   const descontoPorPedido = new Map<number, number>();
   let totalServico = 0;
+  let totalFrete = 0;
 
-  rows.forEach((row) => {
-    // Serviços: somar todos (por item)
-    totalServico = roundCurrency(totalServico + row.valorServico);
-    
-    // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
-    if (!fretePorPedido.has(row.orderId)) {
-      fretePorPedido.set(row.orderId, row.valorFrete);
+  if (freteDistribution === 'proporcional') {
+    // Quando proporcional, somar diretamente todos os valores de frete
+    // (cada linha já tem sua parte proporcional)
+    rows.forEach((row) => {
+      totalServico = roundCurrency(totalServico + row.valorServico);
+      totalFrete = roundCurrency(totalFrete + row.valorFrete);
       
-      // Calcular desconto se ordersMap foi fornecido
-      if (ordersMap) {
+      // Calcular desconto apenas uma vez por pedido
+      if (!descontoPorPedido.has(row.orderId) && ordersMap) {
         const order = ordersMap.get(row.orderId);
         if (order) {
           const desconto = calculateOrderDiscount(order);
@@ -323,14 +317,38 @@ const computeTotalsFromRows = (
           }
         }
       }
-    }
-  });
+    });
+  } else {
+    // Modo 'por_pedido': agrupar por orderId para contar frete apenas uma vez por pedido
+    const fretePorPedido = new Map<number, number>();
 
-  // Somar fretes únicos de cada pedido
-  const totalFrete = Array.from(fretePorPedido.values()).reduce(
-    (sum, frete) => roundCurrency(sum + frete),
-    0
-  );
+    rows.forEach((row) => {
+      // Serviços: somar todos (por item)
+      totalServico = roundCurrency(totalServico + row.valorServico);
+      
+      // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
+      if (!fretePorPedido.has(row.orderId)) {
+        fretePorPedido.set(row.orderId, row.valorFrete);
+        
+        // Calcular desconto se ordersMap foi fornecido
+        if (ordersMap) {
+          const order = ordersMap.get(row.orderId);
+          if (order) {
+            const desconto = calculateOrderDiscount(order);
+            if (desconto > 0) {
+              descontoPorPedido.set(row.orderId, desconto);
+            }
+          }
+        }
+      }
+    });
+
+    // Somar fretes únicos de cada pedido
+    totalFrete = Array.from(fretePorPedido.values()).reduce(
+      (sum, frete) => roundCurrency(sum + frete),
+      0
+    );
+  }
   
   // Somar descontos únicos de cada pedido
   const totalDesconto = Array.from(descontoPorPedido.values()).reduce(
@@ -367,12 +385,13 @@ const createLeafGroup = (
   label: string, 
   key: string, 
   rows: NormalizedRow[],
-  ordersMap?: Map<number, OrderWithItems>
+  ordersMap?: Map<number, OrderWithItems>,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportGroup => ({
   key,
   label,
   rows: convertRowsToReportRows(rows),
-  subtotal: computeTotalsFromRows(rows, ordersMap),
+  subtotal: computeTotalsFromRows(rows, ordersMap, freteDistribution),
 });
 
 const createAggregateGroupRow = (
@@ -380,9 +399,10 @@ const createAggregateGroupRow = (
   key: string,
   rows: NormalizedRow[],
   description: string,
-  ordersMap?: Map<number, OrderWithItems>
+  ordersMap?: Map<number, OrderWithItems>,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportGroup => {
-  const totals = computeTotalsFromRows(rows, ordersMap);
+  const totals = computeTotalsFromRows(rows, ordersMap, freteDistribution);
   return {
     key,
     label,
@@ -480,17 +500,27 @@ const getOrderReferenceDate = (
 
 /**
  * Converte um pedido em linhas normalizadas para o relatório.
+ * Cada item do pedido gera uma linha separada.
  * 
- * Cada item do pedido gera uma linha separada. O frete do pedido é repetido
- * para cada item, já que cada item pode ser agrupado de forma diferente
- * no relatório. Isso permite que o frete apareça corretamente em cada grupo,
- * mas será deduplicado no total geral pela função computeTotalsFromRows().
+ * O frete pode ser tratado de duas formas:
+ * - 'por_pedido' (padrão): O frete é repetido para cada item, já que cada item pode ser 
+ *   agrupado de forma diferente no relatório. Isso permite que o frete apareça corretamente 
+ *   em cada grupo, mas será deduplicado no total geral pela função computeTotalsFromRows().
+ * 
+ * - 'proporcional': O frete é distribuído proporcionalmente entre os itens baseado no valor
+ *   de cada item em relação ao total de itens. Útil quando se quer que cada item "carregue"
+ *   sua parte proporcional do frete.
  * 
  * @param order - Pedido a ser convertido
  * @param dateMode - Modo de referência de data ('entrada', 'entrega' ou 'auto')
+ * @param freteDistribution - Como distribuir o frete ('por_pedido' ou 'proporcional')
  * @returns Array de linhas normalizadas (uma por item, ou uma se não houver itens)
  */
-const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode): NormalizedRow[] => {
+const buildRowsFromOrder = (
+  order: OrderWithItems, 
+  dateMode: DateReferenceMode,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+): NormalizedRow[] => {
   const items = order.items ?? [];
   const cliente = safeLabel(order.cliente ?? order.customer_name, 'Cliente não informado');
   const formaEnvio = safeLabel(order.forma_envio, 'Sem forma de envio');
@@ -518,8 +548,13 @@ const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode):
     ];
   }
 
-  // Frete é por pedido, não divide entre itens
-  // Cada item mostra o frete TOTAL do pedido
+  // Calcular total de itens para distribuição proporcional
+  const totalItensValue = freteDistribution === 'proporcional' 
+    ? items.reduce((sum, item) => sum + getSubtotalValue(item), 0)
+    : 0;
+
+  // Se distribuição proporcional mas total é zero, usar por_pedido
+  const useProportional = freteDistribution === 'proporcional' && totalItensValue > 0;
 
   return items.map((item) => {
     const designer = safeLabel(item.designer, 'Sem designer');
@@ -527,8 +562,16 @@ const buildRowsFromOrder = (order: OrderWithItems, dateMode: DateReferenceMode):
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
     const descricao = safeLabel(item.descricao ?? item.item_name, 'Item sem descrição');
     const valorServico = getSubtotalValue(item);
-    // Cada item mostra o frete TOTAL do pedido (não dividido)
-    const valorFrete = valorFreteTotal;
+    
+    // Distribuir frete conforme opção escolhida
+    let valorFrete: number;
+    if (useProportional) {
+      const proporcao = valorServico / totalItensValue;
+      valorFrete = roundCurrency(valorFreteTotal * proporcao);
+    } else {
+      // Por padrão, cada item mostra o frete TOTAL do pedido
+      valorFrete = valorFreteTotal;
+    }
 
     return {
       orderId: order.id,
@@ -553,7 +596,8 @@ const buildTwoLevelGroups = (
   getTopLabel: (key: string) => string,
   getSubKey: (row: NormalizedRow) => string,
   getSubLabel: (key: string) => string,
-  ordersMap?: Map<number, OrderWithItems>
+  ordersMap?: Map<number, OrderWithItems>,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportGroup[] => {
   const topMap = new Map<string, Map<string, NormalizedRow[]>>();
 
@@ -576,7 +620,7 @@ const buildTwoLevelGroups = (
     .map(([topKey, subMap]) => {
       const subgroups = Array.from(subMap.entries())
         .sort((a, b) => getSubLabel(a[0]).localeCompare(getSubLabel(b[0]), 'pt-BR'))
-        .map(([subKey, subRows]) => createLeafGroup(getSubLabel(subKey), slugify(`${topKey}-${subKey}`), subRows, ordersMap));
+        .map(([subKey, subRows]) => createLeafGroup(getSubLabel(subKey), slugify(`${topKey}-${subKey}`), subRows, ordersMap, freteDistribution));
       const subtotal = subgroups.reduce<ReportTotals>(
         (acc, group) => {
           const result: ReportTotals = {
@@ -609,7 +653,8 @@ const buildSingleLevelAggregate = (
   rows: NormalizedRow[],
   getKey: (row: NormalizedRow) => string,
   getLabel: (key: string) => string,
-  ordersMap?: Map<number, OrderWithItems>
+  ordersMap?: Map<number, OrderWithItems>,
+  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportGroup[] => {
   const map = new Map<string, NormalizedRow[]>();
 
@@ -626,7 +671,7 @@ const buildSingleLevelAggregate = (
     .map(([key, groupRows]) => {
       const uniqueOrders = new Set(groupRows.map((row) => row.orderId));
       const description = `Pedidos: ${uniqueOrders.size} · Itens: ${groupRows.length}`;
-      return createAggregateGroupRow(getLabel(key), slugify(key), groupRows, description, ordersMap);
+      return createAggregateGroupRow(getLabel(key), slugify(key), groupRows, description, ordersMap, freteDistribution);
     });
 };
 
@@ -949,7 +994,12 @@ export const generateFechamentoReport = (
     console.warn('[fechamentoReport] Avisos de validação de pedidos:', validationWarnings);
   }
 
-  const baseRowsAll = filteredOrders.flatMap((order) => buildRowsFromOrder(order, dateMode));
+  // Determinar modo de distribuição de frete
+  const freteDistribution = payload.frete_distribution ?? 'por_pedido';
+  
+  const baseRowsAll = filteredOrders.flatMap((order) => 
+    buildRowsFromOrder(order, dateMode, freteDistribution)
+  );
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
   
   // Criar mapa de pedidos por ID para calcular desconto
@@ -958,7 +1008,7 @@ export const generateFechamentoReport = (
     ordersMap.set(order.id, order);
   });
   
-  const totals = computeTotalsFromRows(baseRows, ordersMap);
+  const totals = computeTotalsFromRows(baseRows, ordersMap, freteDistribution);
 
   const reportType = payload.report_type;
   const groups: ReportGroup[] = (() => {
@@ -970,7 +1020,8 @@ export const generateFechamentoReport = (
           (value) => `Designer: ${value}`,
           (row) => row.cliente,
           (value) => `Cliente: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'analitico_cliente_designer':
         return buildTwoLevelGroups(
@@ -979,7 +1030,8 @@ export const generateFechamentoReport = (
           (value) => `Cliente: ${value}`,
           (row) => row.designer,
           (value) => `Designer: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'analitico_cliente_painel':
         return buildTwoLevelGroups(
@@ -988,7 +1040,8 @@ export const generateFechamentoReport = (
           (value) => `Cliente: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'analitico_designer_painel':
         return buildTwoLevelGroups(
@@ -997,7 +1050,8 @@ export const generateFechamentoReport = (
           (value) => `Designer: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'analitico_entrega_painel':
         return buildTwoLevelGroups(
@@ -1006,7 +1060,8 @@ export const generateFechamentoReport = (
           (value) => `Entrega: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_data':
         // Mantém o comportamento antigo (referência automática) para compatibilidade
@@ -1014,56 +1069,64 @@ export const generateFechamentoReport = (
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_data_entrada':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data de Entrada: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_data_entrega':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.dataLabel,
           (value) => `Data de Entrega: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_designer':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.designer,
           (value) => `Designer: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_vendedor':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.vendedor,
           (value) => `Vendedor: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_vendedor_designer':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => `${row.vendedor} / ${row.designer}`,
           (value) => `Vendedor/Designer: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_cliente':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.cliente,
           (value) => `Cliente: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       case 'sintetico_entrega':
         return buildSingleLevelAggregate(
           baseRows,
           (row) => row.formaEnvio,
           (value) => `Entrega: ${value}`,
-          ordersMap
+          ordersMap,
+          freteDistribution
         );
       default:
         return [];

@@ -463,6 +463,12 @@ export interface ReportRequestPayload {
    * Usado para gerar relatório específico de um cliente.
    */
   cliente?: string;
+  /**
+   * Opção de distribuição de frete.
+   * - 'por_pedido': cada item mostra o frete total do pedido (padrão)
+   * - 'proporcional': frete é distribuído proporcionalmente entre os itens
+   */
+  frete_distribution?: 'por_pedido' | 'proporcional';
 }
 
 export interface ReportTotals {
