@@ -310,6 +310,26 @@ export default function Fechamentos() {
     return { totalGroups, totalSubgroups, totalRows };
   }, [report]);
 
+  // Verificar se há dados válidos para exibir estatísticas
+  const hasValidStatsData = useMemo(() => {
+    // Se está carregando, mostrar a seção
+    if (loadingStats) return true;
+    
+    // Verificar se há estatísticas válidas (não apenas zeros)
+    const hasStats = stats && (
+      stats.total_pedidos > 0 ||
+      stats.total_items > 0 ||
+      stats.total_revenue > 0 ||
+      stats.total_frete > 0 ||
+      stats.total_servico > 0
+    );
+    
+    // Verificar se há trends válidas
+    const hasTrends = trends && Array.isArray(trends) && trends.length > 0;
+    
+    return hasStats || hasTrends;
+  }, [stats, trends, loadingStats]);
+
   // Função para calcular período anterior
   const calculatePreviousPeriod = useCallback((startDate: string, endDate: string) => {
     const start = new Date(startDate);
@@ -1396,7 +1416,7 @@ export default function Fechamentos() {
       </Card>
 
       {/* Seção de Estatísticas e Gráficos */}
-      {(stats || trends || loadingStats) && (
+      {hasValidStatsData && (
         <div className="space-y-6">
           {/* Cards de Estatísticas */}
           <FechamentoStatsCards
