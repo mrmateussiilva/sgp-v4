@@ -6,6 +6,7 @@ import {
   ReportTypeKey,
   ReportRequestPayload,
   Cliente,
+  ReportRowData,
 } from '@/types';
 import { api } from '@/services/api';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
@@ -42,6 +43,7 @@ import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadial
 import { FechamentoComparison } from '@/components/fechamentos/FechamentoComparison';
 import { FechamentoHeatmap } from '@/components/fechamentos/FechamentoHeatmap';
 import { FechamentoFunnel } from '@/components/fechamentos/FechamentoFunnel';
+import { Collapsible } from '@/components/ui/collapsible';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -906,6 +908,72 @@ export default function Fechamentos() {
     return <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />;
   };
 
+  // Função para coletar fichas únicas de um grupo
+  const getUniqueFichas = (rows: ReportRowData[]): string[] => {
+    const fichas = new Set<string>();
+    rows.forEach(row => {
+      if (row.ficha) {
+        fichas.add(row.ficha);
+      }
+    });
+    return Array.from(fichas).sort();
+  };
+
+  // Função para calcular estatísticas do grupo
+  const getGroupStats = (group: ReportGroup) => {
+    const rows = group.rows || [];
+    const fichasUnicas = getUniqueFichas(rows);
+    const totalItens = rows.length;
+    const totalGeral = group.subtotal.valor_frete + group.subtotal.valor_servico;
+    
+    return {
+      fichasUnicas,
+      totalItens,
+      totalGeral,
+      mediaPorItem: totalItens > 0 ? totalGeral / totalItens : 0,
+    };
+  };
+
+  // Componente para exibir estatísticas detalhadas do grupo
+  const GroupStatsDetail = ({ groupStats }: { groupStats: ReturnType<typeof getGroupStats> }) => (
+    <div className="bg-slate-50 rounded-md p-4 border border-slate-200">
+      <h4 className="font-semibold text-sm text-slate-700 mb-3">Estatísticas do Grupo</h4>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div>
+          <p className="text-slate-500">Total de Itens</p>
+          <p className="font-semibold text-slate-900">{groupStats.totalItens}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Fichas Únicas</p>
+          <p className="font-semibold text-slate-900">{groupStats.fichasUnicas.length}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Total Geral</p>
+          <p className="font-semibold text-slate-900">{formatCurrency(groupStats.totalGeral)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Média por Item</p>
+          <p className="font-semibold text-slate-900">{formatCurrency(groupStats.mediaPorItem)}</p>
+        </div>
+      </div>
+      {groupStats.fichasUnicas.length > 0 && (
+        <div className="mt-4">
+          <p className="text-slate-500 text-sm mb-2">Fichas do Grupo:</p>
+          <div className="flex flex-wrap gap-2">
+            {groupStats.fichasUnicas.map((ficha) => (
+              <span 
+                key={ficha} 
+                className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+              >
+                {ficha}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const renderGroup = (group: ReportGroup, depth = 0, path = group.key): JSX.Element => {
     const marginLeft = depth * 16;
     const subgroups = group.subgroups ?? [];
@@ -915,112 +983,119 @@ export default function Fechamentos() {
     
     // Ordenar linhas se houver ordenação ativa
     const sortedRows = hasRows ? sortRows(rows) : [];
+    
+    // Calcular estatísticas do grupo
+    const groupStats = hasRows ? getGroupStats(group) : null;
+
+    // Trigger do accordion (cabeçalho)
+    const accordionTrigger = (
+      <div className="flex items-center justify-between w-full pr-2">
+        <span className="font-medium text-slate-800">{group.label}</span>
+        <span className="text-base font-semibold text-slate-700">
+          Frete: {formatCurrency(group.subtotal.valor_frete)} · Serviços: {formatCurrency(group.subtotal.valor_servico)}
+        </span>
+      </div>
+    );
 
     return (
-      <div key={path} className="space-y-3">
-        <div
-          className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 text-base font-medium text-slate-800 shadow-sm"
-          style={{ marginLeft }}
-        >
-          <span>{group.label}</span>
-          <span className="text-base font-semibold text-slate-700">
-            Frete: {formatCurrency(group.subtotal.valor_frete)} · Serviços: {formatCurrency(group.subtotal.valor_servico)}
-          </span>
-        </div>
-
+      <div key={path} className="space-y-3" style={{ marginLeft }}>
         {hasSubgroups ? (
-          <div className="space-y-4">
-            {subgroups.map((subgroup, index) =>
-              renderGroup(subgroup, depth + 1, `${path}-${index}`),
-            )}
-          </div>
+          <Collapsible trigger={accordionTrigger}>
+            <div className="p-4 space-y-4">
+              {groupStats && <GroupStatsDetail groupStats={groupStats} />}
+              <div className="space-y-4">
+                {subgroups.map((subgroup, index) =>
+                  renderGroup(subgroup, depth + 1, `${path}-${index}`),
+                )}
+              </div>
+            </div>
+          </Collapsible>
         ) : hasRows ? (
-          <div
-            className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
-            style={{ marginLeft }}
-          >
-            <table className="w-full border-collapse text-base">
-              <thead className="bg-slate-50 text-slate-600">
-                <tr className="text-sm font-medium">
-                  <th
-                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
-                    onClick={() => handleSort('ficha')}
-                    title="Clique para ordenar por Ficha"
-                  >
-                    <div className="flex items-center gap-2">
-                      Ficha
-                      <SortIcon field="ficha" />
-                    </div>
-                  </th>
-                  <th
-                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
-                    onClick={() => handleSort('descricao')}
-                    title="Clique para ordenar por Descrição"
-                  >
-                    <div className="flex items-center gap-2">
-                      Descrição
-                      <SortIcon field="descricao" />
-                    </div>
-                  </th>
-                  <th
-                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
-                    onClick={() => handleSort('valor_frete')}
-                    title="Clique para ordenar por Valor Frete"
-                  >
-                    <div className="flex items-center justify-end gap-2">
-                      Valor Frete
-                      <SortIcon field="valor_frete" />
-                    </div>
-                  </th>
-                  <th
-                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
-                    onClick={() => handleSort('valor_servico')}
-                    title="Clique para ordenar por Valor Serviços"
-                  >
-                    <div className="flex items-center justify-end gap-2">
-                      Valor Serviços
-                      <SortIcon field="valor_servico" />
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRows.map((row, index) => (
-                  <tr
-                    key={`${path}-row-${index}`}
-                    className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                  >
-                    <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
-                    <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
-                    <td className="px-4 py-2 text-right text-slate-600">
-                      {formatCurrency(row.valor_frete)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                      {formatCurrency(row.valor_servico)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-100 text-slate-700">
-                  <td className="px-4 py-2 text-right font-medium" colSpan={2}>
-                    Subtotal do grupo
-                  </td>
-                  <td className="px-4 py-2 text-right font-medium">
-                    {formatCurrency(group.subtotal.valor_frete)}
-                  </td>
-                  <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                    {formatCurrency(group.subtotal.valor_servico)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <Collapsible trigger={accordionTrigger}>
+            <div className="p-4 space-y-4">
+              {groupStats && <GroupStatsDetail groupStats={groupStats} />}
+              <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                <table className="w-full border-collapse text-base">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr className="text-sm font-medium">
+                      <th
+                        className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                        onClick={() => handleSort('ficha')}
+                        title="Clique para ordenar por Ficha"
+                      >
+                        <div className="flex items-center gap-2">
+                          Ficha
+                          <SortIcon field="ficha" />
+                        </div>
+                      </th>
+                      <th
+                        className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                        onClick={() => handleSort('descricao')}
+                        title="Clique para ordenar por Descrição"
+                      >
+                        <div className="flex items-center gap-2">
+                          Descrição
+                          <SortIcon field="descricao" />
+                        </div>
+                      </th>
+                      <th
+                        className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                        onClick={() => handleSort('valor_frete')}
+                        title="Clique para ordenar por Valor Frete"
+                      >
+                        <div className="flex items-center justify-end gap-2">
+                          Valor Frete
+                          <SortIcon field="valor_frete" />
+                        </div>
+                      </th>
+                      <th
+                        className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                        onClick={() => handleSort('valor_servico')}
+                        title="Clique para ordenar por Valor Serviços"
+                      >
+                        <div className="flex items-center justify-end gap-2">
+                          Valor Serviços
+                          <SortIcon field="valor_servico" />
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedRows.map((row, index) => (
+                      <tr
+                        key={`${path}-row-${index}`}
+                        className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
+                      >
+                        <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
+                        <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
+                        <td className="px-4 py-2 text-right text-slate-600">
+                          {formatCurrency(row.valor_frete)}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                          {formatCurrency(row.valor_servico)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <td className="px-4 py-2 text-right font-medium" colSpan={2}>
+                        Subtotal do grupo
+                      </td>
+                      <td className="px-4 py-2 text-right font-medium">
+                        {formatCurrency(group.subtotal.valor_frete)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                        {formatCurrency(group.subtotal.valor_servico)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </Collapsible>
         ) : (
-          <div
-            className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-base text-slate-500"
-            style={{ marginLeft }}
-          >
+          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-base text-slate-500">
             Nenhum item encontrado para este agrupamento.
           </div>
         )}
