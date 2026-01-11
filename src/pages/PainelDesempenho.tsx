@@ -19,6 +19,11 @@ import {
 import { SummaryCard } from '@/components/analytics/SummaryCard';
 import { LeaderboardCard } from '@/components/analytics/LeaderboardCard';
 import { TrendChartCard } from '@/components/analytics/TrendChartCard';
+import { AnalyticsPieChart } from '@/components/analytics/AnalyticsPieChart';
+import { AnalyticsAreaChart } from '@/components/analytics/AnalyticsAreaChart';
+import { AnalyticsComposedChart } from '@/components/analytics/AnalyticsComposedChart';
+import { AnalyticsRadialChart } from '@/components/analytics/AnalyticsRadialChart';
+import { AnalyticsFunnel } from '@/components/analytics/AnalyticsFunnel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { MOCK_ANALYTICS_RESPONSE } from '@/data/mockAnalytics';
