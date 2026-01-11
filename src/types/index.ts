@@ -617,6 +617,12 @@ export interface FichaTemplateConfig {
   updatedAt?: string;
 }
 
+// ========================================
+// Roles
+// ========================================
+
+export * from './roles';
+
 export interface FichaTemplatesConfig {
   geral: FichaTemplateConfig;
   resumo: FichaTemplateConfig;
