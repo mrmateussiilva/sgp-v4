@@ -1401,6 +1401,7 @@ export default function Fechamentos() {
             stats={stats}
             previousStats={previousPeriodStats}
             loading={loadingStats}
+            trends={trends}
           />
 
           {/* Gráficos de Distribuição */}

@@ -1,6 +1,7 @@
 import { DollarSign, ShoppingBag, Package, TrendingUp, Truck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GrowthIndicator } from './GrowthIndicator';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -20,6 +21,7 @@ interface FechamentoStatsCardsProps {
   stats: FechamentoStats | null;
   previousStats: FechamentoStats | null;
   loading: boolean;
+  trends?: Array<{ period: string; revenue: number; pedidos: number }> | null;
 }
 
 export function FechamentoStatsCards({
@@ -105,7 +107,7 @@ export function FechamentoStatsCards({
             {card.icon}
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <div className="text-2xl font-bold">{card.value}</div>
               {card.previous !== null && (
                 <GrowthIndicator
@@ -115,6 +117,21 @@ export function FechamentoStatsCards({
                 />
               )}
             </div>
+            {card.sparklineData && card.sparklineData.length > 0 && (
+              <div className="h-[40px] w-full mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={card.sparklineData}>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke={card.color}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
