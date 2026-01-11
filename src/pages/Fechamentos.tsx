@@ -799,7 +799,8 @@ export default function Fechamentos() {
   const getUniqueFichas = (rows: ReportRowData[]): string[] => {
     const fichas = new Set<string>();
     rows.forEach(row => {
-      if (row.ficha) {
+      // Ignorar linhas de subtotal agregadas (relatórios sintéticos)
+      if (row.ficha && row.descricao !== 'Subtotal') {
         fichas.add(row.ficha);
       }
     });
@@ -809,8 +810,10 @@ export default function Fechamentos() {
   // Função para calcular estatísticas do grupo
   const getGroupStats = (group: ReportGroup) => {
     const rows = group.rows || [];
-    const fichasUnicas = getUniqueFichas(rows);
-    const totalItens = rows.length;
+    // Filtrar linhas de subtotal agregadas (relatórios sintéticos)
+    const itemRows = rows.filter(row => row.descricao !== 'Subtotal');
+    const fichasUnicas = getUniqueFichas(itemRows);
+    const totalItens = itemRows.length;
     const totalGeral = group.subtotal.valor_frete + group.subtotal.valor_servico;
     
     return {
