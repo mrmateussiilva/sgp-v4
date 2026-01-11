@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/store/authStore';
+import { UserRole } from '@/types/roles';
 
 /**
  * Verifica se o usuário possui uma role específica

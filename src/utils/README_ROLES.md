@@ -4,9 +4,39 @@ Este documento descreve como usar o sistema de roles/permissões no frontend.
 
 ## Conceitos
 
-- **Roles**: Papéis que um usuário possui (ex: `ADMIN`, `FINANCEIRO`, `VENDEDOR`)
+- **Roles**: Papéis que um usuário possui (ex: `ADMIN`, `VENDEDOR`, `DESIGNER`)
 - **JWT**: Token JWT contém as roles do usuário no payload
 - **Frontend**: Apenas controla a UI - toda validação real deve ser feita no backend
+
+## Roles Disponíveis
+
+O sistema suporta as seguintes roles:
+
+- `ADMIN` - Administrador (acesso completo)
+- `VENDEDOR` - Vendedor
+- `DESIGNER` - Designer
+- `OPERADOR_SUBLIMACAO` - Operador Sublimação
+- `EXPEDICAO` - Expedição
+- `COSTURA` - Costura
+- `RECEPCAO` - Recepção
+
+### Usando as Constantes de Roles
+
+Para evitar erros de digitação, use as constantes definidas em `src/types/roles.ts`:
+
+```typescript
+import { USER_ROLES, ROLE_LABELS, getRoleLabel } from '@/types/roles';
+
+// Em vez de escrever strings diretamente
+if (hasRole('ADMIN')) { ... }
+
+// Use as constantes
+if (hasRole(USER_ROLES.ADMIN)) { ... }
+
+// Obter label amigável
+const label = getRoleLabel(USER_ROLES.VENDEDOR); // "Vendedor"
+const label2 = ROLE_LABELS[USER_ROLES.ADMIN]; // "Administrador"
+```
 
 ## Extração de Roles do JWT
 
