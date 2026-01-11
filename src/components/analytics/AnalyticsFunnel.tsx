@@ -52,15 +52,13 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
   }
 
   // Calcular estágios do funil de forma lógica
-  // Funil: Pedidos -> Itens -> Receita -> Ticket Médio
+  // Funil: Pedidos (100%) -> Itens -> Receita -> Ticket Médio
   const totalPedidos = summary.total_orders;
   const totalItens = summary.total_items_produced;
   const receitaTotal = summary.total_revenue;
   const ticketMedio = summary.average_ticket;
   
-  // Calcular porcentagens baseadas no maior valor (pedidos = 100%)
-  const maxValue = totalPedidos;
-  
+  // Criar estágios do funil em ordem decrescente
   const stages: FunnelStage[] = [
     {
       name: 'Total de Pedidos',
@@ -71,37 +69,31 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
     {
       name: 'Total de Itens Produzidos',
       value: totalItens,
-      percentage: (totalItens / maxValue) * 100,
+      percentage: totalPedidos > 0 ? (totalItens / totalPedidos) * 100 : 0,
       format: (v) => v.toLocaleString('pt-BR'),
       conversionRate: totalPedidos > 0 ? (totalItens / totalPedidos) * 100 : 0,
     },
     {
       name: 'Receita Total',
       value: receitaTotal,
-      percentage: (receitaTotal / (maxValue * ticketMedio)) * 100, // Normalizar pela receita esperada
+      percentage: totalItens > 0 ? Math.min((receitaTotal / (receitaTotal / totalItens * totalPedidos)) * 100, 100) : 0,
       format: (v) => currencyFormatter.format(v),
-      conversionRate: totalItens > 0 ? (receitaTotal / (totalItens * (receitaTotal / totalItens))) * 100 : 0,
-    },
-    {
-      name: 'Ticket Médio',
-      value: ticketMedio,
-      percentage: (ticketMedio / (receitaTotal / totalPedidos)) * 100, // Normalizar
-      format: (v) => currencyFormatter.format(v),
-      conversionRate: totalPedidos > 0 ? (receitaTotal / totalPedidos) / (receitaTotal / totalPedidos) * 100 : 0,
+      conversionRate: totalItens > 0 ? 100 : 0,
     },
   ].filter((stage) => stage.value > 0);
 
-  // Ajustar porcentagens para criar visualização de funil
-  // Cada estágio deve ser menor que o anterior (exceto o primeiro)
+  // Ajustar porcentagens para criar visualização de funil real
+  // Cada estágio deve ser progressivamente menor
   const adjustedStages = stages.map((stage, index) => {
     if (index === 0) {
       return { ...stage, percentage: 100 };
     }
-    // Calcular baseado no estágio anterior
-    const previousStage = stages[index - 1];
-    const conversionRate = stage.conversionRate || (stage.value / previousStage.value) * 100;
-    const adjustedPercentage = Math.min((previousStage.percentage * conversionRate) / 100, 100);
-    return { ...stage, percentage: adjustedPercentage };
+    // Calcular porcentagem baseada no estágio anterior
+    const previousStage = adjustedStages[index - 1] || stages[index - 1];
+    const conversionRate = stage.conversionRate || 100;
+    // Garantir que cada estágio seja menor que o anterior
+    const adjustedPercentage = Math.min((previousStage.percentage * conversionRate) / 100, previousStage.percentage * 0.95);
+    return { ...stage, percentage: Math.max(adjustedPercentage, 20) }; // Mínimo 20% para visualização
   });
 
   const colors = [
@@ -120,7 +112,7 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
       <CardContent>
         <div className="space-y-4">
           {adjustedStages.map((stage, index) => {
-            const width = Math.min(Math.max(stage.percentage, 10), 100); // Mínimo 10% para visualização
+            const width = Math.min(Math.max(stage.percentage, 15), 100);
             const colorClass = colors[index % colors.length];
             const previousStage = index > 0 ? adjustedStages[index - 1] : null;
             const conversionRate = previousStage 
@@ -138,16 +130,11 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
                     </span>
                   </div>
                   
-                  {/* Barra do funil com formato trapezoidal */}
+                  {/* Barra do funil */}
                   <div className="flex-1 relative" style={{ height: '60px' }}>
                     <div
                       className={`h-full bg-gradient-to-r ${colorClass} rounded-lg text-white flex items-center justify-between px-4 shadow-md transition-all hover:shadow-lg`}
-                      style={{ 
-                        width: `${width}%`,
-                        clipPath: index === 0 || index === adjustedStages.length - 1
-                          ? 'none'
-                          : `polygon(0 0, ${width}% 0, ${Math.max(width - 5, 0)}% 100%, 5% 100%)`
-                      }}
+                      style={{ width: `${width}%` }}
                     >
                       <span className="font-semibold text-sm">{stage.name}</span>
                       <span className="font-bold text-sm">
@@ -159,11 +146,11 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
 
                 {/* Informações de conversão */}
                 {index > 0 && previousStage && (
-                  <div className="flex items-center gap-4 pl-28">
+                  <div className="flex items-center gap-4 pl-28 mt-1">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span>↓</span>
+                      <span className="text-slate-400">↓</span>
                       <span>
-                        Taxa de conversão: {conversionRate}%
+                        Conversão: {conversionRate}% ({stage.value.toLocaleString('pt-BR')} / {previousStage.value.toLocaleString('pt-BR')})
                       </span>
                     </div>
                   </div>
