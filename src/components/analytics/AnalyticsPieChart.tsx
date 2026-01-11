@@ -96,7 +96,6 @@ export function AnalyticsPieChart({ summary, topProducts, loading }: AnalyticsPi
   }
 
   // Calcular total de itens para distribuição
-  const totalItems = topProducts.reduce((sum, p) => sum + p.quantity, 0);
   const data = topProducts.slice(0, 5).map((product) => ({
     name: product.product_name.length > 20 
       ? product.product_name.substring(0, 20) + '...' 
@@ -124,13 +123,13 @@ export function AnalyticsPieChart({ summary, topProducts, loading }: AnalyticsPi
               fill="#8884d8"
               dataKey="value"
             >
-              {data.map((entry, index) => (
+              {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              formatter={(value, entry: any) => (
+              formatter={(_value, entry: any) => (
                 <span style={{ color: entry.color }}>
                   {entry.payload.fullName}: {entry.payload.value.toLocaleString('pt-BR')} itens
                 </span>

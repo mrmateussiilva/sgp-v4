@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Trophy, TrendingUp } from 'lucide-react';
+import { Loader2, Trophy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -57,7 +57,7 @@ export function FechamentoRankings({ rankings, loading, category }: FechamentoRa
     );
   }
 
-  const chartData = rankings.map((item, index) => ({
+  const chartData = rankings.map((item) => ({
     name: item.name.length > 15 ? item.name.substring(0, 15) + '...' : item.name,
     receita: item.revenue,
     pedidos: item.pedidos,

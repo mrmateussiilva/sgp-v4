@@ -20,7 +20,6 @@ export function GrowthIndicator({
   const growth = ((current - previous) / previous) * 100;
   const isPositive = growth > 0;
   const isNegative = growth < 0;
-  const isNeutral = growth === 0;
 
   const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus;
   const color = isPositive

@@ -60,31 +60,31 @@ export function FechamentoFunnel({ stats, loading }: FechamentoFunnelProps) {
       name: 'Receita Total',
       value: stats.total_revenue,
       percentage: 100,
-      format: (v) => currencyFormatter.format(v),
+      format: (v: number) => currencyFormatter.format(v),
     },
     {
       name: 'Serviços',
       value: stats.total_servico,
       percentage: (stats.total_servico / stats.total_revenue) * 100,
-      format: (v) => currencyFormatter.format(v),
+      format: (v: number) => currencyFormatter.format(v),
     },
     {
       name: 'Frete',
       value: stats.total_frete,
       percentage: (stats.total_frete / stats.total_revenue) * 100,
-      format: (v) => currencyFormatter.format(v),
+      format: (v: number) => currencyFormatter.format(v),
     },
     {
       name: 'Total de Itens',
       value: stats.total_items,
       percentage: (stats.total_items / stats.total_pedidos) * 100,
-      format: (v) => v.toLocaleString('pt-BR'),
+      format: (v: number) => v.toLocaleString('pt-BR'),
     },
     {
       name: 'Total de Pedidos',
       value: stats.total_pedidos,
       percentage: 100,
-      format: (v) => v.toLocaleString('pt-BR'),
+      format: (v: number) => v.toLocaleString('pt-BR'),
     },
   ].filter((stage) => stage.value > 0);
 

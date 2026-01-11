@@ -64,20 +64,20 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
       name: 'Total de Pedidos',
       value: totalPedidos,
       percentage: 100,
-      format: (v) => v.toLocaleString('pt-BR'),
+      format: (v: number) => v.toLocaleString('pt-BR'),
     },
     {
       name: 'Total de Itens Produzidos',
       value: totalItens,
       percentage: totalPedidos > 0 ? (totalItens / totalPedidos) * 100 : 0,
-      format: (v) => v.toLocaleString('pt-BR'),
+      format: (v: number) => v.toLocaleString('pt-BR'),
       conversionRate: totalPedidos > 0 ? (totalItens / totalPedidos) * 100 : 0,
     },
     {
       name: 'Receita Total',
       value: receitaTotal,
       percentage: totalItens > 0 ? Math.min((receitaTotal / (receitaTotal / totalItens * totalPedidos)) * 100, 100) : 0,
-      format: (v) => currencyFormatter.format(v),
+      format: (v: number) => currencyFormatter.format(v),
       conversionRate: totalItens > 0 ? 100 : 0,
     },
   ].filter((stage) => stage.value > 0);

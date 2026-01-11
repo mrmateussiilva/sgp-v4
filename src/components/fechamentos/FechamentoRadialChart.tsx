@@ -101,9 +101,7 @@ export function FechamentoRadialChart({ stats, loading }: FechamentoRadialChartP
             endAngle={-270}
           >
             <RadialBar
-              minAngle={15}
               background
-              clockWise
               dataKey="value"
               cornerRadius={10}
             />

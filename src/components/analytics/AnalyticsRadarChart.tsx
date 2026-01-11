@@ -25,7 +25,7 @@ interface AnalyticsRadarChartProps {
 
 export function AnalyticsRadarChart({
   summary,
-  topSellers,
+  topSellers: _topSellers,
   loading,
 }: AnalyticsRadarChartProps) {
   if (loading) {
@@ -120,11 +120,9 @@ export function AnalyticsRadarChart({
                 </p>
                 {dataPoint.original !== undefined && (
                   <p className="text-xs text-slate-500">
-                    Valor: {typeof dataPoint.original === 'number' 
-                      ? (dataPoint.metric.includes('Receita') || dataPoint.metric.includes('Ticket')
-                        ? currencyFormatter.format(dataPoint.original)
-                        : dataPoint.original.toLocaleString('pt-BR'))
-                      : dataPoint.original.toFixed(2)}
+                    Valor: {dataPoint.metric.includes('Receita') || dataPoint.metric.includes('Ticket')
+                      ? currencyFormatter.format(dataPoint.original)
+                      : dataPoint.original.toLocaleString('pt-BR')}
                   </p>
                 )}
               </div>

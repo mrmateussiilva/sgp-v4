@@ -92,16 +92,14 @@ export function AnalyticsRadialChart({ summary, topSellers, loading }: Analytics
             endAngle={-270}
           >
             <RadialBar
-              minAngle={15}
               background
-              clockWise
               dataKey="value"
               cornerRadius={10}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
               iconSize={12}
-              formatter={(value, entry: any) => (
+              formatter={(_value, entry: any) => (
                 <span style={{ color: entry.color }}>
                   {entry.payload.fullName}: {entry.payload.percentage.toFixed(1)}%
                 </span>

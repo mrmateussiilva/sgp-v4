@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Boxes, ShoppingBag, DollarSign, TrendingUp, Info, Truck, Package, BarChart3, Minus, Maximize2, Target } from 'lucide-react';
+import { Loader2, Boxes, ShoppingBag, DollarSign, TrendingUp, Truck, Package, BarChart3, Minus, Maximize2, Target } from 'lucide-react';
 import { analyticsService } from '@/services/analyticsService';
 import { api } from '@/services/api';
 import {
