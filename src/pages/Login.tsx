@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getErrorMessage, isAuthError } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
+import { extractRolesFromJWT, extractUserIdFromJWT } from '@/utils/jwt';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -29,11 +30,21 @@ export default function Login() {
 
       if (response.success && response.user_id && response.username && response.session_token) {
         const isAdmin = response.is_admin || false;
+        const sessionToken = response.session_token;
+        
+        // Extrair roles do JWT
+        const roles = extractRolesFromJWT(sessionToken);
+        
+        // Verificar userId do JWT também (para garantir consistência)
+        const jwtUserId = extractUserIdFromJWT(sessionToken);
+        const userId = jwtUserId || response.user_id;
+        
         login({
-          userId: response.user_id,
+          userId,
           username: response.username,
-          sessionToken: response.session_token,
+          sessionToken,
           isAdmin,
+          roles,
         });
         toast({
           title: "Login realizado!",
