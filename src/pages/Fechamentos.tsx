@@ -39,6 +39,7 @@ import { FechamentoPieChart } from '@/components/fechamentos/FechamentoPieChart'
 import { FechamentoAreaChart } from '@/components/fechamentos/FechamentoAreaChart';
 import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComposedChart';
 import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadialChart';
+import { FechamentoComparison } from '@/components/fechamentos/FechamentoComparison';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -157,6 +158,8 @@ export default function Fechamentos() {
   const [rankingsDesigner, setRankingsDesigner] = useState<any>(null);
   const [rankingsCliente, setRankingsCliente] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState<boolean>(false);
+  const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
+  const [previousPeriodStats, setPreviousPeriodStats] = useState<any>(null);
   
   // Estado para ordenação de tabelas
   type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
@@ -305,6 +308,24 @@ export default function Fechamentos() {
     return { totalGroups, totalSubgroups, totalRows };
   }, [report]);
 
+  // Função para calcular período anterior
+  const calculatePreviousPeriod = useCallback((startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const prevEnd = new Date(start);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - diffDays);
+    
+    return {
+      start_date: prevStart.toISOString().slice(0, 10),
+      end_date: prevEnd.toISOString().slice(0, 10),
+    };
+  }, []);
+
   // Função para carregar estatísticas e gráficos
   const loadStatistics = useCallback(async () => {
     if (!filters.startDate || !filters.endDate) return;
@@ -321,8 +342,17 @@ export default function Fechamentos() {
         cliente: filters.cliente,
       };
 
-      const [statsData, trendsData, vendedorData, designerData, clienteData] = await Promise.all([
+      // Calcular período anterior para comparação
+      const prevPeriod = calculatePreviousPeriod(filters.startDate, filters.endDate);
+      const prevParams = {
+        ...params,
+        start_date: prevPeriod.start_date,
+        end_date: prevPeriod.end_date,
+      };
+
+      const [statsData, prevStatsData, trendsData, vendedorData, designerData, clienteData] = await Promise.all([
         api.getFechamentoStatistics(params),
+        api.getFechamentoStatistics(prevParams).catch(() => null), // Ignorar erro se não houver dados
         api.getFechamentoTrends({ ...params, group_by: groupBy }),
         api.getFechamentoRankings('vendedor', { ...params, limit: 10 }),
         api.getFechamentoRankings('designer', { ...params, limit: 10 }),
@@ -330,6 +360,7 @@ export default function Fechamentos() {
       ]);
 
       setStats(statsData);
+      setPreviousPeriodStats(prevStatsData);
       setTrends(trendsData.trends);
       setRankingsVendedor(vendedorData.rankings);
       setRankingsDesigner(designerData.rankings);
@@ -339,14 +370,14 @@ export default function Fechamentos() {
     } finally {
       setLoadingStats(false);
     }
-  }, [filters]);
+  }, [filters, groupBy, calculatePreviousPeriod]);
 
   // Carregar estatísticas quando os filtros mudarem
   useEffect(() => {
     if (filters.startDate && filters.endDate) {
       loadStatistics();
     }
-  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, loadStatistics]);
+  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, groupBy, loadStatistics]);
 
   const handleGenerate = async () => {
     // Validar datas antes de gerar
@@ -1380,6 +1411,16 @@ export default function Fechamentos() {
 
           {/* Gráfico de Área */}
           <FechamentoAreaChart trends={trends} loading={loadingStats} />
+
+          {/* Comparação de Períodos */}
+          <FechamentoComparison
+            data={
+              stats && previousPeriodStats
+                ? { current: stats, previous: previousPeriodStats }
+                : null
+            }
+            loading={loadingStats}
+          />
 
           {/* Gráfico Combinado */}
           <FechamentoComposedChart trends={trends} loading={loadingStats} />
