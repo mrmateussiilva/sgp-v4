@@ -84,16 +84,18 @@ export function AnalyticsFunnel({ summary, loading }: AnalyticsFunnelProps) {
 
   // Ajustar porcentagens para criar visualização de funil real
   // Cada estágio deve ser progressivamente menor
-  const adjustedStages = stages.map((stage, index) => {
+  const adjustedStages: FunnelStage[] = [];
+  stages.forEach((stage, index) => {
     if (index === 0) {
-      return { ...stage, percentage: 100 };
+      adjustedStages.push({ ...stage, percentage: 100 });
+    } else {
+      // Calcular porcentagem baseada no estágio anterior
+      const previousStage = adjustedStages[index - 1];
+      const conversionRate = stage.conversionRate || 100;
+      // Garantir que cada estágio seja menor que o anterior
+      const adjustedPercentage = Math.min((previousStage.percentage * conversionRate) / 100, previousStage.percentage * 0.95);
+      adjustedStages.push({ ...stage, percentage: Math.max(adjustedPercentage, 20) }); // Mínimo 20% para visualização
     }
-    // Calcular porcentagem baseada no estágio anterior
-    const previousStage = adjustedStages[index - 1] || stages[index - 1];
-    const conversionRate = stage.conversionRate || 100;
-    // Garantir que cada estágio seja menor que o anterior
-    const adjustedPercentage = Math.min((previousStage.percentage * conversionRate) / 100, previousStage.percentage * 0.95);
-    return { ...stage, percentage: Math.max(adjustedPercentage, 20) }; // Mínimo 20% para visualização
   });
 
   const colors = [
