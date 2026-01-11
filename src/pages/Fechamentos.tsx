@@ -41,6 +41,7 @@ import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComp
 import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadialChart';
 import { FechamentoComparison } from '@/components/fechamentos/FechamentoComparison';
 import { FechamentoHeatmap } from '@/components/fechamentos/FechamentoHeatmap';
+import { FechamentoFunnel } from '@/components/fechamentos/FechamentoFunnel';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -1426,6 +1427,9 @@ export default function Fechamentos() {
 
           {/* Gráfico Combinado */}
           <FechamentoComposedChart trends={trends} loading={loadingStats} />
+
+          {/* Funil de Receita */}
+          <FechamentoFunnel stats={stats} loading={loadingStats} />
 
           {/* Gráficos de Tendências */}
           <div className="grid gap-6 md:grid-cols-2">
