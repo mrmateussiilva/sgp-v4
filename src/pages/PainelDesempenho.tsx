@@ -27,6 +27,7 @@ import { AnalyticsFunnel } from '@/components/analytics/AnalyticsFunnel';
 import { AnalyticsLineChart } from '@/components/analytics/AnalyticsLineChart';
 import { AnalyticsRevenueLineChart } from '@/components/analytics/AnalyticsRevenueLineChart';
 import { AnalyticsProductionLineChart } from '@/components/analytics/AnalyticsProductionLineChart';
+import { AnalyticsRadarChart } from '@/components/analytics/AnalyticsRadarChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { MOCK_ANALYTICS_RESPONSE } from '@/data/mockAnalytics';
