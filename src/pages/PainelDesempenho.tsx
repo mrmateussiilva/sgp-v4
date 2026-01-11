@@ -797,6 +797,30 @@ export default function PainelDesempenho() {
 
       {!loading && !loadingOrders && analytics ? (
         <>
+          {/* Gráficos de Distribuição */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <AnalyticsPieChart
+              summary={analytics.summary}
+              topProducts={analytics.top_products}
+              loading={loading}
+            />
+            <AnalyticsRadialChart
+              summary={analytics.summary}
+              topSellers={analytics.top_sellers}
+              loading={loading}
+            />
+          </div>
+
+          {/* Gráfico de Área */}
+          <AnalyticsAreaChart trends={analytics.monthly_trends} loading={loading} />
+
+          {/* Gráfico Combinado */}
+          <AnalyticsComposedChart trends={analytics.monthly_trends} loading={loading} />
+
+          {/* Funil de Vendas */}
+          <AnalyticsFunnel summary={analytics.summary} loading={loading} />
+
+          {/* Gráfico de Tendências Original */}
           <div className="grid gap-4 lg:grid-cols-3">
             <TrendChartCard
               title="Produção x Receita (mensal)"
@@ -817,6 +841,7 @@ export default function PainelDesempenho() {
             </div>
           </div>
 
+          {/* Rankings */}
           <div className="grid gap-4 lg:grid-cols-2">
             <LeaderboardCard
               title="Top Vendedores"
