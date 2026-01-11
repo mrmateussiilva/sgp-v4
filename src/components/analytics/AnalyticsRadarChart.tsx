@@ -58,71 +58,51 @@ export function AnalyticsRadarChart({
     );
   }
 
-  // Normalizar valores para escala de 0-100
-  // Encontrar valores máximos para normalização
-  const maxOrders = summary.total_orders;
-  const maxItems = summary.total_items_produced;
-  const maxRevenue = summary.total_revenue;
-  const maxTicket = summary.average_ticket;
-  const maxSellerValue = topSellers && topSellers.length > 0 
-    ? Math.max(...topSellers.map(s => s.value))
-    : summary.total_revenue;
+  // Normalizar valores para escala de 0-100 usando o maior valor como referência
+  const metrics = {
+    pedidos: summary.total_orders,
+    itens: summary.total_items_produced,
+    receita: summary.total_revenue,
+    ticketMedio: summary.average_ticket,
+    itensPorPedido: summary.total_items_produced / summary.total_orders,
+  };
+
+  // Encontrar o valor máximo para normalização (usar receita como base, já que é geralmente o maior)
+  const maxValue = Math.max(
+    metrics.receita,
+    metrics.pedidos * metrics.ticketMedio,
+    metrics.itens,
+    metrics.ticketMedio * 100,
+    metrics.itensPorPedido * metrics.pedidos
+  );
 
   const data = [
     {
       metric: 'Pedidos',
-      valor: Math.min((summary.total_orders / Math.max(maxOrders, 1)) * 100, 100),
-      original: summary.total_orders,
+      valor: Math.min((metrics.pedidos / Math.max(maxValue / (metrics.ticketMedio || 1), 1)) * 100, 100),
+      original: metrics.pedidos,
     },
     {
       metric: 'Itens',
-      valor: Math.min((summary.total_items_produced / Math.max(maxItems, 1)) * 100, 100),
-      original: summary.total_items_produced,
+      valor: Math.min((metrics.itens / Math.max(maxValue, 1)) * 100, 100),
+      original: metrics.itens,
     },
     {
       metric: 'Receita',
-      valor: Math.min((summary.total_revenue / Math.max(maxRevenue, 1)) * 100, 100),
-      original: summary.total_revenue,
+      valor: 100, // Sempre 100% como referência
+      original: metrics.receita,
     },
     {
       metric: 'Ticket Médio',
-      valor: Math.min((summary.average_ticket / Math.max(maxTicket, 1)) * 100, 100),
-      original: summary.average_ticket,
+      valor: Math.min((metrics.ticketMedio / Math.max(maxValue / metrics.pedidos, 1)) * 100, 100),
+      original: metrics.ticketMedio,
     },
     {
       metric: 'Itens/Pedido',
-      valor: Math.min(((summary.total_items_produced / summary.total_orders) / Math.max(maxItems / maxOrders, 1)) * 100, 100),
-      original: summary.total_items_produced / summary.total_orders,
+      valor: Math.min((metrics.itensPorPedido / Math.max(metrics.itensPorPedido * 2, 1)) * 100, 100),
+      original: metrics.itensPorPedido,
     },
   ];
-
-  // Adicionar dados do top vendedor se disponível
-  let topSellerData: any[] | null = null;
-  if (topSellers && topSellers.length > 0) {
-    const topSeller = topSellers[0];
-    topSellerData = [
-      {
-        metric: 'Pedidos',
-        valor: Math.min((summary.total_orders / Math.max(maxOrders, 1)) * 100, 100),
-      },
-      {
-        metric: 'Itens',
-        valor: Math.min((summary.total_items_produced / Math.max(maxItems, 1)) * 100, 100),
-      },
-      {
-        metric: 'Receita',
-        valor: Math.min((topSeller.value / Math.max(maxSellerValue, 1)) * 100, 100),
-      },
-      {
-        metric: 'Ticket Médio',
-        valor: Math.min((summary.average_ticket / Math.max(maxTicket, 1)) * 100, 100),
-      },
-      {
-        metric: 'Itens/Pedido',
-        valor: Math.min(((summary.total_items_produced / summary.total_orders) / Math.max(maxItems / maxOrders, 1)) * 100, 100),
-      },
-    ];
-  }
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -170,21 +150,12 @@ export function AnalyticsRadarChart({
             <Tooltip content={<CustomTooltip />} />
             <Legend />
             <Radar
-              name="Geral"
+              name="Métricas Gerais"
               dataKey="valor"
               stroke="#3b82f6"
               fill="#3b82f6"
               fillOpacity={0.6}
             />
-            {topSellerData && (
-              <Radar
-                name={`Top Vendedor (${topSellers?.[0]?.name || ''})`}
-                dataKey="valor"
-                stroke="#10b981"
-                fill="#10b981"
-                fillOpacity={0.3}
-              />
-            )}
           </RadarChart>
         </ResponsiveContainer>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
