@@ -814,6 +814,21 @@ export default function PainelDesempenho() {
             />
           </div>
 
+          {/* Gráficos de Linha */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <AnalyticsRevenueLineChart trends={analytics.monthly_trends} loading={loading} />
+            <AnalyticsProductionLineChart trends={analytics.monthly_trends} loading={loading} />
+          </div>
+
+          {/* Gráfico de Linha Combinado */}
+          <AnalyticsLineChart
+            trends={analytics.monthly_trends}
+            loading={loading}
+            title="Produção e Receita (Linha)"
+            showProduction={true}
+            showRevenue={true}
+          />
+
           {/* Gráfico de Área */}
           <AnalyticsAreaChart trends={analytics.monthly_trends} loading={loading} />
 
