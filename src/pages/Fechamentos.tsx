@@ -40,6 +40,7 @@ import { FechamentoAreaChart } from '@/components/fechamentos/FechamentoAreaChar
 import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComposedChart';
 import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadialChart';
 import { FechamentoComparison } from '@/components/fechamentos/FechamentoComparison';
+import { FechamentoHeatmap } from '@/components/fechamentos/FechamentoHeatmap';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
