@@ -1,5 +1,12 @@
 {
-    "version": "1.0.5",
-    "notes": "Versão 1.0.5 - Melhorias na busca por cliente e filtros de data"
-}
+    "version": "1.0.6",
+    "notes": "Correções e melhorias",
+    "pub_date": "2026-01-10T18:00:00Z",
+    "platforms": {
+      "windows-x86_64": {
+        "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP_1.0.6_x64_en-US.msi",
+        "hash": "sha256:d802ef5d40a8636d9c47a36460043dd6588c09a9e042537c539749d60dc85979"
+      }
+    }
+  }
   
