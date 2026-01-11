@@ -795,6 +795,19 @@ export default function Fechamentos() {
     return <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />;
   };
 
+  // Função para extrair informações de linha de subtotal (relatórios sintéticos)
+  const parseSubtotalInfo = (ficha: string): { pedidos: number; itens: number } | null => {
+    // Formato esperado: "Pedidos: 12 · Itens: 27"
+    const match = ficha.match(/Pedidos:\s*(\d+)\s*·\s*Itens:\s*(\d+)/);
+    if (match) {
+      return {
+        pedidos: parseInt(match[1], 10),
+        itens: parseInt(match[2], 10),
+      };
+    }
+    return null;
+  };
+
   // Função para coletar fichas únicas de um grupo
   const getUniqueFichas = (rows: ReportRowData[]): string[] => {
     const fichas = new Set<string>();
@@ -816,53 +829,91 @@ export default function Fechamentos() {
     const totalItens = itemRows.length;
     const totalGeral = group.subtotal.valor_frete + group.subtotal.valor_servico;
     
+    // Verificar se é um grupo sintético (sem itens reais, mas com linha de subtotal)
+    const subtotalRow = rows.find(row => row.descricao === 'Subtotal');
+    const subtotalInfo = subtotalRow ? parseSubtotalInfo(subtotalRow.ficha) : null;
+    
     return {
       fichasUnicas,
       totalItens,
       totalGeral,
       mediaPorItem: totalItens > 0 ? totalGeral / totalItens : 0,
+      isSynthetic: totalItens === 0 && subtotalInfo !== null,
+      subtotalInfo, // Informações extraídas da linha de subtotal
     };
   };
 
   // Componente para exibir estatísticas detalhadas do grupo
-  const GroupStatsDetail = ({ groupStats }: { groupStats: ReturnType<typeof getGroupStats> }) => (
-    <div className="bg-slate-50 rounded-md p-4 border border-slate-200">
-      <h4 className="font-semibold text-sm text-slate-700 mb-3">Estatísticas do Grupo</h4>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <p className="text-slate-500">Total de Itens</p>
-          <p className="font-semibold text-slate-900">{groupStats.totalItens}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Fichas Únicas</p>
-          <p className="font-semibold text-slate-900">{groupStats.fichasUnicas.length}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Total Geral</p>
-          <p className="font-semibold text-slate-900">{formatCurrency(groupStats.totalGeral)}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Média por Item</p>
-          <p className="font-semibold text-slate-900">{formatCurrency(groupStats.mediaPorItem)}</p>
-        </div>
-      </div>
-      {groupStats.fichasUnicas.length > 0 && (
-        <div className="mt-4">
-          <p className="text-slate-500 text-sm mb-2">Fichas do Grupo:</p>
-          <div className="flex flex-wrap gap-2">
-            {groupStats.fichasUnicas.map((ficha) => (
-              <span 
-                key={ficha} 
-                className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
-              >
-                {ficha}
-              </span>
-            ))}
+  const GroupStatsDetail = ({ groupStats }: { groupStats: ReturnType<typeof getGroupStats> }) => {
+    // Se é um grupo sintético, mostrar visualização simplificada
+    if (groupStats.isSynthetic && groupStats.subtotalInfo) {
+      return (
+        <div className="bg-slate-50 rounded-md p-4 border border-slate-200">
+          <h4 className="font-semibold text-sm text-slate-700 mb-3">Resumo do Grupo</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-slate-500">Pedidos</p>
+              <p className="font-semibold text-slate-900">{groupStats.subtotalInfo.pedidos}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Itens</p>
+              <p className="font-semibold text-slate-900">{groupStats.subtotalInfo.itens}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Total Geral</p>
+              <p className="font-semibold text-slate-900">{formatCurrency(groupStats.totalGeral)}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Média por Item</p>
+              <p className="font-semibold text-slate-900">
+                {formatCurrency(groupStats.subtotalInfo.itens > 0 ? groupStats.totalGeral / groupStats.subtotalInfo.itens : 0)}
+              </p>
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+    
+    // Visualização padrão para grupos analíticos
+    return (
+      <div className="bg-slate-50 rounded-md p-4 border border-slate-200">
+        <h4 className="font-semibold text-sm text-slate-700 mb-3">Estatísticas do Grupo</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-slate-500">Total de Itens</p>
+            <p className="font-semibold text-slate-900">{groupStats.totalItens}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">Fichas Únicas</p>
+            <p className="font-semibold text-slate-900">{groupStats.fichasUnicas.length}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">Total Geral</p>
+            <p className="font-semibold text-slate-900">{formatCurrency(groupStats.totalGeral)}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">Média por Item</p>
+            <p className="font-semibold text-slate-900">{formatCurrency(groupStats.mediaPorItem)}</p>
+          </div>
+        </div>
+        {groupStats.fichasUnicas.length > 0 && (
+          <div className="mt-4">
+            <p className="text-slate-500 text-sm mb-2">Fichas do Grupo:</p>
+            <div className="flex flex-wrap gap-2">
+              {groupStats.fichasUnicas.map((ficha) => (
+                <span 
+                  key={ficha} 
+                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+                >
+                  {ficha}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderGroup = (group: ReportGroup, depth = 0, path = group.key): JSX.Element => {
     const marginLeft = depth * 16;
