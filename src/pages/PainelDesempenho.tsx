@@ -815,6 +815,13 @@ export default function PainelDesempenho() {
             />
           </div>
 
+          {/* Gráfico de Radar */}
+          <AnalyticsRadarChart
+            summary={analytics.summary}
+            topSellers={analytics.top_sellers}
+            loading={loading}
+          />
+
           {/* Gráficos de Linha */}
           <div className="grid gap-6 md:grid-cols-2">
             <AnalyticsRevenueLineChart trends={analytics.monthly_trends} loading={loading} />
