@@ -29,20 +29,10 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Loader2, FileDown, RefreshCcw, Settings, X, Filter, CheckCircle2, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { useAuthStore } from '@/store/authStore';
-import { FechamentoStatsCards } from '@/components/fechamentos/FechamentoStatsCards';
-import { FechamentoTrendsChart } from '@/components/fechamentos/FechamentoTrendsChart';
-import { FechamentoRankings } from '@/components/fechamentos/FechamentoRankings';
-import { FechamentoPieChart } from '@/components/fechamentos/FechamentoPieChart';
-import { FechamentoAreaChart } from '@/components/fechamentos/FechamentoAreaChart';
-import { FechamentoComposedChart } from '@/components/fechamentos/FechamentoComposedChart';
-import { FechamentoRadialChart } from '@/components/fechamentos/FechamentoRadialChart';
-import { FechamentoComparison } from '@/components/fechamentos/FechamentoComparison';
-import { FechamentoHeatmap } from '@/components/fechamentos/FechamentoHeatmap';
-import { FechamentoFunnel } from '@/components/fechamentos/FechamentoFunnel';
 import { Collapsible } from '@/components/ui/collapsible';
 
 // Lazy load de bibliotecas pesadas
@@ -154,16 +144,6 @@ export default function Fechamentos() {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [dateError, setDateError] = useState<string>('');
-  
-  // Estados para estatísticas e gráficos
-  const [stats, setStats] = useState<any>(null);
-  const [trends, setTrends] = useState<any>(null);
-  const [rankingsVendedor, setRankingsVendedor] = useState<any>(null);
-  const [rankingsDesigner, setRankingsDesigner] = useState<any>(null);
-  const [rankingsCliente, setRankingsCliente] = useState<any>(null);
-  const [loadingStats, setLoadingStats] = useState<boolean>(false);
-  const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
-  const [previousPeriodStats, setPreviousPeriodStats] = useState<any>(null);
   
   // Estado para ordenação de tabelas
   type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
@@ -312,97 +292,6 @@ export default function Fechamentos() {
     return { totalGroups, totalSubgroups, totalRows };
   }, [report]);
 
-  // Verificar se há dados válidos para exibir estatísticas
-  const hasValidStatsData = useMemo(() => {
-    // Se está carregando, mostrar a seção
-    if (loadingStats) return true;
-    
-    // Verificar se há estatísticas válidas (não apenas zeros)
-    const hasStats = stats && (
-      stats.total_pedidos > 0 ||
-      stats.total_items > 0 ||
-      stats.total_revenue > 0 ||
-      stats.total_frete > 0 ||
-      stats.total_servico > 0
-    );
-    
-    // Verificar se há trends válidas
-    const hasTrends = trends && Array.isArray(trends) && trends.length > 0;
-    
-    return hasStats || hasTrends;
-  }, [stats, trends, loadingStats]);
-
-  // Função para calcular período anterior
-  const calculatePreviousPeriod = useCallback((startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    const prevEnd = new Date(start);
-    prevEnd.setDate(prevEnd.getDate() - 1);
-    const prevStart = new Date(prevEnd);
-    prevStart.setDate(prevStart.getDate() - diffDays);
-    
-    return {
-      start_date: prevStart.toISOString().slice(0, 10),
-      end_date: prevEnd.toISOString().slice(0, 10),
-    };
-  }, []);
-
-  // Função para carregar estatísticas e gráficos
-  const loadStatistics = useCallback(async () => {
-    if (!filters.startDate || !filters.endDate) return;
-    
-    setLoadingStats(true);
-    try {
-      const params = {
-        start_date: filters.startDate,
-        end_date: filters.endDate,
-        status: filters.status === 'Todos' ? undefined : filters.status,
-        date_mode: filters.dateMode,
-        vendedor: filters.vendedor,
-        designer: filters.designer,
-        cliente: filters.cliente,
-      };
-
-      // Calcular período anterior para comparação
-      const prevPeriod = calculatePreviousPeriod(filters.startDate, filters.endDate);
-      const prevParams = {
-        ...params,
-        start_date: prevPeriod.start_date,
-        end_date: prevPeriod.end_date,
-      };
-
-      const [statsData, prevStatsData, trendsData, vendedorData, designerData, clienteData] = await Promise.all([
-        api.getFechamentoStatistics(params),
-        api.getFechamentoStatistics(prevParams).catch(() => null), // Ignorar erro se não houver dados
-        api.getFechamentoTrends({ ...params, group_by: groupBy }),
-        api.getFechamentoRankings('vendedor', { ...params, limit: 10 }),
-        api.getFechamentoRankings('designer', { ...params, limit: 10 }),
-        api.getFechamentoRankings('cliente', { ...params, limit: 10 }),
-      ]);
-
-      setStats(statsData);
-      setPreviousPeriodStats(prevStatsData);
-      setTrends(trendsData.trends);
-      setRankingsVendedor(vendedorData.rankings);
-      setRankingsDesigner(designerData.rankings);
-      setRankingsCliente(clienteData.rankings);
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [filters, groupBy, calculatePreviousPeriod]);
-
-  // Carregar estatísticas quando os filtros mudarem
-  useEffect(() => {
-    if (filters.startDate && filters.endDate) {
-      loadStatistics();
-    }
-  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, groupBy, loadStatistics]);
-
   const handleGenerate = async () => {
     // Validar datas antes de gerar
     if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
@@ -432,8 +321,6 @@ export default function Fechamentos() {
       const response = await api.generateReport(payload);
       setReport(response);
       
-      // Carregar estatísticas após gerar relatório
-      await loadStatistics();
       const groupsCount = response.groups.length;
       const totalRows = response.groups.reduce(
         (acc, group) =>
@@ -1103,13 +990,6 @@ export default function Fechamentos() {
     );
   };
 
-  // Carregar estatísticas automaticamente quando os filtros mudarem
-  useEffect(() => {
-    if (filters.startDate && filters.endDate) {
-      loadStatistics();
-    }
-  }, [filters.startDate, filters.endDate, filters.status, filters.dateMode, filters.vendedor, filters.designer, filters.cliente, loadStatistics]);
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -1489,57 +1369,6 @@ export default function Fechamentos() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Seção de Estatísticas e Gráficos */}
-      {hasValidStatsData && (
-        <div className="space-y-6">
-          {/* Cards de Estatísticas */}
-          <FechamentoStatsCards
-            stats={stats}
-            previousStats={previousPeriodStats}
-            loading={loadingStats}
-            trends={trends}
-          />
-
-          {/* Gráficos de Distribuição */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <FechamentoPieChart stats={stats} loading={loadingStats} />
-            <FechamentoRadialChart stats={stats} loading={loadingStats} />
-          </div>
-
-          {/* Gráfico de Área */}
-          <FechamentoAreaChart trends={trends} loading={loadingStats} />
-
-          {/* Comparação de Períodos */}
-          <FechamentoComparison
-            data={
-              stats && previousPeriodStats
-                ? { current: stats, previous: previousPeriodStats }
-                : null
-            }
-            loading={loadingStats}
-          />
-
-          {/* Gráfico Combinado */}
-          <FechamentoComposedChart trends={trends} loading={loadingStats} />
-
-          {/* Funil de Receita */}
-          <FechamentoFunnel stats={stats} loading={loadingStats} />
-
-          {/* Gráficos de Tendências */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <FechamentoTrendsChart trends={trends} loading={loadingStats} chartType="line" />
-            <FechamentoTrendsChart trends={trends} loading={loadingStats} chartType="bar" />
-          </div>
-
-          {/* Rankings */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <FechamentoRankings rankings={rankingsVendedor} loading={loadingStats} category="vendedor" />
-            <FechamentoRankings rankings={rankingsDesigner} loading={loadingStats} category="designer" />
-            <FechamentoRankings rankings={rankingsCliente} loading={loadingStats} category="cliente" />
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <Card className="border-slate-200 shadow-sm">
