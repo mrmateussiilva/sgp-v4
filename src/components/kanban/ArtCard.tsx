@@ -1,6 +1,6 @@
 import React from 'react';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
-import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
+import { ImageIcon, Package, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
@@ -30,20 +30,6 @@ const ArtCard = React.memo(function ArtCard({
   const [imageLoading, setImageLoading] = useState(true);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
-
-  // Format date helper - formato compacto estilo Trello
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'short',
-      });
-    } catch {
-      return '';
-    }
-  };
 
   // Carregar imagem
   useEffect(() => {

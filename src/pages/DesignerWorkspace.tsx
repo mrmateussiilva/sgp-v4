@@ -148,6 +148,17 @@ export default function DesignerWorkspace() {
     });
   }, []);
 
+  // Função para lidar com clique no card - abre modal com detalhes do pedido
+  const handleCardClick = useCallback(async (card: DesignCardData) => {
+    try {
+      const order = await api.getOrderById(card.orderId);
+      setSelectedOrder(order);
+      setViewModalOpen(true);
+    } catch (error) {
+      console.error('Erro ao carregar pedido:', error);
+    }
+  }, []);
+
   // Obter lista de designers ordenada
   const designers = useMemo(() => {
     return Array.from(designerBoards.keys()).sort();
