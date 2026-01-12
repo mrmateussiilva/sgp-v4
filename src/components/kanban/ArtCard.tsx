@@ -84,8 +84,6 @@ const ArtCard = React.memo(function ArtCard({
     loadImage();
   }, [card.imageUrl]);
 
-  const formattedDate = formatDate(card.orderCreatedAt);
-
   return (
     <div
       onClick={onClick}

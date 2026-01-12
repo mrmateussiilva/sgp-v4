@@ -1,7 +1,6 @@
 import React from 'react';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import ArtCard from './ArtCard';
-import { cn } from '@/lib/utils';
 
 interface KanbanColumnProps {
   title: string;

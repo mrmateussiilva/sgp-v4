@@ -241,6 +241,7 @@ export default function DesignerWorkspace() {
                     cardsPronto={board.cardsPronto}
                     onMoveToPronto={(card) => handleMoveCard(card, 'pronto')}
                     onMoveToAliberar={(card) => handleMoveCard(card, 'a_liberar')}
+                    onCardClick={handleCardClick}
                   />
                 </TabsContent>
               );
@@ -248,6 +249,16 @@ export default function DesignerWorkspace() {
           </Tabs>
         </div>
       )}
+
+      {/* Modal de detalhes do pedido */}
+      <OrderViewModal
+        isOpen={viewModalOpen}
+        onClose={() => {
+          setViewModalOpen(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+      />
     </div>
   );
 }
