@@ -55,8 +55,7 @@ export default function DesignerWorkspace() {
   // Transformar dados para formato de boards com abas
   // Inicializa todos os cards em "A liberar" e mantém estado de movimentação
   useEffect(() => {
-    setDesignerBoards((prevBoards) => {
-      const boardsMap = new Map<string, DesignerBoardData>();
+    const boardsMap = new Map<string, DesignerBoardData>();
       
       // Criar um Set com IDs dos cards que já estão em "Pronto" (para preservar estado)
       const prontoCardIds = new Set<string>();
@@ -130,8 +129,7 @@ export default function DesignerWorkspace() {
         setActiveTab(firstDesigner);
       }
 
-      return boardsMap;
-    });
+    setDesignerBoards(boardsMap);
   }, [orders, movedCards, activeTab]);
 
   // Função para mover card entre colunas
