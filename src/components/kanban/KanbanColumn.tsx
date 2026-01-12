@@ -1,3 +1,4 @@
+import React from 'react';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import ArtCard from './ArtCard';
 import { cn } from '@/lib/utils';
@@ -20,8 +21,9 @@ interface KanbanColumnProps {
 /**
  * Coluna do Kanban estilo Trello
  * Visual limpo com fundo claro e feedback de drag
+ * Memoizado para evitar re-renders desnecessários
  */
-export default function KanbanColumn({
+const KanbanColumn = React.memo(function KanbanColumn({
   title,
   status,
   cards,
@@ -86,4 +88,36 @@ export default function KanbanColumn({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Comparação customizada para evitar re-renders desnecessários
+  // Compara título, status, quantidade de cards, estado de drag
+  if (
+    prevProps.title !== nextProps.title ||
+    prevProps.status !== nextProps.status ||
+    prevProps.cards.length !== nextProps.cards.length ||
+    prevProps.isDragOver !== nextProps.isDragOver ||
+    prevProps.draggedCardId !== nextProps.draggedCardId
+  ) {
+    return false;
+  }
+  
+  // Se os cards mudaram (mesmo tamanho), verificar se são os mesmos
+  if (prevProps.cards.length > 0) {
+    for (let i = 0; i < prevProps.cards.length; i++) {
+      const prevCard = prevProps.cards[i];
+      const nextCard = nextProps.cards[i];
+      if (
+        prevCard.orderId !== nextCard.orderId ||
+        prevCard.itemId !== nextCard.itemId
+      ) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+});
+
+KanbanColumn.displayName = 'KanbanColumn';
+
+export default KanbanColumn;
