@@ -5,7 +5,7 @@
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi",
-      "signature": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi.sig"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2wybUYzVE1yUUhNcFNyMmtmVksrTDN3RERVbFh0RHA0bTd2RTdRTk14ZUo0cnFJRjc5TVNwSDdibVJsVitlNTJDNDREKzFyWWRpSkV3MUZCcU5RbndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4MTk1MzkyCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjZfeDY0X2VuLVVTLm1zaQo2YkFxNHZwckx2OTdoZVQvakVyNnArcGhGNXlKZ1V5WmhuQ1ROZnh3M1o2MnVzRDVzcG9UQzlQUVJjbXVQNzNpblR0c2VaMG50LzhLeFg4Y1BSVVpDZz09Cg"
     }
   }
 }
