@@ -19,7 +19,7 @@ export default function KanbanBoard({
   onMoveToAliberar,
 }: KanbanBoardProps) {
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full min-h-0">
       <div className="flex-1">
         <KanbanColumn
           title="A liberar"
