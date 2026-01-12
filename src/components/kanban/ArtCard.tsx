@@ -115,7 +115,7 @@ export default function ArtCard({
               src={imageSrc}
               alt={`Arte: ${card.itemName}`}
               className={cn(
-                "w-full h-full object-cover transition-opacity",
+                "w-full h-full object-contain transition-opacity",
                 imageLoading ? 'opacity-0' : 'opacity-100'
               )}
               onLoad={() => setImageLoading(false)}
