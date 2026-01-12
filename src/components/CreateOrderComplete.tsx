@@ -204,6 +204,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       baininha: false,
       valor_canga: '0,00',
       quantidade_canga: '1',
+      material_gasto: '',
+      valor_impressao_3d: '0,00',
+      quantidade_impressao_3d: '1',
     };
   }
 

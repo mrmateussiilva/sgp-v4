@@ -7,7 +7,7 @@ export function calculatePeriodAnalytics(
   orders: OrderWithItems[],
   startDate: Date,
   endDate: Date,
-  filters?: {
+  _filters?: {
     vendedor_id?: number;
     designer_id?: number;
     product_type?: string;

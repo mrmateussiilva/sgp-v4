@@ -204,7 +204,7 @@ export function ComparativeLineChart({
 function formatPeriodLabel(period: string): string {
   // Se for formato YYYY-MM-DD, converter para DD/MM
   if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
-    const [year, month, day] = period.split('-');
+    const [, month, day] = period.split('-');
     return `${day}/${month}`;
   }
   // Se for formato YYYY-MM, converter para MMM/YYYY

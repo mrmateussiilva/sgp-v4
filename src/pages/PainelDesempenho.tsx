@@ -4,8 +4,8 @@ import { api } from '@/services/api';
 import {
   AnalyticsResponse,
   AnalyticsFilters,
-  AnalyticsLeaderboardEntry,
-  AnalyticsTopProduct,
+  // AnalyticsLeaderboardEntry,
+  // AnalyticsTopProduct,
   ReportResponse,
   ReportRequestPayload,
   OrderWithItems,
@@ -53,12 +53,12 @@ const mapToFilterOptions = (items: Array<{ id: number; nome: string }>): FilterO
     label: item.nome,
   }));
 
-const mapProductsToLeaderboard = (products: AnalyticsTopProduct[]): AnalyticsLeaderboardEntry[] =>
-  products.map((product) => ({
-    id: product.product_id,
-    name: product.product_name,
-    value: product.quantity,
-  }));
+// const mapProductsToLeaderboard = (products: AnalyticsTopProduct[]): AnalyticsLeaderboardEntry[] =>
+//   products.map((product) => ({
+//     id: product.product_id,
+//     name: product.product_name,
+//     value: product.quantity,
+//   }));
 
 
 const formatCurrency = (value: number): string => {
@@ -424,9 +424,9 @@ export default function PainelDesempenho() {
 
     const filtersPayload = buildFiltersPayload(filters);
     return calculatePeriodAnalytics(orders, start, end, {
-      vendedor_id: filtersPayload.vendedor_id,
-      designer_id: filtersPayload.designer_id,
-      product_type: filtersPayload.product_type,
+      vendedor_id: filtersPayload.vendedor_id ?? undefined,
+      designer_id: filtersPayload.designer_id ?? undefined,
+      product_type: filtersPayload.product_type ?? undefined,
     });
   }, [orders, vendedores, designers, filters, buildFiltersPayload]);
 
@@ -453,9 +453,9 @@ export default function PainelDesempenho() {
 
     const filtersPayload = buildFiltersPayload(filters);
     return calculatePeriodAnalytics(orders, start, end, {
-      vendedor_id: filtersPayload.vendedor_id,
-      designer_id: filtersPayload.designer_id,
-      product_type: filtersPayload.product_type,
+      vendedor_id: filtersPayload.vendedor_id ?? undefined,
+      designer_id: filtersPayload.designer_id ?? undefined,
+      product_type: filtersPayload.product_type ?? undefined,
     });
   }, [orders, vendedores, designers, filters, buildFiltersPayload]);
 
@@ -551,10 +551,10 @@ export default function PainelDesempenho() {
     ];
   }, [analytics, previousWeekAnalytics, orders, filters]);
 
-  const topProducts = useMemo(
-    () => mapProductsToLeaderboard((analytics?.top_products ?? []).slice(0, 5)),
-    [analytics?.top_products],
-  );
+  // const topProducts = useMemo(
+  //   () => mapProductsToLeaderboard((analytics?.top_products ?? []).slice(0, 5)),
+  //   [analytics?.top_products],
+  // );
   const topSellers = useMemo(
     () => (analytics?.top_sellers ?? []).slice(0, 5),
     [analytics?.top_sellers],
@@ -642,7 +642,7 @@ export default function PainelDesempenho() {
         <>
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {fechamentoSummaryCards.map((card, index) => (
-              <SummaryCard
+              <EnhancedSummaryCard
                 key={`fechamento-${index}`}
                 title={card.title}
                 value={card.value}
@@ -927,24 +927,25 @@ export default function PainelDesempenho() {
   );
 }
 
-interface CardLastUpdatedProps {
-  timestamp?: string;
-}
+// interface CardLastUpdatedProps {
+//   timestamp?: string;
+// }
 
-function CardLastUpdated({ timestamp }: CardLastUpdatedProps) {
-  return (
-    <div className="flex h-full flex-col justify-between rounded-lg border border-slate-200 bg-white p-6">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800">Última atualização</h2>
-        <p className="mt-2 text-base text-muted-foreground">
-          {timestamp
-            ? `Dados sincronizados em ${new Date(timestamp).toLocaleString('pt-BR')}.`
-            : 'Ainda não há informação sobre a última sincronização.'}
-        </p>
-      </div>
-      <p className="mt-6 text-sm text-muted-foreground">
-        Este painel calcula os dados a partir dos pedidos carregados do sistema e exibe uma visão consolidada da produção e vendas.
-      </p>
-    </div>
-  );
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// function CardLastUpdated({ timestamp }: CardLastUpdatedProps) {
+//   return (
+//     <div className="flex h-full flex-col justify-between rounded-lg border border-slate-200 bg-white p-6">
+//       <div>
+//         <h2 className="text-lg font-semibold text-slate-800">Última atualização</h2>
+//         <p className="mt-2 text-base text-muted-foreground">
+//           {timestamp
+//             ? `Dados sincronizados em ${new Date(timestamp).toLocaleString('pt-BR')}.`
+//             : 'Ainda não há informação sobre a última sincronização.'}
+//         </p>
+//       </div>
+//       <p className="mt-6 text-sm text-muted-foreground">
+//         Este painel calcula os dados a partir dos pedidos carregados do sistema e exibe uma visão consolidada da produção e vendas.
+//       </p>
+//     </div>
+//   );
+// }

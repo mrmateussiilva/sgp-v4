@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export type StatusType = 'good' | 'warning' | 'bad' | 'neutral';
 
@@ -58,18 +58,18 @@ export function EnhancedSummaryCard({
     }
   };
 
-  const getStatusIcon = (statusType?: StatusType) => {
-    switch (statusType) {
-      case 'good':
-        return '🟢';
-      case 'warning':
-        return '🟡';
-      case 'bad':
-        return '🔴';
-      default:
-        return null;
-    }
-  };
+  // const getStatusIcon = (statusType?: StatusType) => {
+  //   switch (statusType) {
+  //     case 'good':
+  //       return '🟢';
+  //     case 'warning':
+  //       return '🟡';
+  //     case 'bad':
+  //       return '🔴';
+  //     default:
+  //       return null;
+  //   }
+  // };
 
   const getVariationIcon = () => {
     if (variation === undefined) return null;
