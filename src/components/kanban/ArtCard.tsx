@@ -1,46 +1,49 @@
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
-import { Card, CardContent } from '@/components/ui/card';
 import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ArtCardProps {
   card: DesignCardData;
   currentStatus: CardStatus;
   onMoveToPronto?: () => void;
   onMoveToAliberar?: () => void;
+  isDragging?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }
 
 /**
- * Componente de card de arte com botões de ação
- * Permite mover o card entre as colunas "A liberar" e "Pronto"
+ * Card de arte estilo Trello
+ * Visual limpo e minimalista com drag and drop
  */
 export default function ArtCard({ 
   card, 
   currentStatus, 
   onMoveToPronto, 
-  onMoveToAliberar 
+  onMoveToAliberar,
+  isDragging = false,
+  onDragStart,
+  onDragEnd
 }: ArtCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Format date helper
+  // Format date helper - formato compacto estilo Trello
   const formatDate = (dateString?: string): string => {
-    if (!dateString) return 'Data não disponível';
+    if (!dateString) return '';
     try {
       const date = new Date(dateString);
-      return date.toLocaleString('pt-BR', {
+      return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+        month: 'short',
       });
     } catch {
-      return 'Data inválida';
+      return '';
     }
   };
 
@@ -86,99 +89,113 @@ export default function ArtCard({
   const formattedDate = formatDate(card.orderCreatedAt);
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4 space-y-3">
-        {/* Preview da Arte */}
-        <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
-          {imageSrc && !imageError ? (
-            <>
-              {imageLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              )}
-              <img
-                src={imageSrc}
-                alt={`Arte: ${card.itemName}`}
-                className={`w-full h-full object-contain ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-                onLoad={() => setImageLoading(false)}
-                onError={() => {
-                  setImageError(true);
-                  setImageLoading(false);
-                }}
-              />
-            </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-muted">
-              <div className="text-center text-muted-foreground">
-                <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-xs">Imagem não disponível</p>
+    <div
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={cn(
+        "bg-white rounded-lg shadow-sm border border-gray-200 p-3 cursor-grab active:cursor-grabbing",
+        "hover:shadow-md transition-all duration-200 mb-2",
+        isDragging && "opacity-50 rotate-2 scale-105",
+        !isDragging && "hover:-translate-y-0.5"
+      )}
+    >
+      {/* Preview da Arte - Estilo Trello */}
+      <div className="relative w-full -mx-3 -mt-3 mb-3 bg-gray-100 rounded-t-lg overflow-hidden" style={{ height: '160px' }}>
+        {imageSrc && !imageError ? (
+          <>
+            {imageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
               </div>
+            )}
+            <img
+              src={imageSrc}
+              alt={`Arte: ${card.itemName}`}
+              className={cn(
+                "w-full h-full object-cover transition-opacity",
+                imageLoading ? 'opacity-0' : 'opacity-100'
+              )}
+              onLoad={() => setImageLoading(false)}
+              onError={() => {
+                setImageError(true);
+                setImageLoading(false);
+              }}
+            />
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-50">
+            <ImageIcon className="h-10 w-10 text-gray-300" />
+          </div>
+        )}
+      </div>
+
+      {/* Informações do Card - Estilo Trello */}
+      <div className="space-y-1.5">
+        {/* Título do Cliente */}
+        <div>
+          <p className="font-medium text-sm text-gray-900 leading-tight" title={card.customerName}>
+            {card.customerName}
+          </p>
+        </div>
+
+        {/* Item Name */}
+        <div>
+          <p className="text-xs text-gray-600 leading-tight" title={card.itemName}>
+            {card.itemName}
+          </p>
+        </div>
+
+        {/* Metadados - Compacto */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {card.productType && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Package className="h-3 w-3" />
+              <span className="truncate max-w-[100px]">{card.productType}</span>
+            </div>
+          )}
+          {formattedDate && (
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Calendar className="h-3 w-3" />
+              <span>{formattedDate}</span>
             </div>
           )}
         </div>
 
-        {/* Informações do Card */}
-        <div className="space-y-2">
-          {/* Cliente */}
-          <div>
-            <p className="font-semibold text-sm truncate" title={card.customerName}>
-              {card.customerName}
-            </p>
-          </div>
-
-          {/* Produto/Tipo */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Package className="h-3 w-3" />
-            <span className="truncate">{card.productType || 'Não especificado'}</span>
-          </div>
-
-          {/* Nome do Item */}
-          <div>
-            <p className="text-sm text-foreground truncate" title={card.itemName}>
-              {card.itemName}
-            </p>
-          </div>
-
-          {/* Data de Criação */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            <span>{formattedDate}</span>
-          </div>
-
-          {/* Número do Pedido (se disponível) */}
-          {card.orderNumber && (
-            <div className="text-xs text-muted-foreground">
-              Pedido: {card.orderNumber}
-            </div>
-          )}
-        </div>
-
-        {/* Botões de Ação */}
-        <div className="pt-2 border-t">
+        {/* Botões de Ação - Estilo Trello (discretos) */}
+        <div className={cn(
+          "flex items-center gap-2 pt-2 border-t border-gray-100 transition-opacity",
+          isHovered ? "opacity-100" : "opacity-0"
+        )}>
           {currentStatus === 'a_liberar' ? (
-            <Button
-              onClick={onMoveToPronto}
-              className="w-full"
-              size="sm"
-              variant="default"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToPronto?.();
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+              title="Marcar como pronto"
             >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+              <CheckCircle2 className="h-3.5 w-3.5" />
               Pronto
-            </Button>
+            </button>
           ) : (
-            <Button
-              onClick={onMoveToAliberar}
-              className="w-full"
-              size="sm"
-              variant="outline"
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToAliberar?.();
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+              title="Mover para A liberar"
             >
-              <XCircle className="h-4 w-4 mr-2" />
-              Cancelar
-            </Button>
+              <XCircle className="h-3.5 w-3.5" />
+              Voltar
+            </button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
