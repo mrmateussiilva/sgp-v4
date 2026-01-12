@@ -9,18 +9,12 @@ interface KanbanColumnProps {
   cards: DesignCardData[];
   onMoveToPronto?: (card: DesignCardData) => void;
   onMoveToAliberar?: (card: DesignCardData) => void;
-  draggedCardId?: string | null;
-  onDragStart?: (e: React.DragEvent, card: DesignCardData) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
-  onDragOver?: (e: React.DragEvent) => void;
-  onDragLeave?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent) => void;
-  isDragOver?: boolean;
+  onCardClick?: (card: DesignCardData) => void;
 }
 
 /**
  * Coluna do Kanban estilo Trello
- * Visual limpo com fundo claro e feedback de drag
+ * Visual limpo com fundo claro
  * Memoizado para evitar re-renders desnecessários
  */
 const KanbanColumn = React.memo(function KanbanColumn({
@@ -29,24 +23,10 @@ const KanbanColumn = React.memo(function KanbanColumn({
   cards,
   onMoveToPronto,
   onMoveToAliberar,
-  draggedCardId,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  isDragOver = false,
+  onCardClick,
 }: KanbanColumnProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col w-full h-full min-h-0 bg-gray-50 rounded-lg",
-        isDragOver && "bg-blue-50 border-2 border-blue-400 border-dashed"
-      )}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
+    <div className="flex flex-col w-full h-full min-h-0 bg-gray-50 rounded-lg">
       {/* Header estilo Trello */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white rounded-t-lg">
         <div className="flex items-center gap-2">
@@ -69,7 +49,6 @@ const KanbanColumn = React.memo(function KanbanColumn({
         ) : (
           cards.map((card) => {
             const cardId = `${card.orderId}-${card.itemId}`;
-            const isDragging = draggedCardId === cardId;
             
             return (
               <ArtCard
@@ -78,9 +57,7 @@ const KanbanColumn = React.memo(function KanbanColumn({
                 currentStatus={status}
                 onMoveToPronto={onMoveToPronto ? () => onMoveToPronto(card) : undefined}
                 onMoveToAliberar={onMoveToAliberar ? () => onMoveToAliberar(card) : undefined}
-                isDragging={isDragging}
-                onDragStart={onDragStart ? (e) => onDragStart(e, card) : undefined}
-                onDragEnd={onDragEnd}
+                onClick={onCardClick ? () => onCardClick(card) : undefined}
               />
             );
           })
@@ -90,13 +67,11 @@ const KanbanColumn = React.memo(function KanbanColumn({
   );
 }, (prevProps, nextProps) => {
   // Comparação customizada para evitar re-renders desnecessários
-  // Compara título, status, quantidade de cards, estado de drag
+  // Compara título, status, quantidade de cards
   if (
     prevProps.title !== nextProps.title ||
     prevProps.status !== nextProps.status ||
-    prevProps.cards.length !== nextProps.cards.length ||
-    prevProps.isDragOver !== nextProps.isDragOver ||
-    prevProps.draggedCardId !== nextProps.draggedCardId
+    prevProps.cards.length !== nextProps.cards.length
   ) {
     return false;
   }
