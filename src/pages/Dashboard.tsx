@@ -32,6 +32,7 @@ const PedidoCreateView = lazy(() => import('../views/PedidoCreateView'));
 const PedidoEditView = lazy(() => import('../views/PedidoEditView'));
 const DashboardOverview = lazy(() => import('./DashboardOverview'));
 const Clientes = lazy(() => import('./Clientes'));
+const DesignerWorkspace = lazy(() => import('./DesignerWorkspace'));
 const DesignerKanban = lazy(() => import('./DesignerKanban'));
 const RelatoriosEnvios = lazy(() => import('./RelatoriosEnvios'));
 const Fechamentos = lazy(() => import('./Fechamentos'));
@@ -311,7 +312,7 @@ export default function Dashboard() {
               <Route path="pedido/novo" element={<PedidoCreateView />} />
               <Route path="pedido/editar/:id" element={<PedidoEditView />} />
               <Route path="clientes" element={<Clientes />} />
-              <Route path="designer" element={<DesignerKanban />} />
+              <Route path="designer" element={<DesignerWorkspace />} />
               <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
               <Route
                 path="painel-desempenho"
