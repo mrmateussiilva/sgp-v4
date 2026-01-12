@@ -132,7 +132,7 @@ export default function DesignerWorkspace() {
 
   // Função para mover card entre colunas - otimizada com useCallback
   // Apenas atualiza movedCards, o useMemo recalcula designerBoards automaticamente
-  const handleMoveCard = useCallback((card: DesignCardData, toStatus: CardStatus, designerName: string) => {
+  const handleMoveCard = useCallback((card: DesignCardData, toStatus: CardStatus) => {
     const cardId = `${card.orderId}-${card.itemId}`;
     setMovedCards((prev) => {
       const newMap = new Map(prev);
@@ -236,8 +236,8 @@ export default function DesignerWorkspace() {
                   <KanbanBoard
                     cardsAliberar={board.cardsAliberar}
                     cardsPronto={board.cardsPronto}
-                    onMoveToPronto={(card) => handleMoveCard(card, 'pronto', designerName)}
-                    onMoveToAliberar={(card) => handleMoveCard(card, 'a_liberar', designerName)}
+                    onMoveToPronto={(card) => handleMoveCard(card, 'pronto')}
+                    onMoveToAliberar={(card) => handleMoveCard(card, 'a_liberar')}
                   />
                 </TabsContent>
               );
