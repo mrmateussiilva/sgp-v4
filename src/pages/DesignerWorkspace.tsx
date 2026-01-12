@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { OrderWithItems } from '../types';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import KanbanBoard from '@/components/kanban/KanbanBoard';
+import { OrderViewModal } from '@/components/OrderViewModal';
 import { Loader2, RefreshCw, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,6 +26,8 @@ export default function DesignerWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('');
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
   
   // Estado para movimentação de cards (preservado entre atualizações)
   const [movedCards, setMovedCards] = useState<Map<string, CardStatus>>(new Map());
