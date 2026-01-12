@@ -201,7 +201,7 @@ export default function DesignerWorkspace() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -281,7 +281,7 @@ export default function DesignerWorkspace() {
                 <TabsContent 
                   key={designerName} 
                   value={designerName}
-                  className="flex-1 flex flex-col min-h-0"
+                  className="flex-1 flex flex-col min-h-0 mt-0"
                 >
                   <KanbanBoard
                     cardsAliberar={board.cardsAliberar}
