@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Boxes, ShoppingBag, DollarSign, TrendingUp, Truck, Package, BarChart3, Minus, Maximize2, Target } from 'lucide-react';
-import { analyticsService } from '@/services/analyticsService';
+import { Loader2, Boxes, ShoppingBag, DollarSign, TrendingUp, Truck, Package, BarChart3, Minus, Maximize2, Target, AlertCircle } from 'lucide-react';
 import { api } from '@/services/api';
 import {
   AnalyticsResponse,
@@ -16,21 +15,22 @@ import {
   AnalyticsFilterState,
   FilterOption,
 } from '@/components/analytics/AnalyticsFilterBar';
-import { SummaryCard } from '@/components/analytics/SummaryCard';
+import { EnhancedSummaryCard } from '@/components/analytics/EnhancedSummaryCard';
 import { LeaderboardCard } from '@/components/analytics/LeaderboardCard';
-import { TrendChartCard } from '@/components/analytics/TrendChartCard';
-import { AnalyticsPieChart } from '@/components/analytics/AnalyticsPieChart';
-import { AnalyticsAreaChart } from '@/components/analytics/AnalyticsAreaChart';
-import { AnalyticsComposedChart } from '@/components/analytics/AnalyticsComposedChart';
-import { AnalyticsRadialChart } from '@/components/analytics/AnalyticsRadialChart';
-import { AnalyticsFunnel } from '@/components/analytics/AnalyticsFunnel';
-import { AnalyticsLineChart } from '@/components/analytics/AnalyticsLineChart';
-import { AnalyticsRevenueLineChart } from '@/components/analytics/AnalyticsRevenueLineChart';
-import { AnalyticsProductionLineChart } from '@/components/analytics/AnalyticsProductionLineChart';
-import { AnalyticsRadarChart } from '@/components/analytics/AnalyticsRadarChart';
+import { ComparativeLineChart } from '@/components/analytics/ComparativeLineChart';
+import { DailyRevenueChart } from '@/components/analytics/DailyRevenueChart';
+import { StatusDistributionChart } from '@/components/analytics/StatusDistributionChart';
+import { TopProductsChart } from '@/components/analytics/TopProductsChart';
+import { CriticalOrdersCard } from '@/components/analytics/CriticalOrdersCard';
+import {
+  calculatePeriodAnalytics,
+  getCurrentWeek,
+  getPreviousWeek,
+  calculateVariation,
+  getStatusFromVariation,
+} from '@/utils/analyticsComparison';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { MOCK_ANALYTICS_RESPONSE } from '@/data/mockAnalytics';
 import { calculateOrderAnalytics } from '@/utils/orderAnalytics';
 
 const numberFormatter = new Intl.NumberFormat('pt-BR');
@@ -60,37 +60,6 @@ const mapProductsToLeaderboard = (products: AnalyticsTopProduct[]): AnalyticsLea
     value: product.quantity,
   }));
 
-const isAnalyticsEmpty = (data: AnalyticsResponse | null): boolean => {
-  if (!data) return true;
-  const summary = data.summary;
-
-  const hasSummaryValues =
-    Boolean(summary) &&
-    (Boolean(summary.total_orders) ||
-      Boolean(summary.total_items_produced) ||
-      Boolean(summary.total_revenue) ||
-      Boolean(summary.average_ticket));
-
-  const hasCollections =
-    (data.top_products?.length ?? 0) > 0 ||
-    (data.top_sellers?.length ?? 0) > 0 ||
-    (data.top_designers?.length ?? 0) > 0 ||
-    (data.monthly_trends?.length ?? 0) > 0;
-
-  return !hasSummaryValues && !hasCollections;
-};
-
-const shouldUseMockAnalytics = (): boolean => {
-  const flag = (import.meta.env.VITE_ANALYTICS_USE_MOCK ?? '').toString().toLowerCase();
-  if (flag === 'true') {
-    return true;
-  }
-  if (flag === 'false') {
-    return false;
-  }
-  // Default: habilita mock em ambiente de desenvolvimento quando a API ainda não responde.
-  return Boolean(import.meta.env.DEV);
-};
 
 const formatCurrency = (value: number): string => {
   return currencyFormatter.format(value);
@@ -166,89 +135,57 @@ export default function PainelDesempenho() {
         }
         setError(null);
 
-        // Priorizar cálculo a partir de pedidos reais se disponíveis
-        if (orders.length > 0) {
-          console.info('[PainelDesempenho] Calculando analytics a partir de pedidos reais');
-          
-          // Criar mapas de ID -> nome para vendedores e designers
-          const vendedorNameMap = new Map<number, string>();
-          vendedores.forEach((v) => {
-            const id = Number(v.value);
-            if (!Number.isNaN(id)) {
-              vendedorNameMap.set(id, v.label);
-            }
-          });
-          
-          const designerNameMap = new Map<number, string>();
-          designers.forEach((d) => {
-            const id = Number(d.value);
-            if (!Number.isNaN(id)) {
-              designerNameMap.set(id, d.label);
-            }
-          });
-          
-          const calculatedAnalytics = calculateOrderAnalytics(
-            orders,
-            filtersPayload,
-            vendedorNameMap,
-            designerNameMap,
-          );
-          setAnalytics(calculatedAnalytics);
-
-          if (calculatedAnalytics.available_product_types) {
-            setProductTypes(
-              calculatedAnalytics.available_product_types.map((name) => ({
-                value: name,
-                label: name,
-              })),
-            );
-          }
-        } else {
-          // Fallback: tentar API de analytics ou mock
-          const response = await analyticsService.getAnalytics(filtersPayload);
-
-          const effectiveData =
-            isAnalyticsEmpty(response) && shouldUseMockAnalytics()
-              ? (() => {
-                  console.info(
-                    '[PainelDesempenho] Nenhum dado retornado pelo backend. Carregando dataset mock para visualização.',
-                  );
-                  return MOCK_ANALYTICS_RESPONSE;
-                })()
-              : response;
-
-          setAnalytics(effectiveData);
-
-          if (effectiveData.available_product_types) {
-            setProductTypes(
-              effectiveData.available_product_types.map((name) => ({
-                value: name,
-                label: name,
-              })),
-            );
-          }
+        // Se não há pedidos carregados, aguardar
+        if (orders.length === 0) {
+          console.info('[PainelDesempenho] Aguardando carregamento de pedidos...');
+          return;
         }
-      } catch (loadError) {
-        console.error('Erro ao buscar analytics:', loadError);
-        if (shouldUseMockAnalytics()) {
-          console.info('[PainelDesempenho] API indisponível. Utilizando dataset mock para manter a visualização.');
-          setAnalytics(MOCK_ANALYTICS_RESPONSE);
+
+        // Calcular analytics a partir de pedidos reais
+        console.info('[PainelDesempenho] Calculando analytics a partir de pedidos reais');
+        
+        // Criar mapas de ID -> nome para vendedores e designers
+        const vendedorNameMap = new Map<number, string>();
+        vendedores.forEach((v) => {
+          const id = Number(v.value);
+          if (!Number.isNaN(id)) {
+            vendedorNameMap.set(id, v.label);
+          }
+        });
+        
+        const designerNameMap = new Map<number, string>();
+        designers.forEach((d) => {
+          const id = Number(d.value);
+          if (!Number.isNaN(id)) {
+            designerNameMap.set(id, d.label);
+          }
+        });
+        
+        const calculatedAnalytics = calculateOrderAnalytics(
+          orders,
+          filtersPayload,
+          vendedorNameMap,
+          designerNameMap,
+        );
+        setAnalytics(calculatedAnalytics);
+
+        if (calculatedAnalytics.available_product_types) {
           setProductTypes(
-            MOCK_ANALYTICS_RESPONSE.available_product_types?.map((name) => ({
+            calculatedAnalytics.available_product_types.map((name) => ({
               value: name,
               label: name,
-            })) ?? [],
+            })),
           );
-          setError('API de analytics indisponível no momento. Mostrando dados de exemplo para visualização.');
-        } else {
-          setError('Não foi possível carregar os dados de desempenho. Tente novamente mais tarde.');
-          toast({
-            title: 'Falha ao carregar painel',
-            description:
-              loadError instanceof Error ? loadError.message : 'Erro inesperado ao consultar o backend.',
-            variant: 'destructive',
-          });
         }
+      } catch (loadError) {
+        console.error('Erro ao calcular analytics:', loadError);
+        setError('Não foi possível calcular os dados de desempenho. Tente novamente mais tarde.');
+        toast({
+          title: 'Falha ao calcular painel',
+          description:
+            loadError instanceof Error ? loadError.message : 'Erro inesperado ao processar os dados.',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -464,6 +401,64 @@ export default function PainelDesempenho() {
     ];
   }, [fechamentoData, fechamentoStats]);
 
+  // Calcular analytics da semana anterior para comparação
+  const previousWeekAnalytics = useMemo(() => {
+    if (orders.length === 0) return null;
+    
+    const { start, end } = getPreviousWeek();
+    const vendedorNameMap = new Map<number, string>();
+    vendedores.forEach((v) => {
+      const id = Number(v.value);
+      if (!Number.isNaN(id)) {
+        vendedorNameMap.set(id, v.label);
+      }
+    });
+    
+    const designerNameMap = new Map<number, string>();
+    designers.forEach((d) => {
+      const id = Number(d.value);
+      if (!Number.isNaN(id)) {
+        designerNameMap.set(id, d.label);
+      }
+    });
+
+    const filtersPayload = buildFiltersPayload(filters);
+    return calculatePeriodAnalytics(orders, start, end, {
+      vendedor_id: filtersPayload.vendedor_id,
+      designer_id: filtersPayload.designer_id,
+      product_type: filtersPayload.product_type,
+    });
+  }, [orders, vendedores, designers, filters, buildFiltersPayload]);
+
+  // Calcular analytics da semana atual
+  const currentWeekAnalytics = useMemo(() => {
+    if (orders.length === 0) return null;
+    
+    const { start, end } = getCurrentWeek();
+    const vendedorNameMap = new Map<number, string>();
+    vendedores.forEach((v) => {
+      const id = Number(v.value);
+      if (!Number.isNaN(id)) {
+        vendedorNameMap.set(id, v.label);
+      }
+    });
+    
+    const designerNameMap = new Map<number, string>();
+    designers.forEach((d) => {
+      const id = Number(d.value);
+      if (!Number.isNaN(id)) {
+        designerNameMap.set(id, d.label);
+      }
+    });
+
+    const filtersPayload = buildFiltersPayload(filters);
+    return calculatePeriodAnalytics(orders, start, end, {
+      vendedor_id: filtersPayload.vendedor_id,
+      designer_id: filtersPayload.designer_id,
+      product_type: filtersPayload.product_type,
+    });
+  }, [orders, vendedores, designers, filters, buildFiltersPayload]);
+
   const summaryCards = useMemo(() => {
     if (!analytics) {
       return null;
@@ -472,29 +467,89 @@ export default function PainelDesempenho() {
     if (!summary) {
       return null;
     }
+
+    // Calcular variações se tiver dados da semana anterior
+    const prevSummary = previousWeekAnalytics?.summary;
+    const revenueVariation = prevSummary
+      ? calculateVariation(summary.total_revenue ?? 0, prevSummary.total_revenue ?? 0)
+      : undefined;
+    const ordersVariation = prevSummary
+      ? calculateVariation(summary.total_orders ?? 0, prevSummary.total_orders ?? 0)
+      : undefined;
+    const itemsVariation = prevSummary
+      ? calculateVariation(summary.total_items_produced ?? 0, prevSummary.total_items_produced ?? 0)
+      : undefined;
+
+    // Formatar período atual
+    const periodLabel = filters.date_from && filters.date_to
+      ? `${new Date(filters.date_from).toLocaleDateString('pt-BR')} - ${new Date(filters.date_to).toLocaleDateString('pt-BR')}`
+      : undefined;
+
     return [
       {
-        title: 'Total de pedidos',
-        value: numberFormatter.format(summary.total_orders ?? 0),
-        icon: <ShoppingBag className="h-5 w-5" />,
-      },
-      {
-        title: 'Itens produzidos',
-        value: numberFormatter.format(summary.total_items_produced ?? 0),
-        icon: <Boxes className="h-5 w-5" />,
-      },
-      {
-        title: 'Receita total',
+        title: '💰 Receita Total',
         value: currencyFormatter.format(summary.total_revenue ?? 0),
-        icon: <DollarSign className="h-5 w-5" />,
+        variation: revenueVariation,
+        variationLabel: 'vs semana anterior',
+        status: revenueVariation !== undefined ? getStatusFromVariation(revenueVariation) : undefined,
+        statusLabel: revenueVariation !== undefined && revenueVariation >= 5 ? 'Acima da média' : undefined,
+        icon: <DollarSign className="h-5 w-5 text-blue-600" />,
+        period: periodLabel,
+        criteria: 'Critério: Data de entrada',
       },
       {
-        title: 'Ticket médio',
-        value: currencyFormatter.format(summary.average_ticket ?? 0),
-        icon: <TrendingUp className="h-5 w-5" />,
+        title: '📦 Pedidos',
+        value: numberFormatter.format(summary.total_orders ?? 0),
+        variation: ordersVariation,
+        variationLabel: 'vs semana anterior',
+        status: ordersVariation !== undefined ? getStatusFromVariation(ordersVariation, 0, -3) : undefined,
+        statusLabel: ordersVariation !== undefined && ordersVariation < -3 ? 'Atenção: abaixo da média' : undefined,
+        subtitle: `Ticket médio: ${currencyFormatter.format(summary.average_ticket ?? 0)}`,
+        icon: <ShoppingBag className="h-5 w-5 text-green-600" />,
+      },
+      {
+        title: '🏭 Itens Produzidos',
+        value: numberFormatter.format(summary.total_items_produced ?? 0),
+        variation: itemsVariation,
+        variationLabel: 'vs semana anterior',
+        status: itemsVariation !== undefined ? getStatusFromVariation(itemsVariation) : undefined,
+        statusLabel: itemsVariation !== undefined && itemsVariation >= 5 ? 'Em linha com a meta' : undefined,
+        subtitle: `${summary.total_orders > 0 ? (summary.total_items_produced / summary.total_orders).toFixed(1) : 0} itens/pedido (média)`,
+        icon: <Boxes className="h-5 w-5 text-purple-600" />,
+      },
+      {
+        title: '⚠️ Atenção Hoje',
+        value: orders.filter((o) => {
+          if (o.pronto) return false;
+          if (!o.data_entrega) return false;
+          const deliveryDate = new Date(o.data_entrega);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          deliveryDate.setHours(0, 0, 0, 0);
+          const daysUntil = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          return daysUntil <= 5 && daysUntil >= 0;
+        }).length.toString(),
+        subtitle: `${orders.filter((o) => {
+          if (!o.data_entrega) return false;
+          const deliveryDate = new Date(o.data_entrega);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          deliveryDate.setHours(0, 0, 0, 0);
+          return deliveryDate < today && !o.pronto;
+        }).length} atrasados • ${orders.filter((o) => {
+          if (!o.data_entrega) return false;
+          const deliveryDate = new Date(o.data_entrega);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          deliveryDate.setHours(0, 0, 0, 0);
+          const daysUntil = Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          return daysUntil <= 2 && daysUntil >= 0 && !o.pronto;
+        }).length} críticos`,
+        icon: <AlertCircle className="h-5 w-5 text-orange-600" />,
+        className: 'border-orange-200 bg-orange-50/30',
       },
     ];
-  }, [analytics]);
+  }, [analytics, previousWeekAnalytics, orders, filters]);
 
   const topProducts = useMemo(
     () => mapProductsToLeaderboard((analytics?.top_products ?? []).slice(0, 5)),
@@ -555,7 +610,20 @@ export default function PainelDesempenho() {
       ) : summaryCards ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
-            <SummaryCard key={card.title} title={card.title} value={card.value} icon={card.icon} />
+            <EnhancedSummaryCard
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              variation={card.variation}
+              variationLabel={card.variationLabel}
+              status={card.status}
+              statusLabel={card.statusLabel}
+              subtitle={card.subtitle}
+              icon={card.icon}
+              className={card.className}
+              period={card.period}
+              criteria={card.criteria}
+            />
           ))}
         </div>
       ) : null}
@@ -801,63 +869,50 @@ export default function PainelDesempenho() {
 
       {!loading && !loadingOrders && analytics ? (
         <>
-          {/* Gráficos de Distribuição */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <AnalyticsPieChart
-              summary={analytics.summary}
-              topProducts={analytics.top_products}
+          {/* SEÇÃO 2: ANÁLISE COMPARATIVA - Gráficos Principais */}
+          
+          {/* Gráfico Comparativo Semanal */}
+          {currentWeekAnalytics && previousWeekAnalytics && (
+            <ComparativeLineChart
+              currentWeekData={currentWeekAnalytics.monthly_trends || []}
+              previousWeekData={previousWeekAnalytics.monthly_trends || []}
               loading={loading}
+              title="Receita: Esta Semana vs Semana Anterior"
             />
-            <AnalyticsRadialChart
-              summary={analytics.summary}
-              topSellers={analytics.top_sellers}
-              loading={loading}
+          )}
+
+          {/* Gráficos de Análise Detalhada */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <DailyRevenueChart
+              orders={orders}
+              loading={loadingOrders}
+              days={30}
+            />
+            <StatusDistributionChart
+              orders={orders}
+              loading={loadingOrders}
             />
           </div>
 
-          {/* Gráfico de Radar */}
-          <AnalyticsRadarChart
-            summary={analytics.summary}
-            topSellers={analytics.top_sellers}
+          {/* Top Produtos com Variação */}
+          <TopProductsChart
+            currentProducts={analytics.top_products || []}
+            previousProducts={previousWeekAnalytics?.top_products}
             loading={loading}
+            limit={5}
           />
 
-          {/* Gráficos de Linha */}
+          {/* SEÇÃO 3: DETALHES E RANKINGS */}
           <div className="grid gap-6 md:grid-cols-2">
-            <AnalyticsRevenueLineChart trends={analytics.monthly_trends} loading={loading} />
-            <AnalyticsProductionLineChart trends={analytics.monthly_trends} loading={loading} />
-          </div>
-
-          {/* Gráfico de Linha Combinado */}
-          <AnalyticsLineChart
-            trends={analytics.monthly_trends}
-            loading={loading}
-            title="Produção e Receita (Linha)"
-            showProduction={true}
-            showRevenue={true}
-          />
-
-          {/* Gráfico de Área */}
-          <AnalyticsAreaChart trends={analytics.monthly_trends} loading={loading} />
-
-          {/* Gráfico Combinado */}
-          <AnalyticsComposedChart trends={analytics.monthly_trends} loading={loading} />
-
-          {/* Funil de Vendas */}
-          <AnalyticsFunnel summary={analytics.summary} loading={loading} />
-
-          {/* Gráfico de Tendências Original */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <TrendChartCard
-              title="Produção x Receita (mensal)"
-              data={analytics.monthly_trends ?? []}
-              loading={loading}
+            <CriticalOrdersCard
+              orders={orders}
+              loading={loadingOrders}
             />
-            <div className="space-y-4 lg:col-span-1">
+            <div className="space-y-4">
               <LeaderboardCard
-                title="Itens mais produzidos"
-                data={topProducts}
-                emptyMessage="Não há itens produzidos no período selecionado."
+                title="Top Vendedores"
+                data={topSellers}
+                emptyMessage="Nenhuma venda registrada para os filtros atuais."
               />
               <LeaderboardCard
                 title="Top Designers"
@@ -865,16 +920,6 @@ export default function PainelDesempenho() {
                 emptyMessage="Ainda não há designers com vendas registradas no período."
               />
             </div>
-          </div>
-
-          {/* Rankings */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <LeaderboardCard
-              title="Top Vendedores"
-              data={topSellers}
-              emptyMessage="Nenhuma venda registrada para os filtros atuais."
-            />
-            <CardLastUpdated timestamp={analytics.last_updated} />
           </div>
         </>
       ) : null}
@@ -898,8 +943,7 @@ function CardLastUpdated({ timestamp }: CardLastUpdatedProps) {
         </p>
       </div>
       <p className="mt-6 text-sm text-muted-foreground">
-        Este painel consulta o endpoint <code className="rounded bg-slate-100 px-1 py-0.5">/analytics</code>{' '}
-        com os filtros aplicados e exibe uma visão consolidada da produção e vendas.
+        Este painel calcula os dados a partir dos pedidos carregados do sistema e exibe uma visão consolidada da produção e vendas.
       </p>
     </div>
   );
