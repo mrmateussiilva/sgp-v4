@@ -76,7 +76,7 @@ type FiltersState = {
   startDate: string;
   endDate: string;
   status: StatusOption;
-  dateMode: 'entrada' | 'entrega';
+  dateMode: 'entrada' | 'entrega' | 'qualquer';
   vendedor?: string;
   designer?: string;
   cliente?: string;
@@ -1070,22 +1070,6 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Botão de limpar filtros */}
-          {hasActiveFilters && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                className="gap-2"
-                title="Limpar todos os filtros"
-              >
-                <X className="h-4 w-4" />
-                Limpar Filtros
-              </Button>
-            </div>
-          )}
-
           {/* Indicador de filtros ativos */}
           {hasActiveFilters && report && (
             <div className="flex flex-wrap items-center gap-2 pt-2 pb-2 border-t border-slate-200">
@@ -1275,6 +1259,7 @@ export default function Fechamentos() {
                 <SelectContent>
                   <SelectItem value="entrega">Data de entrega</SelectItem>
                   <SelectItem value="entrada">Data de entrada</SelectItem>
+                  <SelectItem value="qualquer">Qualquer data (entrada ou entrega)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1411,6 +1396,18 @@ export default function Fechamentos() {
                 </>
               )}
             </Button>
+
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                onClick={clearFilters}
+                title="Limpar todos os filtros"
+              >
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
+            )}
 
             <Button
               className="gap-2"

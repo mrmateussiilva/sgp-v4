@@ -445,9 +445,10 @@ export interface ReportRequestPayload {
    * Define qual campo de data será usado como referência nos filtros e nos agrupamentos por data.
    * - 'entrada': usa sempre `data_entrada`
    * - 'entrega': usa sempre `data_entrega`
+   * - 'qualquer': inclui pedidos se qualquer uma das datas (entrada ou entrega) estiver no período
    * - undefined: mantém o comportamento anterior (fallback entrega -> entrada -> created_at)
    */
-  date_mode?: 'entrada' | 'entrega';
+  date_mode?: 'entrada' | 'entrega' | 'qualquer';
   /**
    * Filtro opcional por vendedor (parcial, case-insensitive).
    * Usado para fechamento de comissão por vendedor.
