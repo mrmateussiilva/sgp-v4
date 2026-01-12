@@ -200,4 +200,18 @@ const ArtCard = React.memo(function ArtCard({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Comparação customizada para evitar re-renders desnecessários
+  // Compara apenas as props que realmente afetam o render
+  return (
+    prevProps.card.orderId === nextProps.card.orderId &&
+    prevProps.card.itemId === nextProps.card.itemId &&
+    prevProps.card.imageUrl === nextProps.card.imageUrl &&
+    prevProps.currentStatus === nextProps.currentStatus &&
+    prevProps.isDragging === nextProps.isDragging
+  );
+});
+
+ArtCard.displayName = 'ArtCard';
+
+export default ArtCard;
