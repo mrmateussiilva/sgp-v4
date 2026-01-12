@@ -1,7 +1,6 @@
 import { DesignCardData, CardStatus } from '../types/designerKanban';
 import { Card, CardContent } from '@/components/ui/card';
 import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
-import { useState } from 'react';
 import { useLazyImage } from '@/hooks/useLazyImage';
 import { Button } from '@/components/ui/button';
 
