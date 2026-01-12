@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../services/api';
 import { OrderWithItems } from '../types';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
@@ -26,10 +26,6 @@ export default function DesignerWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('');
   
-  // Estado para gerenciar os boards de cada designer
-  // Mapeia nome do designer -> board com cards em cada coluna
-  const [designerBoards, setDesignerBoards] = useState<Map<string, DesignerBoardData>>(new Map());
-  
   // Estado para movimentação de cards (preservado entre atualizações)
   const [movedCards, setMovedCards] = useState<Map<string, CardStatus>>(new Map());
 
@@ -52,88 +48,91 @@ export default function DesignerWorkspace() {
     loadOrders();
   }, []);
 
-  // Transformar dados para formato de boards com abas
-  // Inicializa todos os cards em "A liberar" e mantém estado de movimentação
-  useEffect(() => {
+  // Transformar dados para formato de boards com abas usando useMemo
+  // Isso evita reprocessamento desnecessário e melhora performance
+  const designerBoards = useMemo(() => {
     const boardsMap = new Map<string, DesignerBoardData>();
       
-      // Criar um Set com IDs dos cards que já estão em "Pronto" (para preservar estado)
-      const prontoCardIds = new Set<string>();
-      movedCards.forEach((status, cardId) => {
-        if (status === 'pronto') {
-          prontoCardIds.add(cardId);
+    // Criar um Set com IDs dos cards que já estão em "Pronto" (para preservar estado)
+    const prontoCardIds = new Set<string>();
+    movedCards.forEach((status, cardId) => {
+      if (status === 'pronto') {
+        prontoCardIds.add(cardId);
+      }
+    });
+
+    orders.forEach((order) => {
+      // Filtrar apenas itens que possuem arte (imagem)
+      const itemsWithArt = order.items.filter((item) => {
+        const hasImage = item.imagem && item.imagem.trim().length > 0;
+        return hasImage && isValidImagePath(item.imagem || '');
+      });
+
+      itemsWithArt.forEach((item) => {
+        // Obter nome do designer com fallback seguro
+        const designerName = item.designer?.trim() || 'Designer não informado';
+
+        // Criar card para este item
+        const card: DesignCardData = {
+          orderId: order.id,
+          orderNumber: order.numero,
+          itemId: item.id,
+          itemName: item.item_name,
+          customerName: order.customer_name || order.cliente || 'Cliente não informado',
+          productType: item.tipo_producao || 'Não especificado',
+          imageUrl: item.imagem,
+          orderCreatedAt: order.created_at || undefined,
+          status: order.status,
+        };
+
+        // Inicializar board do designer se não existir
+        if (!boardsMap.has(designerName)) {
+          boardsMap.set(designerName, {
+            designerName,
+            cardsAliberar: [],
+            cardsPronto: [],
+          });
+        }
+
+        const board = boardsMap.get(designerName)!;
+        const cardId = `${card.orderId}-${card.itemId}`;
+        
+        // Verificar se o card já estava em "Pronto" (preservar estado)
+        if (prontoCardIds.has(cardId)) {
+          card.cardStatus = 'pronto';
+          board.cardsPronto.push(card);
+        } else {
+          card.cardStatus = 'a_liberar';
+          board.cardsAliberar.push(card);
         }
       });
+    });
 
-      orders.forEach((order) => {
-        // Filtrar apenas itens que possuem arte (imagem)
-        const itemsWithArt = order.items.filter((item) => {
-          const hasImage = item.imagem && item.imagem.trim().length > 0;
-          return hasImage && isValidImagePath(item.imagem || '');
-        });
+    // Ordenar cards por data de criação (mais recente primeiro)
+    boardsMap.forEach((board) => {
+      const sortByDate = (a: DesignCardData, b: DesignCardData) => {
+        const dateA = a.orderCreatedAt ? new Date(a.orderCreatedAt).getTime() : 0;
+        const dateB = b.orderCreatedAt ? new Date(b.orderCreatedAt).getTime() : 0;
+        return dateB - dateA;
+      };
+      board.cardsAliberar.sort(sortByDate);
+      board.cardsPronto.sort(sortByDate);
+    });
 
-        itemsWithArt.forEach((item) => {
-          // Obter nome do designer com fallback seguro
-          const designerName = item.designer?.trim() || 'Designer não informado';
+    return boardsMap;
+  }, [orders, movedCards]);
 
-          // Criar card para este item
-          const card: DesignCardData = {
-            orderId: order.id,
-            orderNumber: order.numero,
-            itemId: item.id,
-            itemName: item.item_name,
-            customerName: order.customer_name || order.cliente || 'Cliente não informado',
-            productType: item.tipo_producao || 'Não especificado',
-            imageUrl: item.imagem,
-            orderCreatedAt: order.created_at || undefined,
-            status: order.status,
-          };
+  // Definir primeira aba ativa apenas uma vez quando boards são criados
+  useEffect(() => {
+    if (!activeTab && designerBoards.size > 0) {
+      const firstDesigner = Array.from(designerBoards.keys()).sort()[0];
+      setActiveTab(firstDesigner);
+    }
+  }, [activeTab, designerBoards]);
 
-          // Inicializar board do designer se não existir
-          if (!boardsMap.has(designerName)) {
-            boardsMap.set(designerName, {
-              designerName,
-              cardsAliberar: [],
-              cardsPronto: [],
-            });
-          }
-
-          const board = boardsMap.get(designerName)!;
-          const cardId = `${card.orderId}-${card.itemId}`;
-          
-          // Verificar se o card já estava em "Pronto" (preservar estado)
-          if (prontoCardIds.has(cardId)) {
-            card.cardStatus = 'pronto';
-            board.cardsPronto.push(card);
-          } else {
-            card.cardStatus = 'a_liberar';
-            board.cardsAliberar.push(card);
-          }
-        });
-      });
-
-      // Ordenar cards por data de criação (mais recente primeiro)
-      boardsMap.forEach((board) => {
-        const sortByDate = (a: DesignCardData, b: DesignCardData) => {
-          const dateA = a.orderCreatedAt ? new Date(a.orderCreatedAt).getTime() : 0;
-          const dateB = b.orderCreatedAt ? new Date(b.orderCreatedAt).getTime() : 0;
-          return dateB - dateA;
-        };
-        board.cardsAliberar.sort(sortByDate);
-        board.cardsPronto.sort(sortByDate);
-      });
-
-      // Definir primeira aba ativa se não houver uma selecionada
-      if (!activeTab && boardsMap.size > 0) {
-        const firstDesigner = Array.from(boardsMap.keys()).sort()[0];
-        setActiveTab(firstDesigner);
-      }
-
-    setDesignerBoards(boardsMap);
-  }, [orders, movedCards, activeTab]);
-
-  // Função para mover card entre colunas
-  const handleMoveCard = (card: DesignCardData, toStatus: CardStatus, designerName: string) => {
+  // Função para mover card entre colunas - otimizada com useCallback
+  // Apenas atualiza movedCards, o useMemo recalcula designerBoards automaticamente
+  const handleMoveCard = useCallback((card: DesignCardData, toStatus: CardStatus, designerName: string) => {
     const cardId = `${card.orderId}-${card.itemId}`;
     setMovedCards((prev) => {
       const newMap = new Map(prev);
@@ -144,48 +143,7 @@ export default function DesignerWorkspace() {
       }
       return newMap;
     });
-
-    // Atualizar boards imediatamente
-    setDesignerBoards((prevBoards) => {
-      const newBoards = new Map(prevBoards);
-      const board = newBoards.get(designerName);
-      
-      if (!board) return prevBoards;
-
-      // Remover card da coluna de origem
-      const fromStatus = toStatus === 'pronto' ? 'a_liberar' : 'pronto';
-      if (fromStatus === 'a_liberar') {
-        board.cardsAliberar = board.cardsAliberar.filter(
-          (c) => !(c.orderId === card.orderId && c.itemId === card.itemId)
-        );
-      } else {
-        board.cardsPronto = board.cardsPronto.filter(
-          (c) => !(c.orderId === card.orderId && c.itemId === card.itemId)
-        );
-      }
-
-      // Adicionar card na coluna de destino
-      const updatedCard = { ...card, cardStatus: toStatus };
-      if (toStatus === 'a_liberar') {
-        board.cardsAliberar.push(updatedCard);
-        board.cardsAliberar.sort((a, b) => {
-          const dateA = a.orderCreatedAt ? new Date(a.orderCreatedAt).getTime() : 0;
-          const dateB = b.orderCreatedAt ? new Date(b.orderCreatedAt).getTime() : 0;
-          return dateB - dateA;
-        });
-      } else {
-        board.cardsPronto.push(updatedCard);
-        board.cardsPronto.sort((a, b) => {
-          const dateA = a.orderCreatedAt ? new Date(a.orderCreatedAt).getTime() : 0;
-          const dateB = b.orderCreatedAt ? new Date(b.orderCreatedAt).getTime() : 0;
-          return dateB - dateA;
-        });
-      }
-
-      newBoards.set(designerName, board);
-      return newBoards;
-    });
-  };
+  }, []);
 
   // Obter lista de designers ordenada
   const designers = useMemo(() => {
@@ -269,14 +227,6 @@ export default function DesignerWorkspace() {
               const board = designerBoards.get(designerName);
               if (!board) return null;
               
-              const handleMoveToPronto = (card: DesignCardData) => {
-                handleMoveCard(card, 'pronto', designerName);
-              };
-
-              const handleMoveToAliberar = (card: DesignCardData) => {
-                handleMoveCard(card, 'a_liberar', designerName);
-              };
-              
               return (
                 <TabsContent 
                   key={designerName} 
@@ -286,8 +236,8 @@ export default function DesignerWorkspace() {
                   <KanbanBoard
                     cardsAliberar={board.cardsAliberar}
                     cardsPronto={board.cardsPronto}
-                    onMoveToPronto={handleMoveToPronto}
-                    onMoveToAliberar={handleMoveToAliberar}
+                    onMoveToPronto={(card) => handleMoveCard(card, 'pronto', designerName)}
+                    onMoveToAliberar={(card) => handleMoveCard(card, 'a_liberar', designerName)}
                   />
                 </TabsContent>
               );
