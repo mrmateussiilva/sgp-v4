@@ -1,3 +1,4 @@
+import React from 'react';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -18,8 +19,9 @@ interface ArtCardProps {
 /**
  * Card de arte estilo Trello
  * Visual limpo e minimalista com drag and drop
+ * Memoizado para evitar re-renders desnecessários
  */
-export default function ArtCard({ 
+const ArtCard = React.memo(function ArtCard({ 
   card, 
   currentStatus, 
   onMoveToPronto, 
