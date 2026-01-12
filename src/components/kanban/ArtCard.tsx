@@ -99,7 +99,7 @@ const ArtCard = React.memo(function ArtCard({
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
         "bg-white rounded-lg shadow-sm border border-gray-200 p-3 cursor-grab active:cursor-grabbing",
-        "hover:shadow-md transition-all duration-200 mb-2",
+        "hover:shadow-md transition-all duration-200",
         isDragging && "opacity-50 rotate-2 scale-105",
         !isDragging && "hover:-translate-y-0.5"
       )}

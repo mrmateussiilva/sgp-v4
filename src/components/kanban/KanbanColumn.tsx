@@ -58,7 +58,7 @@ const KanbanColumn = React.memo(function KanbanColumn({
       </div>
 
       {/* Cards Container - Scroll */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-0">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {cards.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-400 text-sm">
             <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 mb-2 flex items-center justify-center">
