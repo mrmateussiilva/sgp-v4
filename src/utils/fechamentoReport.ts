@@ -1019,6 +1019,52 @@ export const generateFechamentoReport = (
 ): ReportResponse => {
   // Limpar cache no início do processamento para garantir dados frescos
   clearCurrencyCache();
+
+  // Deduplicação defensiva (protege contra backend/paginação retornando pedidos/itens repetidos)
+  // - Dedup por `order.id`
+  // - Dedup de itens por `item.id` dentro de cada pedido
+  const normalizedOrders: OrderWithItems[] = (() => {
+    const byId = new Map<number, OrderWithItems>();
+
+    orders.forEach((order) => {
+      const items = order.items ?? [];
+      const itemsById = new Map<number, (typeof items)[number]>();
+      items.forEach((item) => {
+        itemsById.set(item.id, item);
+      });
+
+      const normalized: OrderWithItems = {
+        ...order,
+        items: Array.from(itemsById.values()),
+      };
+
+      // Se o mesmo pedido aparecer múltiplas vezes, fazemos merge de itens (união por id)
+      const existing = byId.get(order.id);
+      if (!existing) {
+        byId.set(order.id, normalized);
+        return;
+      }
+
+      const mergedItemsById = new Map<number, (typeof items)[number]>();
+      (existing.items ?? []).forEach((item) => mergedItemsById.set(item.id, item));
+      normalized.items.forEach((item) => mergedItemsById.set(item.id, item));
+
+      byId.set(order.id, {
+        ...existing,
+        ...normalized,
+        items: Array.from(mergedItemsById.values()),
+      });
+    });
+
+    if (orders.length !== byId.size) {
+      console.warn('[fechamentoReport] Deduplicação aplicada:', {
+        inputOrders: orders.length,
+        uniqueOrders: byId.size,
+      });
+    }
+
+    return Array.from(byId.values());
+  })();
   
   // Validar payload
   const validation = validateReportRequest(payload);
@@ -1031,7 +1077,7 @@ export const generateFechamentoReport = (
       ? payload.date_mode
       : 'auto';
 
-  const filteredByStatus = filterOrdersByStatus(orders, payload.status);
+  const filteredByStatus = filterOrdersByStatus(normalizedOrders, payload.status);
   const filteredOrders = filterOrdersByDate(
     filteredByStatus,
     payload.start_date,
@@ -1053,10 +1099,16 @@ export const generateFechamentoReport = (
   }
 
   // Determinar modo de distribuição de frete
-  const freteDistribution = payload.frete_distribution ?? 'por_pedido';
+  // Para sintetico_vendedor_designer, usar proporcional para evitar duplicação de frete
+  // quando um pedido aparece em múltiplos grupos (vendedor/designer diferentes)
+  const reportType = payload.report_type;
+  const defaultFreteDistribution = payload.frete_distribution ?? 'por_pedido';
+  const freteDistributionForRows = (reportType === 'sintetico_vendedor_designer') 
+    ? 'proporcional' 
+    : defaultFreteDistribution;
   
   const baseRowsAll = filteredOrders.flatMap((order) => 
-    buildRowsFromOrder(order, dateMode, freteDistribution)
+    buildRowsFromOrder(order, dateMode, freteDistributionForRows)
   );
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
   
@@ -1066,9 +1118,14 @@ export const generateFechamentoReport = (
     ordersMap.set(order.id, order);
   });
   
-  const totals = computeTotalsFromRows(baseRows, ordersMap, freteDistribution);
+  // Para o total geral, usar a distribuição escolhida pelo usuário (ou proporcional se sintetico_vendedor_designer)
+  // O total geral deve ser consistente com a distribuição usada nas linhas
+  const freteDistributionForTotals = freteDistributionForRows;
+  const totals = computeTotalsFromRows(baseRows, ordersMap, freteDistributionForTotals);
 
-  const reportType = payload.report_type;
+  // Usar freteDistribution para os casos que não são sintetico_vendedor_designer
+  const freteDistribution = defaultFreteDistribution;
+
   const groups: ReportGroup[] = (() => {
     switch (reportType) {
       case 'analitico_designer_cliente':
@@ -1163,12 +1220,14 @@ export const generateFechamentoReport = (
           freteDistribution
         );
       case 'sintetico_vendedor_designer':
+        // Usar distribuição proporcional para evitar duplicação de frete
+        // quando pedidos aparecem em múltiplos grupos (vendedor/designer diferentes)
         return buildSingleLevelAggregate(
           baseRows,
           (row) => `${row.vendedor} / ${row.designer}`,
           (value) => `Vendedor/Designer: ${value}`,
           ordersMap,
-          freteDistribution
+          'proporcional'
         );
       case 'sintetico_cliente':
         return buildSingleLevelAggregate(

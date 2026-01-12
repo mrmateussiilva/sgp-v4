@@ -2111,6 +2111,11 @@ export const api = {
     // Otimizado: carregar pedidos em lotes usando paginação quando há filtros de data
     // Se não houver filtros, pode precisar de todos os pedidos para o relatório completo
     let orders: OrderWithItems[] = [];
+
+    // Deduplicar pedidos por ID (proteção contra backend/paginação retornando itens repetidos)
+    // Isso é essencial para que o total do intervalo bata com a soma do dia-a-dia.
+    const dedupeOrdersById = (list: OrderWithItems[]) =>
+      Array.from(new Map(list.map((order) => [order.id, order])).values());
     
     // Se há filtros de data, usar paginação para reduzir requisições
     if (request.start_date || request.end_date) {
@@ -2172,7 +2177,8 @@ export const api = {
       }
       orders = allOrders;
     }
-    
+
+    orders = dedupeOrdersById(orders);
     return generateFechamentoReport(orders, request);
   },
 
