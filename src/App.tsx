@@ -7,7 +7,7 @@ import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Loader2 } from 'lucide-react';
-import { useAutoUpdateCheck } from './hooks/useAutoUpdateCheck';
+import { useTauriUpdater } from './hooks/useTauriUpdater';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
 import { AlertProvider } from './contexts/AlertContext';
@@ -40,10 +40,10 @@ function App() {
   const [showFallback, setShowFallback] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Hook de verificação automática de atualizações
+  // Hook de verificação automática de atualizações usando updater oficial do Tauri
   // Nota: Notificações WebSocket são gerenciadas por useOrderAutoSync em OrderList.tsx
   // que usa o singleton ordersSocket para evitar múltiplas conexões
-  useAutoUpdateCheck();
+  useTauriUpdater();
 
   // Ativar notificações em tempo real globalmente (toasts + refresh)
   // O hook já lida com connect/disconnect baseado no sessionToken.

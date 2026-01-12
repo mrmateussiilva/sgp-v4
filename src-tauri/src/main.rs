@@ -13,11 +13,6 @@ use commands::devtools::{
     toggle_devtools,
 };
 use commands::update::get_app_version;
-use commands::manual_updater::{
-    check_update_manual,
-    download_update_manual,
-    install_update_manual,
-};
 use commands::images::{
     save_image_locally,
     get_local_image_path,
@@ -49,9 +44,6 @@ fn main() {
             #[cfg(debug_assertions)]
             test_devtools_system,
             get_app_version,
-            check_update_manual,
-            download_update_manual,
-            install_update_manual,
             // Comandos de gerenciamento de imagens
             save_image_locally,
             get_local_image_path,
