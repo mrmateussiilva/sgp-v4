@@ -94,24 +94,50 @@ export function EnhancedSummaryCard({
       <CardContent>
         <p className="text-3xl font-bold text-slate-900">{value}</p>
 
-        {/* Variação percentual */}
+        {/* Variação percentual com badge */}
         {variation !== undefined && (
-          <div className="mt-2 flex items-center gap-1.5">
+          <div className="mt-2 flex items-center gap-2">
             {getVariationIcon()}
-            <span className={cn('text-sm font-semibold', getVariationColor())}>
+            <span className={cn('text-sm font-bold', getVariationColor())}>
               {variation > 0 ? '+' : ''}
               {variation.toFixed(1)}%
             </span>
             {variationLabel && (
               <span className="text-xs text-slate-500">{variationLabel}</span>
             )}
+            {/* Badge de status baseado na variação */}
+            {Math.abs(variation) >= 10 && (
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-xs font-semibold',
+                  variation > 0
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                )}
+              >
+                {variation > 0 ? 'EXCELENTE' : 'ATENÇÃO'}
+              </span>
+            )}
           </div>
         )}
 
-        {/* Status com ícone */}
+        {/* Status com badge destacado */}
         {status && statusLabel && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="text-sm">{getStatusIcon(status)}</span>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-1 text-xs font-bold uppercase',
+                status === 'good'
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : status === 'warning'
+                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                  : status === 'bad'
+                  ? 'bg-red-100 text-red-700 border border-red-300'
+                  : 'bg-slate-100 text-slate-700 border border-slate-300'
+              )}
+            >
+              {status === 'good' ? 'BOM' : status === 'warning' ? 'ATENÇÃO' : status === 'bad' ? 'CRÍTICO' : 'NEUTRO'}
+            </span>
             <span className={cn('text-sm font-medium', getStatusColor(status))}>
               {statusLabel}
             </span>

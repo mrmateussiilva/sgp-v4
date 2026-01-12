@@ -103,27 +103,45 @@ export function TopProductsChart({
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const isGrowing = data.variacao !== undefined && data.variacao > 0;
+      const isDeclining = data.variacao !== undefined && data.variacao < 0;
+      
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-          <p className="font-semibold mb-2">{data.fullName || data.name}</p>
-          <p className="text-sm text-slate-700">
-            <strong>Quantidade:</strong> {data.quantidade.toLocaleString('pt-BR')} itens
+        <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-xl min-w-[240px]">
+          <p className="font-bold text-base mb-3 text-slate-900 border-b pb-2">
+            {data.fullName || data.name}
           </p>
-          {data.porcentagem !== undefined && (
-            <p className="text-sm text-slate-700">
-              <strong>Participação:</strong> {data.porcentagem.toFixed(1)}% do total
-            </p>
-          )}
-          {data.variacao !== undefined && (
-            <p
-              className={`text-sm font-semibold ${
-                data.variacao >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}
-            >
-              <strong>Variação:</strong> {data.variacao >= 0 ? '+' : ''}
-              {data.variacao.toFixed(1)}% vs período anterior
-            </p>
-          )}
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Quantidade Vendida</p>
+              <p className="text-lg font-bold text-slate-900">
+                {data.quantidade.toLocaleString('pt-BR')} itens
+              </p>
+            </div>
+            {data.porcentagem !== undefined && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Participação no Total</p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {data.porcentagem.toFixed(1)}% de todas as vendas
+                </p>
+              </div>
+            )}
+            {data.variacao !== undefined && (
+              <div className="pt-2 border-t">
+                <p className="text-xs text-slate-500 mb-1">Variação vs Período Anterior</p>
+                <p className={`text-base font-bold ${
+                  isGrowing ? 'text-green-600' : isDeclining ? 'text-red-600' : 'text-slate-600'
+                }`}>
+                  {isGrowing ? '↑' : isDeclining ? '↓' : '→'} {Math.abs(data.variacao).toFixed(1)}%
+                </p>
+                {Math.abs(data.variacao) >= 15 && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isGrowing ? '🚀 Crescimento forte!' : '⚠️ Queda significativa'}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       );
     }

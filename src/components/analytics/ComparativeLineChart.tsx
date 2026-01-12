@@ -103,23 +103,48 @@ export function ComparativeLineChart({
       const variation = previousValue > 0 
         ? ((currentValue - previousValue) / previousValue) * 100 
         : 0;
+      const diff = currentValue - previousValue;
 
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-          <p className="font-semibold mb-2">{label}</p>
-          <div className="space-y-1">
-            <p className="text-sm" style={{ color: current?.color }}>
-              <strong>Semana Atual:</strong> {currencyFormatter.format(currentValue)}
-            </p>
-            <p className="text-sm" style={{ color: previous?.color }}>
-              <strong>Semana Anterior:</strong> {currencyFormatter.format(previousValue)}
-            </p>
-            {previousValue > 0 && (
-              <p className={`text-sm font-semibold ${
-                variation >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                Variação: {variation >= 0 ? '+' : ''}{variation.toFixed(1)}%
+        <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-xl min-w-[200px]">
+          <p className="font-bold text-base mb-3 text-slate-900 border-b pb-2">{label}</p>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Semana Atual</p>
+              <p className="text-sm font-bold" style={{ color: current?.color }}>
+                {currencyFormatter.format(currentValue)}
               </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Semana Anterior</p>
+              <p className="text-sm font-semibold" style={{ color: previous?.color }}>
+                {currencyFormatter.format(previousValue)}
+              </p>
+            </div>
+            {previousValue > 0 && (
+              <>
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-slate-500 mb-1">Diferença</p>
+                  <p className={`text-sm font-bold ${
+                    diff >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {diff >= 0 ? '+' : ''}{currencyFormatter.format(diff)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Variação</p>
+                  <p className={`text-sm font-bold ${
+                    variation >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {variation >= 0 ? '↑' : '↓'} {Math.abs(variation).toFixed(1)}%
+                  </p>
+                  {Math.abs(variation) >= 10 && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      {variation > 0 ? '📈 Crescimento significativo' : '📉 Queda significativa'}
+                    </p>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

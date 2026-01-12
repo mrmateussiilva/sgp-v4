@@ -148,26 +148,44 @@ export function DailyRevenueChart({
       const mediaValue = media?.value || 0;
       const diff = receitaValue - mediaValue;
       const diffPercent = mediaValue > 0 ? (diff / mediaValue) * 100 : 0;
+      const isAboveAverage = diff >= 0;
 
       return (
-        <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-          <p className="font-semibold mb-2">{label}</p>
-          <div className="space-y-1">
-            <p className="text-sm" style={{ color: receita?.color }}>
-              <strong>Receita:</strong> {currencyFormatter.format(receitaValue)}
-            </p>
+        <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-xl min-w-[220px]">
+          <p className="font-bold text-base mb-3 text-slate-900 border-b pb-2">{label}</p>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Receita do Dia</p>
+              <p className="text-lg font-bold" style={{ color: receita?.color }}>
+                {currencyFormatter.format(receitaValue)}
+              </p>
+            </div>
             {mediaValue > 0 && (
               <>
-                <p className="text-sm" style={{ color: media?.color }}>
-                  <strong>Média 7 dias:</strong> {currencyFormatter.format(mediaValue)}
-                </p>
-                <p className={`text-sm font-semibold ${
-                  diff >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {diff >= 0 ? '+' : ''}
-                  {currencyFormatter.format(diff)} ({diffPercent >= 0 ? '+' : ''}
-                  {diffPercent.toFixed(1)}%)
-                </p>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Média Móvel (7 dias)</p>
+                  <p className="text-sm font-semibold" style={{ color: media?.color }}>
+                    {currencyFormatter.format(mediaValue)}
+                  </p>
+                </div>
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-slate-500 mb-1">Comparação com Média</p>
+                  <p className={`text-base font-bold ${
+                    isAboveAverage ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {isAboveAverage ? '↑' : '↓'} {currencyFormatter.format(Math.abs(diff))}
+                  </p>
+                  <p className={`text-sm font-semibold mt-1 ${
+                    isAboveAverage ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    ({isAboveAverage ? '+' : ''}{diffPercent.toFixed(1)}%)
+                  </p>
+                  {Math.abs(diffPercent) >= 20 && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      {isAboveAverage ? '🎯 Dia excepcional!' : '⚠️ Abaixo do esperado'}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </div>
