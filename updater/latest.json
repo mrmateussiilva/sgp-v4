@@ -4,8 +4,8 @@
   "pub_date": "2026-01-10T22:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP%20-%20Sistema%20de%20Gerenciamento%20de%20Pedidos_1.0.6_x64_en-US.msi",
-      "signature": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP%20-%20Sistema%20de%20Gerenciamento%20de%20Pedidos_1.0.6_x64_en-US.msi.sig"
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi",
+      "signature": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi.sig"
     }
   }
 }
