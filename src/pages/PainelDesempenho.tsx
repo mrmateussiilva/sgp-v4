@@ -901,26 +901,6 @@ export default function PainelDesempenho() {
             loading={loading}
             limit={5}
           />
-          {/* Debug: Mostrar dados brutos */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-xs">
-              <p className="font-semibold mb-2">🔍 Debug - Dados dos Produtos:</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="font-medium mb-1">Período Atual (filtrado):</p>
-                  <pre className="bg-white p-2 rounded overflow-auto max-h-40">
-                    {JSON.stringify(analytics.top_products || [], null, 2)}
-                  </pre>
-                </div>
-                <div>
-                  <p className="font-medium mb-1">Semana Anterior:</p>
-                  <pre className="bg-white p-2 rounded overflow-auto max-h-40">
-                    {JSON.stringify(previousWeekAnalytics?.top_products || [], null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* SEÇÃO 3: DETALHES E RANKINGS */}
           <div className="grid gap-6 md:grid-cols-2">
