@@ -1,9 +1,8 @@
 import React from 'react';
 import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import { ImageIcon, Package, CheckCircle2, XCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { isValidImagePath } from '@/utils/path';
-import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { useState } from 'react';
+import { useLazyImage } from '@/hooks/useLazyImage';
 import { cn } from '@/lib/utils';
 
 interface ArtCardProps {
@@ -26,49 +25,16 @@ const ArtCard = React.memo(function ArtCard({
   onMoveToAliberar,
   onClick
 }: ArtCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Carregar imagem
-  useEffect(() => {
-    const loadImage = async () => {
-      if (!card.imageUrl) {
-        setImageError(true);
-        setImageLoading(false);
-        return;
-      }
-
-      // Se for base64, usar diretamente
-      if (card.imageUrl.startsWith('data:image/')) {
-        setImageSrc(card.imageUrl);
-        setImageLoading(false);
-        return;
-      }
-
-      // Verificar se é um caminho válido
-      if (!isValidImagePath(card.imageUrl)) {
-        setImageError(true);
-        setImageLoading(false);
-        return;
-      }
-
-      // Tentar carregar a imagem autenticada
-      try {
-        const blobUrl = await loadAuthenticatedImage(card.imageUrl);
-        setImageSrc(blobUrl);
-        setImageError(false);
-      } catch (error) {
-        console.error('Erro ao carregar imagem do card:', error);
-        setImageError(true);
-      } finally {
-        setImageLoading(false);
-      }
-    };
-
-    loadImage();
-  }, [card.imageUrl]);
+  // Usar lazy loading para carregar imagem apenas quando visível
+  const { imageSrc, isLoading: imageLoading, error: imageError, imgRef } = useLazyImage(
+    card.imageUrl,
+    {
+      rootMargin: '100px',
+      threshold: 0.01,
+    }
+  );
 
   return (
     <div
@@ -81,7 +47,11 @@ const ArtCard = React.memo(function ArtCard({
       )}
     >
       {/* Preview da Arte - Menor, estilo Trello */}
-      <div className="relative w-full -mx-2.5 -mt-2.5 mb-2.5 bg-gray-100 rounded-t-lg overflow-hidden" style={{ height: '120px' }}>
+      <div 
+        ref={imgRef as React.RefObject<HTMLDivElement>}
+        className="relative w-full -mx-2.5 -mt-2.5 mb-2.5 bg-gray-100 rounded-t-lg overflow-hidden" 
+        style={{ height: '120px' }}
+      >
         {imageSrc && !imageError ? (
           <>
             {imageLoading && (
@@ -96,11 +66,7 @@ const ArtCard = React.memo(function ArtCard({
                 "w-full h-full object-contain transition-opacity",
                 imageLoading ? 'opacity-0' : 'opacity-100'
               )}
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageError(true);
-                setImageLoading(false);
-              }}
+              loading="lazy"
             />
           </>
         ) : (

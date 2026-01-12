@@ -1,9 +1,8 @@
 import { DesignCardData, CardStatus } from '../types/designerKanban';
 import { Card, CardContent } from '@/components/ui/card';
 import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { isValidImagePath } from '@/utils/path';
-import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { useState } from 'react';
+import { useLazyImage } from '@/hooks/useLazyImage';
 import { Button } from '@/components/ui/button';
 
 interface ArtCardProps {
@@ -23,10 +22,6 @@ export default function ArtCard({
   onMoveToPronto, 
   onMoveToAliberar 
 }: ArtCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-
   // Format date helper
   const formatDate = (dateString?: string): string => {
     if (!dateString) return 'Data não disponível';
@@ -44,44 +39,15 @@ export default function ArtCard({
     }
   };
 
-  // Carregar imagem
-  useEffect(() => {
-    const loadImage = async () => {
-      if (!card.imageUrl) {
-        setImageError(true);
-        setImageLoading(false);
-        return;
-      }
-
-      // Se for base64, usar diretamente
-      if (card.imageUrl.startsWith('data:image/')) {
-        setImageSrc(card.imageUrl);
-        setImageLoading(false);
-        return;
-      }
-
-      // Verificar se é um caminho válido
-      if (!isValidImagePath(card.imageUrl)) {
-        setImageError(true);
-        setImageLoading(false);
-        return;
-      }
-
-      // Tentar carregar a imagem autenticada
-      try {
-        const blobUrl = await loadAuthenticatedImage(card.imageUrl);
-        setImageSrc(blobUrl);
-        setImageError(false);
-      } catch (error) {
-        console.error('Erro ao carregar imagem do card:', error);
-        setImageError(true);
-      } finally {
-        setImageLoading(false);
-      }
-    };
-
-    loadImage();
-  }, [card.imageUrl]);
+  // Usar lazy loading para carregar imagem apenas quando visível
+  const { imageSrc, isLoading: imageLoading, error: imageError, imgRef } = useLazyImage(
+    card.imageUrl,
+    {
+      // Cards do kanban podem ser carregados um pouco antes de aparecer
+      rootMargin: '100px',
+      threshold: 0.01,
+    }
+  );
 
   const formattedDate = formatDate(card.orderCreatedAt);
 
@@ -89,7 +55,10 @@ export default function ArtCard({
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4 space-y-3">
         {/* Preview da Arte */}
-        <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
+        <div 
+          ref={imgRef as React.RefObject<HTMLDivElement>}
+          className="relative w-full h-48 bg-muted rounded-lg overflow-hidden"
+        >
           {imageSrc && !imageError ? (
             <>
               {imageLoading && (
@@ -101,18 +70,16 @@ export default function ArtCard({
                 src={imageSrc}
                 alt={`Arte: ${card.itemName}`}
                 className={`w-full h-full object-contain ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-                onLoad={() => setImageLoading(false)}
-                onError={() => {
-                  setImageError(true);
-                  setImageLoading(false);
-                }}
+                loading="lazy"
               />
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <div className="text-center text-muted-foreground">
                 <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-xs">Imagem não disponível</p>
+                <p className="text-xs">
+                  {imageLoading ? 'Carregando...' : imageError ? 'Imagem não disponível' : 'Imagem não disponível'}
+                </p>
               </div>
             </div>
           )}

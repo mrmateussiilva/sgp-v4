@@ -4,7 +4,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use tauri::{command, AppHandle, Manager};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 use image::GenericImageView;
 use base64::{Engine as _, engine::general_purpose};
@@ -203,7 +203,7 @@ pub async fn cache_image_from_url(
     image_url: String,
     image_data: Vec<u8>,
 ) -> Result<ImageMetadata, String> {
-    info!("Cacheando imagem da URL: {} (tamanho: {} bytes)", image_url, image_data.len());
+    debug!("Cacheando imagem da URL: {} (tamanho: {} bytes)", image_url, image_data.len());
 
     // Gerar hash da URL para usar como identificador
     let mut hasher = DefaultHasher::new();
@@ -243,7 +243,7 @@ pub async fn cache_image_from_url(
         .map_err(|e| format!("Erro ao obter metadados: {}", e))?
         .len();
 
-    info!("Imagem cacheada: {}", file_path.display());
+    debug!("Imagem cacheada: {}", file_path.display());
 
     Ok(ImageMetadata {
         local_path: file_path.to_string_lossy().to_string(),

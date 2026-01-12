@@ -43,74 +43,71 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     fetchFormasPagamento();
   }, []);
 
-  // Carregar imagens dos itens quando o modal abrir ou quando itens forem expandidos
+  // Carregar imagens apenas dos itens expandidos (lazy loading otimizado)
   useEffect(() => {
-    if (!isOpen || !order?.items) return;
+    if (!isOpen || !order?.items || !openItemKey) return;
 
-    const loadItemImages = async () => {
-      const imageUrlMap = new Map<string, string>();
-      const itemsToLoad: Array<{ itemKey: string; imagePath: string }> = [];
+    const loadItemImage = async () => {
+      // Encontrar o item expandido
+      const expandedItem = order.items.find(
+        (item) => String(item.id ?? item.item_name) === openItemKey
+      );
 
-      // Coletar todas as imagens que precisam ser carregadas
-      for (const item of order.items) {
-        if (item.imagem && isValidImagePath(item.imagem)) {
-          const itemKey = String(item.id ?? item.item_name);
-          // Se já está carregada, usar do cache
-          if (itemImageUrls.has(itemKey)) {
-            imageUrlMap.set(itemKey, itemImageUrls.get(itemKey)!);
-          } else if (!loadingImages.has(item.imagem)) {
-            itemsToLoad.push({ itemKey, imagePath: item.imagem });
-          }
-        }
+      if (!expandedItem?.imagem || !isValidImagePath(expandedItem.imagem)) {
+        return;
       }
 
-      // Carregar imagens que ainda não foram carregadas
-      if (itemsToLoad.length > 0) {
-        setLoadingImages(prev => {
-          const newSet = new Set(prev);
-          itemsToLoad.forEach(({ imagePath }) => newSet.add(imagePath));
-          return newSet;
-        });
+      const itemKey = String(expandedItem.id ?? expandedItem.item_name);
+      const imagePath = expandedItem.imagem;
 
-        for (const { itemKey, imagePath } of itemsToLoad) {
-          try {
-            console.log(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
-            const blobUrl = await loadAuthenticatedImage(imagePath);
-            imageUrlMap.set(itemKey, blobUrl);
-            console.log(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
-          } catch (err) {
-            console.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
-              imagem: imagePath,
-              error: err
-            });
-            // Marcar erro no estado
-            setItemImageErrors(prev => ({
-              ...prev,
-              [itemKey]: true
-            }));
-          }
-        }
-
-        setLoadingImages(prev => {
-          const newSet = new Set(prev);
-          itemsToLoad.forEach(({ imagePath }) => newSet.delete(imagePath));
-          return newSet;
-        });
+      // Se já está carregada, não fazer nada
+      if (itemImageUrls.has(itemKey)) {
+        return;
       }
 
-      // Atualizar o estado com todas as URLs (incluindo as já carregadas)
-      if (imageUrlMap.size > 0 || itemsToLoad.length > 0) {
+      // Se já está carregando, não fazer nada
+      if (loadingImages.has(imagePath)) {
+        return;
+      }
+
+      // Marcar como carregando
+      setLoadingImages(prev => new Set(prev).add(imagePath));
+
+      try {
+        console.log(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
+        const blobUrl = await loadAuthenticatedImage(imagePath);
+        
+        // Atualizar estado com a URL da imagem
         setItemImageUrls(prev => {
           const updated = new Map(prev);
-          imageUrlMap.forEach((url, key) => updated.set(key, url));
+          updated.set(itemKey, blobUrl);
           return updated;
+        });
+        
+        console.log(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
+      } catch (err) {
+        console.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
+          imagem: imagePath,
+          error: err
+        });
+        // Marcar erro no estado
+        setItemImageErrors(prev => ({
+          ...prev,
+          [itemKey]: true
+        }));
+      } finally {
+        // Remover do set de carregamento
+        setLoadingImages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(imagePath);
+          return newSet;
         });
       }
     };
 
-    loadItemImages();
+    loadItemImage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, order?.items, openItemKey]);
+  }, [isOpen, openItemKey]);
 
   // REMOVIDO: Cleanup que revogava blob URLs quando o modal fechava
   // O cache global do imageLoader já gerencia as blob URLs e não precisa ser limpo manualmente
