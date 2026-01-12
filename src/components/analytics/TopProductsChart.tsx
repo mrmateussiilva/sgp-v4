@@ -47,14 +47,36 @@ export function TopProductsChart({
     // Calcular total para porcentagem
     const total = currentProducts.reduce((sum, p) => sum + p.quantity, 0);
 
+    // Debug: Log dos dados para verificação
+    console.log('[TopProductsChart] Produtos atuais:', currentProducts);
+    console.log('[TopProductsChart] Produtos anteriores:', previousProducts);
+    console.log('[TopProductsChart] Mapa anterior:', Array.from(previousMap.entries()));
+
     const data: ProductData[] = currentProducts
       .slice(0, limit)
       .map((product) => {
         const previousQty = previousMap.get(product.product_name) || 0;
-        const variacao =
-          previousQty > 0
-            ? ((product.quantity - previousQty) / previousQty) * 100
-            : undefined;
+        
+        // Calcular variação: se tinha 0 antes e agora tem valor, não calcular %
+        // Se tinha valor antes, calcular normalmente
+        let variacao: number | undefined = undefined;
+        
+        if (previousQty > 0) {
+          // Tinha quantidade antes, calcular variação normal
+          variacao = ((product.quantity - previousQty) / previousQty) * 100;
+        } else if (previousQty === 0 && product.quantity > 0) {
+          // Não tinha antes, agora tem - produto novo ou retomada
+          // Não calcular variação percentual (seria infinito)
+          variacao = undefined;
+        }
+        // Se ambos são 0, variacao já é undefined
+
+        // Debug: Log de cada produto
+        console.log(`[TopProductsChart] ${product.product_name}:`, {
+          atual: product.quantity,
+          anterior: previousQty,
+          variacao: variacao !== undefined ? `${variacao.toFixed(1)}%` : 'N/A (produto novo)'
+        });
 
         return {
           name: product.product_name.length > 25
@@ -199,7 +221,7 @@ export function TopProductsChart({
                 <span className="text-sm font-semibold text-slate-900">
                   {item.quantidade.toLocaleString('pt-BR')} itens
                 </span>
-                {item.variacao !== undefined && (
+                {item.variacao !== undefined ? (
                   <div
                     className={`flex items-center gap-1 text-sm font-semibold ${
                       item.variacao >= 0 ? 'text-green-600' : 'text-red-600'
@@ -216,6 +238,10 @@ export function TopProductsChart({
                       {item.variacao >= 0 ? '+' : ''}
                       {item.variacao.toFixed(1)}%
                     </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-sm font-semibold text-blue-600">
+                    <span className="text-xs">NOVO</span>
                   </div>
                 )}
               </div>

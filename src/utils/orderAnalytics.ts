@@ -284,7 +284,7 @@ const calculateTopProducts = (
     });
   });
 
-  return Array.from(productMap.entries())
+  const result = Array.from(productMap.entries())
     .map(([name, quantity], index) => ({
       product_id: index + 1,
       product_name: name,
@@ -292,6 +292,16 @@ const calculateTopProducts = (
     }))
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, limit);
+
+  // Debug: Log dos produtos calculados
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[calculateTopProducts] Pedidos processados:', filteredOrders.length);
+    console.log('[calculateTopProducts] Total de itens:', filteredOrders.reduce((sum, o) => sum + o.items.length, 0));
+    console.log('[calculateTopProducts] Produtos encontrados:', Array.from(productMap.entries()));
+    console.log('[calculateTopProducts] Top produtos retornados:', result);
+  }
+
+  return result;
 };
 
 /**
