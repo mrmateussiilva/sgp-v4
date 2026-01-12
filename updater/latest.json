@@ -1,7 +1,7 @@
 {
-  "version": "1.0.6",
-  "notes": "Pequena melhoria e ajustes internos",
-  "pub_date": "2026-01-10T22:30:00Z",
+  "version": "1.0.7",
+  "notes": "Adiciona formulários de produção para Canga e Impressão 3D",
+  "pub_date": "2026-01-11T00:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi",
