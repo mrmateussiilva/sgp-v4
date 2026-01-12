@@ -1293,6 +1293,16 @@ const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     payload.outros_valores_adesivo = canon.outros_valores_adesivo
       ? toCurrencyString(canon.outros_valores_adesivo)
       : undefined;
+  } else if (tipo === 'canga' && canon.tipo_producao === 'canga') {
+    payload.baininha = canon.baininha ?? false;
+    payload.quantidade_canga = canon.quantidade_canga ?? undefined;
+    payload.valor_canga = canon.valor_canga ? toCurrencyString(canon.valor_canga) : undefined;
+    payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
+  } else if (tipo === 'impressao_3d' && canon.tipo_producao === 'impressao_3d') {
+    payload.material_gasto = canon.material_gasto ?? undefined;
+    payload.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? undefined;
+    payload.valor_impressao_3d = canon.valor_impressao_3d ? toCurrencyString(canon.valor_impressao_3d) : undefined;
+    payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
   } else {
     // Outros tipos mantêm os campos existentes (serão refatorados depois)
     payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);

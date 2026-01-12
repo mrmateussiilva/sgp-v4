@@ -30,6 +30,8 @@ import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
 import { FormTotemProducao } from '@/components/FormTotemProducao';
 import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
+import { FormCangaProducao } from '@/components/FormCangaProducao';
+import { FormImpressao3D } from '@/components/FormImpressao3D';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
@@ -42,6 +44,8 @@ const TIPOS_PRODUCAO_FALLBACK = [
   { value: 'totem', label: 'Totem' },
   { value: 'lona', label: 'Lona' },
   { value: 'adesivo', label: 'Adesivo' },
+  { value: 'canga', label: 'Canga' },
+  { value: 'impressao_3d', label: 'Impressão 3D' },
   { value: 'almofada', label: 'Almofada' },
   { value: 'bolsinha', label: 'Bolsinha' },
 ];
@@ -97,6 +101,14 @@ interface TabItem {
   cordinha_extra: boolean;
   alcinha: boolean;
   toalha_pronta: boolean;
+  // Campos específicos da canga
+  baininha: boolean;
+  valor_canga: string;
+  quantidade_canga: string;
+  // Campos específicos da impressão 3D
+  material_gasto: string;
+  valor_impressao_3d: string;
+  quantidade_impressao_3d: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -189,6 +201,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       cordinha_extra: false,
       alcinha: false,
       toalha_pronta: false,
+      baininha: false,
+      valor_canga: '0,00',
+      quantidade_canga: '1',
     };
   }
 
@@ -369,6 +384,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       cordinha_extra: Boolean(anyItem.cordinha_extra),
       alcinha: Boolean(anyItem.alcinha),
       toalha_pronta: Boolean(anyItem.toalha_pronta),
+      baininha: Boolean(anyItem.baininha),
+      valor_canga: formatCurrencyValue(anyItem.valor_canga ?? '0,00'),
+      quantidade_canga: anyItem.quantidade_canga ?? '1',
+      material_gasto: anyItem.material_gasto ?? '',
+      valor_impressao_3d: formatCurrencyValue(anyItem.valor_impressao_3d ?? '0,00'),
+      quantidade_impressao_3d: anyItem.quantidade_impressao_3d ?? '1',
     };
   }
 
@@ -909,6 +930,48 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_adesivo),
   ]);
 
+  // Calcular valor unitário automaticamente para cangas
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'canga') {
+        const valorCanga = parseLocaleNumber(item.valor_canga || '0,00');
+        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+        const valorTotalUnitario = valorCanga + valoresAdicionais;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_canga),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
+  ]);
+
+  // Calcular valor unitário automaticamente para impressão 3D
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && item.tipo_producao === 'impressao_3d') {
+        const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
+        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+        const valorTotalUnitario = valorImpressao3D + valoresAdicionais;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [
+    tabsData,
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_impressao_3d),
+    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
+  ]);
+
 
   // Funções de validação completas
   const validateClientData = () => {
@@ -1029,6 +1092,28 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0');
           if (quantidadeAdesivo <= 0) {
             errors[`item_${tabId}_quantidade`] = 'Quantidade de adesivos deve ser maior que zero';
+          }
+        } else if (item.tipo_producao === 'canga') {
+          const valorCanga = parseLocaleNumber(item.valor_canga || '0,00');
+          const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+          const valorUnitarioCanga = valorCanga + valoresAdicionais;
+          if (valorUnitarioCanga <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor da canga deve ser maior que zero';
+          }
+          const quantidadeCanga = parseInt(item.quantidade_canga || '0');
+          if (quantidadeCanga <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de cangas deve ser maior que zero';
+          }
+        } else if (item.tipo_producao === 'impressao_3d') {
+          const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
+          const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+          const valorUnitarioImpressao3D = valorImpressao3D + valoresAdicionais;
+          if (valorUnitarioImpressao3D <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor da impressão 3D deve ser maior que zero';
+          }
+          const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0');
+          if (quantidadeImpressao3D <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de impressões 3D deve ser maior que zero';
           }
         } else {
           // Para outros tipos, validar valor unitário diretamente
@@ -1403,12 +1488,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
     }
 
-    if (item.tipo_producao === 'adesivo') {
-      const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
-      if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
-        errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
+      if (item.tipo_producao === 'adesivo') {
+        const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
+        if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
+          errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
+        }
       }
-    }
+
+      if (item.tipo_producao === 'canga') {
+        const quantidadeCanga = parseInt(item.quantidade_canga || '0', 10);
+        if (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0) {
+          errors.push("Quantidade de cangas é obrigatória e deve ser maior que zero");
+        }
+      }
+
+      if (item.tipo_producao === 'impressao_3d') {
+        const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0', 10);
+        if (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0) {
+          errors.push("Quantidade de impressões 3D é obrigatória e deve ser maior que zero");
+        }
+      }
 
     // Campos opcionais - gerar avisos
     if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
@@ -1534,6 +1633,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       if (item.tipo_producao === 'adesivo') {
         const quantidadeAdesivoParse = parseInt(item.quantidade_adesivo || '1');
         const quantidadeValida = Number.isNaN(quantidadeAdesivoParse) || quantidadeAdesivoParse <= 0 ? 1 : quantidadeAdesivoParse;
+        return sum + (valor * quantidadeValida);
+      }
+
+      if (item.tipo_producao === 'canga') {
+        const quantidadeCangaParse = parseInt(item.quantidade_canga || '1');
+        const quantidadeValida = Number.isNaN(quantidadeCangaParse) || quantidadeCangaParse <= 0 ? 1 : quantidadeCangaParse;
+        return sum + (valor * quantidadeValida);
+      }
+
+      if (item.tipo_producao === 'impressao_3d') {
+        const quantidadeImpressao3DParse = parseInt(item.quantidade_impressao_3d || '1');
+        const quantidadeValida = Number.isNaN(quantidadeImpressao3DParse) || quantidadeImpressao3DParse <= 0 ? 1 : quantidadeImpressao3DParse;
         return sum + (valor * quantidadeValida);
       }
       
@@ -1704,7 +1815,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   ? parseInt(item.quantidade_lona || '1', 10)
                   : item.tipo_producao === 'adesivo'
                     ? parseInt(item.quantidade_adesivo || '1', 10)
-                    : 1;
+                    : item.tipo_producao === 'canga'
+                      ? parseInt(item.quantidade_canga || '1', 10)
+                      : item.tipo_producao === 'impressao_3d'
+                        ? parseInt(item.quantidade_impressao_3d || '1', 10)
+                        : 1;
 
           const quantidade = Number.isNaN(quantidadeRaw) || quantidadeRaw <= 0 ? 1 : quantidadeRaw;
 
@@ -1878,6 +1993,60 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             };
           }
 
+          if (item.tipo_producao === 'canga') {
+            const canon = canonicalizeFromItemRequest({
+              ...basePayload,
+              baininha: item.baininha,
+              quantidade_canga: item.quantidade_canga,
+              valor_canga: item.valor_canga,
+              valores_adicionais: item.valores_adicionais,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              baininha: canon.tipo_producao === 'canga' ? canon.baininha : item.baininha,
+              quantidade_canga: canon.tipo_producao === 'canga' ? canon.quantidade_canga : item.quantidade_canga,
+              valor_canga: canon.tipo_producao === 'canga' ? canon.valor_canga : item.valor_canga,
+              valores_adicionais: canon.tipo_producao === 'canga' ? canon.valores_adicionais : item.valores_adicionais,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
+            };
+          }
+
+          if (item.tipo_producao === 'impressao_3d') {
+            const canon = canonicalizeFromItemRequest({
+              ...basePayload,
+              material_gasto: item.material_gasto,
+              quantidade_impressao_3d: item.quantidade_impressao_3d,
+              valor_impressao_3d: item.valor_impressao_3d,
+              valores_adicionais: item.valores_adicionais,
+              emenda: item.emenda,
+              emenda_qtd:
+                item.emenda && item.emenda !== 'sem-emenda'
+                  ? item.emendaQtd && item.emendaQtd.trim().length > 0
+                    ? item.emendaQtd
+                    : undefined
+                  : undefined,
+            } as unknown as CreateOrderItemRequest);
+
+            return {
+              ...basePayload,
+              material_gasto: canon.tipo_producao === 'impressao_3d' ? canon.material_gasto : item.material_gasto,
+              quantidade_impressao_3d: canon.tipo_producao === 'impressao_3d' ? canon.quantidade_impressao_3d : item.quantidade_impressao_3d,
+              valor_impressao_3d: canon.tipo_producao === 'impressao_3d' ? canon.valor_impressao_3d : item.valor_impressao_3d,
+              valores_adicionais: canon.tipo_producao === 'impressao_3d' ? canon.valores_adicionais : item.valores_adicionais,
+              emenda: canon.emenda ?? item.emenda,
+              emenda_qtd: canon.emenda_qtd ?? undefined,
+            };
+          }
+
           // Outros tipos: manter payload completo atual (serão refatorados depois)
           return {
             ...basePayload,
@@ -1914,6 +2083,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             valor_adesivo: item.valor_adesivo,
             quantidade_adesivo: item.quantidade_adesivo,
             outros_valores_adesivo: item.outros_valores_adesivo,
+            baininha: item.baininha,
+            valor_canga: item.valor_canga,
+            quantidade_canga: item.quantidade_canga,
+            material_gasto: item.material_gasto,
+            valor_impressao_3d: item.valor_impressao_3d,
+            quantidade_impressao_3d: item.quantidade_impressao_3d,
           };
         });
 
@@ -2615,7 +2790,38 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   </div>
                 )}
 
-                {tabsData[tabId]?.tipo_producao && !['painel', 'generica', 'totem', 'lona', 'adesivo'].includes(tabsData[tabId]?.tipo_producao) && (
+                {tabsData[tabId]?.tipo_producao === 'canga' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormCangaProducao
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tecidos={materiaisTecido}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao === 'impressao_3d' && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormImpressao3D
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
+
+                {tabsData[tabId]?.tipo_producao && !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga', 'impressao_3d'].includes(tabsData[tabId]?.tipo_producao) && (
                   <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
                     {/* Descrição */}
                     <div className="space-y-2">
@@ -3089,6 +3295,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 } else if (item.tipo_producao === 'adesivo') {
                   const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '1');
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0 ? 1 : quantidadeAdesivo);
+                } else if (item.tipo_producao === 'canga') {
+                  const quantidadeCanga = parseInt(item.quantidade_canga || '1');
+                  valorTotalItem = valorUnitario * (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0 ? 1 : quantidadeCanga);
+                } else if (item.tipo_producao === 'impressao_3d') {
+                  const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '1');
+                  valorTotalItem = valorUnitario * (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0 ? 1 : quantidadeImpressao3D);
                 }
                 
                 const valorFormatado = formatCurrencyBR(valorTotalItem);
@@ -3107,6 +3319,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     )}
                     {item.tipo_producao === 'adesivo' && parseInt(item.quantidade_adesivo || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_adesivo})</span>
+                    )}
+                    {item.tipo_producao === 'canga' && parseInt(item.quantidade_canga || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_canga})</span>
+                    )}
+                    {item.tipo_producao === 'impressao_3d' && parseInt(item.quantidade_impressao_3d || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_impressao_3d})</span>
                     )}
                     <span> - R$ {valorFormatado}</span>
                   </div>

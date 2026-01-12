@@ -1,6 +1,6 @@
 import type { CreateOrderItemRequest, OrderItem } from '@/types';
 
-export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'other';
+export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'canga' | 'impressao_3d' | 'other';
 
 export type CommonCanonicalFields = {
   descricao: string;
@@ -71,11 +71,29 @@ export type AdesivoCanonicalItem = CommonCanonicalFields & {
   outros_valores_adesivo?: string;
 };
 
+export type CangaCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'canga';
+  baininha?: boolean;
+  quantidade_canga?: string;
+  valor_canga?: string;
+  valores_adicionais?: string;
+};
+
+export type Impressao3DCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'impressao_3d';
+  material_gasto?: string;
+  quantidade_impressao_3d?: string;
+  valor_impressao_3d?: string;
+  valores_adicionais?: string;
+};
+
 export type CanonicalProductionItem =
   | PainelCanonicalItem
   | TotemCanonicalItem
   | LonaCanonicalItem
   | AdesivoCanonicalItem
+  | CangaCanonicalItem
+  | Impressao3DCanonicalItem
   | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
@@ -84,6 +102,8 @@ function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (tipo === 'totem') return 'totem';
   if (tipo === 'lona') return 'lona';
   if (tipo === 'adesivo') return 'adesivo';
+  if (tipo === 'canga') return 'canga';
+  if (tipo === 'impressao_3d') return 'impressao_3d';
   return 'other';
 }
 
@@ -192,6 +212,28 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
     };
   }
 
+  if (tipo === 'canga') {
+    return {
+      tipo_producao: 'canga',
+      ...baseCommon,
+      baininha: Boolean((anyItem.baininha as unknown) ?? false),
+      quantidade_canga: normalizeString(anyItem.quantidade_canga),
+      valor_canga: normalizeString(anyItem.valor_canga),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
+    };
+  }
+
+  if (tipo === 'impressao_3d') {
+    return {
+      tipo_producao: 'impressao_3d',
+      ...baseCommon,
+      material_gasto: normalizeString(anyItem.material_gasto),
+      quantidade_impressao_3d: normalizeString(anyItem.quantidade_impressao_3d),
+      valor_impressao_3d: normalizeString(anyItem.valor_impressao_3d),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
+    };
+  }
+
   return {
     tipo_producao: 'other',
     ...baseCommon,
@@ -268,6 +310,28 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
       quantidade_adesivo: normalizeString(anyItem.quantidade_adesivo),
       valor_adesivo: normalizeString(anyItem.valor_adesivo),
       outros_valores_adesivo: normalizeString(anyItem.outros_valores_adesivo),
+    };
+  }
+
+  if (tipo === 'canga') {
+    return {
+      tipo_producao: 'canga',
+      ...baseCommon,
+      baininha: Boolean((anyItem.baininha as unknown) ?? false),
+      quantidade_canga: normalizeString(anyItem.quantidade_canga),
+      valor_canga: normalizeString(anyItem.valor_canga),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
+    };
+  }
+
+  if (tipo === 'impressao_3d') {
+    return {
+      tipo_producao: 'impressao_3d',
+      ...baseCommon,
+      material_gasto: normalizeString(anyItem.material_gasto),
+      quantidade_impressao_3d: normalizeString(anyItem.quantidade_impressao_3d),
+      valor_impressao_3d: normalizeString(anyItem.valor_impressao_3d),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
     };
   }
 
@@ -393,6 +457,20 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     fields.quantidade_adesivo = canon.quantidade_adesivo ?? '';
     fields.valor_adesivo = canon.valor_adesivo ?? '';
     fields.outros_valores_adesivo = canon.outros_valores_adesivo ?? '';
+  }
+
+  if (canon.tipo_producao === 'canga') {
+    fields.baininha = boolText(canon.baininha);
+    fields.quantidade_canga = canon.quantidade_canga ?? '';
+    fields.valor_canga = canon.valor_canga ?? '';
+    fields.valores_adicionais = canon.valores_adicionais ?? '';
+  }
+
+  if (canon.tipo_producao === 'impressao_3d') {
+    fields.material_gasto = canon.material_gasto ?? '';
+    fields.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? '';
+    fields.valor_impressao_3d = canon.valor_impressao_3d ?? '';
+    fields.valores_adicionais = canon.valores_adicionais ?? '';
   }
 
   return fields;
