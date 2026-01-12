@@ -33,7 +33,6 @@ const PedidoEditView = lazy(() => import('../views/PedidoEditView'));
 const DashboardOverview = lazy(() => import('./DashboardOverview'));
 const Clientes = lazy(() => import('./Clientes'));
 const DesignerWorkspace = lazy(() => import('./DesignerWorkspace'));
-const DesignerKanban = lazy(() => import('./DesignerKanban'));
 const RelatoriosEnvios = lazy(() => import('./RelatoriosEnvios'));
 const Fechamentos = lazy(() => import('./Fechamentos'));
 const PainelDesempenho = lazy(() => import('./PainelDesempenho'));

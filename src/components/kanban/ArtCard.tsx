@@ -1,4 +1,4 @@
-import { DesignCardData, CardStatus } from '../types/designerKanban';
+import { DesignCardData, CardStatus } from '@/types/designerKanban';
 import { Card, CardContent } from '@/components/ui/card';
 import { ImageIcon, Calendar, Package, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
