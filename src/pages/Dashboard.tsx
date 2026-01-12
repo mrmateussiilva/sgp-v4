@@ -14,7 +14,8 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2
+  Loader2,
+  Palette
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
@@ -31,6 +32,7 @@ const PedidoCreateView = lazy(() => import('../views/PedidoCreateView'));
 const PedidoEditView = lazy(() => import('../views/PedidoEditView'));
 const DashboardOverview = lazy(() => import('./DashboardOverview'));
 const Clientes = lazy(() => import('./Clientes'));
+const DesignerKanban = lazy(() => import('./DesignerKanban'));
 const RelatoriosEnvios = lazy(() => import('./RelatoriosEnvios'));
 const Fechamentos = lazy(() => import('./Fechamentos'));
 const PainelDesempenho = lazy(() => import('./PainelDesempenho'));
@@ -112,6 +114,12 @@ export default function Dashboard() {
       icon: Users, 
       label: 'Clientes', 
       path: '/dashboard/clientes',
+      adminOnly: false
+    },
+    { 
+      icon: Palette, 
+      label: 'Tela do Designer', 
+      path: '/dashboard/designer',
       adminOnly: false
     },
     { 
@@ -303,6 +311,7 @@ export default function Dashboard() {
               <Route path="pedido/novo" element={<PedidoCreateView />} />
               <Route path="pedido/editar/:id" element={<PedidoEditView />} />
               <Route path="clientes" element={<Clientes />} />
+              <Route path="designer" element={<DesignerKanban />} />
               <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
               <Route
                 path="painel-desempenho"
