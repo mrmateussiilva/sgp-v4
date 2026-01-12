@@ -11,14 +11,12 @@ interface ArtCardProps {
   currentStatus: CardStatus;
   onMoveToPronto?: () => void;
   onMoveToAliberar?: () => void;
-  isDragging?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
+  onClick?: () => void;
 }
 
 /**
  * Card de arte estilo Trello
- * Visual limpo e minimalista com drag and drop
+ * Visual limpo e minimalista, clicável para ver detalhes
  * Memoizado para evitar re-renders desnecessários
  */
 const ArtCard = React.memo(function ArtCard({ 
@@ -26,9 +24,7 @@ const ArtCard = React.memo(function ArtCard({
   currentStatus, 
   onMoveToPronto, 
   onMoveToAliberar,
-  isDragging = false,
-  onDragStart,
-  onDragEnd
+  onClick
 }: ArtCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -92,20 +88,16 @@ const ArtCard = React.memo(function ArtCard({
 
   return (
     <div
-      draggable={!!onDragStart}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "bg-white rounded-lg shadow-sm border border-gray-200 p-3 cursor-grab active:cursor-grabbing",
-        "hover:shadow-md transition-all duration-200",
-        isDragging && "opacity-50 rotate-2 scale-105",
-        !isDragging && "hover:-translate-y-0.5"
+        "bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 cursor-pointer",
+        "hover:shadow-md hover:border-gray-300 transition-all duration-200"
       )}
     >
-      {/* Preview da Arte - Estilo Trello */}
-      <div className="relative w-full -mx-3 -mt-3 mb-3 bg-gray-100 rounded-t-lg overflow-hidden" style={{ height: '160px' }}>
+      {/* Preview da Arte - Menor, estilo Trello */}
+      <div className="relative w-full -mx-2.5 -mt-2.5 mb-2.5 bg-gray-100 rounded-t-lg overflow-hidden" style={{ height: '120px' }}>
         {imageSrc && !imageError ? (
           <>
             {imageLoading && (
@@ -134,41 +126,33 @@ const ArtCard = React.memo(function ArtCard({
         )}
       </div>
 
-      {/* Informações do Card - Estilo Trello */}
-      <div className="space-y-1.5">
-        {/* Título do Cliente */}
+      {/* Informações do Card - Mais minimalista estilo Trello */}
+      <div className="space-y-1">
+        {/* Título do Cliente - Destaque */}
         <div>
-          <p className="font-medium text-sm text-gray-900 leading-tight" title={card.customerName}>
+          <p className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2" title={card.customerName}>
             {card.customerName}
           </p>
         </div>
 
-        {/* Item Name */}
+        {/* Item Name - Menos destaque */}
         <div>
-          <p className="text-xs text-gray-600 leading-tight" title={card.itemName}>
+          <p className="text-xs text-gray-600 leading-tight line-clamp-1" title={card.itemName}>
             {card.itemName}
           </p>
         </div>
 
-        {/* Metadados - Compacto */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {card.productType && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Package className="h-3 w-3" />
-              <span className="truncate max-w-[100px]">{card.productType}</span>
-            </div>
-          )}
-          {formattedDate && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Calendar className="h-3 w-3" />
-              <span>{formattedDate}</span>
-            </div>
-          )}
-        </div>
+        {/* Metadados - Compacto, apenas tipo de produção */}
+        {card.productType && (
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Package className="h-3 w-3" />
+            <span className="truncate">{card.productType}</span>
+          </div>
+        )}
 
-        {/* Botões de Ação - Estilo Trello (discretos) */}
+        {/* Botões de Ação - Apenas no hover, estilo Trello */}
         <div className={cn(
-          "flex items-center gap-2 pt-2 border-t border-gray-100 transition-opacity",
+          "flex items-center gap-1.5 pt-2 border-t border-gray-100 transition-opacity",
           isHovered ? "opacity-100" : "opacity-0"
         )}>
           {currentStatus === 'a_liberar' ? (
@@ -177,10 +161,10 @@ const ArtCard = React.memo(function ArtCard({
                 e.stopPropagation();
                 onMoveToPronto?.();
               }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+              className="flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
               title="Marcar como pronto"
             >
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <CheckCircle2 className="h-3 w-3" />
               Pronto
             </button>
           ) : (
@@ -189,10 +173,10 @@ const ArtCard = React.memo(function ArtCard({
                 e.stopPropagation();
                 onMoveToAliberar?.();
               }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+              className="flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
               title="Mover para A liberar"
             >
-              <XCircle className="h-3.5 w-3.5" />
+              <XCircle className="h-3 w-3" />
               Voltar
             </button>
           )}
@@ -207,8 +191,7 @@ const ArtCard = React.memo(function ArtCard({
     prevProps.card.orderId === nextProps.card.orderId &&
     prevProps.card.itemId === nextProps.card.itemId &&
     prevProps.card.imageUrl === nextProps.card.imageUrl &&
-    prevProps.currentStatus === nextProps.currentStatus &&
-    prevProps.isDragging === nextProps.isDragging
+    prevProps.currentStatus === nextProps.currentStatus
   );
 });
 
