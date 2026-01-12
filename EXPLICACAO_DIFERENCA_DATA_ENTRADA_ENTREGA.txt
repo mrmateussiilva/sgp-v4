@@ -1,0 +1,146 @@
+================================================================================
+EXPLICAÇÃO: DIFERENÇA ENTRE DATA DE ENTRADA E DATA DE ENTREGA NO FECHAMENTO
+================================================================================
+
+PERGUNTA FREQUENTE:
+Por que os valores são diferentes quando uso "Data de Entrada" vs "Data de Entrega"?
+
+
+================================================================================
+1. O QUE CADA DATA REPRESENTA
+================================================================================
+
+DATA DE ENTRADA (data_entrada):
+  - Quando: O pedido foi CADASTRADO/VENDIDO no sistema
+  - Quem se importa: VENDEDOR (comissão por venda)
+  - Significado: Quando a venda foi registrada
+  - Exemplo: Vendedor fecha venda em 15/01/2024
+
+DATA DE ENTREGA (data_entrega):
+  - Quando: O pedido foi ENTREGUE/FINALIZADO
+  - Quem se importa: DESIGNER/PRODUÇÃO (comissão por produção)
+  - Significado: Quando o trabalho foi concluído e entregue
+  - Exemplo: Pedido entregue em 28/01/2024
+
+
+================================================================================
+2. EXEMPLO PRÁTICO
+================================================================================
+
+Cenário Real:
+  - Pedido vendido em: 29/12/2025
+  - Pedido entregue em: 06/01/2026
+
+Relatório para o dia 06/01/2026:
+
+  COM "DATA DE ENTRADA":
+    - Valor: R$ 4.609,00
+    - Inclui: Apenas pedidos VENDIDOS em 06/01/2026
+    - Exclui: Pedidos vendidos antes (como o de 29/12/2025)
+    
+  COM "DATA DE ENTREGA":
+    - Valor: R$ 8.540,00
+    - Inclui: Todos os pedidos ENTREGUES em 06/01/2026
+    - Inclui: Pedidos vendidos antes mas entregues no dia
+    
+  DIFERENÇA: R$ 3.931,00 (R$ 8.540 - R$ 4.609)
+    - Representa: Pedidos vendidos em dias anteriores mas entregues em 06/01/2026
+
+
+================================================================================
+3. POR QUE ISSO ACONTECE?
+================================================================================
+
+Os pedidos têm um CICLO DE VIDA:
+
+  1. VENDA (data_entrada)
+     └─> Vendedor registra o pedido no sistema
+  
+  2. PRODUÇÃO
+     └─> Designer/produção trabalha no pedido
+  
+  3. ENTREGA (data_entrega)
+     └─> Pedido é finalizado e entregue
+
+Essas datas podem estar em PERÍODOS DIFERENTES!
+
+Exemplos comuns:
+  - Vendido em Dezembro → Entregue em Janeiro
+  - Vendido em Janeiro → Entregue em Fevereiro
+  - Vendido no dia 01 → Entregue no dia 15
+
+
+================================================================================
+4. QUAL USAR?
+================================================================================
+
+Segundo a documentação do sistema:
+
+  PARA COMISSÃO DE VENDEDOR:
+    ✓ Use "Data de Entrada"
+    → Mostra quando o vendedor fechou a venda
+    
+  PARA COMISSÃO DE DESIGNER:
+    ✓ Use "Data de Entrega"
+    → Mostra quando o designer concluiu o trabalho
+    
+  PARA RELATÓRIO VENDEDOR/DESIGNER COMBINADO:
+    ✓ Use "Qualquer data (entrada ou entrega)"
+    → Inclui pedidos com atividade no período
+    → Resolve o problema de valores diferentes!
+
+
+================================================================================
+5. CASO ESPECÍFICO RELATADO
+================================================================================
+
+Relatório Sintético Vendedor/Designer
+Data: 06/01/2026
+
+Resultado com "Data de Entrega": R$ 8.540,00
+  → Todos os pedidos ENTREGUES em 06/01/2026
+  → Inclui pedidos vendidos em dias anteriores
+  
+Resultado com "Data de Entrada": R$ 4.609,00
+  → Apenas pedidos VENDIDOS em 06/01/2026
+  → Exclui pedidos vendidos antes
+
+Diferença: R$ 3.931,00
+  → Representa pedidos vendidos antes mas entregues no dia
+  → Normal e esperado!
+
+
+================================================================================
+6. SOLUÇÃO IMPLEMENTADA
+================================================================================
+
+Nova opção disponível: "Qualquer data (entrada ou entrega)"
+
+Esta opção inclui pedidos se QUALQUER UMA das datas estiver no período:
+  - Se a data de entrada estiver no período, OU
+  - Se a data de entrega estiver no período, OU
+  - Se ambas estiverem no período
+
+Ideal para:
+  - Relatórios combinados (Vendedor/Designer)
+  - Visão completa de atividade no período
+  - Evitar confusão com valores diferentes
+
+
+================================================================================
+7. RESUMO
+================================================================================
+
+✓ A diferença é NORMAL e ESPERADA
+✓ Cada data representa um momento diferente do ciclo do pedido
+✓ Use "Data de Entrada" para comissão de vendedor
+✓ Use "Data de Entrega" para comissão de designer
+✓ Use "Qualquer data" para relatórios combinados
+
+A diferença de valores NÃO é um bug, é o comportamento correto do sistema
+baseado em critérios diferentes de filtro por data.
+
+
+================================================================================
+Gerado em: Janeiro 2026
+Sistema: SGP v4 - Fechamentos
