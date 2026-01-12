@@ -22,7 +22,7 @@ export default function ArtColumn({
   onMoveToAliberar 
 }: ArtColumnProps) {
   return (
-    <Card className="flex flex-col w-full h-full min-h-[600px]">
+    <Card className="flex flex-col w-full h-full min-h-0">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold">
           {title}

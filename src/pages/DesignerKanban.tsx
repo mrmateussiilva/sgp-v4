@@ -263,7 +263,7 @@ export default function DesignerKanban() {
                 <TabsContent 
                   key={designerName} 
                   value={designerName}
-                  className="flex-1 flex flex-col min-h-0 mt-4"
+                  className="flex-1 flex flex-col min-h-0"
                 >
                   <DesignerBoard 
                     board={board} 
