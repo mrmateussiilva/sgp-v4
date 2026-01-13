@@ -773,6 +773,9 @@ export default function Fechamentos() {
       let cursorY = 22;
       let pageNumber = 1;
 
+      // Verificar se é relatório sintético
+      const isSintetico = report.report_type?.startsWith('sintetico') || activeTab === 'sintetico';
+
       // Função para verificar espaço e adicionar nova página se necessário
       const ensurePdfSpace = (required: number): number => {
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -790,122 +793,189 @@ export default function Fechamentos() {
       };
 
       // Cabeçalho principal
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-      doc.text(report.title || 'Relatório Analítico', 14, cursorY);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(report.title || 'Relatório', 14, cursorY);
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
       doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
       
-    cursorY += 8;
+      cursorY += 8;
       if (report.period_label) {
-    doc.setFontSize(9);
-    doc.text(report.period_label, 14, cursorY);
-    cursorY += 6;
-      }
-      if (report.status_label) {
-    doc.setFontSize(9);
-    doc.text(report.status_label, 14, cursorY);
-    cursorY += 6;
-      }
-      if (report.generated_at) {
-    doc.setFontSize(9);
-    doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
-      }
-    cursorY += 8;
-
-      // Função recursiva para renderizar grupos hierárquicos
-    const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
-        ensurePdfSpace(10);
-
-      const indent = 14 + depth * 6;
-        
-        // Cabeçalho do grupo com fundo escuro
-      doc.setFillColor(35, 38, 47);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-        const headerHeight = 6;
-        doc.rect(indent, cursorY - 5, 180 - depth * 6, headerHeight, 'F');
-      doc.text(group.label, indent + 2, cursorY - 1);
-        
-        // Subtotais do grupo no cabeçalho
-      doc.setFontSize(8);
-      const subtotalLine = `Frete: ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços: ${formatCurrency(group.subtotal.valor_servico)}`;
-        doc.text(subtotalLine, indent + 2, cursorY + 2);
-        
-      cursorY += 10;
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
-
-        // Se tem subgrupos, renderizar recursivamente
-      if (group.subgroups && group.subgroups.length > 0) {
-          group.subgroups.forEach((subgroup) => {
-            renderGroupToPdf(subgroup, depth + 1);
-        });
-        return;
-      }
-
-        // Se tem linhas (rows), renderizar tabela detalhada
-      if (group.rows && group.rows.length > 0) {
-          ensurePdfSpace(8);
-
-        autoTable(doc, {
-          startY: cursorY,
-          head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
-          body: group.rows.map((row) => [
-              row.ficha || '-',
-              row.descricao || '-',
-            formatCurrency(row.valor_frete),
-            formatCurrency(row.valor_servico),
-          ]),
-          styles: {
-            fontSize: 7,
-            cellPadding: 1.5,
-          },
-          headStyles: {
-            fillColor: [224, 225, 231],
-            textColor: 20,
-            fontStyle: 'bold',
-          },
-          bodyStyles: {
-            textColor: 30,
-          },
-          alternateRowStyles: {
-            fillColor: [248, 248, 252],
-          },
-          margin: {
-            left: indent,
-            right: 16,
-          },
-          tableWidth: 180 - depth * 6,
-        });
-
-        const tableInfo = (doc as any).lastAutoTable;
-          if (tableInfo) {
-        cursorY = tableInfo.finalY + 4;
-          }
-
-          // Subtotal do grupo após a tabela
-          ensurePdfSpace(6);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(
-          `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
-          indent + 2,
-          cursorY,
-        );
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
+        doc.setFontSize(9);
+        doc.text(report.period_label, 14, cursorY);
         cursorY += 6;
       }
-    };
+      if (report.status_label) {
+        doc.setFontSize(9);
+        doc.text(report.status_label, 14, cursorY);
+        cursorY += 6;
+      }
+      if (report.generated_at) {
+        doc.setFontSize(9);
+        doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
+      }
+      cursorY += 8;
 
-      // Renderizar todos os grupos
-      report.groups.forEach((group) => {
-        renderGroupToPdf(group, 0);
-      });
+      // Renderização diferente para sintéticos e analíticos
+      if (isSintetico) {
+        // Para relatórios sintéticos: apenas grupos com subtotais, sem tabelas detalhadas
+        report.groups.forEach((group) => {
+          ensurePdfSpace(12);
+
+          // Cabeçalho do grupo com fundo escuro
+          doc.setFillColor(35, 38, 47);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          const headerHeight = 6;
+          doc.rect(14, cursorY - 5, 182, headerHeight, 'F');
+          doc.text(group.label, 16, cursorY - 1);
+          
+          cursorY += 8;
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'normal');
+
+          // Tabela simples com apenas uma linha de subtotal
+          autoTable(doc, {
+            startY: cursorY,
+            head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
+            body: [[
+              group.rows?.[0]?.ficha || '-',
+              group.rows?.[0]?.descricao || 'Subtotal',
+              formatCurrency(group.subtotal.valor_frete),
+              formatCurrency(group.subtotal.valor_servico),
+            ]],
+            styles: {
+              fontSize: 7,
+              cellPadding: 1.5,
+            },
+            headStyles: {
+              fillColor: [224, 225, 231],
+              textColor: 20,
+              fontStyle: 'bold',
+            },
+            bodyStyles: {
+              textColor: 30,
+            },
+            margin: {
+              left: 14,
+              right: 16,
+            },
+            tableWidth: 182,
+          });
+
+          const tableInfo = (doc as any).lastAutoTable;
+          if (tableInfo) {
+            cursorY = tableInfo.finalY + 4;
+          }
+
+          // Linha de subtotal abaixo da tabela
+          ensurePdfSpace(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.text(
+            `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
+            16,
+            cursorY,
+          );
+          doc.setFont('helvetica', 'normal');
+          cursorY += 8;
+        });
+      } else {
+        // Para relatórios analíticos: renderização hierárquica completa
+        const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
+          ensurePdfSpace(10);
+
+          const indent = 14 + depth * 6;
+          
+          // Cabeçalho do grupo com fundo escuro
+          doc.setFillColor(35, 38, 47);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          const headerHeight = 6;
+          doc.rect(indent, cursorY - 5, 180 - depth * 6, headerHeight, 'F');
+          doc.text(group.label, indent + 2, cursorY - 1);
+          
+          // Subtotais do grupo no cabeçalho
+          doc.setFontSize(8);
+          const subtotalLine = `Frete: ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços: ${formatCurrency(group.subtotal.valor_servico)}`;
+          doc.text(subtotalLine, indent + 2, cursorY + 2);
+          
+          cursorY += 10;
+          doc.setTextColor(0, 0, 0);
+          doc.setFont('helvetica', 'normal');
+
+          // Se tem subgrupos, renderizar recursivamente
+          if (group.subgroups && group.subgroups.length > 0) {
+            group.subgroups.forEach((subgroup) => {
+              renderGroupToPdf(subgroup, depth + 1);
+            });
+            return;
+          }
+
+          // Se tem linhas (rows), renderizar tabela detalhada
+          if (group.rows && group.rows.length > 0) {
+            ensurePdfSpace(8);
+
+            autoTable(doc, {
+              startY: cursorY,
+              head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
+              body: group.rows.map((row) => [
+                row.ficha || '-',
+                row.descricao || '-',
+                formatCurrency(row.valor_frete),
+                formatCurrency(row.valor_servico),
+              ]),
+              styles: {
+                fontSize: 7,
+                cellPadding: 1.5,
+              },
+              headStyles: {
+                fillColor: [224, 225, 231],
+                textColor: 20,
+                fontStyle: 'bold',
+              },
+              bodyStyles: {
+                textColor: 30,
+              },
+              alternateRowStyles: {
+                fillColor: [248, 248, 252],
+              },
+              margin: {
+                left: indent,
+                right: 16,
+              },
+              tableWidth: 180 - depth * 6,
+            });
+
+            const tableInfo = (doc as any).lastAutoTable;
+            if (tableInfo) {
+              cursorY = tableInfo.finalY + 4;
+            }
+
+            // Subtotal do grupo após a tabela
+            ensurePdfSpace(6);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.text(
+              `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
+              indent + 2,
+              cursorY,
+            );
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            cursorY += 6;
+          }
+        };
+
+        // Renderizar todos os grupos
+        report.groups.forEach((group) => {
+          renderGroupToPdf(group, 0);
+        });
+      }
 
       // Total geral
       ensurePdfSpace(12);
