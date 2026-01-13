@@ -33,7 +33,6 @@ import {
   FichaTemplatesConfig,
   RelatorioTemplatesConfig,
 } from '../types';
-import { generateFechamentoReport } from '../utils/fechamentoReport';
 import { ordersSocket } from '../lib/realtimeOrders';
 import { canonicalizeFromItemRequest } from '../mappers/productionItems';
 
@@ -2108,78 +2107,49 @@ export const api = {
   },
 
   generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
-    // Otimizado: carregar pedidos em lotes usando paginação quando há filtros de data
-    // Se não houver filtros, pode precisar de todos os pedidos para o relatório completo
-    let orders: OrderWithItems[] = [];
-
-    // Deduplicar pedidos por ID (proteção contra backend/paginação retornando itens repetidos)
-    // Isso é essencial para que o total do intervalo bata com a soma do dia-a-dia.
-    const dedupeOrdersById = (list: OrderWithItems[]) =>
-      Array.from(new Map(list.map((order) => [order.id, order])).values());
+    requireSessionToken();
     
-    // Se há filtros de data, usar paginação para reduzir requisições
-    if (request.start_date || request.end_date) {
-      const allOrders: OrderWithItems[] = [];
-      let page = 1;
-      let hasMore = true;
-      const pageSize = 100; // Página grande
-      
-      // Limitar a 30 páginas (3000 pedidos) para relatórios
-      while (hasMore && page <= 30) {
-        // Converter string para OrderStatus se for válido
-        const statusFilter = request.status 
-          ? (Object.values(OrderStatus).includes(request.status as OrderStatus) 
-              ? (request.status as OrderStatus) 
-              : undefined)
-          : undefined;
-        
-        const result = await fetchOrdersPaginated(
-          page,
-          pageSize,
-          statusFilter,
-          request.cliente, // cliente
-          request.start_date,
-          request.end_date
-        );
-        
-        allOrders.push(...result.orders);
-        hasMore = result.orders.length === pageSize && result.total > allOrders.length;
-        page++;
-      }
-      orders = allOrders;
-    } else {
-      // Sem filtros de data: precisa carregar todos para relatório completo
-      // Mas ainda é melhor carregar em lotes do que tudo de uma vez
-      const allOrders: OrderWithItems[] = [];
-      let page = 1;
-      let hasMore = true;
-      const pageSize = 100;
-      
-      // Limitar a 50 páginas (5000 pedidos) para relatórios completos
-      while (hasMore && page <= 50) {
-        // Converter string para OrderStatus se for válido
-        const statusFilter = request.status 
-          ? (Object.values(OrderStatus).includes(request.status as OrderStatus) 
-              ? (request.status as OrderStatus) 
-              : undefined)
-          : undefined;
-        
-        const result = await fetchOrdersPaginated(
-          page,
-          pageSize,
-          statusFilter,
-          request.cliente
-        );
-        
-        allOrders.push(...result.orders);
-        hasMore = result.orders.length === pageSize && result.total > allOrders.length;
-        page++;
-      }
-      orders = allOrders;
+    // Construir parâmetros da requisição
+    const params: Record<string, any> = {
+      report_type: request.report_type,
+    };
+    
+    if (request.start_date) {
+      params.start_date = request.start_date;
     }
-
-    orders = dedupeOrdersById(orders);
-    return generateFechamentoReport(orders, request);
+    
+    if (request.end_date) {
+      params.end_date = request.end_date;
+    }
+    
+    if (request.status && request.status !== 'Todos') {
+      params.status = request.status;
+    }
+    
+    if (request.date_mode) {
+      params.date_mode = request.date_mode;
+    }
+    
+    if (request.vendedor) {
+      params.vendedor = request.vendedor;
+    }
+    
+    if (request.designer) {
+      params.designer = request.designer;
+    }
+    
+    if (request.cliente) {
+      params.cliente = request.cliente;
+    }
+    
+    if (request.frete_distribution) {
+      params.frete_distribution = request.frete_distribution;
+    }
+    
+    // Fazer requisição ao backend - o backend retorna o relatório já processado
+    const response = await apiClient.get<ReportResponse>('/relatorios-fechamentos/pedidos/relatorio', { params });
+    
+    return response.data;
   },
 
   // Estatísticas de Fechamentos
