@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Loader2, Calendar, Search, FileDown } from 'lucide-react';
+import { Loader2, Calendar, Search, FileDown, FileText } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,18 @@ import {
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey } from '@/types';
+import { openPdfInWindow } from '@/utils/exportUtils';
+
+// Lazy load de bibliotecas pesadas
+const loadJsPDF = async () => {
+  const module = await import('jspdf');
+  return module.default;
+};
+
+const loadAutoTable = async () => {
+  const module = await import('jspdf-autotable');
+  return module.default;
+};
 
 type SinteticoType = 'data' | 'vendedor' | 'designer' | 'cliente' | 'envio';
 
@@ -43,6 +55,8 @@ export default function Fechamentos() {
   const [status, setStatus] = useState<string>('Todos');
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
+  const [exportingPdf, setExportingPdf] = useState<boolean>(false);
+  const [exportingCsv, setExportingCsv] = useState<boolean>(false);
 
   // Mapear tipo sintético para ReportTypeKey
   const getReportType = (): ReportTypeKey => {
@@ -110,6 +124,227 @@ export default function Fechamentos() {
     }
   };
 
+  // Função para obter o nome da coluna baseado no tipo
+  const getColumnName = () => {
+    switch (sinteticoType) {
+      case 'data':
+        return 'Data';
+      case 'vendedor':
+        return 'Vendedor';
+      case 'designer':
+        return 'Designer';
+      case 'cliente':
+        return 'Cliente';
+      case 'envio':
+        return 'Forma de Envio';
+      default:
+        return 'Grupo';
+    }
+  };
+
+  // Função para exportar para CSV
+  const exportToCsv = async () => {
+    if (!report || !report.groups || report.groups.length === 0) {
+      toast({
+        title: 'Nenhum relatório disponível',
+        description: 'Gere um relatório antes de exportar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setExportingCsv(true);
+    try {
+      const Papa = await import('papaparse');
+      const csvRows: Array<Record<string, string>> = [];
+
+      // Adicionar cabeçalho
+      const columnName = getColumnName();
+      csvRows.push({
+        [columnName]: columnName,
+        'Valor Frete': 'Valor Frete',
+        'Valor Serviços': 'Valor Serviços',
+        'Total': 'Total',
+      });
+
+      // Adicionar dados dos grupos
+      report.groups.forEach((group) => {
+        if (group.subtotal) {
+          const total = group.subtotal.valor_frete + group.subtotal.valor_servico;
+          csvRows.push({
+            [columnName]: group.label,
+            'Valor Frete': formatCurrency(group.subtotal.valor_frete),
+            'Valor Serviços': formatCurrency(group.subtotal.valor_servico),
+            'Total': formatCurrency(total),
+          });
+        }
+      });
+
+      // Adicionar linha de total geral
+      if (report.total) {
+        const totalGeral = report.total.valor_frete + report.total.valor_servico;
+        csvRows.push({
+          [columnName]: 'TOTAL GERAL',
+        'Valor Frete': formatCurrency(report.total.valor_frete),
+          'Valor Serviços': formatCurrency(report.total.valor_servico),
+        'Total': formatCurrency(totalGeral),
+        });
+      }
+
+      // Gerar CSV
+      const csv = Papa.default.unparse(csvRows, {
+        header: true,
+        delimiter: ';',
+        newline: '\n',
+      });
+
+      // Criar blob e fazer download
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM para Excel
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      const filenameSuffix =
+        startDate && endDate && endDate !== startDate
+          ? `${startDate}_${endDate}`
+          : startDate || new Date().toISOString().split('T')[0];
+      const filename = `relatorio_fechamentos_${sinteticoType}_${filenameSuffix}.csv`;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: 'Falha ao exportar CSV',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro ao exportar o CSV.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  // Função para exportar para PDF
+  const exportToPdf = async () => {
+    if (!report || !report.groups || report.groups.length === 0) {
+      toast({
+        title: 'Nenhum relatório disponível',
+        description: 'Gere um relatório antes de exportar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      let cursorY = 22;
+
+      // Cabeçalho
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Relatório de Fechamentos', 14, cursorY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      cursorY += 8;
+      doc.text(`Tipo: ${getColumnName()}`, 14, cursorY);
+      cursorY += 6;
+      if (report.period_label) {
+        doc.text(`Período: ${report.period_label}`, 14, cursorY);
+        cursorY += 6;
+      }
+      if (report.status_label) {
+        doc.text(`Status: ${report.status_label}`, 14, cursorY);
+        cursorY += 6;
+      }
+      if (report.generated_at) {
+        doc.text(`Gerado em: ${report.generated_at}`, 14, cursorY);
+      }
+      cursorY += 8;
+
+      // Preparar dados da tabela
+      const tableData: string[][] = [];
+      report.groups.forEach((group) => {
+        if (group.subtotal) {
+          const total = group.subtotal.valor_frete + group.subtotal.valor_servico;
+          tableData.push([
+            group.label,
+            formatCurrency(group.subtotal.valor_frete),
+            formatCurrency(group.subtotal.valor_servico),
+            formatCurrency(total),
+          ]);
+        }
+      });
+
+      // Adicionar linha de total geral
+      if (report.total) {
+        const totalGeral = report.total.valor_frete + report.total.valor_servico;
+        tableData.push([
+          'TOTAL GERAL',
+          formatCurrency(report.total.valor_frete),
+          formatCurrency(report.total.valor_servico),
+          formatCurrency(totalGeral),
+        ]);
+      }
+
+      // Gerar tabela
+      autoTable(doc, {
+        startY: cursorY,
+        head: [[getColumnName(), 'Valor Frete', 'Valor Serviços', 'Total']],
+        body: tableData,
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        bodyStyles: {
+          textColor: 0,
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 252],
+        },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { halign: 'right', cellWidth: 40 },
+          2: { halign: 'right', cellWidth: 40 },
+          3: { halign: 'right', cellWidth: 40, fontStyle: 'bold' },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      const filenameSuffix =
+        startDate && endDate && endDate !== startDate
+          ? `${startDate}_${endDate}`
+          : startDate || new Date().toISOString().split('T')[0];
+      const filename = `relatorio_fechamentos_${sinteticoType}_${filenameSuffix}.pdf`;
+
+      // Abrir PDF em nova janela
+      try {
+        await openPdfInWindow(doc, filename);
+      } catch (error) {
+        // Fallback: download direto
+        doc.save(filename);
+      }
+    } catch (error) {
+      toast({
+        title: 'Falha ao exportar PDF',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro ao exportar o PDF.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   // Renderizar tabela com os grupos do relatório
   const renderTable = () => {
     if (!report || !report.groups || report.groups.length === 0) {
@@ -119,7 +354,7 @@ export default function Fechamentos() {
         </div>
       );
     }
-
+    
     // Coletar todas as linhas de todos os grupos
     const allRows: Array<{
       label: string;
@@ -140,7 +375,7 @@ export default function Fechamentos() {
       }
     });
 
-      return (
+    return (
       <Card className="flex-1 flex flex-col min-h-0 flex-grow">
         <CardContent className="p-0 flex-1 flex flex-col min-h-0">
           <div className="relative flex-1 min-h-0">
@@ -156,7 +391,7 @@ export default function Fechamentos() {
                           {sinteticoType === 'designer' && 'Designer'}
                           {sinteticoType === 'cliente' && 'Cliente'}
                           {sinteticoType === 'envio' && 'Forma de Envio'}
-            </div>
+              </div>
                       </TableHead>
                       <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
                           Valor Frete
@@ -350,9 +585,52 @@ export default function Fechamentos() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
           <span className="ml-2 text-slate-600">Gerando relatório...</span>
-          </div>
+        </div>
       ) : (
-        report && renderTable()
+        report && (
+          <div className="space-y-4">
+            {/* Botões de exportação */}
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={exportToCsv}
+                disabled={exportingCsv || !report}
+                variant="outline"
+                type="button"
+            >
+                {exportingCsv ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Exportar CSV
+                </>
+              )}
+            </Button>
+              <Button
+                onClick={exportToPdf}
+                disabled={exportingPdf || !report}
+                variant="outline"
+                type="button"
+              >
+                {exportingPdf ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Gerando...
+                    </>
+                  ) : (
+                    <>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Imprimir PDF
+                    </>
+                  )}
+              </Button>
+                </div>
+            {renderTable()}
+              </div>
+        )
       )}
     </div>
   );
