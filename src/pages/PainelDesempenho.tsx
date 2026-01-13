@@ -24,15 +24,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
-import { Cliente } from '@/types';
 
 export default function PainelDesempenho() {
   const { toast } = useToast();
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [dateMode, setDateMode] = useState<string>('entrada');
-  const [cliente, setCliente] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [data, setData] = useState<any>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -64,7 +61,6 @@ export default function PainelDesempenho() {
         start_date: startDate,
         end_date: endDate,
         date_mode: dateMode,
-        cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
       });
       setData(response);
       setSelectedRows(new Set()); // Limpar seleção ao carregar novos dados
@@ -484,7 +480,7 @@ export default function PainelDesempenho() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="start_date">Data Inicial</Label>
               <Input
@@ -517,22 +513,6 @@ export default function PainelDesempenho() {
                 </SelectContent>
               </Select>
                 </div>
-            <div className="space-y-2">
-              <Label>Cliente</Label>
-              <ClienteAutocomplete
-                value={cliente}
-                onSelect={(clienteSelecionado: Cliente | null) => {
-                  if (clienteSelecionado) {
-                    setCliente(clienteSelecionado.nome);
-                  } else {
-                    setCliente('');
-                  }
-                }}
-                onInputChange={(value: string) => {
-                  setCliente(value);
-                }}
-              />
-            </div>
             <div className="space-y-2 flex items-end">
               <Button
                 onClick={handleSearch}
