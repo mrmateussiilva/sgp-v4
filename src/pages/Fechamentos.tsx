@@ -632,7 +632,10 @@ export default function Fechamentos() {
 
     setExportingCsv(true);
     try {
-      const Papa = await import('papaparse');
+      // Importar papaparse corretamente
+      const PapaModule = await import('papaparse');
+      const Papa = PapaModule.default || PapaModule;
+      
       const csvRows: Array<Record<string, string>> = [];
 
       const columnName = getColumnName();
@@ -669,35 +672,79 @@ export default function Fechamentos() {
         const totalGeral = report.total.valor_frete + report.total.valor_servico;
         csvRows.push({
           [columnName]: 'TOTAL GERAL',
-        'Valor Frete': formatCurrency(report.total.valor_frete),
+          'Valor Frete': formatCurrency(report.total.valor_frete),
           'Valor Serviços': formatCurrency(report.total.valor_servico),
-        'Total': formatCurrency(totalGeral),
+          'Total': formatCurrency(totalGeral),
         });
       }
 
-      const csv = Papa.default.unparse(csvRows, {
+      const csv = Papa.unparse(csvRows, {
         header: true,
         delimiter: ';',
         newline: '\n',
       });
-
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
 
       const filenameSuffix =
         startDate && endDate && endDate !== startDate
           ? `${startDate}_${endDate}`
           : startDate || new Date().toISOString().split('T')[0];
       const filename = `relatorio_fechamentos_${reportType}_${filenameSuffix}.csv`;
-      link.download = filename;
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Verificar se está no Tauri
+      const { isTauri } = await import('@/utils/isTauri');
+      const tauriCheck = isTauri();
+      const tauriCheckAlt = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+        (window.location.port === '1420' || window.location.protocol === 'tauri:');
+
+      if (tauriCheck || tauriCheckAlt) {
+        // Usar API do Tauri para salvar
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        
+        const filePath = await save({
+          defaultPath: filename,
+          filters: [{ name: 'CSV', extensions: ['csv'] }],
+        });
+        
+        if (filePath) {
+          // Converter CSV para Uint8Array com BOM UTF-8
+          const csvWithBom = '\ufeff' + csv;
+          const encoder = new TextEncoder();
+          const uint8Array = encoder.encode(csvWithBom);
+          
+          // Salvar arquivo
+          await writeFile(filePath, uint8Array);
+          
+          toast({
+            title: 'CSV exportado com sucesso',
+            description: `Arquivo salvo: ${filename}`,
+          });
+        }
+      } else {
+        // Fallback: usar download via link (navegador)
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpar após um tempo
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        toast({
+          title: 'CSV exportado com sucesso',
+          description: `Download iniciado: ${filename}`,
+        });
+      }
     } catch (error) {
+      console.error('Erro ao exportar CSV:', error);
       toast({
         title: 'Falha ao exportar CSV',
         description: error instanceof Error ? error.message : 'Ocorreu um erro ao exportar o CSV.',
