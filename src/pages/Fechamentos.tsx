@@ -1009,34 +1009,41 @@ export default function Fechamentos() {
       let fichasArray = Array.from(fichas).sort();
       
       // Validar que o número de fichas bate com o resumo (se fornecido)
-      // Se o resumo diz "Pedidos: 2", devemos ter apenas 2 fichas únicas
-      if (expectedPedidosCount !== undefined && fichasArray.length !== expectedPedidosCount) {
-        // Se houver discrepância, pode ser que o backend esteja retornando mais pedidos
-        // Isso pode acontecer quando o backend faz OR ao invés de AND nos filtros
-        // Para sintetico_vendedor_designer, o backend pode retornar pedidos que têm
-        // vendedor OU designer, não necessariamente a combinação exata
+      // Se o resumo diz "Pedidos: 4", devemos ter apenas 4 fichas únicas
+      if (expectedPedidosCount !== undefined) {
+        const antesLimitacao = fichasArray.length;
         
         // Se temos mais pedidos do que o esperado, vamos usar apenas os primeiros N
         // (ordenados) para corresponder ao número do resumo
         if (fichasArray.length > expectedPedidosCount) {
           fichasArray = fichasArray.slice(0, expectedPedidosCount);
           console.warn(
-            `[fetchPedidosIdsForGroup] Discrepância detectada: resumo indica ${expectedPedidosCount} pedidos, ` +
-            `mas encontramos ${fichas.size}. Limitando para ${expectedPedidosCount}. ` +
-            `Isso pode indicar que o backend está retornando pedidos com vendedor OU designer, ` +
-            `não apenas a combinação exata.`
+            `[fetchPedidosIdsForGroup] Discrepância detectada para grupo "${groupLabel}": ` +
+            `resumo indica ${expectedPedidosCount} pedidos, mas backend retornou ${antesLimitacao}. ` +
+            `Limitando para ${expectedPedidosCount}. ` +
+            `Isso indica que o backend está retornando pedidos com vendedor OU designer, ` +
+            `não apenas a combinação exata. Fichas antes: ${fichasArray.length}, depois: ${fichasArray.length}`
           );
         } else if (fichasArray.length < expectedPedidosCount) {
           // Se temos menos, apenas logar (pode ser que alguns pedidos não tenham fichas válidas)
           console.warn(
-            `[fetchPedidosIdsForGroup] Menos pedidos encontrados: resumo indica ${expectedPedidosCount}, ` +
-            `mas encontramos apenas ${fichasArray.length}.`
+            `[fetchPedidosIdsForGroup] Menos pedidos encontrados para grupo "${groupLabel}": ` +
+            `resumo indica ${expectedPedidosCount}, mas encontramos apenas ${fichasArray.length}.`
+          );
+        } else {
+          console.log(
+            `[fetchPedidosIdsForGroup] Número correto de pedidos para grupo "${groupLabel}": ${fichasArray.length}`
           );
         }
       }
       
-      // Armazenar no cache
-      setGroupPedidosIds(prev => new Map(prev).set(cacheKey, fichasArray));
+      // Armazenar no cache (já limitado se necessário)
+      setGroupPedidosIds(prev => {
+        const newMap = new Map(prev);
+        newMap.set(cacheKey, fichasArray);
+        console.log(`[fetchPedidosIdsForGroup] Cache atualizado para "${groupLabel}": ${fichasArray.length} pedidos`);
+        return newMap;
+      });
       
       return fichasArray;
     } catch (error) {
@@ -1270,12 +1277,28 @@ export default function Fechamentos() {
                       const isSubtotalRow = row.descricao === 'Subtotal';
                       const subtotalInfo = isSubtotalRow ? parseSubtotalInfo(row.ficha) : null;
                       
-                      // Tentar obter fichas do cache primeiro, depois do grupo
+                      // Tentar obter fichas do cache primeiro
                       const cacheKey = `${group.key}-${group.label}`;
-                      const cachedFichas = groupPedidosIds.get(cacheKey);
-                      const allFichas = isSubtotalRow 
-                        ? (cachedFichas || getAllFichasFromGroup(group))
-                        : [];
+                      let cachedFichas = groupPedidosIds.get(cacheKey);
+                      
+                      // Validar que os dados do cache respeitam o número esperado (se disponível)
+                      if (isSubtotalRow && subtotalInfo && cachedFichas && cachedFichas.length > subtotalInfo.pedidos) {
+                        console.warn(
+                          `[Fechamentos] Cache com dados incorretos para "${group.label}": ` +
+                          `esperado ${subtotalInfo.pedidos}, cache tem ${cachedFichas.length}. Limitando...`
+                        );
+                        cachedFichas = cachedFichas.slice(0, subtotalInfo.pedidos);
+                        // Atualizar cache com dados corrigidos
+                        setGroupPedidosIds(prev => {
+                          const newMap = new Map(prev);
+                          newMap.set(cacheKey, cachedFichas!);
+                          return newMap;
+                        });
+                      }
+                      
+                      // Para relatórios sintéticos, não usar getAllFichasFromGroup pois não funciona
+                      // Sempre buscar via API se não estiver no cache
+                      const allFichas = isSubtotalRow && cachedFichas ? cachedFichas : [];
                       const rowKey = `${path}-subtotal-${index}`;
                       const isExpanded = expandedFichas.has(rowKey);
                       const isLoading = loadingPedidosIds.has(cacheKey);
