@@ -288,7 +288,6 @@ export default function PainelDesempenho() {
     };
 
     const allSelected = selectedRows.size === tableData.length && tableData.length > 0;
-    const someSelected = selectedRows.size > 0 && selectedRows.size < tableData.length;
 
     return (
       <div className="space-y-4">
