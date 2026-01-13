@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Loader2, Calendar, Search, FileDown, FileText } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Loader2, RefreshCcw, FileDown, FileText, X } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey } from '@/types';
@@ -43,8 +44,56 @@ const loadAutoTable = async () => {
   return module.default;
 };
 
-type SinteticoType = 'data' | 'vendedor' | 'designer' | 'cliente' | 'envio';
-type AnaliticoType = 'designer_cliente' | 'cliente_designer' | 'cliente_painel' | 'designer_painel' | 'entrega_painel';
+// Constantes para opções de relatórios
+const REPORT_OPTIONS: Record<
+  'analitico' | 'sintetico',
+  Array<{ value: ReportTypeKey; label: string }>
+> = {
+  analitico: [
+    { value: 'analitico_designer_cliente', label: 'Designer × Cliente' },
+    { value: 'analitico_cliente_designer', label: 'Cliente × Designer' },
+    { value: 'analitico_cliente_painel', label: 'Cliente × Tecido' },
+    { value: 'analitico_designer_painel', label: 'Designer × Tecido' },
+    { value: 'analitico_entrega_painel', label: 'Entrega × Tecido' },
+  ],
+  sintetico: [
+    { value: 'sintetico_data', label: 'Por Data' },
+    { value: 'sintetico_vendedor', label: 'Por Vendedor' },
+    { value: 'sintetico_designer', label: 'Por Designer' },
+    { value: 'sintetico_cliente', label: 'Por Cliente' },
+    { value: 'sintetico_entrega', label: 'Por Forma de Entrega' },
+  ],
+};
+
+const STATUS_OPTIONS = ['Todos', 'Pendente', 'Em Processamento', 'Concluido', 'Cancelado'] as const;
+
+// Quick ranges para datas
+const QUICK_RANGES = [
+  {
+    value: 'current_month',
+    label: 'Este mês',
+    getDates: (today: Date) => ({
+      start: new Date(today.getFullYear(), today.getMonth(), 1),
+      end: today,
+    }),
+  },
+  {
+    value: 'last_month',
+    label: 'Último mês',
+    getDates: (today: Date) => ({
+      start: new Date(today.getFullYear(), today.getMonth() - 1, 1),
+      end: new Date(today.getFullYear(), today.getMonth(), 0),
+    }),
+  },
+  {
+    value: 'last_7_days',
+    label: 'Últimos 7 dias',
+    getDates: (today: Date) => ({
+      start: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6),
+      end: today,
+    }),
+  },
+] as const;
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -53,133 +102,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 
-// Componente de Filtros Compartilhados
-interface SharedFiltersProps {
-  startDate: string;
-  endDate: string;
-  dateMode: string;
-  status: string;
-  onStartDateChange: (value: string) => void;
-  onEndDateChange: (value: string) => void;
-  onDateModeChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
-}
-
-function SharedFilters({
-  startDate,
-  endDate,
-  dateMode,
-  status,
-  onStartDateChange,
-  onEndDateChange,
-  onDateModeChange,
-  onStatusChange,
-}: SharedFiltersProps) {
-  return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="start_date">Data Inicial</Label>
-        <Input
-          id="start_date"
-          type="date"
-          value={startDate}
-          onChange={(e) => onStartDateChange(e.target.value)}
-          className="w-full"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="end_date">Data Final</Label>
-        <Input
-          id="end_date"
-          type="date"
-          value={endDate}
-          onChange={(e) => onEndDateChange(e.target.value)}
-          className="w-full"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="date_mode">Modo de Data</Label>
-        <Select value={dateMode} onValueChange={onDateModeChange}>
-          <SelectTrigger id="date_mode" className="w-full">
-            <SelectValue placeholder="Selecione o modo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="entrada">Entrada</SelectItem>
-            <SelectItem value="entrega">Entrega</SelectItem>
-            <SelectItem value="qualquer">Qualquer</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="status">Status</Label>
-        <Select value={status} onValueChange={onStatusChange}>
-          <SelectTrigger id="status" className="w-full">
-            <SelectValue placeholder="Selecione o status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Todos">Todos</SelectItem>
-            <SelectItem value="Pendente">Pendente</SelectItem>
-            <SelectItem value="Em Processamento">Em Processamento</SelectItem>
-            <SelectItem value="Concluido">Concluído</SelectItem>
-            <SelectItem value="Cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </>
-  );
-}
-
-// Componente de Botões de Exportação
-interface ExportButtonsProps {
-  onExportCsv: () => void;
-  onExportPdf: () => void;
-  exportingCsv: boolean;
-  exportingPdf: boolean;
-  disabled: boolean;
-}
-
-function ExportButtons({ onExportCsv, onExportPdf, exportingCsv, exportingPdf, disabled }: ExportButtonsProps) {
-  return (
-    <div className="flex justify-end gap-2">
-      <Button
-        onClick={onExportCsv}
-        disabled={exportingCsv || disabled}
-        variant="outline"
-        type="button"
-      >
-        {exportingCsv ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Exportando...
-          </>
-        ) : (
-          <>
-            <FileDown className="mr-2 h-4 w-4" />
-            Exportar CSV
-          </>
-        )}
-      </Button>
-      <Button
-        onClick={onExportPdf}
-        disabled={exportingPdf || disabled}
-        variant="outline"
-        type="button"
-      >
-        {exportingPdf ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Gerando...
-          </>
-        ) : (
-          <>
-            <FileText className="mr-2 h-4 w-4" />
-            Imprimir PDF
-          </>
-        )}
-      </Button>
-    </div>
-  );
-}
+const formatInputDate = (date: Date) => date.toISOString().slice(0, 10);
 
 // Componente de Tabela de Resultados
 interface ReportTableProps {
@@ -326,94 +249,95 @@ function ReportTable({ report, columnName, loading }: ReportTableProps) {
 
 export default function Fechamentos() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'sintetico' | 'analitico'>('sintetico');
+  const today = useMemo(() => new Date(), []);
+  const firstDayOfMonth = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+    [today],
+  );
 
-  // Estados para relatórios sintéticos
-  const [sinteticoType, setSinteticoType] = useState<SinteticoType>('data');
-
-  // Estados para relatórios analíticos
-  const [analiticoType, setAnaliticoType] = useState<AnaliticoType>('designer_cliente');
-
-  // Estados compartilhados
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [dateMode, setDateMode] = useState<string>('entrada');
-  const [status, setStatus] = useState<string>('Todos');
+  const [activeTab, setActiveTab] = useState<'analitico' | 'sintetico'>('analitico');
+  const [reportType, setReportType] = useState<ReportTypeKey>(REPORT_OPTIONS.analitico[0].value);
+  const [startDate, setStartDate] = useState<string>(formatInputDate(firstDayOfMonth));
+  const [endDate, setEndDate] = useState<string>(formatInputDate(today));
+  const [dateMode, setDateMode] = useState<'entrada' | 'entrega' | 'qualquer'>('entrega');
+  const [status, setStatus] = useState<string>(STATUS_OPTIONS[0]);
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [exportingCsv, setExportingCsv] = useState<boolean>(false);
+  const [dateError, setDateError] = useState<string>('');
 
-  // Mapear tipo sintético para ReportTypeKey
-  const getSinteticoReportType = (): ReportTypeKey => {
-    switch (sinteticoType) {
-      case 'data':
-        return 'sintetico_data';
-      case 'vendedor':
-        return 'sintetico_vendedor';
-      case 'designer':
-        return 'sintetico_designer';
-      case 'cliente':
-        return 'sintetico_cliente';
-      case 'envio':
-        return 'sintetico_entrega';
-      default:
-        return 'sintetico_data';
-    }
-  };
+  const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
-  // Mapear tipo analítico para ReportTypeKey
-  const getAnaliticoReportType = (): ReportTypeKey => {
-    switch (analiticoType) {
-      case 'designer_cliente':
-        return 'analitico_designer_cliente';
-      case 'cliente_designer':
-        return 'analitico_cliente_designer';
-      case 'cliente_painel':
-        return 'analitico_cliente_painel';
-      case 'designer_painel':
-        return 'analitico_designer_painel';
-      case 'entrega_painel':
-        return 'analitico_entrega_painel';
-      default:
-        return 'analitico_designer_cliente';
+  // Atualizar tipo de relatório quando mudar a aba
+  useMemo(() => {
+    if (!availableOptions.some((option) => option.value === reportType)) {
+      setReportType(availableOptions[0].value);
     }
-  };
+  }, [activeTab, availableOptions, reportType]);
 
   // Obter nome da coluna baseado no tipo
   const getColumnName = () => {
-    if (activeTab === 'sintetico') {
-      switch (sinteticoType) {
-        case 'data':
-          return 'Data';
-        case 'vendedor':
-          return 'Vendedor';
-        case 'designer':
-          return 'Designer';
-        case 'cliente':
-          return 'Cliente';
-        case 'envio':
-          return 'Forma de Envio';
-        default:
-          return 'Grupo';
+    const option = availableOptions.find((opt) => opt.value === reportType);
+    if (option) {
+      return option.label.replace('Por ', '').replace(' × ', ' / ');
+    }
+    return 'Grupo';
+  };
+
+  const updateFilter = (key: string, value: any) => {
+    if (key === 'startDate') {
+      setStartDate(value);
+      if (value && endDate && value > endDate) {
+          setDateError('A data final não pode ser anterior à data inicial.');
+        } else {
+          setDateError('');
+        }
+    } else if (key === 'endDate') {
+      setEndDate(value);
+      if (startDate && value && startDate > value) {
+        setDateError('A data final não pode ser anterior à data inicial.');
+      } else {
+        setDateError('');
       }
-    } else {
-      switch (analiticoType) {
-        case 'designer_cliente':
-          return 'Designer / Cliente';
-        case 'cliente_designer':
-          return 'Cliente / Designer';
-        case 'cliente_painel':
-          return 'Cliente / Tecido';
-        case 'designer_painel':
-          return 'Designer / Tecido';
-        case 'entrega_painel':
-          return 'Entrega / Tecido';
-        default:
-          return 'Grupo';
-      }
+    } else if (key === 'reportType') {
+      setReportType(value);
+    } else if (key === 'dateMode') {
+      setDateMode(value);
+    } else if (key === 'status') {
+      setStatus(value);
     }
   };
+
+  const applyQuickRange = (rangeValue: (typeof QUICK_RANGES)[number]['value']) => {
+    const selectedRange = QUICK_RANGES.find((range) => range.value === rangeValue);
+    if (!selectedRange) return;
+
+    const { start, end } = selectedRange.getDates(today);
+    setStartDate(formatInputDate(start));
+    setEndDate(formatInputDate(end));
+    setDateError('');
+  };
+
+  const clearFilters = () => {
+    setReportType(REPORT_OPTIONS.analitico[0].value);
+    setStartDate(formatInputDate(firstDayOfMonth));
+    setEndDate(formatInputDate(today));
+    setStatus(STATUS_OPTIONS[0]);
+    setDateMode('entrega');
+    setDateError('');
+    setReport(null);
+  };
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      status !== STATUS_OPTIONS[0] ||
+      reportType !== REPORT_OPTIONS.analitico[0].value ||
+      startDate !== formatInputDate(firstDayOfMonth) ||
+      endDate !== formatInputDate(today) ||
+      dateMode !== 'entrega'
+    );
+  }, [status, reportType, startDate, endDate, dateMode, firstDayOfMonth, today]);
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
@@ -426,6 +350,7 @@ export default function Fechamentos() {
     }
 
     if (startDate > endDate) {
+      setDateError('A data final não pode ser anterior à data inicial.');
       toast({
         title: 'Erro de validação',
         description: 'A data final não pode ser anterior à data inicial.',
@@ -436,13 +361,11 @@ export default function Fechamentos() {
 
     setLoading(true);
     try {
-      const reportType = activeTab === 'sintetico' ? getSinteticoReportType() : getAnaliticoReportType();
-
     const payload: ReportRequestPayload = {
         report_type: reportType,
         start_date: startDate,
         end_date: endDate,
-        date_mode: dateMode as 'entrada' | 'entrega' | 'qualquer',
+        date_mode: dateMode,
         status: status !== 'Todos' ? status : undefined,
       };
 
@@ -481,7 +404,6 @@ export default function Fechamentos() {
       const Papa = await import('papaparse');
       const csvRows: Array<Record<string, string>> = [];
 
-      // Adicionar cabeçalho
       const columnName = getColumnName();
       csvRows.push({
         [columnName]: columnName,
@@ -490,7 +412,6 @@ export default function Fechamentos() {
         'Total': 'Total',
       });
 
-      // Adicionar dados dos grupos
       report.groups.forEach((group) => {
         if (group.subgroups && group.subgroups.length > 0) {
           group.subgroups.forEach((subgroup) => {
@@ -513,7 +434,6 @@ export default function Fechamentos() {
         }
       });
 
-      // Adicionar linha de total geral
       if (report.total) {
         const totalGeral = report.total.valor_frete + report.total.valor_servico;
         csvRows.push({
@@ -524,14 +444,12 @@ export default function Fechamentos() {
         });
       }
 
-      // Gerar CSV
       const csv = Papa.default.unparse(csvRows, {
         header: true,
         delimiter: ';',
         newline: '\n',
       });
 
-      // Criar blob e fazer download
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -541,8 +459,7 @@ export default function Fechamentos() {
         startDate && endDate && endDate !== startDate
           ? `${startDate}_${endDate}`
           : startDate || new Date().toISOString().split('T')[0];
-      const reportType = activeTab === 'sintetico' ? sinteticoType : analiticoType;
-      const filename = `relatorio_fechamentos_${activeTab}_${reportType}_${filenameSuffix}.csv`;
+      const filename = `relatorio_fechamentos_${reportType}_${filenameSuffix}.csv`;
       link.download = filename;
 
       document.body.appendChild(link);
@@ -577,7 +494,6 @@ export default function Fechamentos() {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
 
-      // Cabeçalho
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
       doc.text('Relatório de Fechamentos', 14, cursorY);
@@ -600,7 +516,6 @@ export default function Fechamentos() {
       }
       cursorY += 8;
 
-      // Preparar dados da tabela
       const tableData: string[][] = [];
       report.groups.forEach((group) => {
         if (group.subgroups && group.subgroups.length > 0) {
@@ -624,7 +539,6 @@ export default function Fechamentos() {
         }
       });
 
-      // Adicionar linha de total geral
       if (report.total) {
         const totalGeral = report.total.valor_frete + report.total.valor_servico;
         tableData.push([
@@ -635,7 +549,6 @@ export default function Fechamentos() {
         ]);
       }
 
-      // Gerar tabela
       autoTable(doc, {
         startY: cursorY,
         head: [[getColumnName(), 'Valor Frete', 'Valor Serviços', 'Total']],
@@ -669,14 +582,11 @@ export default function Fechamentos() {
         startDate && endDate && endDate !== startDate
           ? `${startDate}_${endDate}`
           : startDate || new Date().toISOString().split('T')[0];
-      const reportType = activeTab === 'sintetico' ? sinteticoType : analiticoType;
-      const filename = `relatorio_fechamentos_${activeTab}_${reportType}_${filenameSuffix}.pdf`;
+      const filename = `relatorio_fechamentos_${reportType}_${filenameSuffix}.pdf`;
 
-      // Abrir PDF em nova janela
       try {
         await openPdfInWindow(doc, filename);
       } catch (error) {
-        // Fallback: download direto
         doc.save(filename);
       }
     } catch (error) {
@@ -690,177 +600,218 @@ export default function Fechamentos() {
     }
   };
 
-    return (
-    <div className="space-y-6">
+  return (
+    <div className="space-y-8">
         <div>
-        <h1 className="text-3xl font-semibold text-slate-900">Fechamentos</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          Relatórios de fechamentos. Selecione o tipo de relatório e os filtros para gerar.
-        </p>
+          <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
+          <p className="text-muted-foreground">
+            Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
+          </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'sintetico' | 'analitico')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="sintetico">Relatórios Sintéticos</TabsTrigger>
-          <TabsTrigger value="analitico">Relatórios Analíticos</TabsTrigger>
-            </TabsList>
-
-        {/* Aba: Relatórios Sintéticos */}
-        <TabsContent value="sintetico" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Filtros - Relatórios Sintéticos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-2">
-                  <Label htmlFor="sintetico_type">Tipo de Relatório</Label>
-                  <Select value={sinteticoType} onValueChange={(value) => setSinteticoType(value as SinteticoType)}>
-                    <SelectTrigger id="sintetico_type" className="w-full">
-                      <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                      <SelectItem value="data">Por Data</SelectItem>
-                      <SelectItem value="vendedor">Por Vendedor</SelectItem>
-                      <SelectItem value="designer">Por Designer</SelectItem>
-                      <SelectItem value="cliente">Por Cliente</SelectItem>
-                      <SelectItem value="envio">Por Forma de Envio</SelectItem>
-                </SelectContent>
-              </Select>
-          </div>
-                <SharedFilters
-                  startDate={startDate}
-                  endDate={endDate}
-                  dateMode={dateMode}
-                  status={status}
-                  onStartDateChange={setStartDate}
-                  onEndDateChange={setEndDate}
-                  onDateModeChange={setDateMode}
-                  onStatusChange={setStatus}
-                />
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Botão de limpar filtros */}
+          {hasActiveFilters && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-2"
+                title="Limpar todos os filtros"
+              >
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
             </div>
-              <div className="mt-4 flex justify-end">
-                <Button onClick={handleGenerate} disabled={loading} className="min-w-[120px]" type="button">
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="mr-2 h-4 w-4" />
-                      Gerar Relatório
-                    </>
-                  )}
-                </Button>
-            </div>
-            </CardContent>
-          </Card>
-
-          {/* Resultados Sintéticos */}
-          {loading && !report ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-              <span className="ml-2 text-slate-600">Gerando relatório...</span>
-            </div>
-          ) : (
-            report &&
-            activeTab === 'sintetico' && (
-              <div className="space-y-4">
-                <ExportButtons
-                  onExportCsv={exportToCsv}
-                  onExportPdf={exportToPdf}
-                  exportingCsv={exportingCsv}
-                  exportingPdf={exportingPdf}
-                  disabled={!report}
-                />
-                <ReportTable report={report} columnName={getColumnName()} loading={loading} />
-            </div>
-            )
           )}
-        </TabsContent>
 
-        {/* Aba: Relatórios Analíticos */}
-        <TabsContent value="analitico" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Filtros - Relatórios Analíticos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as 'analitico' | 'sintetico')}
+          >
+            <TabsList className="bg-slate-100">
+              <TabsTrigger value="analitico" className="data-[state=active]:font-semibold">
+                Relatórios Analíticos
+              </TabsTrigger>
+              <TabsTrigger value="sintetico" className="data-[state=active]:font-semibold">
+                Relatórios Sintéticos
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="analitico" className="mt-4 text-sm text-muted-foreground">
+              Detalhes por ficha ou agrupamento específico.
+            </TabsContent>
+            <TabsContent value="sintetico" className="mt-4 text-sm text-muted-foreground">
+              Visão resumida com totais por eixo.
+            </TabsContent>
+          </Tabs>
+
+          {/* Tipo de relatório e ações principais */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-                  <Label htmlFor="analitico_type">Tipo de Relatório</Label>
-                  <Select value={analiticoType} onValueChange={(value) => setAnaliticoType(value as AnaliticoType)}>
-                    <SelectTrigger id="analitico_type" className="w-full">
-                      <SelectValue placeholder="Selecione o tipo" />
+              <Label>Tipo de relatório</Label>
+              <Select value={reportType} onValueChange={(value) => updateFilter('reportType', value as ReportTypeKey)}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                      <SelectItem value="designer_cliente">Designer × Cliente</SelectItem>
-                      <SelectItem value="cliente_designer">Cliente × Designer</SelectItem>
-                      <SelectItem value="cliente_painel">Cliente × Tecido</SelectItem>
-                      <SelectItem value="designer_painel">Designer × Tecido</SelectItem>
-                      <SelectItem value="entrega_painel">Entrega × Tecido</SelectItem>
+                  {availableOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                {activeTab === 'analitico'
+                  ? 'Agrupamento detalhado para análise.'
+                  : 'Visão resumida com totais.'}
+              </p>
+          </div>
+
+            {/* Botões de ação rápida */}
+            <div className="flex flex-col gap-2 md:justify-end">
+              <div className="flex flex-wrap gap-2">
+            {QUICK_RANGES.map((range) => (
+              <Button
+                key={range.value}
+                variant="outline"
+                    size="sm"
+                className="border-slate-200 text-slate-600 hover:bg-slate-100"
+                onClick={() => applyQuickRange(range.value)}
+                type="button"
+              >
+                {range.label}
+              </Button>
+            ))}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Filtros de data, status */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Data inicial</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => updateFilter('startDate', event.target.value)}
+                className={`bg-white ${dateError ? 'border-red-500' : ''}`}
+              />
+              {dateError && <p className="text-sm text-red-600">{dateError}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Data final</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(event) => updateFilter('endDate', event.target.value)}
+                className={`bg-white ${dateError ? 'border-red-500' : ''}`}
+                min={startDate || undefined}
+              />
+              {dateError && <p className="text-sm text-red-600">{dateError}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de data</Label>
+              <Select value={dateMode} onValueChange={(value) => updateFilter('dateMode', value)}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrega">Data de entrega</SelectItem>
+                  <SelectItem value="entrada">Data de entrada</SelectItem>
+                  <SelectItem value="qualquer">Qualquer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-                <SharedFilters
-                  startDate={startDate}
-                  endDate={endDate}
-                  dateMode={dateMode}
-                  status={status}
-                  onStartDateChange={setStartDate}
-                  onEndDateChange={setEndDate}
-                  onDateModeChange={setDateMode}
-                  onStatusChange={setStatus}
-                />
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(value) => updateFilter('status', value)}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-              <div className="mt-4 flex justify-end">
-                <Button onClick={handleGenerate} disabled={loading} className="min-w-[120px]" type="button">
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Gerando...
+          </div>
+
+          {/* Botões de ação principais */}
+          <Separator />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+              variant="outline"
+              className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+              onClick={exportToCsv}
+              disabled={!report || loading || exportingCsv}
+            >
+              {exportingCsv ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Exportando...
                 </>
               ) : (
                 <>
-                      <Search className="mr-2 h-4 w-4" />
-                      Gerar Relatório
+                  <FileText className="h-4 w-4" />
+                  Exportar CSV
                 </>
               )}
+              </Button>
+
+              <Button
+                variant="outline"
+              className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                onClick={exportToPdf}
+              disabled={!report || loading || exportingPdf}
+            >
+              {exportingPdf ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                <FileDown className="h-4 w-4" />
+                Exportar PDF
+                </>
+              )}
+            </Button>
+
+            <Button className="gap-2" onClick={handleGenerate} disabled={loading || !!dateError}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+              {loading ? 'Gerando...' : 'Gerar Relatório'}
               </Button>
           </div>
         </CardContent>
       </Card>
 
-          {/* Resultados Analíticos */}
-          {loading && !report ? (
-            <div className="flex items-center justify-center py-12">
+      {loading ? (
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-              <span className="ml-2 text-slate-600">Gerando relatório...</span>
+              <span className="text-slate-600">Gerando relatório...</span>
           </div>
-          ) : (
-            report &&
-            activeTab === 'analitico' && (
-              <div className="space-y-4">
-                <ExportButtons
-                  onExportCsv={exportToCsv}
-                  onExportPdf={exportToPdf}
-                  exportingCsv={exportingCsv}
-                  exportingPdf={exportingPdf}
-                  disabled={!report}
-                />
-                <ReportTable report={report} columnName={getColumnName()} loading={loading} />
-                </div>
-            )
-          )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
+      ) : (
+        report && <ReportTable report={report} columnName={getColumnName()} loading={loading} />
+      )}
     </div>
   );
 }
