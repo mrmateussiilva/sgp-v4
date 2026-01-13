@@ -1,11 +1,11 @@
 {
-  "version": "1.0.7",
-  "notes": "Adiciona formulários de produção para Canga e Impressão 3D",
-  "pub_date": "2026-01-11T00:00:00Z",
+  "version": "1.0.8",
+  "notes": "Correções nos relatórios de vendas e melhorias de estabilidade.",
+  "pub_date": "2026-01-11T22:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.6_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2wybUYzVE1yUUhNcFNyMmtmVksrTDN3RERVbFh0RHA0bTd2RTdRTk14ZUo0cnFJRjc5TVNwSDdibVJsVitlNTJDNDREKzFyWWRpSkV3MUZCcU5RbndRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4MTk1MzkyCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjZfeDY0X2VuLVVTLm1zaQo2YkFxNHZwckx2OTdoZVQvakVyNnArcGhGNXlKZ1V5WmhuQ1ROZnh3M1o2MnVzRDVzcG9UQzlQUVJjbXVQNzNpblR0c2VaMG50LzhLeFg4Y1BSVVpDZz09Cg"
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.8/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.8_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3VJTWpQbUdUU1l5VFJxUmFOb1hGYWZ1SWd1Q3FJc3FtSXh2UW1VSFhEOFY3RzNIRnB6NUtjdllqTUVpWThxOHJpTHAyY0ZNTlliWHlpRUFZaisvZmdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4Mjk4NjUzCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjhfeDY0X2VuLVVTLm1zaQpWWSt2RlJ4cW44YkZJWGRJR1Y0cGhta3d4dmh6ejRyUjBhbXVOb1cvY09JeWVVTjJLUWpkWVJYUFowZ2RSNUJ3RHd3Z1ZhL0VDY0lvemZrandmRzRDdz09Cg=="
     }
   }
 }
