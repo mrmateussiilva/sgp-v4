@@ -1,10 +1,10 @@
 {
-  "version": "1.0.10",
+  "version": "1.0.9",
   "notes": "Correções nos relatórios de vendas e melhorias de estabilidade.",
   "pub_date": "2026-01-11T22:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.10/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.9_x64_en-US.msi",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.9/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.9_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY253NEN0UFN5YTJPVWhPek1aR3BPaVBJRGdxVzNsL2ZLdnBVSkhxTTNDYkNSVVlNOCtLeStkSVZnWFRPSERPSTlJRzJndFBKU1YrbmpQeDd5b0VKR0FZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY4MzMzODUxCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjlfeDY0X2VuLVVTLm1zaQpnRWF3YlI2MWc0K1BodkVTNGN1QWRwc1BMWUVqd0t6RUprNVdKZ0Vsem0ySVM4a0ZBRzN5YjhhK0tTM1NaOUc3SXJ6T0NzQnVoNUdGR2NFV0EzajVEQT09Cg=="
     }
   }
