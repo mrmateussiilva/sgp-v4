@@ -424,6 +424,8 @@ export interface TabItem {
 export type ReportTypeKey =
   | 'analitico_designer_cliente'
   | 'analitico_cliente_designer'
+  | 'analitico_vendedor_designer'
+  | 'analitico_designer_vendedor'
   | 'analitico_cliente_painel'
   | 'analitico_designer_painel'
   | 'analitico_entrega_painel'

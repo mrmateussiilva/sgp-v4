@@ -52,6 +52,8 @@ const REPORT_OPTIONS: Record<
   analitico: [
     { value: 'analitico_designer_cliente', label: 'Designer × Cliente' },
     { value: 'analitico_cliente_designer', label: 'Cliente × Designer' },
+    { value: 'analitico_vendedor_designer', label: 'Vendedor × Designer' },
+    { value: 'analitico_designer_vendedor', label: 'Designer × Vendedor' },
     { value: 'analitico_cliente_painel', label: 'Cliente × Tecido' },
     { value: 'analitico_designer_painel', label: 'Designer × Tecido' },
     { value: 'analitico_entrega_painel', label: 'Entrega × Tecido' },
