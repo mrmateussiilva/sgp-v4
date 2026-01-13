@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Loader2, Calendar, Search, FileDown, FileText } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -44,6 +44,7 @@ const loadAutoTable = async () => {
 };
 
 type SinteticoType = 'data' | 'vendedor' | 'designer' | 'cliente' | 'envio';
+type AnaliticoType = 'designer_cliente' | 'cliente_designer' | 'cliente_painel' | 'designer_painel' | 'entrega_painel';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -52,18 +53,287 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 
-type AnaliticoType = 'designer_cliente' | 'cliente_designer' | 'cliente_painel' | 'designer_painel' | 'entrega_painel';
+// Componente de Filtros Compartilhados
+interface SharedFiltersProps {
+  startDate: string;
+  endDate: string;
+  dateMode: string;
+  status: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onDateModeChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+}
+
+function SharedFilters({
+  startDate,
+  endDate,
+  dateMode,
+  status,
+  onStartDateChange,
+  onEndDateChange,
+  onDateModeChange,
+  onStatusChange,
+}: SharedFiltersProps) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="start_date">Data Inicial</Label>
+        <Input
+          id="start_date"
+          type="date"
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="end_date">Data Final</Label>
+        <Input
+          id="end_date"
+          type="date"
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="date_mode">Modo de Data</Label>
+        <Select value={dateMode} onValueChange={onDateModeChange}>
+          <SelectTrigger id="date_mode" className="w-full">
+            <SelectValue placeholder="Selecione o modo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="entrada">Entrada</SelectItem>
+            <SelectItem value="entrega">Entrega</SelectItem>
+            <SelectItem value="qualquer">Qualquer</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="status">Status</Label>
+        <Select value={status} onValueChange={onStatusChange}>
+          <SelectTrigger id="status" className="w-full">
+            <SelectValue placeholder="Selecione o status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Todos">Todos</SelectItem>
+            <SelectItem value="Pendente">Pendente</SelectItem>
+            <SelectItem value="Em Processamento">Em Processamento</SelectItem>
+            <SelectItem value="Concluido">Concluído</SelectItem>
+            <SelectItem value="Cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
+// Componente de Botões de Exportação
+interface ExportButtonsProps {
+  onExportCsv: () => void;
+  onExportPdf: () => void;
+  exportingCsv: boolean;
+  exportingPdf: boolean;
+  disabled: boolean;
+}
+
+function ExportButtons({ onExportCsv, onExportPdf, exportingCsv, exportingPdf, disabled }: ExportButtonsProps) {
+  return (
+    <div className="flex justify-end gap-2">
+      <Button
+        onClick={onExportCsv}
+        disabled={exportingCsv || disabled}
+        variant="outline"
+        type="button"
+      >
+        {exportingCsv ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Exportando...
+          </>
+        ) : (
+          <>
+            <FileDown className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </>
+        )}
+      </Button>
+      <Button
+        onClick={onExportPdf}
+        disabled={exportingPdf || disabled}
+        variant="outline"
+        type="button"
+      >
+        {exportingPdf ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Gerando...
+          </>
+        ) : (
+          <>
+            <FileText className="mr-2 h-4 w-4" />
+            Imprimir PDF
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+// Componente de Tabela de Resultados
+interface ReportTableProps {
+  report: ReportResponse;
+  columnName: string;
+  loading: boolean;
+}
+
+function ReportTable({ report, columnName, loading }: ReportTableProps) {
+  if (!report || !report.groups || report.groups.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
+        Nenhum dado encontrado para os filtros selecionados.
+      </div>
+    );
+  }
+
+  // Coletar todas as linhas de todos os grupos
+  const allRows: Array<{
+    label: string;
+    valor_frete: number;
+    valor_servico: number;
+    total: number;
+  }> = [];
+
+  const collectRows = (group: ReportGroup) => {
+    // Se o grupo tem subgrupos (relatórios analíticos), processar subgrupos
+    if (group.subgroups && group.subgroups.length > 0) {
+      group.subgroups.forEach((subgroup) => {
+        allRows.push({
+          label: subgroup.label,
+          valor_frete: subgroup.subtotal.valor_frete,
+          valor_servico: subgroup.subtotal.valor_servico,
+          total: subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico,
+        });
+      });
+    } else if (group.subtotal) {
+      // Grupo principal sem subgrupos (relatórios sintéticos)
+      allRows.push({
+        label: group.label,
+        valor_frete: group.subtotal.valor_frete,
+        valor_servico: group.subtotal.valor_servico,
+        total: group.subtotal.valor_frete + group.subtotal.valor_servico,
+      });
+    }
+  };
+
+  report.groups.forEach((group) => {
+    collectRows(group);
+  });
+
+  return (
+    <Card className="flex-1 flex flex-col min-h-0 flex-grow">
+      <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+        <div className="relative flex-1 min-h-0">
+          <div className="h-full max-h-[70vh] overflow-y-auto overflow-x-auto border-t border-slate-200">
+            <SmoothTableWrapper>
+              <Table className="w-full">
+                <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                  <TableRow>
+                    <TableHead className="min-w-[200px] lg:min-w-[250px] xl:min-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
+                      {columnName}
+                    </TableHead>
+                    <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
+                      Valor Frete
+                    </TableHead>
+                    <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
+                      Valor Serviços
+                    </TableHead>
+                    <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background font-semibold">
+                      Total
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading && allRows.length === 0 ? (
+                    <>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={`skeleton-${index}`}>
+                          <TableCell className="px-2 lg:px-3 xl:px-4">
+                            <Skeleton className="h-4 w-24 lg:w-32" />
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
+                            <Skeleton className="h-4 w-20 lg:w-24" />
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
+                            <Skeleton className="h-4 w-20 lg:w-24" />
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
+                            <Skeleton className="h-4 w-20 lg:w-24" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {allRows.map((row, index) => (
+                        <TableRow
+                          key={index}
+                          className="hover:bg-muted/50 transition-all duration-200"
+                        >
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-medium">
+                            {row.label}
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            {formatCurrency(row.valor_frete)}
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            {formatCurrency(row.valor_servico)}
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-semibold">
+                            {formatCurrency(row.total)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Linha de total geral */}
+                      {report.total && (
+                        <TableRow className="bg-slate-100 font-semibold">
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
+                            TOTAL GERAL
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
+                            {formatCurrency(report.total.valor_frete)}
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
+                            {formatCurrency(report.total.valor_servico)}
+                          </TableCell>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
+                            {formatCurrency(report.total.valor_frete + report.total.valor_servico)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </SmoothTableWrapper>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Fechamentos() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'sintetico' | 'analitico'>('sintetico');
-  
+
   // Estados para relatórios sintéticos
   const [sinteticoType, setSinteticoType] = useState<SinteticoType>('data');
-  
+
   // Estados para relatórios analíticos
   const [analiticoType, setAnaliticoType] = useState<AnaliticoType>('designer_cliente');
-  
+
   // Estados compartilhados
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -110,6 +380,41 @@ export default function Fechamentos() {
     }
   };
 
+  // Obter nome da coluna baseado no tipo
+  const getColumnName = () => {
+    if (activeTab === 'sintetico') {
+      switch (sinteticoType) {
+        case 'data':
+          return 'Data';
+        case 'vendedor':
+          return 'Vendedor';
+        case 'designer':
+          return 'Designer';
+        case 'cliente':
+          return 'Cliente';
+        case 'envio':
+          return 'Forma de Envio';
+        default:
+          return 'Grupo';
+      }
+    } else {
+      switch (analiticoType) {
+        case 'designer_cliente':
+          return 'Designer / Cliente';
+        case 'cliente_designer':
+          return 'Cliente / Designer';
+        case 'cliente_painel':
+          return 'Cliente / Tecido';
+        case 'designer_painel':
+          return 'Designer / Tecido';
+        case 'entrega_painel':
+          return 'Entrega / Tecido';
+        default:
+          return 'Grupo';
+      }
+    }
+  };
+
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
       toast({
@@ -131,10 +436,8 @@ export default function Fechamentos() {
 
     setLoading(true);
     try {
-      const reportType = activeTab === 'sintetico' 
-        ? getSinteticoReportType() 
-        : getAnaliticoReportType();
-      
+      const reportType = activeTab === 'sintetico' ? getSinteticoReportType() : getAnaliticoReportType();
+
     const payload: ReportRequestPayload = {
         report_type: reportType,
         start_date: startDate,
@@ -159,42 +462,6 @@ export default function Fechamentos() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Função para obter o nome da coluna baseado no tipo
-  const getColumnName = () => {
-    if (activeTab === 'sintetico') {
-      switch (sinteticoType) {
-        case 'data':
-          return 'Data';
-        case 'vendedor':
-          return 'Vendedor';
-        case 'designer':
-          return 'Designer';
-        case 'cliente':
-          return 'Cliente';
-        case 'envio':
-          return 'Forma de Envio';
-        default:
-          return 'Grupo';
-      }
-    } else {
-      // Para analíticos, a primeira coluna pode variar
-      switch (analiticoType) {
-        case 'designer_cliente':
-          return 'Designer / Cliente';
-        case 'cliente_designer':
-          return 'Cliente / Designer';
-        case 'cliente_painel':
-          return 'Cliente / Tecido';
-        case 'designer_painel':
-          return 'Designer / Tecido';
-        case 'entrega_painel':
-          return 'Entrega / Tecido';
-        default:
-          return 'Grupo';
-      }
     }
   };
 
@@ -225,7 +492,17 @@ export default function Fechamentos() {
 
       // Adicionar dados dos grupos
       report.groups.forEach((group) => {
-        if (group.subtotal) {
+        if (group.subgroups && group.subgroups.length > 0) {
+          group.subgroups.forEach((subgroup) => {
+            const total = subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico;
+            csvRows.push({
+              [columnName]: subgroup.label,
+              'Valor Frete': formatCurrency(subgroup.subtotal.valor_frete),
+              'Valor Serviços': formatCurrency(subgroup.subtotal.valor_servico),
+              'Total': formatCurrency(total),
+            });
+          });
+        } else if (group.subtotal) {
           const total = group.subtotal.valor_frete + group.subtotal.valor_servico;
           csvRows.push({
             [columnName]: group.label,
@@ -255,7 +532,7 @@ export default function Fechamentos() {
       });
 
       // Criar blob e fazer download
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM para Excel
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -326,7 +603,17 @@ export default function Fechamentos() {
       // Preparar dados da tabela
       const tableData: string[][] = [];
       report.groups.forEach((group) => {
-        if (group.subtotal) {
+        if (group.subgroups && group.subgroups.length > 0) {
+          group.subgroups.forEach((subgroup) => {
+            const total = subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico;
+            tableData.push([
+              subgroup.label,
+              formatCurrency(subgroup.subtotal.valor_frete),
+              formatCurrency(subgroup.subtotal.valor_servico),
+              formatCurrency(total),
+            ]);
+          });
+        } else if (group.subtotal) {
           const total = group.subtotal.valor_frete + group.subtotal.valor_servico;
           tableData.push([
             group.label,
@@ -403,203 +690,9 @@ export default function Fechamentos() {
     }
   };
 
-  // Renderizar tabela com os grupos do relatório
-  const renderTable = () => {
-    if (!report || !report.groups || report.groups.length === 0) {
-      return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
-          Nenhum dado encontrado para os filtros selecionados.
-        </div>
-      );
-    }
-    
-    // Coletar todas as linhas de todos os grupos
-    const allRows: Array<{
-      label: string;
-      valor_frete: number;
-      valor_servico: number;
-      total: number;
-      isSubgroup?: boolean;
-    }> = [];
-
-    const collectRows = (group: ReportGroup, depth = 0) => {
-      // Se o grupo tem subgrupos (relatórios analíticos), processar subgrupos
-      if (group.subgroups && group.subgroups.length > 0) {
-        group.subgroups.forEach((subgroup) => {
-          allRows.push({
-            label: `${'  '.repeat(depth)}${subgroup.label}`,
-            valor_frete: subgroup.subtotal.valor_frete,
-            valor_servico: subgroup.subtotal.valor_servico,
-            total: subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico,
-            isSubgroup: depth > 0,
-          });
-        });
-      } else if (group.subtotal) {
-        // Grupo principal sem subgrupos (relatórios sintéticos ou grupos principais de analíticos)
-        allRows.push({
-          label: group.label,
-          valor_frete: group.subtotal.valor_frete,
-          valor_servico: group.subtotal.valor_servico,
-          total: group.subtotal.valor_frete + group.subtotal.valor_servico,
-          isSubgroup: false,
-        });
-      }
-    };
-
-    report.groups.forEach((group) => {
-      collectRows(group);
-    });
-
     return (
-      <Card className="flex-1 flex flex-col min-h-0 flex-grow">
-        <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          <div className="relative flex-1 min-h-0">
-            <div className="h-full max-h-[70vh] overflow-y-auto overflow-x-auto border-t border-slate-200">
-              <SmoothTableWrapper>
-                <Table className="w-full">
-                  <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-                    <TableRow>
-                      <TableHead className="min-w-[200px] lg:min-w-[250px] xl:min-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
-                        {getColumnName()}
-                      </TableHead>
-                      <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
-                          Valor Frete
-                      </TableHead>
-                      <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
-                          Valor Serviços
-                      </TableHead>
-                      <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background font-semibold">
-                        Total
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading && allRows.length === 0 ? (
-                      <>
-                        {Array.from({ length: 5 }).map((_, index) => (
-                          <TableRow key={`skeleton-${index}`}>
-                            <TableCell className="px-2 lg:px-3 xl:px-4">
-                              <Skeleton className="h-4 w-24 lg:w-32" />
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
-                              <Skeleton className="h-4 w-20 lg:w-24" />
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
-                              <Skeleton className="h-4 w-20 lg:w-24" />
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right">
-                              <Skeleton className="h-4 w-20 lg:w-24" />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </>
-                    ) : (
-                      <>
-                        {allRows.map((row, index) => (
-                          <TableRow
-                            key={index}
-                            className="hover:bg-muted/50 transition-all duration-200"
-                          >
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-medium">
-                              {row.label}
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          {formatCurrency(row.valor_frete)}
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          {formatCurrency(row.valor_servico)}
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-semibold">
-                              {formatCurrency(row.total)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {/* Linha de total geral */}
-                        {report.total && (
-                          <TableRow className="bg-slate-100 font-semibold">
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                              TOTAL GERAL
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                              {formatCurrency(report.total.valor_frete)}
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                              {formatCurrency(report.total.valor_servico)}
-                            </TableCell>
-                            <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                              {formatCurrency(report.total.valor_frete + report.total.valor_servico)}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </SmoothTableWrapper>
-      </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Renderizar filtros compartilhados
-  const renderSharedFilters = () => (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="start_date">Data Inicial</Label>
-        <Input
-          id="start_date"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-full"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="end_date">Data Final</Label>
-        <Input
-          id="end_date"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-full"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="date_mode">Modo de Data</Label>
-        <Select value={dateMode} onValueChange={setDateMode}>
-          <SelectTrigger id="date_mode" className="w-full">
-            <SelectValue placeholder="Selecione o modo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="entrada">Entrada</SelectItem>
-            <SelectItem value="entrega">Entrega</SelectItem>
-            <SelectItem value="qualquer">Qualquer</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="status">Status</Label>
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger id="status" className="w-full">
-            <SelectValue placeholder="Selecione o status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Todos">Todos</SelectItem>
-            <SelectItem value="Pendente">Pendente</SelectItem>
-            <SelectItem value="Em Processamento">Em Processamento</SelectItem>
-            <SelectItem value="Concluido">Concluído</SelectItem>
-            <SelectItem value="Cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </>
-  );
-
-  return (
     <div className="space-y-6">
-      <div>
+        <div>
         <h1 className="text-3xl font-semibold text-slate-900">Fechamentos</h1>
         <p className="mt-1 text-base text-muted-foreground">
           Relatórios de fechamentos. Selecione o tipo de relatório e os filtros para gerar.
@@ -610,7 +703,7 @@ export default function Fechamentos() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="sintetico">Relatórios Sintéticos</TabsTrigger>
           <TabsTrigger value="analitico">Relatórios Analíticos</TabsTrigger>
-        </TabsList>
+            </TabsList>
 
         {/* Aba: Relatórios Sintéticos */}
         <TabsContent value="sintetico" className="space-y-4">
@@ -623,30 +716,34 @@ export default function Fechamentos() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-2">
+            <div className="space-y-2">
                   <Label htmlFor="sintetico_type">Tipo de Relatório</Label>
                   <Select value={sinteticoType} onValueChange={(value) => setSinteticoType(value as SinteticoType)}>
                     <SelectTrigger id="sintetico_type" className="w-full">
                       <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
                       <SelectItem value="data">Por Data</SelectItem>
                       <SelectItem value="vendedor">Por Vendedor</SelectItem>
                       <SelectItem value="designer">Por Designer</SelectItem>
                       <SelectItem value="cliente">Por Cliente</SelectItem>
                       <SelectItem value="envio">Por Forma de Envio</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {renderSharedFilters()}
-              </div>
+                </SelectContent>
+              </Select>
+          </div>
+                <SharedFilters
+                  startDate={startDate}
+                  endDate={endDate}
+                  dateMode={dateMode}
+                  status={status}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onDateModeChange={setDateMode}
+                  onStatusChange={setStatus}
+                />
+            </div>
               <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="min-w-[120px]"
-                  type="button"
-                >
+                <Button onClick={handleGenerate} disabled={loading} className="min-w-[120px]" type="button">
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -659,7 +756,7 @@ export default function Fechamentos() {
                     </>
                   )}
                 </Button>
-              </div>
+            </div>
             </CardContent>
           </Card>
 
@@ -670,49 +767,18 @@ export default function Fechamentos() {
               <span className="ml-2 text-slate-600">Gerando relatório...</span>
             </div>
           ) : (
-            report && activeTab === 'sintetico' && (
+            report &&
+            activeTab === 'sintetico' && (
               <div className="space-y-4">
-                {/* Botões de exportação */}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    onClick={exportToCsv}
-                    disabled={exportingCsv || !report}
-                    variant="outline"
-                    type="button"
-                  >
-                    {exportingCsv ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Exportando...
-                      </>
-                    ) : (
-                      <>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Exportar CSV
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={exportToPdf}
-                    disabled={exportingPdf || !report}
-                    variant="outline"
-                    type="button"
-                  >
-                    {exportingPdf ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Gerando...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Imprimir PDF
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {renderTable()}
-              </div>
+                <ExportButtons
+                  onExportCsv={exportToCsv}
+                  onExportPdf={exportToPdf}
+                  exportingCsv={exportingCsv}
+                  exportingPdf={exportingPdf}
+                  disabled={!report}
+                />
+                <ReportTable report={report} columnName={getColumnName()} loading={loading} />
+            </div>
             )
           )}
         </TabsContent>
@@ -728,96 +794,69 @@ export default function Fechamentos() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-2">
+            <div className="space-y-2">
                   <Label htmlFor="analitico_type">Tipo de Relatório</Label>
                   <Select value={analiticoType} onValueChange={(value) => setAnaliticoType(value as AnaliticoType)}>
                     <SelectTrigger id="analitico_type" className="w-full">
                       <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
                       <SelectItem value="designer_cliente">Designer × Cliente</SelectItem>
                       <SelectItem value="cliente_designer">Cliente × Designer</SelectItem>
                       <SelectItem value="cliente_painel">Cliente × Tecido</SelectItem>
                       <SelectItem value="designer_painel">Designer × Tecido</SelectItem>
                       <SelectItem value="entrega_painel">Entrega × Tecido</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {renderSharedFilters()}
-              </div>
+                </SelectContent>
+              </Select>
+            </div>
+                <SharedFilters
+                  startDate={startDate}
+                  endDate={endDate}
+                  dateMode={dateMode}
+                  status={status}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onDateModeChange={setDateMode}
+                  onStatusChange={setStatus}
+                />
+            </div>
               <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="min-w-[120px]"
-                  type="button"
-                >
+                <Button onClick={handleGenerate} disabled={loading} className="min-w-[120px]" type="button">
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Gerando...
-                    </>
-                  ) : (
-                    <>
+                </>
+              ) : (
+                <>
                       <Search className="mr-2 h-4 w-4" />
                       Gerar Relatório
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                </>
+              )}
+              </Button>
+          </div>
+        </CardContent>
+      </Card>
 
           {/* Resultados Analíticos */}
           {loading && !report ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
               <span className="ml-2 text-slate-600">Gerando relatório...</span>
-            </div>
+          </div>
           ) : (
-            report && activeTab === 'analitico' && (
+            report &&
+            activeTab === 'analitico' && (
               <div className="space-y-4">
-                {/* Botões de exportação */}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    onClick={exportToCsv}
-                    disabled={exportingCsv || !report}
-                    variant="outline"
-                    type="button"
-                  >
-                    {exportingCsv ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Exportando...
-                      </>
-                    ) : (
-                      <>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Exportar CSV
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={exportToPdf}
-                    disabled={exportingPdf || !report}
-                    variant="outline"
-                    type="button"
-                  >
-                    {exportingPdf ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Gerando...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Imprimir PDF
-                      </>
-                    )}
-                  </Button>
+                <ExportButtons
+                  onExportCsv={exportToCsv}
+                  onExportPdf={exportToPdf}
+                  exportingCsv={exportingCsv}
+                  exportingPdf={exportingPdf}
+                  disabled={!report}
+                />
+                <ReportTable report={report} columnName={getColumnName()} loading={loading} />
                 </div>
-                {renderTable()}
-              </div>
             )
           )}
         </TabsContent>
