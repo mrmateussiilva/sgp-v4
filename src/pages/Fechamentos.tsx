@@ -155,6 +155,12 @@ export default function Fechamentos() {
   
   // Estado para controlar quais linhas de subtotal estão expandidas (mostrando IDs dos pedidos)
   const [expandedFichas, setExpandedFichas] = useState<Set<string>>(new Set());
+  
+  // Estado para armazenar os IDs dos pedidos por grupo (cache)
+  const [groupPedidosIds, setGroupPedidosIds] = useState<Map<string, string[]>>(new Map());
+  
+  // Estado para controlar quais grupos estão carregando os IDs
+  const [loadingPedidosIds, setLoadingPedidosIds] = useState<Set<string>>(new Set());
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -864,8 +870,171 @@ export default function Fechamentos() {
     return Array.from(fichas).sort();
   };
 
+  // Função para buscar IDs dos pedidos de um grupo sintético
+  const fetchPedidosIdsForGroup = async (
+    group: ReportGroup,
+    groupLabel: string,
+    reportType: string
+  ): Promise<string[]> => {
+    // Se já está no cache, retornar
+    const cacheKey = `${group.key}-${groupLabel}`;
+    if (groupPedidosIds.has(cacheKey)) {
+      return groupPedidosIds.get(cacheKey)!;
+    }
+    
+    // Extrair o valor do grupo do label (ex: "Vendedor: João" -> "João")
+    const extractGroupValue = (label: string, reportType: string): string | null => {
+      // Remover prefixos comuns
+      const prefixes = [
+        'Vendedor: ',
+        'Designer: ',
+        'Cliente: ',
+        'Entrega: ',
+        'Data: ',
+        'Data de Entrada: ',
+        'Data de Entrega: ',
+        'Vendedor/Designer: ',
+      ];
+      
+      for (const prefix of prefixes) {
+        if (label.startsWith(prefix)) {
+          return label.substring(prefix.length).trim();
+        }
+      }
+      
+      return label.trim();
+    };
+    
+    const groupValue = extractGroupValue(groupLabel, reportType);
+    if (!groupValue) {
+      return [];
+    }
+    
+    // Construir payload baseado no tipo de relatório e valor do grupo
+    const payload: ReportRequestPayload = {
+      report_type: reportType as ReportTypeKey,
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
+      status: filters.status !== 'Todos' ? filters.status : undefined,
+      date_mode: filters.dateMode,
+      vendedor: filters.vendedor || undefined,
+      designer: filters.designer || undefined,
+      cliente: filters.cliente || undefined,
+    };
+    
+    // Adicionar filtro específico baseado no tipo de relatório
+    if (reportType.startsWith('sintetico_vendedor')) {
+      if (reportType === 'sintetico_vendedor_designer') {
+        // Para vendedor/designer, o label vem como "Vendedor/Designer: João / Maria"
+        const parts = groupValue.split(' / ');
+        if (parts.length === 2) {
+          payload.vendedor = parts[0].trim();
+          payload.designer = parts[1].trim();
+        }
+      } else {
+        payload.vendedor = groupValue;
+      }
+    } else if (reportType.startsWith('sintetico_designer')) {
+      payload.designer = groupValue;
+    } else if (reportType.startsWith('sintetico_cliente')) {
+      payload.cliente = groupValue;
+    } else if (reportType.startsWith('sintetico_entrega')) {
+      // Para forma de envio, não há filtro direto, precisamos buscar todos e filtrar
+      // Mas vamos tentar buscar com o valor como cliente primeiro
+      payload.cliente = groupValue;
+    } else if (reportType.startsWith('sintetico_data')) {
+      // Para datas, precisamos ajustar o período
+      // O label vem como "Data: DD/MM/YYYY"
+      const dateMatch = groupValue.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dateMatch) {
+        const [, day, month, year] = dateMatch;
+        const dateStr = `${year}-${month}-${day}`;
+        payload.start_date = dateStr;
+        payload.end_date = dateStr;
+      }
+    }
+    
+    try {
+      setLoadingPedidosIds(prev => new Set(prev).add(cacheKey));
+      
+      // Buscar relatório analítico para obter as fichas
+      // Usar um tipo analítico que retorne fichas individuais baseado no tipo sintético
+      let analiticoType: ReportTypeKey = 'analitico_cliente_designer';
+      
+      // Mapear tipo sintético para analítico equivalente
+      if (reportType === 'sintetico_vendedor' || reportType === 'sintetico_vendedor_designer') {
+        analiticoType = 'analitico_cliente_designer';
+      } else if (reportType === 'sintetico_designer') {
+        analiticoType = 'analitico_designer_cliente';
+      } else if (reportType === 'sintetico_cliente') {
+        analiticoType = 'analitico_cliente_designer';
+      } else if (reportType === 'sintetico_entrega') {
+        analiticoType = 'analitico_entrega_painel';
+      } else if (reportType.startsWith('sintetico_data')) {
+        // Para datas, usar qualquer tipo analítico
+        analiticoType = 'analitico_cliente_designer';
+      }
+      
+      const analiticoPayload: ReportRequestPayload = {
+        ...payload,
+        report_type: analiticoType,
+      };
+      
+      const response = await api.generateReport(analiticoPayload);
+      
+      // Coletar todas as fichas únicas do relatório
+      const fichas = new Set<string>();
+      const collectFichas = (groups: ReportGroup[]) => {
+        groups.forEach(g => {
+          if (g.rows) {
+            g.rows.forEach(row => {
+              if (row.ficha && row.descricao !== 'Subtotal') {
+                fichas.add(row.ficha);
+              }
+            });
+          }
+          if (g.subgroups) {
+            collectFichas(g.subgroups);
+          }
+        });
+      };
+      
+      collectFichas(response.groups);
+      const fichasArray = Array.from(fichas).sort();
+      
+      // Armazenar no cache
+      setGroupPedidosIds(prev => new Map(prev).set(cacheKey, fichasArray));
+      
+      return fichasArray;
+    } catch (error) {
+      console.error('Erro ao buscar IDs dos pedidos:', error);
+      toast({
+        title: 'Erro ao buscar IDs',
+        description: 'Não foi possível carregar os IDs dos pedidos.',
+        variant: 'destructive',
+      });
+      return [];
+    } finally {
+      setLoadingPedidosIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cacheKey);
+        return newSet;
+      });
+    }
+  };
+
   // Função para alternar expansão de fichas
-  const toggleFichasExpansion = (rowKey: string) => {
+  const toggleFichasExpansion = async (rowKey: string, group: ReportGroup, groupLabel: string) => {
+    const isCurrentlyExpanded = expandedFichas.has(rowKey);
+    
+    if (!isCurrentlyExpanded) {
+      // Se está expandindo, buscar os IDs se ainda não estiverem no cache
+      const cacheKey = `${group.key}-${groupLabel}`;
+      if (!groupPedidosIds.has(cacheKey) && report) {
+        await fetchPedidosIdsForGroup(group, groupLabel, report.report_type);
+      }
+    }
+    
     setExpandedFichas(prev => {
       const newSet = new Set(prev);
       if (newSet.has(rowKey)) {
@@ -1062,9 +1231,16 @@ export default function Fechamentos() {
                     {sortedRows.map((row, index) => {
                       const isSubtotalRow = row.descricao === 'Subtotal';
                       const subtotalInfo = isSubtotalRow ? parseSubtotalInfo(row.ficha) : null;
-                      const allFichas = isSubtotalRow ? getAllFichasFromGroup(group) : [];
+                      
+                      // Tentar obter fichas do cache primeiro, depois do grupo
+                      const cacheKey = `${group.key}-${group.label}`;
+                      const cachedFichas = groupPedidosIds.get(cacheKey);
+                      const allFichas = isSubtotalRow 
+                        ? (cachedFichas || getAllFichasFromGroup(group))
+                        : [];
                       const rowKey = `${path}-subtotal-${index}`;
                       const isExpanded = expandedFichas.has(rowKey);
+                      const isLoading = loadingPedidosIds.has(cacheKey);
                       
                       return (
                         <tr
@@ -1072,35 +1248,51 @@ export default function Fechamentos() {
                           className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
                         >
                           <td className="px-4 py-2 font-medium text-slate-800">
-                            {isSubtotalRow && subtotalInfo && allFichas.length > 0 ? (
+                            {isSubtotalRow && subtotalInfo ? (
                               <div className="space-y-1">
                                 <button
-                                  onClick={() => toggleFichasExpansion(rowKey)}
-                                  className="text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors flex items-center gap-2 group"
+                                  onClick={() => toggleFichasExpansion(rowKey, group, group.label)}
+                                  disabled={isLoading}
+                                  className="text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors flex items-center gap-2 group disabled:opacity-50 disabled:cursor-wait"
                                   title="Clique para ver os IDs dos pedidos"
                                   type="button"
                                 >
                                   <span className="group-hover:text-blue-600">{row.ficha}</span>
-                                  <span className="text-xs text-slate-400 group-hover:text-blue-600 transition-transform">
-                                    {isExpanded ? '▼' : '▶'}
-                                  </span>
+                                  {isLoading ? (
+                                    <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                                  ) : (
+                                    <span className="text-xs text-slate-400 group-hover:text-blue-600 transition-transform">
+                                      {isExpanded ? '▼' : '▶'}
+                                    </span>
+                                  )}
                                 </button>
                                 {isExpanded && (
                                   <div className="mt-2 pl-4 border-l-2 border-blue-200 bg-blue-50 rounded p-2 animate-in fade-in slide-in-from-top-2">
-                                    <p className="text-xs font-semibold text-slate-600 mb-1.5">IDs dos Pedidos:</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {allFichas.map((ficha) => (
-                                        <span
-                                          key={ficha}
-                                          className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium hover:bg-blue-200 transition-colors"
-                                        >
-                                          {ficha}
-                                        </span>
-                                      ))}
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1.5">
-                                      Total: {allFichas.length} pedido(s)
-                                    </p>
+                                    {isLoading ? (
+                                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span>Carregando IDs dos pedidos...</span>
+                                      </div>
+                                    ) : allFichas.length > 0 ? (
+                                      <>
+                                        <p className="text-xs font-semibold text-slate-600 mb-1.5">IDs dos Pedidos:</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {allFichas.map((ficha) => (
+                                            <span
+                                              key={ficha}
+                                              className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium hover:bg-blue-200 transition-colors"
+                                            >
+                                              {ficha}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1.5">
+                                          Total: {allFichas.length} pedido(s)
+                                        </p>
+                                      </>
+                                    ) : (
+                                      <p className="text-xs text-slate-500">Nenhum pedido encontrado</p>
+                                    )}
                                   </div>
                                 )}
                               </div>
