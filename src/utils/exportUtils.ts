@@ -167,53 +167,9 @@ export const openInViewer = async (
     console.log('[openInViewer] Blob HTML criado, URL:', blobUrl);
   }
 
-  // Verificar se está no Tauri - tentar múltiplas formas de detecção
-  const tauriCheck = isTauri();
-  const tauriCheckAlt = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-    (window.location.port === '1420' || window.location.protocol === 'tauri:');
-  console.log('[openInViewer] Verificando Tauri:', { tauriCheck, tauriCheckAlt, hostname: window.location.hostname, port: window.location.port });
-  
-  // Tentar usar Tauri se detectado (apenas para PDFs)
-  if (content.type === 'pdf' && (tauriCheck || tauriCheckAlt)) {
-    console.log('[openInViewer] Tentando usar diálogo do Tauri...');
-    try {
-      console.log('[openInViewer] Importando módulos do Tauri...');
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      const { open } = await import('@tauri-apps/plugin-shell');
-      console.log('[openInViewer] Módulos importados com sucesso');
-
-      console.log('[openInViewer] Abrindo diálogo de salvar...');
-      const filePath = await save({
-        defaultPath: content.filename,
-        filters: [{ name: 'PDF', extensions: ['pdf'] }],
-      });
-      console.log('[openInViewer] Diálogo retornou:', filePath);
-
-      if (filePath) {
-        console.log('[openInViewer] Convertendo blob para array de bytes...');
-        const blob = content.doc.output('blob');
-        const arrayBuffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        console.log('[openInViewer] Escrevendo arquivo...');
-        await writeFile(filePath, uint8Array);
-        console.log('[openInViewer] Arquivo salvo, abrindo...');
-        
-        await open(filePath);
-        console.log('[openInViewer] Arquivo aberto com sucesso');
-        URL.revokeObjectURL(blobUrl);
-        return;
-      } else {
-        console.log('[openInViewer] Usuário cancelou o diálogo');
-        URL.revokeObjectURL(blobUrl);
-        return;
-      }
-    } catch (tauriError) {
-      console.error('[openInViewer] Erro ao abrir via Tauri:', tauriError);
-      console.log('[openInViewer] Tentando fallback: iframe...');
-    }
-  }
+  // Não usar diálogo de salvar do Tauri para visualização/impressão
+  // Isso força o usuário a salvar antes de ver o PDF
+  // Vamos direto para o iframe ou window.open que permite visualizar e imprimir sem salvar primeiro
 
   // Criar iframe em tela cheia para visualização
   console.log('[openInViewer] Criando iframe em tela cheia...');
