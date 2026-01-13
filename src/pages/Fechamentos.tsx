@@ -734,7 +734,7 @@ export default function Fechamentos() {
           pageNumber++;
           cursorY = 20;
           // Adicionar cabeçalho da página
-          doc.setFontSize(10);
+          doc.setFontSize(9);
           doc.setFont('helvetica', 'normal');
           doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
           return cursorY;
@@ -744,23 +744,26 @@ export default function Fechamentos() {
 
       // Cabeçalho principal
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(14);
       doc.text(report.title || 'Relatório Analítico', 14, cursorY);
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
       doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
       
     cursorY += 8;
       if (report.period_label) {
+    doc.setFontSize(9);
     doc.text(report.period_label, 14, cursorY);
     cursorY += 6;
       }
       if (report.status_label) {
+    doc.setFontSize(9);
     doc.text(report.status_label, 14, cursorY);
     cursorY += 6;
       }
       if (report.generated_at) {
+    doc.setFontSize(9);
     doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
       }
     cursorY += 8;
@@ -775,13 +778,13 @@ export default function Fechamentos() {
       doc.setFillColor(35, 38, 47);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+      doc.setFontSize(9);
         const headerHeight = 6;
         doc.rect(indent, cursorY - 5, 180 - depth * 6, headerHeight, 'F');
       doc.text(group.label, indent + 2, cursorY - 1);
         
         // Subtotais do grupo no cabeçalho
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       const subtotalLine = `Frete: ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços: ${formatCurrency(group.subtotal.valor_servico)}`;
         doc.text(subtotalLine, indent + 2, cursorY + 2);
         
@@ -840,14 +843,14 @@ export default function Fechamentos() {
           // Subtotal do grupo após a tabela
           ensurePdfSpace(6);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.text(
           `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
           indent + 2,
           cursorY,
         );
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         cursorY += 6;
       }
     };
@@ -859,7 +862,7 @@ export default function Fechamentos() {
 
       // Total geral
       ensurePdfSpace(12);
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setFillColor(20, 24, 32);
     doc.setTextColor(255, 255, 255);
