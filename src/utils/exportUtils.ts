@@ -316,16 +316,59 @@ export const openInViewer = async (
         '💾',
         '#10b981',
         '#059669',
-        () => {
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = content.filename;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          setTimeout(() => {
-            document.body.removeChild(link);
-          }, 100);
+        async () => {
+          try {
+            // Verificar se está no Tauri
+            const tauriCheck = isTauri();
+            const tauriCheckAlt = typeof window !== 'undefined' && 
+              (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+              (window.location.port === '1420' || window.location.protocol === 'tauri:');
+            
+            if (tauriCheck || tauriCheckAlt) {
+              // Usar API do Tauri para salvar
+              const { save } = await import('@tauri-apps/plugin-dialog');
+              const { writeFile } = await import('@tauri-apps/plugin-fs');
+              
+              const filePath = await save({
+                defaultPath: content.filename,
+                filters: [{ name: 'PDF', extensions: ['pdf'] }],
+              });
+              
+              if (filePath) {
+                // Converter blob para array de bytes
+                const blob = content.doc.output('blob');
+                const arrayBuffer = await blob.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                // Salvar arquivo
+                await writeFile(filePath, uint8Array);
+                console.log('[openInViewer] Arquivo salvo com sucesso:', filePath);
+              }
+            } else {
+              // Fallback: usar download via link
+              const link = document.createElement('a');
+              link.href = blobUrl;
+              link.download = content.filename;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              setTimeout(() => {
+                document.body.removeChild(link);
+              }, 100);
+            }
+          } catch (error) {
+            console.error('[openInViewer] Erro ao salvar arquivo:', error);
+            // Fallback em caso de erro
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = content.filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+              document.body.removeChild(link);
+            }, 100);
+          }
         }
       );
     }
