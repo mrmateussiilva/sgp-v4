@@ -2154,6 +2154,7 @@ export const api = {
     start_date?: string;
     end_date?: string;
     date_mode?: string;
+    cliente?: string;
   }): Promise<any> => {
     requireSessionToken();
     // Sempre incluir date_mode, usando 'entrada' como padrão se não fornecido
