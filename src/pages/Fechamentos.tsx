@@ -21,6 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey } from '@/types';
@@ -46,9 +52,19 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 
+type AnaliticoType = 'designer_cliente' | 'cliente_designer' | 'cliente_painel' | 'designer_painel' | 'entrega_painel';
+
 export default function Fechamentos() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'sintetico' | 'analitico'>('sintetico');
+  
+  // Estados para relatórios sintéticos
   const [sinteticoType, setSinteticoType] = useState<SinteticoType>('data');
+  
+  // Estados para relatórios analíticos
+  const [analiticoType, setAnaliticoType] = useState<AnaliticoType>('designer_cliente');
+  
+  // Estados compartilhados
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [dateMode, setDateMode] = useState<string>('entrada');
@@ -59,7 +75,7 @@ export default function Fechamentos() {
   const [exportingCsv, setExportingCsv] = useState<boolean>(false);
 
   // Mapear tipo sintético para ReportTypeKey
-  const getReportType = (): ReportTypeKey => {
+  const getSinteticoReportType = (): ReportTypeKey => {
     switch (sinteticoType) {
       case 'data':
         return 'sintetico_data';
@@ -76,13 +92,31 @@ export default function Fechamentos() {
     }
   };
 
+  // Mapear tipo analítico para ReportTypeKey
+  const getAnaliticoReportType = (): ReportTypeKey => {
+    switch (analiticoType) {
+      case 'designer_cliente':
+        return 'analitico_designer_cliente';
+      case 'cliente_designer':
+        return 'analitico_cliente_designer';
+      case 'cliente_painel':
+        return 'analitico_cliente_painel';
+      case 'designer_painel':
+        return 'analitico_designer_painel';
+      case 'entrega_painel':
+        return 'analitico_entrega_painel';
+      default:
+        return 'analitico_designer_cliente';
+    }
+  };
+
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
-        toast({
+      toast({
         title: 'Erro de validação',
         description: 'Por favor, preencha as datas de início e fim.',
-          variant: 'destructive',
-        });
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -97,8 +131,12 @@ export default function Fechamentos() {
 
     setLoading(true);
     try {
+      const reportType = activeTab === 'sintetico' 
+        ? getSinteticoReportType() 
+        : getAnaliticoReportType();
+      
     const payload: ReportRequestPayload = {
-        report_type: getReportType(),
+        report_type: reportType,
         start_date: startDate,
         end_date: endDate,
         date_mode: dateMode as 'entrada' | 'entrega' | 'qualquer',
@@ -126,19 +164,37 @@ export default function Fechamentos() {
 
   // Função para obter o nome da coluna baseado no tipo
   const getColumnName = () => {
-    switch (sinteticoType) {
-      case 'data':
-        return 'Data';
-      case 'vendedor':
-        return 'Vendedor';
-      case 'designer':
-        return 'Designer';
-      case 'cliente':
-        return 'Cliente';
-      case 'envio':
-        return 'Forma de Envio';
-      default:
-        return 'Grupo';
+    if (activeTab === 'sintetico') {
+      switch (sinteticoType) {
+        case 'data':
+          return 'Data';
+        case 'vendedor':
+          return 'Vendedor';
+        case 'designer':
+          return 'Designer';
+        case 'cliente':
+          return 'Cliente';
+        case 'envio':
+          return 'Forma de Envio';
+        default:
+          return 'Grupo';
+      }
+    } else {
+      // Para analíticos, a primeira coluna pode variar
+      switch (analiticoType) {
+        case 'designer_cliente':
+          return 'Designer / Cliente';
+        case 'cliente_designer':
+          return 'Cliente / Designer';
+        case 'cliente_painel':
+          return 'Cliente / Tecido';
+        case 'designer_painel':
+          return 'Designer / Tecido';
+        case 'entrega_painel':
+          return 'Entrega / Tecido';
+        default:
+          return 'Grupo';
+      }
     }
   };
 
@@ -208,7 +264,8 @@ export default function Fechamentos() {
         startDate && endDate && endDate !== startDate
           ? `${startDate}_${endDate}`
           : startDate || new Date().toISOString().split('T')[0];
-      const filename = `relatorio_fechamentos_${sinteticoType}_${filenameSuffix}.csv`;
+      const reportType = activeTab === 'sintetico' ? sinteticoType : analiticoType;
+      const filename = `relatorio_fechamentos_${activeTab}_${reportType}_${filenameSuffix}.csv`;
       link.download = filename;
 
       document.body.appendChild(link);
@@ -325,7 +382,8 @@ export default function Fechamentos() {
         startDate && endDate && endDate !== startDate
           ? `${startDate}_${endDate}`
           : startDate || new Date().toISOString().split('T')[0];
-      const filename = `relatorio_fechamentos_${sinteticoType}_${filenameSuffix}.pdf`;
+      const reportType = activeTab === 'sintetico' ? sinteticoType : analiticoType;
+      const filename = `relatorio_fechamentos_${activeTab}_${reportType}_${filenameSuffix}.pdf`;
 
       // Abrir PDF em nova janela
       try {
@@ -361,18 +419,35 @@ export default function Fechamentos() {
       valor_frete: number;
       valor_servico: number;
       total: number;
+      isSubgroup?: boolean;
     }> = [];
 
-      report.groups.forEach((group) => {
-      // Se o grupo tem subtotais, usar o subtotal
-      if (group.subtotal) {
+    const collectRows = (group: ReportGroup, depth = 0) => {
+      // Se o grupo tem subgrupos (relatórios analíticos), processar subgrupos
+      if (group.subgroups && group.subgroups.length > 0) {
+        group.subgroups.forEach((subgroup) => {
+          allRows.push({
+            label: `${'  '.repeat(depth)}${subgroup.label}`,
+            valor_frete: subgroup.subtotal.valor_frete,
+            valor_servico: subgroup.subtotal.valor_servico,
+            total: subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico,
+            isSubgroup: depth > 0,
+          });
+        });
+      } else if (group.subtotal) {
+        // Grupo principal sem subgrupos (relatórios sintéticos ou grupos principais de analíticos)
         allRows.push({
           label: group.label,
           valor_frete: group.subtotal.valor_frete,
           valor_servico: group.subtotal.valor_servico,
           total: group.subtotal.valor_frete + group.subtotal.valor_servico,
+          isSubgroup: false,
         });
       }
+    };
+
+    report.groups.forEach((group) => {
+      collectRows(group);
     });
 
     return (
@@ -385,13 +460,7 @@ export default function Fechamentos() {
                   <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
                     <TableRow>
                       <TableHead className="min-w-[200px] lg:min-w-[250px] xl:min-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
-                        <div className="flex items-center">
-                          {sinteticoType === 'data' && 'Data'}
-                          {sinteticoType === 'vendedor' && 'Vendedor'}
-                          {sinteticoType === 'designer' && 'Designer'}
-                          {sinteticoType === 'cliente' && 'Cliente'}
-                          {sinteticoType === 'envio' && 'Forma de Envio'}
-              </div>
+                        {getColumnName()}
                       </TableHead>
                       <TableHead className="min-w-[120px] lg:min-w-[140px] xl:min-w-[160px] text-right cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
                           Valor Frete
@@ -474,164 +543,285 @@ export default function Fechamentos() {
     );
   };
 
+  // Renderizar filtros compartilhados
+  const renderSharedFilters = () => (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="start_date">Data Inicial</Label>
+        <Input
+          id="start_date"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="end_date">Data Final</Label>
+        <Input
+          id="end_date"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="w-full"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="date_mode">Modo de Data</Label>
+        <Select value={dateMode} onValueChange={setDateMode}>
+          <SelectTrigger id="date_mode" className="w-full">
+            <SelectValue placeholder="Selecione o modo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="entrada">Entrada</SelectItem>
+            <SelectItem value="entrega">Entrega</SelectItem>
+            <SelectItem value="qualquer">Qualquer</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="status">Status</Label>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger id="status" className="w-full">
+            <SelectValue placeholder="Selecione o status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Todos">Todos</SelectItem>
+            <SelectItem value="Pendente">Pendente</SelectItem>
+            <SelectItem value="Em Processamento">Em Processamento</SelectItem>
+            <SelectItem value="Concluido">Concluído</SelectItem>
+            <SelectItem value="Cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+
   return (
     <div className="space-y-6">
-        <div>
+      <div>
         <h1 className="text-3xl font-semibold text-slate-900">Fechamentos</h1>
         <p className="mt-1 text-base text-muted-foreground">
-          Relatórios sintéticos de fechamentos. Selecione o tipo de agrupamento e os filtros para gerar o relatório.
+          Relatórios de fechamentos. Selecione o tipo de relatório e os filtros para gerar.
         </p>
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-2">
-              <Label htmlFor="sintetico_type">Tipo de Relatório</Label>
-              <Select value={sinteticoType} onValueChange={(value) => setSinteticoType(value as SinteticoType)}>
-                <SelectTrigger id="sintetico_type" className="w-full">
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="data">Por Data</SelectItem>
-                  <SelectItem value="vendedor">Por Vendedor</SelectItem>
-                  <SelectItem value="designer">Por Designer</SelectItem>
-                  <SelectItem value="cliente">Por Cliente</SelectItem>
-                  <SelectItem value="envio">Por Forma de Envio</SelectItem>
-                </SelectContent>
-              </Select>
-          </div>
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Data Inicial</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_date">Data Final</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date_mode">Modo de Data</Label>
-              <Select value={dateMode} onValueChange={setDateMode}>
-                <SelectTrigger id="date_mode" className="w-full">
-                  <SelectValue placeholder="Selecione o modo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrada">Entrada</SelectItem>
-                  <SelectItem value="entrega">Entrega</SelectItem>
-                  <SelectItem value="qualquer">Qualquer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="status" className="w-full">
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos</SelectItem>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Processamento">Em Processamento</SelectItem>
-                  <SelectItem value="Concluido">Concluído</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            </div>
-          <div className="mt-4 flex justify-end">
-              <Button
-              onClick={handleGenerate}
-              disabled={loading}
-              className="min-w-[120px]"
-              type="button"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Gerar Relatório
-                </>
-              )}
-              </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'sintetico' | 'analitico')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="sintetico">Relatórios Sintéticos</TabsTrigger>
+          <TabsTrigger value="analitico">Relatórios Analíticos</TabsTrigger>
+        </TabsList>
 
-      {/* Resultados */}
-      {loading && !report ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          <span className="ml-2 text-slate-600">Gerando relatório...</span>
-        </div>
-      ) : (
-        report && (
-          <div className="space-y-4">
-            {/* Botões de exportação */}
-            <div className="flex justify-end gap-2">
-              <Button
-                onClick={exportToCsv}
-                disabled={exportingCsv || !report}
-                variant="outline"
-                type="button"
-            >
-                {exportingCsv ? (
-                <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Exportando...
-                </>
-              ) : (
-                <>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Exportar CSV
-                </>
-              )}
-            </Button>
-              <Button
-                onClick={exportToPdf}
-                disabled={exportingPdf || !report}
-                variant="outline"
-                type="button"
-              >
-                {exportingPdf ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Gerando...
+        {/* Aba: Relatórios Sintéticos */}
+        <TabsContent value="sintetico" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Filtros - Relatórios Sintéticos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-2">
+                  <Label htmlFor="sintetico_type">Tipo de Relatório</Label>
+                  <Select value={sinteticoType} onValueChange={(value) => setSinteticoType(value as SinteticoType)}>
+                    <SelectTrigger id="sintetico_type" className="w-full">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="data">Por Data</SelectItem>
+                      <SelectItem value="vendedor">Por Vendedor</SelectItem>
+                      <SelectItem value="designer">Por Designer</SelectItem>
+                      <SelectItem value="cliente">Por Cliente</SelectItem>
+                      <SelectItem value="envio">Por Forma de Envio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {renderSharedFilters()}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="min-w-[120px]"
+                  type="button"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Gerando...
                     </>
                   ) : (
                     <>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Imprimir PDF
+                      <Search className="mr-2 h-4 w-4" />
+                      Gerar Relatório
                     </>
                   )}
-              </Button>
-                </div>
-            {renderTable()}
+                </Button>
               </div>
-        )
-      )}
+            </CardContent>
+          </Card>
+
+          {/* Resultados Sintéticos */}
+          {loading && !report ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              <span className="ml-2 text-slate-600">Gerando relatório...</span>
+            </div>
+          ) : (
+            report && activeTab === 'sintetico' && (
+              <div className="space-y-4">
+                {/* Botões de exportação */}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    onClick={exportToCsv}
+                    disabled={exportingCsv || !report}
+                    variant="outline"
+                    type="button"
+                  >
+                    {exportingCsv ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Exportando...
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={exportToPdf}
+                    disabled={exportingPdf || !report}
+                    variant="outline"
+                    type="button"
+                  >
+                    {exportingPdf ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Imprimir PDF
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {renderTable()}
+              </div>
+            )
+          )}
+        </TabsContent>
+
+        {/* Aba: Relatórios Analíticos */}
+        <TabsContent value="analitico" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Filtros - Relatórios Analíticos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-2">
+                  <Label htmlFor="analitico_type">Tipo de Relatório</Label>
+                  <Select value={analiticoType} onValueChange={(value) => setAnaliticoType(value as AnaliticoType)}>
+                    <SelectTrigger id="analitico_type" className="w-full">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="designer_cliente">Designer × Cliente</SelectItem>
+                      <SelectItem value="cliente_designer">Cliente × Designer</SelectItem>
+                      <SelectItem value="cliente_painel">Cliente × Tecido</SelectItem>
+                      <SelectItem value="designer_painel">Designer × Tecido</SelectItem>
+                      <SelectItem value="entrega_painel">Entrega × Tecido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {renderSharedFilters()}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="min-w-[120px]"
+                  type="button"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="mr-2 h-4 w-4" />
+                      Gerar Relatório
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Resultados Analíticos */}
+          {loading && !report ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              <span className="ml-2 text-slate-600">Gerando relatório...</span>
+            </div>
+          ) : (
+            report && activeTab === 'analitico' && (
+              <div className="space-y-4">
+                {/* Botões de exportação */}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    onClick={exportToCsv}
+                    disabled={exportingCsv || !report}
+                    variant="outline"
+                    type="button"
+                  >
+                    {exportingCsv ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Exportando...
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={exportToPdf}
+                    disabled={exportingPdf || !report}
+                    variant="outline"
+                    type="button"
+                  >
+                    {exportingPdf ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Imprimir PDF
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {renderTable()}
+              </div>
+            )
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
