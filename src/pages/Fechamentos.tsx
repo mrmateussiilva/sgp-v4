@@ -910,22 +910,6 @@ export default function Fechamentos() {
           <CardTitle className="text-xl font-semibold tracking-tight">Parâmetros do Relatório</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Botão de limpar filtros */}
-          {hasActiveFilters && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                className="gap-2"
-                title="Limpar todos os filtros"
-              >
-                <X className="h-4 w-4" />
-                Limpar Filtros
-              </Button>
-            </div>
-          )}
-
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as 'analitico' | 'sintetico')}
@@ -1049,6 +1033,19 @@ export default function Fechamentos() {
           <Separator />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
+                title="Limpar todos os filtros"
+              >
+                <X className="h-4 w-4" />
+                Limpar Filtros
+              </Button>
+            )}
+
               <Button
               variant="outline"
               className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
