@@ -152,6 +152,9 @@ export default function Fechamentos() {
     field: null,
     direction: null,
   });
+  
+  // Estado para controlar quais linhas de subtotal estão expandidas (mostrando IDs dos pedidos)
+  const [expandedFichas, setExpandedFichas] = useState<Set<string>>(new Set());
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -820,6 +823,60 @@ export default function Fechamentos() {
     return Array.from(fichas).sort();
   };
 
+  // Função para coletar todas as fichas de um grupo (incluindo subgrupos)
+  const getAllFichasFromGroup = (group: ReportGroup): string[] => {
+    const fichas = new Set<string>();
+    
+    // Coletar fichas das linhas diretas
+    if (group.rows) {
+      group.rows.forEach(row => {
+        if (row.ficha && row.descricao !== 'Subtotal') {
+          fichas.add(row.ficha);
+        }
+      });
+    }
+    
+    // Coletar fichas dos subgrupos
+    if (group.subgroups) {
+      group.subgroups.forEach(subgroup => {
+        if (subgroup.rows) {
+          subgroup.rows.forEach(row => {
+            if (row.ficha && row.descricao !== 'Subtotal') {
+              fichas.add(row.ficha);
+            }
+          });
+        }
+        // Recursivamente coletar de subgrupos aninhados
+        if (subgroup.subgroups) {
+          subgroup.subgroups.forEach(nestedSubgroup => {
+            if (nestedSubgroup.rows) {
+              nestedSubgroup.rows.forEach(row => {
+                if (row.ficha && row.descricao !== 'Subtotal') {
+                  fichas.add(row.ficha);
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+    
+    return Array.from(fichas).sort();
+  };
+
+  // Função para alternar expansão de fichas
+  const toggleFichasExpansion = (rowKey: string) => {
+    setExpandedFichas(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rowKey)) {
+        newSet.delete(rowKey);
+      } else {
+        newSet.add(rowKey);
+      }
+      return newSet;
+    });
+  };
+
   // Função para calcular estatísticas do grupo
   const getGroupStats = (group: ReportGroup) => {
     const rows = group.rows || [];
@@ -1002,21 +1059,65 @@ export default function Fechamentos() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRows.map((row, index) => (
-                      <tr
-                        key={`${path}-row-${index}`}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                      >
-                        <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
-                        <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
-                        <td className="px-4 py-2 text-right text-slate-600">
-                          {formatCurrency(row.valor_frete)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                          {formatCurrency(row.valor_servico)}
-                        </td>
-                      </tr>
-                    ))}
+                    {sortedRows.map((row, index) => {
+                      const isSubtotalRow = row.descricao === 'Subtotal';
+                      const subtotalInfo = isSubtotalRow ? parseSubtotalInfo(row.ficha) : null;
+                      const allFichas = isSubtotalRow ? getAllFichasFromGroup(group) : [];
+                      const rowKey = `${path}-subtotal-${index}`;
+                      const isExpanded = expandedFichas.has(rowKey);
+                      
+                      return (
+                        <tr
+                          key={`${path}-row-${index}`}
+                          className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
+                        >
+                          <td className="px-4 py-2 font-medium text-slate-800">
+                            {isSubtotalRow && subtotalInfo && allFichas.length > 0 ? (
+                              <div className="space-y-1">
+                                <button
+                                  onClick={() => toggleFichasExpansion(rowKey)}
+                                  className="text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors flex items-center gap-2 group"
+                                  title="Clique para ver os IDs dos pedidos"
+                                  type="button"
+                                >
+                                  <span className="group-hover:text-blue-600">{row.ficha}</span>
+                                  <span className="text-xs text-slate-400 group-hover:text-blue-600 transition-transform">
+                                    {isExpanded ? '▼' : '▶'}
+                                  </span>
+                                </button>
+                                {isExpanded && (
+                                  <div className="mt-2 pl-4 border-l-2 border-blue-200 bg-blue-50 rounded p-2 animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-xs font-semibold text-slate-600 mb-1.5">IDs dos Pedidos:</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {allFichas.map((ficha) => (
+                                        <span
+                                          key={ficha}
+                                          className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium hover:bg-blue-200 transition-colors"
+                                        >
+                                          {ficha}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1.5">
+                                      Total: {allFichas.length} pedido(s)
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              row.ficha
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
+                          <td className="px-4 py-2 text-right text-slate-600">
+                            {formatCurrency(row.valor_frete)}
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                            {formatCurrency(row.valor_servico)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-100 text-slate-700">
