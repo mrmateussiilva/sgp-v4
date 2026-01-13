@@ -1036,7 +1036,6 @@ export default function Fechamentos() {
             {hasActiveFilters && (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={clearFilters}
                 className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
                 title="Limpar todos os filtros"
