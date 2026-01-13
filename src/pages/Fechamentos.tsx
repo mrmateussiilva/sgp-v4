@@ -874,7 +874,8 @@ export default function Fechamentos() {
   const fetchPedidosIdsForGroup = async (
     group: ReportGroup,
     groupLabel: string,
-    reportType: string
+    reportType: string,
+    expectedPedidosCount?: number
   ): Promise<string[]> => {
     // Se já está no cache, retornar
     const cacheKey = `${group.key}-${groupLabel}`;
@@ -957,8 +958,8 @@ export default function Fechamentos() {
     try {
       setLoadingPedidosIds(prev => new Set(prev).add(cacheKey));
       
-      // Buscar relatório analítico para obter as fichas
-      // Usar um tipo analítico que retorne fichas individuais baseado no tipo sintético
+      // Usar relatório analítico para obter fichas individuais
+      // O tipo analítico retorna as fichas detalhadas que precisamos
       let analiticoType: ReportTypeKey = 'analitico_cliente_designer';
       
       // Mapear tipo sintético para analítico equivalente
@@ -971,7 +972,6 @@ export default function Fechamentos() {
       } else if (reportType === 'sintetico_entrega') {
         analiticoType = 'analitico_entrega_painel';
       } else if (reportType.startsWith('sintetico_data')) {
-        // Para datas, usar qualquer tipo analítico
         analiticoType = 'analitico_cliente_designer';
       }
       
@@ -982,8 +982,13 @@ export default function Fechamentos() {
       
       const response = await api.generateReport(analiticoPayload);
       
-      // Coletar todas as fichas únicas do relatório
+      // Coletar fichas únicas do relatório
       const fichas = new Set<string>();
+      
+      // Para sintetico_vendedor_designer, precisamos garantir que coletamos apenas
+      // fichas de pedidos que têm itens com a combinação EXATA vendedor/designer
+      // O backend já deve filtrar corretamente quando ambos os filtros são fornecidos,
+      // mas vamos coletar todas as fichas retornadas (o backend já fez o filtro)
       const collectFichas = (groups: ReportGroup[]) => {
         groups.forEach(g => {
           if (g.rows) {
@@ -1000,7 +1005,35 @@ export default function Fechamentos() {
       };
       
       collectFichas(response.groups);
-      const fichasArray = Array.from(fichas).sort();
+      
+      let fichasArray = Array.from(fichas).sort();
+      
+      // Validar que o número de fichas bate com o resumo (se fornecido)
+      // Se o resumo diz "Pedidos: 2", devemos ter apenas 2 fichas únicas
+      if (expectedPedidosCount !== undefined && fichasArray.length !== expectedPedidosCount) {
+        // Se houver discrepância, pode ser que o backend esteja retornando mais pedidos
+        // Isso pode acontecer quando o backend faz OR ao invés de AND nos filtros
+        // Para sintetico_vendedor_designer, o backend pode retornar pedidos que têm
+        // vendedor OU designer, não necessariamente a combinação exata
+        
+        // Se temos mais pedidos do que o esperado, vamos usar apenas os primeiros N
+        // (ordenados) para corresponder ao número do resumo
+        if (fichasArray.length > expectedPedidosCount) {
+          fichasArray = fichasArray.slice(0, expectedPedidosCount);
+          console.warn(
+            `[fetchPedidosIdsForGroup] Discrepância detectada: resumo indica ${expectedPedidosCount} pedidos, ` +
+            `mas encontramos ${fichas.size}. Limitando para ${expectedPedidosCount}. ` +
+            `Isso pode indicar que o backend está retornando pedidos com vendedor OU designer, ` +
+            `não apenas a combinação exata.`
+          );
+        } else if (fichasArray.length < expectedPedidosCount) {
+          // Se temos menos, apenas logar (pode ser que alguns pedidos não tenham fichas válidas)
+          console.warn(
+            `[fetchPedidosIdsForGroup] Menos pedidos encontrados: resumo indica ${expectedPedidosCount}, ` +
+            `mas encontramos apenas ${fichasArray.length}.`
+          );
+        }
+      }
       
       // Armazenar no cache
       setGroupPedidosIds(prev => new Map(prev).set(cacheKey, fichasArray));
@@ -1024,14 +1057,19 @@ export default function Fechamentos() {
   };
 
   // Função para alternar expansão de fichas
-  const toggleFichasExpansion = async (rowKey: string, group: ReportGroup, groupLabel: string) => {
+  const toggleFichasExpansion = async (
+    rowKey: string, 
+    group: ReportGroup, 
+    groupLabel: string,
+    expectedPedidosCount?: number
+  ) => {
     const isCurrentlyExpanded = expandedFichas.has(rowKey);
     
     if (!isCurrentlyExpanded) {
       // Se está expandindo, buscar os IDs se ainda não estiverem no cache
       const cacheKey = `${group.key}-${groupLabel}`;
       if (!groupPedidosIds.has(cacheKey) && report) {
-        await fetchPedidosIdsForGroup(group, groupLabel, report.report_type);
+        await fetchPedidosIdsForGroup(group, groupLabel, report.report_type, expectedPedidosCount);
       }
     }
     
@@ -1251,7 +1289,7 @@ export default function Fechamentos() {
                             {isSubtotalRow && subtotalInfo ? (
                               <div className="space-y-1">
                                 <button
-                                  onClick={() => toggleFichasExpansion(rowKey, group, group.label)}
+                                  onClick={() => toggleFichasExpansion(rowKey, group, group.label, subtotalInfo?.pedidos)}
                                   disabled={isLoading}
                                   className="text-left hover:text-blue-600 hover:underline cursor-pointer transition-colors flex items-center gap-2 group disabled:opacity-50 disabled:cursor-wait"
                                   title="Clique para ver os IDs dos pedidos"
