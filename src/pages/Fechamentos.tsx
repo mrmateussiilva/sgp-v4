@@ -723,90 +723,155 @@ export default function Fechamentos() {
       const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 22;
+      let pageNumber = 1;
 
+      // Função para verificar espaço e adicionar nova página se necessário
+      const ensurePdfSpace = (required: number): number => {
+        const pageHeight = doc.internal.pageSize.getHeight();
+        if (cursorY + required > pageHeight - 20) {
+          doc.addPage();
+          pageNumber++;
+          cursorY = 20;
+          // Adicionar cabeçalho da página
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
+          return cursorY;
+        }
+        return cursorY;
+      };
+
+      // Cabeçalho principal
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text('Relatório de Fechamentos', 14, cursorY);
-
+      doc.text(report.title || 'Relatório Analítico', 14, cursorY);
+      
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
+      doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
+      
       cursorY += 8;
-      doc.text(`Tipo: ${getColumnName()}`, 14, cursorY);
-      cursorY += 6;
       if (report.period_label) {
-        doc.text(`Período: ${report.period_label}`, 14, cursorY);
+        doc.text(report.period_label, 14, cursorY);
         cursorY += 6;
       }
       if (report.status_label) {
-        doc.text(`Status: ${report.status_label}`, 14, cursorY);
+        doc.text(report.status_label, 14, cursorY);
         cursorY += 6;
       }
       if (report.generated_at) {
-        doc.text(`Gerado em: ${report.generated_at}`, 14, cursorY);
+        doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
       }
       cursorY += 8;
 
-      const tableData: string[][] = [];
-      report.groups.forEach((group) => {
+      // Função recursiva para renderizar grupos hierárquicos
+      const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
+        ensurePdfSpace(10);
+
+        const indent = 14 + depth * 6;
+        
+        // Cabeçalho do grupo com fundo escuro
+        doc.setFillColor(35, 38, 47);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        const headerHeight = 6;
+        doc.rect(indent, cursorY - 5, 180 - depth * 6, headerHeight, 'F');
+        doc.text(group.label, indent + 2, cursorY - 1);
+        
+        // Subtotais do grupo no cabeçalho
+        doc.setFontSize(9);
+        const subtotalLine = `Frete: ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços: ${formatCurrency(group.subtotal.valor_servico)}`;
+        doc.text(subtotalLine, indent + 2, cursorY + 2);
+        
+        cursorY += 10;
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+
+        // Se tem subgrupos, renderizar recursivamente
         if (group.subgroups && group.subgroups.length > 0) {
           group.subgroups.forEach((subgroup) => {
-            const total = subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico;
-            tableData.push([
-              subgroup.label,
-              formatCurrency(subgroup.subtotal.valor_frete),
-              formatCurrency(subgroup.subtotal.valor_servico),
-              formatCurrency(total),
-            ]);
+            renderGroupToPdf(subgroup, depth + 1);
           });
-        } else if (group.subtotal) {
-          const total = group.subtotal.valor_frete + group.subtotal.valor_servico;
-          tableData.push([
-            group.label,
-            formatCurrency(group.subtotal.valor_frete),
-            formatCurrency(group.subtotal.valor_servico),
-            formatCurrency(total),
-          ]);
+          return;
         }
+
+        // Se tem linhas (rows), renderizar tabela detalhada
+        if (group.rows && group.rows.length > 0) {
+          ensurePdfSpace(8);
+
+          autoTable(doc, {
+            startY: cursorY,
+            head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
+            body: group.rows.map((row) => [
+              row.ficha || '-',
+              row.descricao || '-',
+              formatCurrency(row.valor_frete),
+              formatCurrency(row.valor_servico),
+            ]),
+            styles: {
+              fontSize: 7,
+              cellPadding: 1.5,
+            },
+            headStyles: {
+              fillColor: [224, 225, 231],
+              textColor: 20,
+              fontStyle: 'bold',
+            },
+            bodyStyles: {
+              textColor: 30,
+            },
+            alternateRowStyles: {
+              fillColor: [248, 248, 252],
+            },
+            margin: {
+              left: indent,
+              right: 16,
+            },
+            tableWidth: 180 - depth * 6,
+          });
+
+          const tableInfo = (doc as any).lastAutoTable;
+          if (tableInfo) {
+            cursorY = tableInfo.finalY + 4;
+          }
+
+          // Subtotal do grupo após a tabela
+          ensurePdfSpace(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text(
+            `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
+            indent + 2,
+            cursorY,
+          );
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          cursorY += 6;
+        }
+      };
+
+      // Renderizar todos os grupos
+      report.groups.forEach((group) => {
+        renderGroupToPdf(group, 0);
       });
 
-      if (report.total) {
-        const totalGeral = report.total.valor_frete + report.total.valor_servico;
-        tableData.push([
-          'TOTAL GERAL',
-          formatCurrency(report.total.valor_frete),
-          formatCurrency(report.total.valor_servico),
-          formatCurrency(totalGeral),
-        ]);
-      }
-
-      autoTable(doc, {
-        startY: cursorY,
-        head: [[getColumnName(), 'Valor Frete', 'Valor Serviços', 'Total']],
-        body: tableData,
-        styles: {
-          fontSize: 9,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [37, 99, 235],
-          textColor: 255,
-          fontStyle: 'bold',
-          halign: 'center',
-        },
-        bodyStyles: {
-          textColor: 0,
-        },
-        alternateRowStyles: {
-          fillColor: [248, 248, 252],
-        },
-        columnStyles: {
-          0: { cellWidth: 80 },
-          1: { halign: 'right', cellWidth: 40 },
-          2: { halign: 'right', cellWidth: 40 },
-          3: { halign: 'right', cellWidth: 40, fontStyle: 'bold' },
-        },
-        margin: { left: 14, right: 14 },
-      });
+      // Total geral
+      ensurePdfSpace(12);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setFillColor(20, 24, 32);
+      doc.setTextColor(255, 255, 255);
+      doc.rect(14, cursorY - 6, 182, 8, 'F');
+      doc.text('TOTAL GERAL', 18, cursorY - 1);
+      const totalGeral = report.total.valor_frete + report.total.valor_servico;
+      doc.text(
+        `Total: ${formatCurrency(totalGeral)}`,
+        196,
+        cursorY - 1,
+        { align: 'right' },
+      );
+      doc.setTextColor(0, 0, 0);
 
       const filenameSuffix =
         startDate && endDate && endDate !== startDate
