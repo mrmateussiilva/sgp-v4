@@ -30,8 +30,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey } from '@/types';
+import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey, Cliente } from '@/types';
 import { openPdfInWindow } from '@/utils/exportUtils';
+import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -492,6 +493,7 @@ export default function Fechamentos() {
   const [endDate, setEndDate] = useState<string>(formatInputDate(today));
   const [dateMode, setDateMode] = useState<'entrada' | 'entrega'>('entrega');
   const [status, setStatus] = useState<string>(STATUS_OPTIONS[0]);
+  const [cliente, setCliente] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
@@ -537,6 +539,8 @@ export default function Fechamentos() {
       setDateMode(value);
     } else if (key === 'status') {
       setStatus(value);
+    } else if (key === 'cliente') {
+      setCliente(value);
     }
   };
 
@@ -556,19 +560,20 @@ export default function Fechamentos() {
     setEndDate(formatInputDate(today));
     setStatus(STATUS_OPTIONS[0]);
     setDateMode('entrega');
+    setCliente('');
     setDateError('');
     setReport(null);
   };
 
   const hasActiveFilters = useMemo(() => {
     return (
-      status !== STATUS_OPTIONS[0] ||
       reportType !== REPORT_OPTIONS.analitico[0].value ||
       startDate !== formatInputDate(firstDayOfMonth) ||
       endDate !== formatInputDate(today) ||
-      dateMode !== 'entrega'
+      dateMode !== 'entrega' ||
+      cliente !== ''
     );
-  }, [status, reportType, startDate, endDate, dateMode, firstDayOfMonth, today]);
+  }, [reportType, startDate, endDate, dateMode, cliente, firstDayOfMonth, today]);
 
   const handleGenerate = async () => {
     if (!startDate || !endDate) {
@@ -598,6 +603,7 @@ export default function Fechamentos() {
         end_date: endDate,
         date_mode: dateMode,
         status: status !== 'Todos' ? status : undefined,
+        cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
       };
 
       const response = await api.generateReport(payload);
@@ -1094,7 +1100,7 @@ export default function Fechamentos() {
 
           <Separator />
 
-          {/* Filtros de data, status */}
+          {/* Filtros de data, tipo de data e cliente */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Data inicial</Label>
@@ -1133,19 +1139,23 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(value) => updateFilter('status', value)}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Cliente</Label>
+              <ClienteAutocomplete
+                value={cliente}
+                onSelect={(clienteSelecionado: Cliente | null) => {
+                  if (clienteSelecionado) {
+                    setCliente(clienteSelecionado.nome);
+                  } else {
+                    setCliente('');
+                  }
+                }}
+                onInputChange={(value: string) => {
+                  setCliente(value);
+                }}
+              />
+              <p className="text-sm text-muted-foreground">
+                Filtro parcial pelo nome do cliente (opcional)
+              </p>
             </div>
           </div>
 
