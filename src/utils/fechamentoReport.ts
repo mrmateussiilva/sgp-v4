@@ -422,7 +422,7 @@ const createAggregateGroupRow = (
 // O frete é por pedido e não deve ser dividido entre itens
 // Cada item mostra o frete total do pedido
 
-type DateReferenceMode = 'entrada' | 'entrega' | 'auto' | 'qualquer';
+type DateReferenceMode = 'entrada' | 'entrega' | 'auto';
 
 // ============================================================================
 // FUNÇÕES AUXILIARES PARA TRABALHAR COM DATAS SEM PROBLEMAS DE TIMEZONE
@@ -494,7 +494,7 @@ const getOrderReferenceDate = (
   if (mode === 'entrega') {
     return order.data_entrega ?? null;
   }
-  // modo 'qualquer' ou 'auto': usa fallback entrega -> entrada -> created_at
+  // modo 'auto': usa fallback entrega -> entrada -> created_at
   return order.data_entrega ?? order.data_entrada ?? order.created_at ?? null;
 };
 
@@ -512,7 +512,7 @@ const getOrderReferenceDate = (
  *   sua parte proporcional do frete.
  * 
  * @param order - Pedido a ser convertido
- * @param dateMode - Modo de referência de data ('entrada', 'entrega', 'qualquer' ou 'auto')
+ * @param dateMode - Modo de referência de data ('entrada', 'entrega' ou 'auto')
  * @param freteDistribution - Como distribuir o frete ('por_pedido' ou 'proporcional')
  * @returns Array de linhas normalizadas (uma por item, ou uma se não houver itens)
  */
@@ -726,46 +726,6 @@ const filterOrdersByDate = (
   }
 
   return orders.filter((order) => {
-    // Modo especial 'qualquer': verifica se qualquer uma das datas está no período
-    if (dateMode === 'qualquer') {
-      const entradaDate = order.data_entrada ? extractDateOnly(order.data_entrada) : null;
-      const entregaDate = order.data_entrega ? extractDateOnly(order.data_entrega) : null;
-      
-      // Se não tem nenhuma data, inclui o pedido
-      if (!entradaDate && !entregaDate) {
-        return true;
-      }
-      
-      // Verifica se data_entrada está no período
-      let entradaInRange = false;
-      if (entradaDate) {
-        try {
-          const entrada = normalizeDateToMidnight(createDateFromString(entradaDate));
-          if (!Number.isNaN(entrada.getTime())) {
-            entradaInRange = (!start || entrada >= start) && (!end || entrada <= end);
-          }
-        } catch {
-          // Ignora erro de parsing
-        }
-      }
-      
-      // Verifica se data_entrega está no período
-      let entregaInRange = false;
-      if (entregaDate) {
-        try {
-          const entrega = normalizeDateToMidnight(createDateFromString(entregaDate));
-          if (!Number.isNaN(entrega.getTime())) {
-            entregaInRange = (!start || entrega >= start) && (!end || entrega <= end);
-          }
-        } catch {
-          // Ignora erro de parsing
-        }
-      }
-      
-      // Inclui se qualquer uma das datas estiver no período
-      return entradaInRange || entregaInRange;
-    }
-    
     // Modo normal: usa getOrderReferenceDate
     const referenceDateString = getOrderReferenceDate(order, dateMode);
     if (!referenceDateString) {
@@ -1075,7 +1035,7 @@ export const generateFechamentoReport = (
   }
   
   const dateMode: DateReferenceMode =
-    payload.date_mode === 'entrada' || payload.date_mode === 'entrega' || payload.date_mode === 'qualquer'
+    payload.date_mode === 'entrada' || payload.date_mode === 'entrega'
       ? payload.date_mode
       : 'auto';
 

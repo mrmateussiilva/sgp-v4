@@ -511,7 +511,6 @@ export default function PainelDesempenho() {
                 <SelectContent>
                   <SelectItem value="entrada">Entrada</SelectItem>
                   <SelectItem value="entrega">Entrega</SelectItem>
-                  <SelectItem value="qualquer">Qualquer</SelectItem>
                 </SelectContent>
               </Select>
                 </div>

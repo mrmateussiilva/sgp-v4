@@ -490,7 +490,7 @@ export default function Fechamentos() {
   const [reportType, setReportType] = useState<ReportTypeKey>(REPORT_OPTIONS.analitico[0].value);
   const [startDate, setStartDate] = useState<string>(formatInputDate(firstDayOfMonth));
   const [endDate, setEndDate] = useState<string>(formatInputDate(today));
-  const [dateMode, setDateMode] = useState<'entrada' | 'entrega' | 'qualquer'>('entrega');
+  const [dateMode, setDateMode] = useState<'entrada' | 'entrega'>('entrega');
   const [status, setStatus] = useState<string>(STATUS_OPTIONS[0]);
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
@@ -1024,7 +1024,6 @@ export default function Fechamentos() {
                 <SelectContent>
                   <SelectItem value="entrega">Data de entrega</SelectItem>
                   <SelectItem value="entrada">Data de entrada</SelectItem>
-                  <SelectItem value="qualquer">Qualquer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
