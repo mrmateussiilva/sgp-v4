@@ -970,6 +970,8 @@ const validateReportRequest = (payload: ReportRequestPayload): { valid: boolean;
   const validReportTypes = [
     'analitico_designer_cliente',
     'analitico_cliente_designer',
+    'analitico_vendedor_designer',
+    'analitico_designer_vendedor',
     'analitico_cliente_painel',
     'analitico_designer_painel',
     'analitico_entrega_painel',
