@@ -2112,6 +2112,8 @@ export const api = {
     // Construir parâmetros da requisição
     const params: Record<string, any> = {
       report_type: request.report_type,
+      // Sempre incluir date_mode, usando 'entrada' como padrão se não fornecido
+      date_mode: request.date_mode || 'entrada',
     };
     
     if (request.start_date) {
@@ -2124,10 +2126,6 @@ export const api = {
     
     if (request.status && request.status !== 'Todos') {
       params.status = request.status;
-    }
-    
-    if (request.date_mode) {
-      params.date_mode = request.date_mode;
     }
     
     if (request.vendedor) {
@@ -2149,6 +2147,21 @@ export const api = {
     // Fazer requisição ao backend - o backend retorna o relatório já processado
     const response = await apiClient.get<ReportResponse>('/relatorios-fechamentos/pedidos/relatorio', { params });
     
+    return response.data;
+  },
+
+  getRelatorioSemanal: async (params: {
+    start_date?: string;
+    end_date?: string;
+    date_mode?: string;
+  }): Promise<any> => {
+    requireSessionToken();
+    // Sempre incluir date_mode, usando 'entrada' como padrão se não fornecido
+    const requestParams = {
+      ...params,
+      date_mode: params.date_mode || 'entrada',
+    };
+    const response = await apiClient.get('/relatorios-fechamentos/pedidos/relatorio-semanal', { params: requestParams });
     return response.data;
   },
 

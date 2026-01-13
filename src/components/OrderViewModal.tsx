@@ -268,23 +268,27 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Não informado';
     
-    try {
-      // Se a data está no formato YYYY-MM-DD (ISO), usar diretamente
-      if (typeof dateString === 'string' && dateString.includes('-') && dateString.length === 10) {
-        const date = new Date(dateString + 'T00:00:00');
-        return date.toLocaleDateString('pt-BR');
-      }
-      
-      // Para outros formatos, tentar parsear normalmente
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Data inválida';
-      }
-      return date.toLocaleDateString('pt-BR');
-    } catch (error) {
-      console.error('Erro ao formatar data:', dateString, error);
-      return 'Data inválida';
+    // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [y, m, d] = dateString.split('-');
+      return `${d}/${m}/${y}`;
     }
+    
+    // Se tem timestamp, extrair apenas a parte da data
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      const dateOnly = dateString.split('T')[0];
+      const [y, m, d] = dateOnly.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    
+    // Tentar extrair data do início
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch;
+      return `${d}/${m}/${y}`;
+    }
+    
+    return 'Data inválida';
   };
 
   const orderTotalFromItems = Array.isArray(order.items)

@@ -135,7 +135,7 @@ export default function Fechamentos() {
     startDate: formatInputDate(firstDayOfMonth),
     endDate: formatInputDate(today),
     status: STATUS_OPTIONS[0],
-    dateMode: 'entrega',
+    dateMode: 'entrada', // Padrão alterado de 'entrega' para 'entrada'
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
@@ -253,7 +253,7 @@ export default function Fechamentos() {
       startDate: formatInputDate(firstDayOfMonth),
       endDate: formatInputDate(today),
       status: STATUS_OPTIONS[0],
-      dateMode: 'entrega',
+      dateMode: 'entrada', // Padrão alterado de 'entrega' para 'entrada'
       vendedor: undefined,
       designer: undefined,
       cliente: undefined,
@@ -267,7 +267,7 @@ export default function Fechamentos() {
     const defaultFilters = {
       reportType: REPORT_OPTIONS.analitico[0].value,
       status: STATUS_OPTIONS[0],
-      dateMode: 'entrega' as const,
+      dateMode: 'entrada' as const, // Padrão alterado de 'entrega' para 'entrada'
     };
     
     return (

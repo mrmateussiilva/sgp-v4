@@ -477,22 +477,54 @@ function formatDate(value?: string | null): string {
   if (!value) {
     return 'Não informado';
   }
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    return date.toLocaleDateString('pt-BR');
-  } catch {
-    return value;
+  
+  // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
+  if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [y, m, d] = value.split('-');
+    return `${d}/${m}/${y}`;
   }
+  
+  // Se tem timestamp, extrair apenas a parte da data
+  if (value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+    const dateOnly = value.split('T')[0];
+    const [y, m, d] = dateOnly.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  
+  // Tentar extrair data do início
+  const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch;
+    return `${d}/${m}/${y}`;
+  }
+  
+  return value;
 }
 
 function formatDateTime(value?: string | null): string {
   if (!value) {
     return 'Não informado';
   }
+  
   try {
+    // Se tem timestamp ISO, extrair data e hora separadamente
+    if (value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+      const [datePart, timePart] = value.split('T');
+      const [y, m, d] = datePart.split('-');
+      const time = timePart.split('.')[0]; // Remove milissegundos se houver
+      const [h, min, s] = time.split(':');
+      
+      // Formatar data como DD/MM/YYYY HH:mm:ss
+      return `${d}/${m}/${y} ${h}:${min}${s ? ':' + s : ''}`;
+    }
+    
+    // Se é apenas data YYYY-MM-DD, formatar como data
+    if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [y, m, d] = value.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    
+    // Fallback: tentar parsear como data local
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
       return value;

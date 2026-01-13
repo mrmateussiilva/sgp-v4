@@ -158,12 +158,28 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('pt-BR');
-    } catch {
-      return '';
+    
+    // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [y, m, d] = dateString.split('-');
+      return `${d}/${m}/${y}`;
     }
+    
+    // Se tem timestamp, extrair apenas a parte da data
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      const dateOnly = dateString.split('T')[0];
+      const [y, m, d] = dateOnly.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    
+    // Tentar extrair data do início
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch;
+      return `${d}/${m}/${y}`;
+    }
+    
+    return '';
   };
 
   const formatDimensions = (item: OrderItemFicha): string => {
