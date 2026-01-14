@@ -13,6 +13,11 @@ const blobUrlCache = new Map<string, string>();
 const blobCache = new Map<string, Blob>();
 
 /**
+ * Exporta o cache de blobs para uso externo (ex: validação de tamanho)
+ */
+export { blobCache };
+
+/**
  * Detecta se é um local_path de outro sistema (não do sistema atual)
  * @param path - Caminho a verificar
  * @returns true se for local_path de outro sistema
@@ -43,7 +48,7 @@ function isOtherSystemLocalPath(path: string): boolean {
  * @param imagePath - Caminho ou URL da imagem
  * @returns URL normalizada
  */
-function normalizeImageUrl(imagePath: string): string {
+export function normalizeImageUrl(imagePath: string): string {
   const apiUrl = getApiUrl();
   
   // Se for base64, retornar diretamente
@@ -144,6 +149,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         // Converter base64 para blob URL
         const response = await fetch(base64);
         const blob = await response.blob();
+        
+        // Validação de tamanho: avisar se a imagem for muito grande (50MB - limite do backend)
+        const MAX_IMAGE_SIZE_MB = 50;
+        const sizeMB = blob.size / (1024 * 1024);
+        if (sizeMB > MAX_IMAGE_SIZE_MB) {
+          console.warn(`[loadAuthenticatedImage] ⚠️ Imagem muito grande detectada: ${sizeMB.toFixed(2)}MB (máximo recomendado: ${MAX_IMAGE_SIZE_MB}MB). Isso pode causar problemas de performance.`);
+        }
+        
         const blobUrl = URL.createObjectURL(blob);
         // Salvar usando apenas caminho normalizado (chave única)
         blobUrlCache.set(normalized, blobUrl);
@@ -161,6 +174,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       });
       
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+      
+      // Validação de tamanho: avisar se a imagem for muito grande (10MB)
+      const MAX_IMAGE_SIZE_MB = 10;
+      const sizeMB = blob.size / (1024 * 1024);
+      if (sizeMB > MAX_IMAGE_SIZE_MB) {
+        console.warn(`[loadAuthenticatedImage] ⚠️ Imagem muito grande detectada: ${sizeMB.toFixed(2)}MB (máximo recomendado: ${MAX_IMAGE_SIZE_MB}MB). Isso pode causar problemas de performance.`);
+      }
+      
       const blobUrl = URL.createObjectURL(blob);
       // Salvar usando apenas caminho normalizado (chave única)
       blobUrlCache.set(normalized, blobUrl);
@@ -225,6 +246,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
     // Criar blob URL
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+    
+    // Validação de tamanho: avisar se a imagem for muito grande (50MB - limite do backend)
+    const MAX_IMAGE_SIZE_MB = 50;
+    const sizeMB = blob.size / (1024 * 1024);
+    if (sizeMB > MAX_IMAGE_SIZE_MB) {
+      console.warn(`[loadAuthenticatedImage] ⚠️ Imagem muito grande detectada: ${sizeMB.toFixed(2)}MB (máximo recomendado: ${MAX_IMAGE_SIZE_MB}MB). Isso pode causar problemas de performance.`);
+    }
+    
     const blobUrl = URL.createObjectURL(blob);
 
     // Armazenar no cache usando apenas caminho normalizado (chave única)
@@ -428,4 +457,27 @@ async function resizeImageToBase64(
     
     img.src = imageSrc;
   });
+}
+
+/**
+ * Valida o tamanho de um blob de imagem
+ * @param blob - Blob da imagem
+ * @param maxSizeMB - Tamanho máximo em MB (padrão: 10MB para impressão)
+ * @returns Objeto com informações de validação
+ */
+export function validateImageSize(
+  blob: Blob,
+  maxSizeMB: number = 10
+): { valid: boolean; sizeMB: number; maxSizeMB: number; message?: string } {
+  const sizeMB = blob.size / (1024 * 1024);
+  const valid = sizeMB <= maxSizeMB;
+  
+  return {
+    valid,
+    sizeMB: parseFloat(sizeMB.toFixed(2)),
+    maxSizeMB,
+    message: valid
+      ? undefined
+      : `Imagem muito grande (${sizeMB.toFixed(2)}MB). Tamanho máximo permitido: ${maxSizeMB}MB`
+  };
 }

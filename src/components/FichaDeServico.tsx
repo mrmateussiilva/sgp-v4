@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { OrderFicha, OrderItemFicha } from '../types';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { normalizeImagePath, isValidImagePath } from '@/utils/path';
-import { loadAuthenticatedImage, revokeImageUrl } from '@/utils/imageLoader';
+import { loadAuthenticatedImage, revokeImageUrl, validateImageSize, blobCache, normalizeImageUrl } from '@/utils/imageLoader';
 
 // Função para redimensionar imagem mantendo proporção
 // Define altura fixa de 80mm e calcula largura proporcionalmente
@@ -102,6 +102,21 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
           try {
             console.log(`[FichaDeServico] 🔄 Carregando imagem do item ${item.id}:`, item.imagem);
             const blobUrl = await loadAuthenticatedImage(item.imagem);
+            
+            // Validar tamanho da imagem antes de processar (limite de 10MB para impressão)
+            const normalized = normalizeImageUrl(item.imagem);
+            const blob = blobCache.get(normalized);
+            
+            if (blob) {
+              const validation = validateImageSize(blob, 10); // 10MB máximo para impressão
+              if (!validation.valid) {
+                console.warn(`[FichaDeServico] ⚠️ Imagem do item ${item.id} muito grande (${validation.sizeMB}MB), máximo: ${validation.maxSizeMB}MB. Pulando redimensionamento para evitar problemas de memória.`);
+                // Usar imagem original sem redimensionar (pode causar problemas, mas melhor que travar)
+                imageUrlMap.set(item.imagem, blobUrl);
+                continue;
+              }
+              console.log(`[FichaDeServico] ✅ Tamanho da imagem do item ${item.id} validado: ${validation.sizeMB}MB`);
+            }
             
             // Redimensionar imagem para impressão (80mm altura fixa, largura calculada proporcionalmente)
             try {
