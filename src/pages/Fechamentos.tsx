@@ -880,14 +880,22 @@ export default function Fechamentos() {
         if (group.rows && group.rows.length > 0) {
           ensurePdfSpace(10);
 
+          // Definir larguras fixas para as colunas
+          const colFichaWidth = 25; // Largura fixa para Ficha
+          const colFreteWidth = 30; // Largura fixa para Vr.Frete
+          const colServicosWidth = 30; // Largura fixa para Vr.Serviços
+          const colSpacing = 3; // Espaçamento entre colunas
+          
+          // Posições das colunas (valores fixos à direita)
+          const colFicha = indent;
+          const colDescricao = colFicha + colFichaWidth + colSpacing;
+          const colServicos = marginLeft + pageWidth - colServicosWidth;
+          const colFrete = colServicos - colFreteWidth - colSpacing;
+          const colDescricaoWidth = colFrete - colDescricao - colSpacing; // Largura flexível para descrição
+
           // Cabeçalhos da tabela em negrito (sem grade)
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(8);
-          const colFicha = indent;
-          const colDescricao = indent + 30;
-          const colFrete = marginLeft + pageWidth - 60;
-          const colServicos = marginLeft + pageWidth - 30;
-
           doc.text('Ficha', colFicha, cursorY);
           doc.text('Descrição Painel', colDescricao, cursorY);
           doc.text('Vr.Frete', colFrete, cursorY);
@@ -902,12 +910,32 @@ export default function Fechamentos() {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
           group.rows.forEach((row) => {
-            ensurePdfSpace(4);
+            ensurePdfSpace(6);
+            const rowStartY = cursorY;
+            
+            // Ficha (largura fixa, não quebra)
             doc.text(row.ficha || '-', colFicha, cursorY);
-            doc.text(row.descricao || '-', colDescricao, cursorY);
-            doc.text(formatCurrency(row.valor_frete), colFrete, cursorY, { align: 'right' });
-            doc.text(formatCurrency(row.valor_servico), colServicos, cursorY, { align: 'right' });
-            cursorY += 4; // Espaçamento vertical leve entre linhas
+            
+            // Descrição (largura flexível, pode quebrar linha)
+            const descricaoText = row.descricao || '-';
+            const descricaoLines = doc.splitTextToSize(descricaoText, colDescricaoWidth);
+            let maxDescricaoHeight = 0;
+            descricaoLines.forEach((line: string, lineIndex: number) => {
+              doc.text(line, colDescricao, cursorY);
+              if (lineIndex < descricaoLines.length - 1) {
+                cursorY += 3.5; // Espaçamento entre linhas da descrição
+              }
+              maxDescricaoHeight = Math.max(maxDescricaoHeight, cursorY - rowStartY);
+            });
+            
+            // Valores monetários (largura fixa, alinhados à direita, não quebram linha)
+            // Posicionar na primeira linha da descrição
+            const firstLineY = rowStartY;
+            doc.text(formatCurrency(row.valor_frete), colFrete, firstLineY, { align: 'right' });
+            doc.text(formatCurrency(row.valor_servico), colServicos, firstLineY, { align: 'right' });
+            
+            // Ajustar cursorY para a próxima linha (usar a maior altura entre descrição e valores)
+            cursorY = rowStartY + Math.max(maxDescricaoHeight, 4) + 2; // Espaçamento vertical leve entre linhas
           });
 
           cursorY += 2;
