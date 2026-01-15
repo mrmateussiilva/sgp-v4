@@ -1002,6 +1002,107 @@ const fetchOrdersPaginated = async (
   };
 };
 
+/**
+ * Busca pedidos com paginação usando a rota dedicada de relatórios de envios
+ * Esta rota sempre filtra por data de entrega (sem necessidade de date_mode)
+ * Usada especificamente pela tabela de pedidos
+ */
+const fetchOrdersPaginatedForTable = async (
+  page: number = 1,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+  status?: OrderStatus,
+  cliente?: string,
+  data_inicio?: string,
+  data_fim?: string
+): Promise<PaginatedOrders> => {
+  requireSessionToken();
+  
+  const skip = (page - 1) * pageSize;
+  const limit = pageSize;
+  
+  // Construir query params
+  const params: Record<string, any> = {
+    skip,
+    limit,
+  };
+  
+  // Log para debug
+  logger.debug('[fetchOrdersPaginatedForTable] 📡 Parâmetros da requisição:', { page, pageSize, skip, limit, params });
+  logger.debug('[fetchOrdersPaginatedForTable] 📡 URL da requisição:', `/relatorios-envios/pedidos`, 'Params:', JSON.stringify(params));
+  
+  if (status) {
+    // Converter OrderStatus para formato da API
+    const statusMap: Record<OrderStatus, string> = {
+      [OrderStatus.Pendente]: 'pendente',
+      [OrderStatus.EmProcessamento]: 'em_producao',
+      [OrderStatus.Concluido]: 'pronto',
+      [OrderStatus.Cancelado]: 'cancelado',
+    };
+    params.status = statusMap[status] || status;
+  }
+  
+  if (cliente) {
+    params.cliente = cliente;
+  }
+  
+  if (data_inicio) {
+    params.data_inicio = data_inicio;
+  }
+  
+  if (data_fim) {
+    params.data_fim = data_fim;
+  }
+  
+  // Buscar pedidos paginados da rota dedicada de relatórios de envios
+  // Esta rota sempre filtra por data_entrega (sem necessidade de date_mode)
+  const response = await apiClient.get<ApiPedido[]>('/relatorios-envios/pedidos', { params });
+  const paginatedData = (response.data ?? []).map(mapPedidoFromApi);
+  
+  // Para calcular o total de forma eficiente:
+  // - Se retornou menos que pageSize, sabemos que é a última página
+  // - Se retornou exatamente pageSize, fazer uma chamada adicional apenas na primeira página
+  //   para contar o total (e cachear se possível)
+  let total = paginatedData.length;
+  let totalPages = 1;
+  
+  if (paginatedData.length < pageSize) {
+    // Última página: calcular total exato
+    total = skip + paginatedData.length;
+    totalPages = Math.ceil(total / pageSize);
+  } else if (page === 1) {
+    // Primeira página: fazer chamada adicional para contar total
+    // Usar limit alto para obter todos e contar (otimização futura: endpoint de contagem)
+    const countParams = { ...params };
+    delete countParams.skip;
+    delete countParams.limit;
+    countParams.limit = 10000; // Limite alto para contar (otimização futura: endpoint COUNT)
+    
+    try {
+      const countResponse = await apiClient.get<ApiPedido[]>('/relatorios-envios/pedidos', { params: countParams });
+      total = (countResponse.data ?? []).length;
+      totalPages = Math.ceil(total / pageSize);
+    } catch (error) {
+      // Se falhar, estimar conservadoramente
+      logger.warn('Erro ao contar total de pedidos, usando estimativa:', error);
+      total = paginatedData.length + pageSize; // Estimativa conservadora
+      totalPages = Math.ceil(total / pageSize);
+    }
+  } else {
+    // Páginas seguintes: estimar baseado na página atual
+    // (o total já foi calculado na primeira página)
+    total = skip + paginatedData.length + pageSize; // Estimativa conservadora
+    totalPages = Math.ceil(total / pageSize);
+  }
+  
+  return {
+    orders: paginatedData,
+    total,
+    page,
+    page_size: pageSize,
+    total_pages: totalPages,
+  };
+};
+
 const fetchOrderById = async (orderId: number): Promise<OrderWithItems> => {
   requireSessionToken();
   
@@ -1642,6 +1743,22 @@ export const api = {
     return await fetchOrdersPaginated(page, pageSize, status, cliente, data_inicio, data_fim);
   },
 
+  /**
+   * Busca pedidos com paginação usando a rota dedicada de relatórios de envios
+   * Esta rota sempre filtra por data de entrega (sem necessidade de date_mode)
+   * Usada especificamente pela tabela de pedidos
+   */
+  getOrdersPaginatedForTable: async (
+    page: number = 1,
+    pageSize: number = DEFAULT_PAGE_SIZE,
+    status?: OrderStatus,
+    cliente?: string,
+    data_inicio?: string,
+    data_fim?: string
+  ): Promise<PaginatedOrders> => {
+    return await fetchOrdersPaginatedForTable(page, pageSize, status, cliente, data_inicio, data_fim);
+  },
+
   getPendingOrdersLight: async (): Promise<OrderWithItems[]> => {
     return collectPendingOrders();
   },
@@ -2083,6 +2200,24 @@ export const api = {
     );
     
     // Código antigo removido - agora sempre usa paginação do backend para melhor performance
+  },
+
+  /**
+   * Busca pedidos com filtros usando a rota dedicada de relatórios de envios
+   * Esta rota sempre filtra por data de entrega (sem necessidade de date_mode)
+   * Usada especificamente pela tabela de pedidos
+   */
+  getOrdersWithFiltersForTable: async (filters: OrderFilters): Promise<PaginatedOrders> => {
+    // Usar paginação do backend com a rota dedicada de relatórios de envios
+    // Nota: filtros avançados serão aplicados no frontend após receber os dados
+    return await fetchOrdersPaginatedForTable(
+      filters.page ?? 1,
+      filters.page_size ?? DEFAULT_PAGE_SIZE,
+      filters.status,
+      filters.customer_name ?? (filters as any).cliente,
+      filters.date_from,
+      filters.date_to
+    );
   },
 
   getOrderHistory: async (orderId: number): Promise<OrderAuditLogEntry[]> => {

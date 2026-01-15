@@ -296,7 +296,7 @@ export default function OrderList() {
       if (productionStatusFilter === 'all') {
         const bigPageSize = 10000; // Limite alto para buscar todos os pedidos
         console.log('[OrderList] Buscando TODOS os pedidos com bigPageSize:', bigPageSize);
-        const paginatedData = await api.getOrdersPaginated(
+        const paginatedData = await api.getOrdersPaginatedForTable(
           1, // Sempre começar da página 1 quando buscando 'all'
           bigPageSize,
           undefined, // status - todos
@@ -322,7 +322,7 @@ export default function OrderList() {
         if (clientSideFiltersActive) {
           const bigPageSize = 5000;
           // Não passar cliente para backend quando há busca - vamos filtrar localmente
-          const paginatedData = await api.getOrdersPaginated(
+          const paginatedData = await api.getOrdersPaginatedForTable(
             1,
             bigPageSize,
             undefined, // status
@@ -349,7 +349,7 @@ export default function OrderList() {
             page_size: currentPageSize,
           };
 
-          const paginatedData = await api.getOrdersWithFilters(filters);
+          const paginatedData = await api.getOrdersWithFiltersForTable(filters);
           if (loadRequestRef.current !== requestId) {
             return;
           }
