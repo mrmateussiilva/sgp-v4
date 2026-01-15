@@ -612,8 +612,8 @@ export const printMultipleOrdersServiceForm = async (
       background: white;
     }
     @page {
-      size: ${templateType === 'resumo' ? 'A4 portrait' : 'A4 portrait'};
-      margin: ${templateType === 'resumo' ? '0' : '10mm'};
+      size: A4;
+      margin: 10mm;
     }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
@@ -634,7 +634,7 @@ export const printMultipleOrdersServiceForm = async (
       }
       
       @page {
-        size: A4 portrait;
+        size: A4;
         margin: 10mm;
       }
       
@@ -651,75 +651,45 @@ export const printMultipleOrdersServiceForm = async (
         display: none !important;
       }
 
-      /* Resetar contador de pedidos por página */
-      body {
-        counter-reset: pedido-counter;
+      /* Container principal da impressão deve ser bloco (evitar flex/grid) */
+      .template-document {
+        display: block !important;
+        overflow: visible !important;
       }
 
-      /* Cada pedido é um bloco independente */
+      /* Cada pedido é um bloco independente e não deve quebrar internamente */
       .pedido {
         display: block !important;
-        /* Permitir quebra dentro se necessário (pedidos muito grandes) */
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
         break-after: auto !important;
         page-break-after: auto !important;
         margin: 0 !important;
         padding: 0 !important;
         min-height: 0 !important;
-        /* Incrementar contador */
-        counter-increment: pedido-counter;
+        overflow: visible !important;
       }
 
-      /* Tentar evitar quebra dentro de elementos críticos, mas não forçar */
-      .pedido .item,
-      .pedido .item-container {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-      }
-
-      /* Remover altura fixa do .item quando dentro de .pedido (impressão múltipla) */
+      /* Neutralizar paginação/alturas fixas do template dentro do pedido */
+      .pedido .print-page,
+      .pedido .template-page,
+      .pedido .items-container,
+      .pedido .item-container,
       .pedido .item {
+        display: block !important;
+        position: static !important;
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
+        overflow: visible !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
       }
 
       /* Quebrar página APENAS ENTRE pedidos: a cada 3 pedidos */
-      /* Regra genérica usando nth-of-type (funciona mesmo com outros elementos) */
-      article.pedido:nth-of-type(3n) {
-        break-after: page !important;
-        page-break-after: always !important;
-      }
-
-      /* Fallback: usar nth-child também */
-      .template-document > article.pedido:nth-child(3n),
-      body > .template-document > article.pedido:nth-child(3n) {
-        break-after: page !important;
-        page-break-after: always !important;
-      }
-
-      /* Seletores específicos por índice (mais confiável) */
-      article.pedido[data-pedido-index="3"],
-      article.pedido[data-pedido-index="6"],
-      article.pedido[data-pedido-index="9"],
-      article.pedido[data-pedido-index="12"],
-      article.pedido[data-pedido-index="15"],
-      article.pedido[data-pedido-index="18"],
-      article.pedido[data-pedido-index="21"],
-      article.pedido[data-pedido-index="24"],
-      article.pedido[data-pedido-index="27"],
-      article.pedido[data-pedido-index="30"],
-      article.pedido[data-pedido-index="33"],
-      article.pedido[data-pedido-index="36"],
-      article.pedido[data-pedido-index="39"],
-      article.pedido[data-pedido-index="42"],
-      article.pedido[data-pedido-index="45"],
-      article.pedido[data-pedido-index="48"],
-      article.pedido[data-pedido-index="51"],
-      article.pedido[data-pedido-index="54"],
-      article.pedido[data-pedido-index="57"],
-      article.pedido[data-pedido-index="60"] {
+      .pedido:nth-of-type(3n) {
         break-after: page !important;
         page-break-after: always !important;
       }
@@ -965,33 +935,6 @@ export const printMultipleOrdersServiceForm = async (
       </head>
       <body>
         <div class="template-document">${combinedContent}</div>
-        <script>
-          (function() {
-            // Aplicar quebras de página dinamicamente após carregamento
-            function applyPageBreaks() {
-              const pedidos = document.querySelectorAll('.pedido');
-              pedidos.forEach((pedido, index) => {
-                // Índice baseado em 1 (1, 2, 3, 4, 5, 6...)
-                const pedidoNumber = index + 1;
-                // Se for múltiplo de 3 e não for o último, adicionar quebra
-                if (pedidoNumber % 3 === 0 && pedidoNumber < pedidos.length) {
-                  pedido.style.pageBreakAfter = 'always';
-                  pedido.style.breakAfter = 'page';
-                } else {
-                  pedido.style.pageBreakAfter = 'auto';
-                  pedido.style.breakAfter = 'auto';
-                }
-              });
-            }
-            
-            // Aplicar quando o DOM estiver pronto
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', applyPageBreaks);
-            } else {
-              applyPageBreaks();
-            }
-          })();
-        </script>
       </body>
     </html>
   `;
