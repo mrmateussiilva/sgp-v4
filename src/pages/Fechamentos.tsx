@@ -887,18 +887,31 @@ export default function Fechamentos() {
         if (group.rows && group.rows.length > 0) {
           ensurePdfSpace(10);
 
-          // Definir larguras fixas para as colunas
-          const colFichaWidth = 25; // Largura fixa para Ficha
-          const colFreteWidth = 32; // Largura fixa para Vr.Frete (aumentada para acomodar números)
-          const colServicosWidth = 32; // Largura fixa para Vr.Serviços (aumentada para acomodar números)
-          const colSpacing = 4; // Espaçamento entre colunas (aumentado para melhor legibilidade)
+          // ========== DEFINIÇÃO DE LARGURAS FIXAS ==========
+          // Largura total da tabela = 100% da área imprimível
+          const tableTotalWidth = pageWidth;
           
-          // Posições das colunas (valores fixos à direita)
+          // Bloco de valores fixo à direita (ancorado no canto direito)
+          const colFreteWidth = 35; // Largura fixa para Vr.Frete
+          const colServicosWidth = 35; // Largura fixa para Vr.Serviços
+          const colValuesGap = 4; // Espaçamento entre colunas de valores
+          const valuesBlockWidth = colFreteWidth + colValuesGap + colServicosWidth; // Bloco total: 74mm
+          
+          // Coluna Ficha (fixa à esquerda)
+          const colFichaWidth = 25; // Largura fixa para Ficha
+          const colFichaToDescGap = 4; // Espaçamento entre Ficha e Descrição
+          
+          // Coluna Descrição (usa todo o espaço restante)
+          const colDescricaoWidth = tableTotalWidth - colFichaWidth - colFichaToDescGap - valuesBlockWidth;
+          
+          // ========== POSIÇÕES DAS COLUNAS ==========
+          // Colunas ancoradas à esquerda
           const colFicha = indent;
-          const colDescricao = colFicha + colFichaWidth + colSpacing;
+          const colDescricao = colFicha + colFichaWidth + colFichaToDescGap;
+          
+          // Bloco de valores ancorado à direita (colado no canto direito)
           const colServicos = marginLeft + pageWidth - colServicosWidth;
-          const colFrete = colServicos - colFreteWidth - colSpacing;
-          const colDescricaoWidth = colFrete - colDescricao - colSpacing; // Largura flexível para descrição
+          const colFrete = colServicos - colFreteWidth - colValuesGap;
 
           // Cabeçalhos da tabela em negrito (sem grade)
           doc.setFont('helvetica', 'bold');
@@ -923,11 +936,15 @@ export default function Fechamentos() {
             // Ficha (largura fixa, não quebra)
             doc.text(row.ficha || '-', colFicha, cursorY);
             
-            // Descrição (largura flexível, pode quebrar linha)
+            // Descrição (largura fixa calculada, pode quebrar linha mas NUNCA invade valores)
             const descricaoText = row.descricao || '-';
-            const descricaoLines = doc.splitTextToSize(descricaoText, colDescricaoWidth);
+            // Garantir que a descrição nunca ultrapasse o limite (margem de segurança de 0.5mm)
+            const safeDescricaoWidth = Math.max(10, colDescricaoWidth - 0.5);
+            // splitTextToSize garante que o texto nunca ultrapasse a largura especificada
+            const descricaoLines = doc.splitTextToSize(descricaoText, safeDescricaoWidth);
             let maxDescricaoHeight = 0;
             descricaoLines.forEach((line: string, lineIndex: number) => {
+              // Renderizar linha respeitando o limite (splitTextToSize já garante que cabe)
               doc.text(line, colDescricao, cursorY);
               if (lineIndex < descricaoLines.length - 1) {
                 cursorY += 3.5; // Espaçamento entre linhas da descrição
