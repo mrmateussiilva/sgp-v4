@@ -1,13 +1,15 @@
 /**
  * Redimensiona uma imagem mantendo a proporção
- * Define altura fixa de 80mm e calcula largura proporcionalmente
+ * Considera altura E largura máximas para garantir que a imagem sempre caiba sem ser cortada
  * @param imageSrc - Blob URL ou data URL da imagem
- * @param fixedHeight - Altura fixa em mm (padrão: 80mm)
+ * @param maxHeight - Altura máxima em mm (padrão: 80mm)
+ * @param maxWidth - Largura máxima em mm (opcional, calcula automaticamente se não fornecido)
  * @returns Promise com a string base64 da imagem redimensionada
  */
 export async function resizeImageToBase64(
   imageSrc: string,
-  fixedHeight: number = 80
+  maxHeight: number = 80,
+  maxWidth?: number
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -17,14 +19,51 @@ export async function resizeImageToBase64(
       try {
         // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
         const mmToPx = 3.779527559;
-        const fixedHeightPx = fixedHeight * mmToPx;
         
-        // Calcular largura proporcional baseada na altura fixa
+        // Se maxWidth não foi fornecido, calcular baseado na coluna direita (63% de ~187mm = ~117mm)
+        // Mas deixar um pouco de margem para padding/margens: usar ~110mm
+        const calculatedMaxWidth = maxWidth || 110;
+        
+        const maxHeightPx = maxHeight * mmToPx;
+        const maxWidthPx = calculatedMaxWidth * mmToPx;
+        
+        // Calcular proporção original da imagem
         const aspectRatio = img.width / img.height;
-        const newWidth = fixedHeightPx * aspectRatio;
-        const newHeight = fixedHeightPx;
         
-        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}`);
+        // Calcular dimensões se limitássemos apenas pela altura
+        const widthByHeight = maxHeightPx * aspectRatio;
+        const heightByHeight = maxHeightPx;
+        
+        // Calcular dimensões se limitássemos apenas pela largura
+        const widthByWidth = maxWidthPx;
+        const heightByWidth = maxWidthPx / aspectRatio;
+        
+        // Escolher a dimensão mais restritiva (a menor)
+        let newWidth: number;
+        let newHeight: number;
+        
+        if (widthByHeight <= maxWidthPx && heightByHeight <= maxHeightPx) {
+          // Cabe limitando pela altura
+          newWidth = widthByHeight;
+          newHeight = heightByHeight;
+        } else if (widthByWidth <= maxWidthPx && heightByWidth <= maxHeightPx) {
+          // Cabe limitando pela largura
+          newWidth = widthByWidth;
+          newHeight = heightByWidth;
+        } else {
+          // Precisa limitar por ambos - usar o mais restritivo
+          if (widthByHeight > maxWidthPx) {
+            // Largura é o limitante
+            newWidth = maxWidthPx;
+            newHeight = heightByWidth;
+          } else {
+            // Altura é o limitante
+            newWidth = widthByHeight;
+            newHeight = maxHeightPx;
+          }
+        }
+        
+        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Limites: ${maxWidth || 110}mm x ${maxHeight}mm, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}px (${Math.round(newWidth/mmToPx)}x${Math.round(newHeight/mmToPx)}mm)`);
         
         // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');

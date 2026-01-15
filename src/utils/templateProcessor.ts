@@ -1484,22 +1484,23 @@ export const generateTemplatePrintContent = async (
             // Carregar blob da imagem
             const blobUrl = await loadAuthenticatedImage(imagePath);
             
-            // Se for base64, usar diretamente
-            if (blobUrl.startsWith('data:image/')) {
-              imageBase64Map.set(imagePath, blobUrl);
-              return;
-            }
-            
-            // Redimensionar imagem para impressão (80mm altura fixa, largura calculada proporcionalmente)
+            // SEMPRE redimensionar imagem para impressão considerando altura E largura máximas
+            // Altura: 70mm, Largura: 110mm (63% de ~187mm da coluna direita com margem de segurança)
+            // Isso garante que a imagem sempre caiba sem ser cortada
+            // Mesmo se já for base64, vamos redimensionar para garantir o tamanho correto
             try {
-              const resizedBase64 = await resizeImageToBase64(blobUrl, 80);
+              const resizedBase64 = await resizeImageToBase64(blobUrl, 70, 110);
               imageBase64Map.set(imagePath, resizedBase64);
-              logger.debug('[templateProcessor] ✅ Imagem redimensionada:', imagePath);
+              logger.debug('[templateProcessor] ✅ Imagem redimensionada para 70mm:', imagePath);
             } catch (resizeError) {
-              logger.warn('[templateProcessor] ⚠️ Erro ao redimensionar, usando conversão normal:', resizeError);
-              // Fallback: usar conversão normal se redimensionamento falhar
-              const base64 = await imageToBase64(imagePath);
-              imageBase64Map.set(imagePath, base64);
+              logger.warn('[templateProcessor] ⚠️ Erro ao redimensionar, usando original:', resizeError);
+              // Fallback: usar imagem original se redimensionamento falhar
+              if (blobUrl.startsWith('data:image/')) {
+                imageBase64Map.set(imagePath, blobUrl);
+              } else {
+                const base64 = await imageToBase64(imagePath);
+                imageBase64Map.set(imagePath, base64);
+              }
             }
           } catch (error) {
             logger.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);

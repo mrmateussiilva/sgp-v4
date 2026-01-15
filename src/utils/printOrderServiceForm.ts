@@ -244,10 +244,10 @@ export const printOrderServiceForm = async (
       box-sizing: border-box !important;
     }
 
-    /* Slot fixo do resumo (aprox 99mm por item). Corta excesso ao invés de sobrepor. */
+    /* Slot fixo do resumo (aprox 99mm por item). Permite conteúdo visível sem cortar. */
     .item {
       height: 90mm !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       position: relative !important;
     }
 
@@ -304,9 +304,10 @@ export const printOrderServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      /* Limitar altura máxima para 80mm */
-      max-height: 80mm !important;
-      height: 80mm !important;
+      /* Limitar altura máxima para 70mm, mas permitir que seja menor se necessário */
+      max-height: 70mm !important;
+      min-height: 0 !important;
+      height: auto !important;
       overflow: visible !important;
       display: flex !important;
       align-items: center !important;
@@ -353,10 +354,10 @@ export const printOrderServiceForm = async (
     .item .ficha-image-container img,
     .item .image-container img,
     .item .visualizacao img {
-      width: 100% !important;
-      height: 100% !important;
+      width: auto !important;
+      height: auto !important;
       max-width: 100% !important;
-      max-height: 100% !important;
+      max-height: 70mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -414,25 +415,28 @@ export const printOrderServiceForm = async (
       height: 100% !important;
       align-items: stretch !important;
       gap: 0.5mm !important;
+      overflow: visible !important;
     }
     .item .left-column,
     .item .right-column {
       height: 100% !important;
       min-height: 0 !important;
+      overflow: visible !important;
     }
     .item .__sgp_img_wrap__:not(img) {
       width: 100% !important;
       height: 100% !important;
       min-height: 0 !important;
+      overflow: visible !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
     }
     .item img.__sgp_img_wrap__ {
-      width: 100% !important;
-      height: 100% !important;
+      width: auto !important;
+      height: auto !important;
       max-width: 100% !important;
-      max-height: 100% !important;
+      max-height: 70mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -652,11 +656,12 @@ export const printMultipleOrdersServiceForm = async (
         counter-reset: pedido-counter;
       }
 
-      /* Cada pedido é um bloco independente e quebrável */
+      /* Cada pedido é um bloco independente */
       .pedido {
         display: block !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
+        /* Permitir quebra dentro se necessário (pedidos muito grandes) */
+        break-inside: auto !important;
+        page-break-inside: auto !important;
         break-after: auto !important;
         page-break-after: auto !important;
         margin: 0 !important;
@@ -664,6 +669,13 @@ export const printMultipleOrdersServiceForm = async (
         min-height: 0 !important;
         /* Incrementar contador */
         counter-increment: pedido-counter;
+      }
+
+      /* Tentar evitar quebra dentro de elementos críticos, mas não forçar */
+      .pedido .item,
+      .pedido .item-container {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
       }
 
       /* Remover altura fixa do .item quando dentro de .pedido (impressão múltipla) */
@@ -674,10 +686,40 @@ export const printMultipleOrdersServiceForm = async (
       }
 
       /* Quebrar página APENAS ENTRE pedidos: a cada 3 pedidos */
-      /* Seletores múltiplos para garantir que funcione */
-      .template-document .pedido:nth-child(3n),
-      .template-document > .pedido:nth-child(3n),
-      body .pedido:nth-child(3n) {
+      /* Regra genérica usando nth-of-type (funciona mesmo com outros elementos) */
+      article.pedido:nth-of-type(3n) {
+        break-after: page !important;
+        page-break-after: always !important;
+      }
+
+      /* Fallback: usar nth-child também */
+      .template-document > article.pedido:nth-child(3n),
+      body > .template-document > article.pedido:nth-child(3n) {
+        break-after: page !important;
+        page-break-after: always !important;
+      }
+
+      /* Seletores específicos por índice (mais confiável) */
+      article.pedido[data-pedido-index="3"],
+      article.pedido[data-pedido-index="6"],
+      article.pedido[data-pedido-index="9"],
+      article.pedido[data-pedido-index="12"],
+      article.pedido[data-pedido-index="15"],
+      article.pedido[data-pedido-index="18"],
+      article.pedido[data-pedido-index="21"],
+      article.pedido[data-pedido-index="24"],
+      article.pedido[data-pedido-index="27"],
+      article.pedido[data-pedido-index="30"],
+      article.pedido[data-pedido-index="33"],
+      article.pedido[data-pedido-index="36"],
+      article.pedido[data-pedido-index="39"],
+      article.pedido[data-pedido-index="42"],
+      article.pedido[data-pedido-index="45"],
+      article.pedido[data-pedido-index="48"],
+      article.pedido[data-pedido-index="51"],
+      article.pedido[data-pedido-index="54"],
+      article.pedido[data-pedido-index="57"],
+      article.pedido[data-pedido-index="60"] {
         break-after: page !important;
         page-break-after: always !important;
       }
@@ -688,12 +730,6 @@ export const printMultipleOrdersServiceForm = async (
         page-break-after: auto !important;
       }
 
-      /* Evitar quebra dentro de elementos críticos do pedido */
-      .pedido .item,
-      .pedido .item-container {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-      }
     }
 
     /* ============================================================
@@ -767,9 +803,10 @@ export const printMultipleOrdersServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      /* Limitar altura máxima para 80mm */
-      max-height: 80mm !important;
-      height: 80mm !important;
+      /* Limitar altura máxima para 70mm, mas permitir que seja menor se necessário */
+      max-height: 70mm !important;
+      min-height: 0 !important;
+      height: auto !important;
       overflow: visible !important;
       display: flex !important;
       align-items: center !important;
@@ -813,10 +850,10 @@ export const printMultipleOrdersServiceForm = async (
     .item .ficha-image-container img,
     .item .image-container img,
     .item .visualizacao img {
-      width: 100% !important;
-      height: 100% !important;
+      width: auto !important;
+      height: auto !important;
       max-width: 100% !important;
-      max-height: 100% !important;
+      max-height: 70mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -874,25 +911,28 @@ export const printMultipleOrdersServiceForm = async (
       height: 100% !important;
       align-items: stretch !important;
       gap: 0.5mm !important;
+      overflow: visible !important;
     }
     .item .left-column,
     .item .right-column {
       height: 100% !important;
       min-height: 0 !important;
+      overflow: visible !important;
     }
     .item .__sgp_img_wrap__:not(img) {
       width: 100% !important;
       height: 100% !important;
       min-height: 0 !important;
+      overflow: visible !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
     }
     .item img.__sgp_img_wrap__ {
-      width: 100% !important;
-      height: 100% !important;
+      width: auto !important;
+      height: auto !important;
       max-width: 100% !important;
-      max-height: 100% !important;
+      max-height: 70mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -925,6 +965,33 @@ export const printMultipleOrdersServiceForm = async (
       </head>
       <body>
         <div class="template-document">${combinedContent}</div>
+        <script>
+          (function() {
+            // Aplicar quebras de página dinamicamente após carregamento
+            function applyPageBreaks() {
+              const pedidos = document.querySelectorAll('.pedido');
+              pedidos.forEach((pedido, index) => {
+                // Índice baseado em 1 (1, 2, 3, 4, 5, 6...)
+                const pedidoNumber = index + 1;
+                // Se for múltiplo de 3 e não for o último, adicionar quebra
+                if (pedidoNumber % 3 === 0 && pedidoNumber < pedidos.length) {
+                  pedido.style.pageBreakAfter = 'always';
+                  pedido.style.breakAfter = 'page';
+                } else {
+                  pedido.style.pageBreakAfter = 'auto';
+                  pedido.style.breakAfter = 'auto';
+                }
+              });
+            }
+            
+            // Aplicar quando o DOM estiver pronto
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', applyPageBreaks);
+            } else {
+              applyPageBreaks();
+            }
+          })();
+        </script>
       </body>
     </html>
   `;
