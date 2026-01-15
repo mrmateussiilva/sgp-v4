@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/utils/confirm';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -556,15 +557,27 @@ export default function GestaoTemplateFicha() {
 
   const handleTemplateTypeChange = useCallback(async (type: TemplateType) => {
     if (editMode === 'visual' && hasChanges) {
-      const confirmChange = window.confirm(
-        'Você tem alterações não salvas. Deseja descartá-las e trocar de template?'
+      const confirmChange = await confirm(
+        'Você tem alterações não salvas. Deseja descartá-las e trocar de template?',
+        {
+          title: 'Confirmar Alteração',
+          variant: 'warning',
+          confirmText: 'Descartar e Trocar',
+          cancelText: 'Cancelar',
+        }
       );
       if (!confirmChange) {
         return;
       }
     } else if (editMode === 'html' && htmlHasChanges) {
-      const confirmChange = window.confirm(
-        'Você tem alterações não salvas no HTML. Deseja descartá-las e trocar de template?'
+      const confirmChange = await confirm(
+        'Você tem alterações não salvas no HTML. Deseja descartá-las e trocar de template?',
+        {
+          title: 'Confirmar Alteração',
+          variant: 'warning',
+          confirmText: 'Descartar e Trocar',
+          cancelText: 'Cancelar',
+        }
       );
       if (!confirmChange) {
         return;

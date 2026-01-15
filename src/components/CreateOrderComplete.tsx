@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/utils/confirm';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import {
   Cliente,
@@ -1563,11 +1564,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
     if (validation.warnings.length > 0) {
       // Mostrar confirmação com avisos opcionais
-      const confirmMessage = `Tem certeza que deseja salvar este item?\n\nAvisos:\n${validation.warnings.map(w => `• ${w}`).join('\n')}`;
+      const warningsList = validation.warnings.map(w => `• ${w}`).join('\n');
+      const confirmMessage = `Tem certeza que deseja salvar este item?\n\nAvisos:\n${warningsList}`;
       
-      if (window.confirm(confirmMessage)) {
-        saveItemConfirmed(tabId);
-      }
+      confirm(confirmMessage, {
+        title: "Confirmar Salvamento",
+        variant: "warning",
+        confirmText: "Confirmar e Salvar",
+        cancelText: "Cancelar",
+      }).then((confirmed) => {
+        if (confirmed) {
+          saveItemConfirmed(tabId);
+        }
+      });
       return;
     }
 

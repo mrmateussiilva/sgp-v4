@@ -11,6 +11,7 @@ import { useTauriUpdater } from './hooks/useTauriUpdater';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '@/hooks/use-toast';
 import { AlertProvider } from './contexts/AlertContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -129,7 +130,8 @@ function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <AlertProvider>
-        <Suspense fallback={<LoadingFallback />}>
+        <ConfirmProvider>
+          <Suspense fallback={<LoadingFallback />}>
           {showFallback || !apiUrl ? (
             <div className="bg-background text-foreground min-h-screen">
               <ConfigApi
@@ -168,6 +170,7 @@ function App() {
             </HashRouter>
           )}
         </Suspense>
+        </ConfirmProvider>
       </AlertProvider>
     </ThemeProvider>
   );
