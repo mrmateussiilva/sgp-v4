@@ -40,10 +40,6 @@ const loadJsPDF = async () => {
   return module.default;
 };
 
-const loadAutoTable = async () => {
-  const module = await import('jspdf-autotable');
-  return module.default;
-};
 
 // Constantes para opções de relatórios
 const REPORT_OPTIONS: Record<
@@ -774,7 +770,7 @@ export default function Fechamentos() {
 
     setExportingPdf(true);
     try {
-      const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
+      const jsPDF = await loadJsPDF();
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       let cursorY = 15;
       let pageNumber = 1;
@@ -785,10 +781,10 @@ export default function Fechamentos() {
       // Verificar se é relatório sintético
       const isSintetico = report.report_type?.startsWith('sintetico') || activeTab === 'sintetico';
 
-      // Função para desenhar linha horizontal
-      const drawHorizontalLine = (y: number, lineWidth: number = 0.5) => {
+      // Função para desenhar linha horizontal simples
+      const drawHorizontalLine = (y: number) => {
         doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(lineWidth);
+        doc.setLineWidth(0.5);
         doc.line(marginLeft, y, marginLeft + pageWidth, y);
       };
 
@@ -804,8 +800,7 @@ export default function Fechamentos() {
         return cursorY;
       };
 
-      // ========== CABEÇALHO DO RELATÓRIO (caixa única com borda 2px) ==========
-      const headerStartY = cursorY;
+      // ========== CABEÇALHO DO RELATÓRIO (texto puro, sem decorações) ==========
       cursorY += 3;
 
       // Título principal centralizado
@@ -845,38 +840,32 @@ export default function Fechamentos() {
         cursorY += 3;
       }
 
-      cursorY += 2;
-      const headerHeight = cursorY - headerStartY;
-      
-      // Desenhar borda do cabeçalho (2px - divisão principal)
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(2);
-      doc.rect(marginLeft, headerStartY, pageWidth, headerHeight);
+      cursorY += 3;
 
       // ========== CONTEÚDO DO RELATÓRIO ==========
       const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
         const indent = marginLeft + depth * 4;
-        const groupWidth = pageWidth - (depth * 4);
 
-        // Cliente/Grupo: apenas linhas horizontais acima e abaixo (não caixa fechada)
+        // Cliente/Grupo: texto em negrito + linha horizontal simples abaixo
         ensurePdfSpace(8);
         
-        // Linha horizontal acima do nome do cliente (1px - separação interna)
+        // Linha horizontal acima do nome do cliente (separar clientes)
         if (depth === 0) {
-          drawHorizontalLine(cursorY, 1);
-          cursorY += 2;
+          drawHorizontalLine(cursorY);
+          cursorY += 3;
         }
 
+        // Nome do cliente em negrito
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        const groupLabel = depth === 0 ? `> ${group.label}` : group.label;
-        doc.text(groupLabel, indent + 2, cursorY);
+        const groupLabel = depth === 0 ? group.label : group.label;
+        doc.text(groupLabel, indent, cursorY);
         cursorY += 4;
 
-        // Linha horizontal abaixo do nome do cliente (1px - separação interna)
+        // Linha horizontal abaixo do nome do cliente
         if (depth === 0) {
-          drawHorizontalLine(cursorY, 1);
-          cursorY += 2;
+          drawHorizontalLine(cursorY);
+          cursorY += 3;
         }
 
         // Se tem subgrupos, renderizar recursivamente
@@ -887,57 +876,41 @@ export default function Fechamentos() {
           return;
         }
 
-        // Se tem linhas (rows), renderizar tabela detalhada
+        // Se tem linhas (rows), renderizar tabela sem grade
         if (group.rows && group.rows.length > 0) {
           ensurePdfSpace(10);
 
-          // Tabela com bordas de 1px e cabeçalho cinza claro
-          autoTable(doc, {
-            startY: cursorY,
-            head: [['Ficha', 'Descrição Painel', 'Vr.Frete', 'Vr.Serviços']],
-            body: group.rows.map((row) => [
-              row.ficha || '-',
-              row.descricao || '-',
-              formatCurrency(row.valor_frete),
-              formatCurrency(row.valor_servico),
-            ]),
-            styles: {
-              fontSize: 8,
-              cellPadding: 2,
-              lineColor: [0, 0, 0],
-              lineWidth: 1, // 1px para tabelas
-              textColor: [0, 0, 0],
-            },
-            headStyles: {
-              fillColor: [220, 220, 220], // Cinza claro
-              textColor: [0, 0, 0],
-              fontStyle: 'bold',
-              lineColor: [0, 0, 0],
-              lineWidth: 1, // 1px para tabelas
-            },
-            bodyStyles: {
-              textColor: [0, 0, 0],
-              lineColor: [0, 0, 0],
-              lineWidth: 0.5, // Linhas finas para separações internas
-            },
-            columnStyles: {
-              0: { cellWidth: 25, halign: 'left' }, // Ficha
-              1: { cellWidth: 'auto', halign: 'left' }, // Descrição
-              2: { cellWidth: 30, halign: 'right' }, // Vr.Frete
-              3: { cellWidth: 30, halign: 'right' }, // Vr.Serviços
-            },
-            margin: {
-              left: indent,
-              right: marginRight,
-            },
-            tableWidth: groupWidth,
-            showHead: 'everyPage',
+          // Cabeçalhos da tabela em negrito (sem grade)
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          const colFicha = indent;
+          const colDescricao = indent + 30;
+          const colFrete = marginLeft + pageWidth - 60;
+          const colServicos = marginLeft + pageWidth - 30;
+
+          doc.text('Ficha', colFicha, cursorY);
+          doc.text('Descrição Painel', colDescricao, cursorY);
+          doc.text('Vr.Frete', colFrete, cursorY);
+          doc.text('Vr.Serviços', colServicos, cursorY);
+          cursorY += 2;
+
+          // Linha horizontal separando cabeçalho da tabela
+          drawHorizontalLine(cursorY);
+          cursorY += 3;
+
+          // Linhas da tabela (texto alinhado, sem grade)
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          group.rows.forEach((row) => {
+            ensurePdfSpace(4);
+            doc.text(row.ficha || '-', colFicha, cursorY);
+            doc.text(row.descricao || '-', colDescricao, cursorY);
+            doc.text(formatCurrency(row.valor_frete), colFrete, cursorY, { align: 'right' });
+            doc.text(formatCurrency(row.valor_servico), colServicos, cursorY, { align: 'right' });
+            cursorY += 4; // Espaçamento vertical leve entre linhas
           });
 
-          const tableInfo = (doc as any).lastAutoTable;
-          if (tableInfo) {
-            cursorY = tableInfo.finalY + 2;
-          }
+          cursorY += 2;
         }
       };
 
@@ -946,10 +919,10 @@ export default function Fechamentos() {
         renderGroupToPdf(group, 0);
       });
 
-      // ========== DIVISÃO PRINCIPAL ANTES DOS TOTAIS (linha 2px) ==========
+      // ========== TOTAIS (texto alinhado, sem caixas) ==========
       ensurePdfSpace(8);
-      drawHorizontalLine(cursorY, 2);
-      cursorY += 3;
+      drawHorizontalLine(cursorY);
+      cursorY += 4;
 
       // Título dos totais
       doc.setFont('helvetica', 'bold');
@@ -957,63 +930,32 @@ export default function Fechamentos() {
       const totalTitleText = 'TOTAL DO PERÍODO';
       const totalTitleWidth = doc.getTextWidth(totalTitleText);
       doc.text(totalTitleText, marginLeft + (pageWidth - totalTitleWidth) / 2, cursorY);
+      cursorY += 5;
+
+      // Totais em texto alinhado (sem caixas)
+      const totalGeral = report.total.valor_frete + report.total.valor_servico;
+      const colLabel = marginLeft;
+      const colValue = marginLeft + pageWidth - 30;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Vr.Serviços(sem Frete):', colLabel, cursorY);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(report.total.valor_servico), colValue, cursorY, { align: 'right' });
       cursorY += 4;
 
-      // ========== SEÇÃO DE TOTAIS FINAIS (caixas lado a lado) ==========
-      ensurePdfSpace(12);
-      const totalsStartY = cursorY;
-
-      const totalGeral = report.total.valor_frete + report.total.valor_servico;
-      const boxWidth = (pageWidth - 8) / 3; // 3 caixas com espaçamento
-      const boxSpacing = 2;
-
-      // Caixa 1: Vr.Serviços (sem Frete)
-      const box1X = marginLeft + 2;
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.text('Vr.Serviços(sem Frete):', box1X + 2, cursorY);
-      cursorY += 3;
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5); // Linha fina para caixas internas
-      doc.rect(box1X, cursorY - 1, boxWidth - 2, 3);
+      doc.text('(+) Vr.Frete:', colLabel, cursorY);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      const servicoText = formatCurrency(report.total.valor_servico);
-      const servicoWidth = doc.getTextWidth(servicoText);
-      doc.text(servicoText, box1X + (boxWidth - 2 - servicoWidth) / 2, cursorY + 1.5);
-      cursorY -= 3;
+      doc.text(formatCurrency(report.total.valor_frete), colValue, cursorY, { align: 'right' });
+      cursorY += 4;
 
-      // Caixa 2: (+) Vr.Frete
-      const box2X = marginLeft + boxWidth + boxSpacing;
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.text('(+) Vr.Frete:', box2X + 2, cursorY);
-      cursorY += 3;
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5); // Linha fina para caixas internas
-      doc.rect(box2X, cursorY - 1, boxWidth - 2, 3);
+      doc.text('(=) Vr.Total:', colLabel, cursorY);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      const freteText = formatCurrency(report.total.valor_frete);
-      const freteWidth = doc.getTextWidth(freteText);
-      doc.text(freteText, box2X + (boxWidth - 2 - freteWidth) / 2, cursorY + 1.5);
-      cursorY -= 3;
-
-      // Caixa 3: (=) Vr.Total
-      const box3X = marginLeft + (boxWidth + boxSpacing) * 2;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.text('(=) Vr.Total:', box3X + 2, cursorY);
+      doc.setFontSize(9);
+      doc.text(formatCurrency(totalGeral), colValue, cursorY, { align: 'right' });
       cursorY += 3;
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5); // Linha fina para caixas internas
-      doc.rect(box3X, cursorY - 1, boxWidth - 2, 3);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      const totalText = formatCurrency(totalGeral);
-      const totalWidth = doc.getTextWidth(totalText);
-      doc.text(totalText, box3X + (boxWidth - 2 - totalWidth) / 2, cursorY + 1.5);
-      cursorY += 2;
 
       const filenameSuffix =
         startDate && endDate && endDate !== startDate
