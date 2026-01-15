@@ -1,5 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
-import { generateTemplatePrintContent, agruparItensPorPagina } from './templateProcessor';
+import { generateTemplatePrintContent } from './templateProcessor';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -246,7 +246,7 @@ export const printOrderServiceForm = async (
 
     /* Slot fixo do resumo (aprox 99mm por item). Corta excesso ao invés de sobrepor. */
     .item {
-      height: 99mm !important;
+      height: 90mm !important;
       overflow: hidden !important;
       position: relative !important;
     }
@@ -263,7 +263,7 @@ export const printOrderServiceForm = async (
 
     /* Ajuda a caber mais linhas sem “invadir” o slot */
     .section-content.especificacoes-content {
-      overflow: hidden !important;
+      overflow: visible !important;
       max-height: none !important;
     }
     .section-content.especificacoes-content .spec-item {
@@ -307,7 +307,7 @@ export const printOrderServiceForm = async (
       /* Limitar altura máxima para 80mm */
       max-height: 80mm !important;
       height: 80mm !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -575,13 +575,18 @@ export const printMultipleOrdersServiceForm = async (
 
   // Gerar conteúdo HTML para cada pedido
   const ordersHtml = await Promise.all(
-    orders.map(async (order) => {
+    orders.map(async (order, index) => {
       const orderTemplateContent = await generateTemplatePrintContent(templateType, order);
       if (!orderTemplateContent) {
         console.warn(`Erro ao gerar template para pedido #${order.numero || order.id}`);
         return '';
       }
-      return orderTemplateContent.html;
+      // Cada pedido fica isolado em um container `.pedido` com índice para controle de quebra
+      // Índice baseado em 1 para facilitar seleção CSS (1, 2, 3, 4, 5, 6...)
+      const pedidoIndex = index + 1;
+      return `<article class="pedido" data-pedido-index="${pedidoIndex}">
+        ${orderTemplateContent.html}
+      </article>`;
     })
   );
 
@@ -592,34 +597,9 @@ export const printMultipleOrdersServiceForm = async (
     throw new Error('Nenhum pedido pôde ser processado para impressão');
   }
 
-  // Para template resumo, organizar como EXATAMENTE 3 itens por página (OBRIGATÓRIO)
-  let combinedContent: string;
-  if (templateType === 'resumo') {
-    // Template resumo: EXATAMENTE 3 itens por página (OBRIGATÓRIO)
-    const ITENS_POR_PAGINA = 3;
-    
-    // Usar função de agrupamento para organizar os itens em páginas
-    const paginas = agruparItensPorPagina(validOrdersHtml, ITENS_POR_PAGINA);
-    
-    // Cada página contém no máximo 3 itens (última página pode ter menos)
-    combinedContent = paginas.map((paginaItens, pageIndex) => {
-      const isLastPage = pageIndex === paginas.length - 1;
-      // Preencher com slots vazios se necessário para manter layout consistente
-      const itensParaRenderizar = [...paginaItens];
-      while (itensParaRenderizar.length < ITENS_POR_PAGINA) {
-        itensParaRenderizar.push('');
-      }
-      // Usar classe .print-page para consistência com CSS do templateProcessor
-      return `<div class="print-page"${isLastPage ? '' : ' data-page-break="always"'}>
-        <div class="items-container">
-          ${itensParaRenderizar.join('\n')}
-        </div>
-      </div>`;
-    }).join('\n');
-  } else {
-    // Para template geral, manter comportamento atual (um por página)
-    combinedContent = validOrdersHtml.join('\n');
-  }
+  // Para impressão múltipla, cada `.pedido` é um bloco independente.
+  // Quebras de página são controladas EXPLICITAMENTE via CSS (ver @media print abaixo).
+  const combinedContent: string = validOrdersHtml.join('\n');
   
   const styles = `
     ${templateContent.css}
@@ -649,6 +629,11 @@ export const printMultipleOrdersServiceForm = async (
         color-adjust: exact !important;
       }
       
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+      
       body {
         padding: 0 !important;
         margin: 0 !important;
@@ -661,20 +646,54 @@ export const printMultipleOrdersServiceForm = async (
       header {
         display: none !important;
       }
-      
-      ${templateType === 'resumo' ? `
-      /* Regras de impressão para 3 itens por página - já definidas acima em @media print dentro do bloco ${templateType === 'resumo'} */
-      /* Não duplicar regras aqui - usar apenas .resumo-page.page-group já definido acima */
-      ` : `
-      .template-page {
-        page-break-after: always;
-        page-break-inside: avoid;
-        break-inside: avoid;
+
+      /* Resetar contador de pedidos por página */
+      body {
+        counter-reset: pedido-counter;
       }
-      .template-page:last-child {
-        page-break-after: auto;
+
+      /* Cada pedido é um bloco independente e quebrável */
+      .pedido {
+        display: block !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        break-after: auto !important;
+        page-break-after: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        /* Incrementar contador */
+        counter-increment: pedido-counter;
       }
-      `}
+
+      /* Remover altura fixa do .item quando dentro de .pedido (impressão múltipla) */
+      .pedido .item {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+      }
+
+      /* Quebrar página APENAS ENTRE pedidos: a cada 3 pedidos */
+      /* Seletores múltiplos para garantir que funcione */
+      .template-document .pedido:nth-child(3n),
+      .template-document > .pedido:nth-child(3n),
+      body .pedido:nth-child(3n) {
+        break-after: page !important;
+        page-break-after: always !important;
+      }
+
+      /* Garantir que o último pedido não force página em branco */
+      .pedido:last-child {
+        break-after: auto !important;
+        page-break-after: auto !important;
+      }
+
+      /* Evitar quebra dentro de elementos críticos do pedido */
+      .pedido .item,
+      .pedido .item-container {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
     }
 
     /* ============================================================
@@ -689,8 +708,15 @@ export const printMultipleOrdersServiceForm = async (
 
     .item {
       height: 99mm !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       position: relative !important;
+    }
+
+    /* Na impressão múltipla, remover altura fixa para permitir altura natural */
+    .pedido .item {
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
     }
 
     .item .designer,
@@ -703,7 +729,7 @@ export const printMultipleOrdersServiceForm = async (
     }
 
     .section-content.especificacoes-content {
-      overflow: hidden !important;
+      overflow: visible !important;
       max-height: none !important;
     }
     .section-content.especificacoes-content .spec-item {
@@ -744,7 +770,7 @@ export const printMultipleOrdersServiceForm = async (
       /* Limitar altura máxima para 80mm */
       max-height: 80mm !important;
       height: 80mm !important;
-      overflow: hidden !important;
+      overflow: visible !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
