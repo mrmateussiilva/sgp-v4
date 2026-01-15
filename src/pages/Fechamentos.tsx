@@ -785,9 +785,6 @@ export default function Fechamentos() {
       const marginRight = 10;
       const pageWidth = 210 - marginLeft - marginRight;
 
-      // Verificar se é relatório sintético
-      const isSintetico = report.report_type?.startsWith('sintetico') || activeTab === 'sintetico';
-
       // Função para desenhar linha horizontal simples
       const drawHorizontalLine = (y: number) => {
         doc.setDrawColor(0, 0, 0);
@@ -888,9 +885,6 @@ export default function Fechamentos() {
           ensurePdfSpace(10);
 
           // ========== DEFINIÇÃO DE LARGURAS FIXAS (ESTRUTURAL) ==========
-          // Largura total da tabela = 100% da área imprimível
-          const tableTotalWidth = pageWidth;
-          
           // Colunas com larguras FIXAS (em mm)
           const colFichaWidth = 25; // Largura fixa para Ficha
           const colFreteWidth = 35; // Largura fixa para Vr.Frete
@@ -901,9 +895,6 @@ export default function Fechamentos() {
           const gapDescValores = 5; // Gap entre Descrição e valores (IMPORTANTE: previne invasão)
           const gapFreteServicos = 4; // Gap entre Frete e Serviços
           
-          // Bloco de valores fixo à direita (soma de larguras + gaps)
-          const valuesBlockWidth = colFreteWidth + gapFreteServicos + colServicosWidth;
-          
           // ========== POSIÇÕES DAS COLUNAS (BOUNDING BOXES EXPLÍCITOS) ==========
           // Coluna Ficha: ancorada à esquerda
           const colFichaStart = indent;
@@ -911,7 +902,6 @@ export default function Fechamentos() {
           
           // Bloco de Valores: ancorado à direita (colado no canto direito) - CALCULAR PRIMEIRO
           const colServicosStart = marginLeft + pageWidth - colServicosWidth;
-          const colServicosEnd = colServicosStart + colServicosWidth;
           const colFreteEnd = colServicosStart - gapFreteServicos;
           const colFreteStart = colFreteEnd - colFreteWidth;
           
@@ -957,8 +947,6 @@ export default function Fechamentos() {
             
             // ========== COLUNA FICHA (bounding box fixo) ==========
             const fichaText = (row.ficha || '-').toString();
-            // Garantir que ficha não ultrapasse sua coluna
-            const fichaMaxWidth = colFichaWidth - 1; // Margem de 1mm
             const fichaFinal = fichaText.length > 15 ? fichaText.substring(0, 15) + '...' : fichaText;
             doc.text(fichaFinal, colFicha, cursorY);
             
