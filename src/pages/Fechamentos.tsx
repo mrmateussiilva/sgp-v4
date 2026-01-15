@@ -887,31 +887,53 @@ export default function Fechamentos() {
         if (group.rows && group.rows.length > 0) {
           ensurePdfSpace(10);
 
-          // ========== DEFINIÇÃO DE LARGURAS FIXAS ==========
+          // ========== DEFINIÇÃO DE LARGURAS FIXAS (ESTRUTURAL) ==========
           // Largura total da tabela = 100% da área imprimível
           const tableTotalWidth = pageWidth;
           
-          // Bloco de valores fixo à direita (ancorado no canto direito)
+          // Colunas com larguras FIXAS (em mm)
+          const colFichaWidth = 25; // Largura fixa para Ficha
           const colFreteWidth = 35; // Largura fixa para Vr.Frete
           const colServicosWidth = 35; // Largura fixa para Vr.Serviços
-          const colValuesGap = 4; // Espaçamento entre colunas de valores
-          const valuesBlockWidth = colFreteWidth + colValuesGap + colServicosWidth; // Bloco total: 74mm
           
-          // Coluna Ficha (fixa à esquerda)
-          const colFichaWidth = 25; // Largura fixa para Ficha
-          const colFichaToDescGap = 4; // Espaçamento entre Ficha e Descrição
+          // Gaps (espaçamentos) entre colunas
+          const gapFichaDesc = 4; // Gap entre Ficha e Descrição
+          const gapDescValores = 5; // Gap entre Descrição e valores (IMPORTANTE: previne invasão)
+          const gapFreteServicos = 4; // Gap entre Frete e Serviços
           
-          // Coluna Descrição (usa todo o espaço restante)
-          const colDescricaoWidth = tableTotalWidth - colFichaWidth - colFichaToDescGap - valuesBlockWidth;
+          // Bloco de valores fixo à direita (soma de larguras + gaps)
+          const valuesBlockWidth = colFreteWidth + gapFreteServicos + colServicosWidth;
           
-          // ========== POSIÇÕES DAS COLUNAS ==========
-          // Colunas ancoradas à esquerda
-          const colFicha = indent;
-          const colDescricao = colFicha + colFichaWidth + colFichaToDescGap;
+          // ========== POSIÇÕES DAS COLUNAS (BOUNDING BOXES EXPLÍCITOS) ==========
+          // Coluna Ficha: ancorada à esquerda
+          const colFichaStart = indent;
+          const colFichaEnd = colFichaStart + colFichaWidth;
           
-          // Bloco de valores ancorado à direita (colado no canto direito)
-          const colServicos = marginLeft + pageWidth - colServicosWidth;
-          const colFrete = colServicos - colFreteWidth - colValuesGap;
+          // Bloco de Valores: ancorado à direita (colado no canto direito) - CALCULAR PRIMEIRO
+          const colServicosStart = marginLeft + pageWidth - colServicosWidth;
+          const colServicosEnd = colServicosStart + colServicosWidth;
+          const colFreteEnd = colServicosStart - gapFreteServicos;
+          const colFreteStart = colFreteEnd - colFreteWidth;
+          
+          // Gap entre Descrição e Valores (zona proibida - nenhum texto pode passar)
+          const gapZoneStart = colFreteStart - gapDescValores;
+          
+          // Coluna Descrição: usa APENAS o espaço entre Ficha e Gap (calculado exatamente)
+          const colDescricaoStart = colFichaEnd + gapFichaDesc;
+          const colDescricaoEnd = gapZoneStart; // Termina exatamente onde começa o gap
+          const colDescricaoWidth = colDescricaoEnd - colDescricaoStart;
+          
+          // Validação: garantir que descrição tem largura mínima
+          if (colDescricaoWidth < 10) {
+            console.warn('Aviso: Largura da descrição muito pequena. Ajustando layout...');
+          }
+          
+          // Posições finais para renderização
+          const colFicha = colFichaStart;
+          const colDescricao = colDescricaoStart;
+          const colDescricaoWidthFinal = Math.max(10, colDescricaoWidth); // Mínimo 10mm
+          const colFrete = colFreteStart;
+          const colServicos = colServicosStart;
 
           // Cabeçalhos da tabela em negrito (sem grade)
           doc.setFont('helvetica', 'bold');
@@ -926,40 +948,70 @@ export default function Fechamentos() {
           drawHorizontalLine(cursorY);
           cursorY += 3;
 
-          // Linhas da tabela (texto alinhado, sem grade)
+          // Linhas da tabela (com bounding boxes explícitos)
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
           group.rows.forEach((row) => {
             ensurePdfSpace(6);
             const rowStartY = cursorY;
             
-            // Ficha (largura fixa, não quebra)
-            doc.text(row.ficha || '-', colFicha, cursorY);
+            // ========== COLUNA FICHA (bounding box fixo) ==========
+            const fichaText = (row.ficha || '-').toString();
+            // Garantir que ficha não ultrapasse sua coluna
+            const fichaMaxWidth = colFichaWidth - 1; // Margem de 1mm
+            const fichaFinal = fichaText.length > 15 ? fichaText.substring(0, 15) + '...' : fichaText;
+            doc.text(fichaFinal, colFicha, cursorY);
             
-            // Descrição (largura fixa calculada, pode quebrar linha mas NUNCA invade valores)
-            const descricaoText = row.descricao || '-';
-            // Garantir que a descrição nunca ultrapasse o limite (margem de segurança de 0.5mm)
-            const safeDescricaoWidth = Math.max(10, colDescricaoWidth - 0.5);
-            // splitTextToSize garante que o texto nunca ultrapasse a largura especificada
-            const descricaoLines = doc.splitTextToSize(descricaoText, safeDescricaoWidth);
+            // ========== COLUNA DESCRIÇÃO (bounding box fixo, pode quebrar) ==========
+            const descricaoText = (row.descricao || '-').toString();
+            // Largura EXATA da descrição (sem aproximações)
+            const descricaoMaxWidth = colDescricaoWidthFinal - 0.5; // Margem de 0.5mm
+            
+            // splitTextToSize garante quebra de linha respeitando a largura EXATA
+            const descricaoLines = doc.splitTextToSize(descricaoText, descricaoMaxWidth);
+            
+            // Validação adicional: verificar cada linha não ultrapassa o limite
+            const validatedLines: string[] = [];
+            descricaoLines.forEach((line: string) => {
+              const lineWidth = doc.getTextWidth(line);
+              if (lineWidth > descricaoMaxWidth) {
+                // Se ainda ultrapassar, truncar com ellipsis
+                let truncated = line;
+                while (doc.getTextWidth(truncated + '...') > descricaoMaxWidth && truncated.length > 0) {
+                  truncated = truncated.slice(0, -1);
+                }
+                validatedLines.push(truncated + '...');
+              } else {
+                validatedLines.push(line);
+              }
+            });
+            
+            // Renderizar linhas da descrição dentro do bounding box
             let maxDescricaoHeight = 0;
-            descricaoLines.forEach((line: string, lineIndex: number) => {
-              // Renderizar linha respeitando o limite (splitTextToSize já garante que cabe)
+            validatedLines.forEach((line: string, lineIndex: number) => {
+              // Renderizar dentro do bounding box (colDescricao até colDescricaoEnd)
               doc.text(line, colDescricao, cursorY);
-              if (lineIndex < descricaoLines.length - 1) {
+              if (lineIndex < validatedLines.length - 1) {
                 cursorY += 3.5; // Espaçamento entre linhas da descrição
               }
               maxDescricaoHeight = Math.max(maxDescricaoHeight, cursorY - rowStartY);
             });
             
-            // Valores monetários (largura fixa, alinhados à direita, não quebram linha)
-            // Posicionar na primeira linha da descrição
+            // ========== COLUNAS DE VALORES (bounding boxes fixos, ancorados à direita) ==========
+            // Posicionar valores na primeira linha da descrição
             const firstLineY = rowStartY;
             
             // Aplicar fonte monoespaçada para melhor alinhamento visual dos números
             doc.setFont('courier', 'normal');
-            doc.text(formatCurrencyNumber(row.valor_frete), colFrete, firstLineY, { align: 'right' });
-            doc.text(formatCurrencyNumber(row.valor_servico), colServicos, firstLineY, { align: 'right' });
+            
+            // Renderizar valores dentro de seus bounding boxes (alinhados à direita)
+            // Vr.Frete: dentro de colFreteStart até colFreteEnd
+            const freteText = formatCurrencyNumber(row.valor_frete);
+            doc.text(freteText, colFrete + colFreteWidth, firstLineY, { align: 'right' });
+            
+            // Vr.Serviços: dentro de colServicosStart até colServicosEnd
+            const servicosText = formatCurrencyNumber(row.valor_servico);
+            doc.text(servicosText, colServicos + colServicosWidth, firstLineY, { align: 'right' });
             
             // Restaurar fonte normal para próximas linhas
             doc.setFont('helvetica', 'normal');
