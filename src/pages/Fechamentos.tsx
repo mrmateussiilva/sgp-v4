@@ -102,6 +102,13 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 const formatCurrency = (value: number) => currencyFormatter.format(value || 0);
 
+// Formata apenas o número sem o símbolo R$ (para alinhamento profissional)
+const formatCurrencyNumber = (value: number): string => {
+  const formatted = currencyFormatter.format(value || 0);
+  // Remove "R$" e espaços, mantém apenas o número formatado
+  return formatted.replace(/R\$\s*/, '').trim();
+};
+
 const formatInputDate = (date: Date) => date.toISOString().slice(0, 10);
 
 // Componente de Tabela de Resultados
@@ -882,9 +889,9 @@ export default function Fechamentos() {
 
           // Definir larguras fixas para as colunas
           const colFichaWidth = 25; // Largura fixa para Ficha
-          const colFreteWidth = 30; // Largura fixa para Vr.Frete
-          const colServicosWidth = 30; // Largura fixa para Vr.Serviços
-          const colSpacing = 3; // Espaçamento entre colunas
+          const colFreteWidth = 32; // Largura fixa para Vr.Frete (aumentada para acomodar números)
+          const colServicosWidth = 32; // Largura fixa para Vr.Serviços (aumentada para acomodar números)
+          const colSpacing = 4; // Espaçamento entre colunas (aumentado para melhor legibilidade)
           
           // Posições das colunas (valores fixos à direita)
           const colFicha = indent;
@@ -898,8 +905,8 @@ export default function Fechamentos() {
           doc.setFontSize(8);
           doc.text('Ficha', colFicha, cursorY);
           doc.text('Descrição Painel', colDescricao, cursorY);
-          doc.text('Vr.Frete', colFrete, cursorY);
-          doc.text('Vr.Serviços', colServicos, cursorY);
+          doc.text('Vr.Frete (R$)', colFrete, cursorY, { align: 'right' });
+          doc.text('Vr.Serviços (R$)', colServicos, cursorY, { align: 'right' });
           cursorY += 2;
 
           // Linha horizontal separando cabeçalho da tabela
@@ -931,8 +938,14 @@ export default function Fechamentos() {
             // Valores monetários (largura fixa, alinhados à direita, não quebram linha)
             // Posicionar na primeira linha da descrição
             const firstLineY = rowStartY;
-            doc.text(formatCurrency(row.valor_frete), colFrete, firstLineY, { align: 'right' });
-            doc.text(formatCurrency(row.valor_servico), colServicos, firstLineY, { align: 'right' });
+            
+            // Aplicar fonte monoespaçada para melhor alinhamento visual dos números
+            doc.setFont('courier', 'normal');
+            doc.text(formatCurrencyNumber(row.valor_frete), colFrete, firstLineY, { align: 'right' });
+            doc.text(formatCurrencyNumber(row.valor_servico), colServicos, firstLineY, { align: 'right' });
+            
+            // Restaurar fonte normal para próximas linhas
+            doc.setFont('helvetica', 'normal');
             
             // Ajustar cursorY para a próxima linha (usar a maior altura entre descrição e valores)
             cursorY = rowStartY + Math.max(maxDescricaoHeight, 4) + 2; // Espaçamento vertical leve entre linhas
@@ -967,22 +980,22 @@ export default function Fechamentos() {
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('Vr.Serviços(sem Frete):', colLabel, cursorY);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(report.total.valor_servico), colValue, cursorY, { align: 'right' });
+      doc.text('Vr.Serviços(sem Frete) (R$):', colLabel, cursorY);
+      doc.setFont('courier', 'bold'); // Fonte monoespaçada para números
+      doc.text(formatCurrencyNumber(report.total.valor_servico), colValue, cursorY, { align: 'right' });
       cursorY += 4;
 
       doc.setFont('helvetica', 'normal');
-      doc.text('(+) Vr.Frete:', colLabel, cursorY);
-      doc.setFont('helvetica', 'bold');
-      doc.text(formatCurrency(report.total.valor_frete), colValue, cursorY, { align: 'right' });
+      doc.text('(+) Vr.Frete (R$):', colLabel, cursorY);
+      doc.setFont('courier', 'bold'); // Fonte monoespaçada para números
+      doc.text(formatCurrencyNumber(report.total.valor_frete), colValue, cursorY, { align: 'right' });
       cursorY += 4;
 
       doc.setFont('helvetica', 'normal');
-      doc.text('(=) Vr.Total:', colLabel, cursorY);
-      doc.setFont('helvetica', 'bold');
+      doc.text('(=) Vr.Total (R$):', colLabel, cursorY);
+      doc.setFont('courier', 'bold'); // Fonte monoespaçada para números
       doc.setFontSize(9);
-      doc.text(formatCurrency(totalGeral), colValue, cursorY, { align: 'right' });
+      doc.text(formatCurrencyNumber(totalGeral), colValue, cursorY, { align: 'right' });
       cursorY += 3;
 
       const filenameSuffix =
