@@ -761,7 +761,7 @@ export default function Fechamentos() {
     }
   };
 
-  // Função para exportar para PDF
+  // Função para exportar para PDF - Estilo Clássico de ERP
   const exportToPdf = async () => {
     if (!report || !report.groups || report.groups.length === 0) {
       toast({
@@ -776,229 +776,240 @@ export default function Fechamentos() {
     try {
       const [jsPDF, autoTable] = await Promise.all([loadJsPDF(), loadAutoTable()]);
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      let cursorY = 22;
+      let cursorY = 15;
       let pageNumber = 1;
+      const marginLeft = 10;
+      const marginRight = 10;
+      const pageWidth = 210 - marginLeft - marginRight;
 
       // Verificar se é relatório sintético
       const isSintetico = report.report_type?.startsWith('sintetico') || activeTab === 'sintetico';
 
+      // Função para desenhar borda de bloco
+      const drawBlockBorder = (startY: number, height: number) => {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(marginLeft, startY, pageWidth, height);
+      };
+
       // Função para verificar espaço e adicionar nova página se necessário
       const ensurePdfSpace = (required: number): number => {
         const pageHeight = doc.internal.pageSize.getHeight();
-        if (cursorY + required > pageHeight - 20) {
+        if (cursorY + required > pageHeight - 15) {
           doc.addPage();
           pageNumber++;
-          cursorY = 20;
-          // Adicionar cabeçalho da página
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
+          cursorY = 15;
           return cursorY;
         }
         return cursorY;
       };
 
-      // Cabeçalho principal
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text(report.title || 'Relatório', 14, cursorY);
+      // ========== CABEÇALHO DO RELATÓRIO (com borda) ==========
+      const headerStartY = cursorY;
+      cursorY += 3;
 
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Pág: ${pageNumber}`, 196, 20, { align: 'right' });
+      // Título principal centralizado
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      const titleText = report.title || 'Relatório de Fechamentos';
+      const titleWidth = doc.getTextWidth(titleText);
+      doc.text(titleText, marginLeft + (pageWidth - titleWidth) / 2, cursorY);
       
-      cursorY += 8;
+      // Número da página à direita
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Pág:${pageNumber}`, marginLeft + pageWidth - 10, cursorY);
+      
+      cursorY += 4;
+
+      // Subtítulo com período e status (centralizado)
+      doc.setFontSize(9);
+      let subtitleText = '';
       if (report.period_label) {
-        doc.setFontSize(9);
-        doc.text(report.period_label, 14, cursorY);
-        cursorY += 6;
+        subtitleText = report.period_label;
       }
       if (report.status_label) {
-        doc.setFontSize(9);
-        doc.text(report.status_label, 14, cursorY);
-        cursorY += 6;
+        subtitleText += (subtitleText ? ' - ' : '') + report.status_label;
       }
+      if (subtitleText) {
+        const subtitleWidth = doc.getTextWidth(subtitleText);
+        doc.text(subtitleText, marginLeft + (pageWidth - subtitleWidth) / 2, cursorY);
+        cursorY += 3;
+      }
+
       if (report.generated_at) {
-        doc.setFontSize(9);
-        doc.text(`Emitido: ${report.generated_at}`, 14, cursorY);
+        doc.setFontSize(8);
+        const emitidoText = `Emitido: ${report.generated_at}`;
+        const emitidoWidth = doc.getTextWidth(emitidoText);
+        doc.text(emitidoText, marginLeft + (pageWidth - emitidoWidth) / 2, cursorY);
+        cursorY += 3;
       }
-      cursorY += 8;
 
-      // Renderização diferente para sintéticos e analíticos
-      if (isSintetico) {
-        // Para relatórios sintéticos: apenas grupos com subtotais, sem tabelas detalhadas
-        report.groups.forEach((group) => {
-          ensurePdfSpace(12);
+      cursorY += 2;
+      const headerHeight = cursorY - headerStartY;
+      drawBlockBorder(headerStartY, headerHeight);
 
-          // Cabeçalho do grupo com fundo escuro
-          doc.setFillColor(35, 38, 47);
-          doc.setTextColor(255, 255, 255);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9);
-          const headerHeight = 6;
-          doc.rect(14, cursorY - 5, 182, headerHeight, 'F');
-          doc.text(group.label, 16, cursorY - 1);
-          
-          cursorY += 8;
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'normal');
+      // ========== CONTEÚDO DO RELATÓRIO ==========
+      const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
+        const indent = marginLeft + depth * 4;
+        const groupWidth = pageWidth - (depth * 4);
 
-          // Tabela simples com apenas uma linha de subtotal
+        // Cabeçalho do grupo/cliente (com borda)
+        ensurePdfSpace(8);
+        const groupStartY = cursorY;
+        cursorY += 2;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        const groupLabel = depth === 0 ? `> ${group.label}` : group.label;
+        doc.text(groupLabel, indent + 2, cursorY);
+        cursorY += 4;
+
+        const groupHeaderHeight = cursorY - groupStartY;
+        drawBlockBorder(groupStartY, groupHeaderHeight);
+
+        // Se tem subgrupos, renderizar recursivamente
+        if (group.subgroups && group.subgroups.length > 0) {
+          group.subgroups.forEach((subgroup) => {
+            renderGroupToPdf(subgroup, depth + 1);
+          });
+          return;
+        }
+
+        // Se tem linhas (rows), renderizar tabela detalhada
+        if (group.rows && group.rows.length > 0) {
+          ensurePdfSpace(10);
+
+          // Tabela com bordas visíveis e cabeçalho cinza claro
           autoTable(doc, {
             startY: cursorY,
-            head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
-            body: [[
-              group.rows?.[0]?.ficha || '-',
-              group.rows?.[0]?.descricao || 'Subtotal',
-              formatCurrency(group.subtotal.valor_frete),
-              formatCurrency(group.subtotal.valor_servico),
-            ]],
+            head: [['Ficha', 'Descrição Painel', 'Vr.Frete', 'Vr.Serviços']],
+            body: group.rows.map((row) => [
+              row.ficha || '-',
+              row.descricao || '-',
+              formatCurrency(row.valor_frete),
+              formatCurrency(row.valor_servico),
+            ]),
             styles: {
-              fontSize: 7,
-              cellPadding: 1.5,
+              fontSize: 8,
+              cellPadding: 2,
+              lineColor: [0, 0, 0],
+              lineWidth: 0.5,
+              textColor: [0, 0, 0],
             },
             headStyles: {
-              fillColor: [224, 225, 231],
-              textColor: 20,
+              fillColor: [220, 220, 220], // Cinza claro
+              textColor: [0, 0, 0],
               fontStyle: 'bold',
+              lineColor: [0, 0, 0],
+              lineWidth: 0.5,
             },
             bodyStyles: {
-              textColor: 30,
+              textColor: [0, 0, 0],
+              lineColor: [0, 0, 0],
+              lineWidth: 0.5,
+            },
+            columnStyles: {
+              0: { cellWidth: 25, halign: 'left' }, // Ficha
+              1: { cellWidth: 'auto', halign: 'left' }, // Descrição
+              2: { cellWidth: 30, halign: 'right' }, // Vr.Frete
+              3: { cellWidth: 30, halign: 'right' }, // Vr.Serviços
             },
             margin: {
-              left: 14,
-              right: 16,
+              left: indent,
+              right: marginRight,
             },
-            tableWidth: 182,
+            tableWidth: groupWidth,
+            showHead: 'everyPage',
           });
 
           const tableInfo = (doc as any).lastAutoTable;
           if (tableInfo) {
-            cursorY = tableInfo.finalY + 4;
+            cursorY = tableInfo.finalY + 2;
           }
+        }
+      };
 
-          // Linha de subtotal abaixo da tabela
-          ensurePdfSpace(6);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
-          doc.text(
-            `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
-            16,
-            cursorY,
-          );
-          doc.setFont('helvetica', 'normal');
-          cursorY += 8;
-        });
-      } else {
-        // Para relatórios analíticos: renderização hierárquica completa
-        const renderGroupToPdf = (group: ReportGroup, depth = 0) => {
-          ensurePdfSpace(10);
+      // Renderizar todos os grupos
+      report.groups.forEach((group) => {
+        renderGroupToPdf(group, 0);
+      });
 
-          const indent = 14 + depth * 6;
-          
-          // Cabeçalho do grupo com fundo escuro
-          doc.setFillColor(35, 38, 47);
-          doc.setTextColor(255, 255, 255);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9);
-          const headerHeight = 6;
-          doc.rect(indent, cursorY - 5, 180 - depth * 6, headerHeight, 'F');
-          doc.text(group.label, indent + 2, cursorY - 1);
-          
-          // Subtotais do grupo no cabeçalho
-          doc.setFontSize(8);
-          const subtotalLine = `Frete: ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços: ${formatCurrency(group.subtotal.valor_servico)}`;
-          doc.text(subtotalLine, indent + 2, cursorY + 2);
-          
-          cursorY += 10;
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'normal');
+      // ========== BARRA DE TÍTULO DOS TOTAIS ==========
+      ensurePdfSpace(8);
+      const totalTitleStartY = cursorY;
+      cursorY += 3;
 
-          // Se tem subgrupos, renderizar recursivamente
-          if (group.subgroups && group.subgroups.length > 0) {
-            group.subgroups.forEach((subgroup) => {
-              renderGroupToPdf(subgroup, depth + 1);
-            });
-            return;
-          }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      const totalTitleText = 'TOTAL DO PERÍODO';
+      const totalTitleWidth = doc.getTextWidth(totalTitleText);
+      doc.text(totalTitleText, marginLeft + (pageWidth - totalTitleWidth) / 2, cursorY);
+      cursorY += 3;
 
-          // Se tem linhas (rows), renderizar tabela detalhada
-          if (group.rows && group.rows.length > 0) {
-            ensurePdfSpace(8);
+      const totalTitleHeight = cursorY - totalTitleStartY;
+      drawBlockBorder(totalTitleStartY, totalTitleHeight);
 
-            autoTable(doc, {
-              startY: cursorY,
-              head: [['Ficha', 'Descrição', 'Valor Frete', 'Valor Serviços']],
-              body: group.rows.map((row) => [
-                row.ficha || '-',
-                row.descricao || '-',
-                formatCurrency(row.valor_frete),
-                formatCurrency(row.valor_servico),
-              ]),
-              styles: {
-                fontSize: 7,
-                cellPadding: 1.5,
-              },
-              headStyles: {
-                fillColor: [224, 225, 231],
-                textColor: 20,
-                fontStyle: 'bold',
-              },
-              bodyStyles: {
-                textColor: 30,
-              },
-              alternateRowStyles: {
-                fillColor: [248, 248, 252],
-              },
-              margin: {
-                left: indent,
-                right: 16,
-              },
-              tableWidth: 180 - depth * 6,
-            });
-
-            const tableInfo = (doc as any).lastAutoTable;
-            if (tableInfo) {
-              cursorY = tableInfo.finalY + 4;
-            }
-
-            // Subtotal do grupo após a tabela
-            ensurePdfSpace(6);
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.text(
-              `Subtotal: Frete ${formatCurrency(group.subtotal.valor_frete)}  |  Serviços ${formatCurrency(group.subtotal.valor_servico)}`,
-              indent + 2,
-              cursorY,
-            );
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            cursorY += 6;
-          }
-        };
-
-        // Renderizar todos os grupos
-        report.groups.forEach((group) => {
-          renderGroupToPdf(group, 0);
-        });
-      }
-
-      // Total geral
+      // ========== SEÇÃO DE TOTAIS FINAIS (caixas lado a lado) ==========
       ensurePdfSpace(12);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setFillColor(20, 24, 32);
-    doc.setTextColor(255, 255, 255);
-    doc.rect(14, cursorY - 6, 182, 8, 'F');
-    doc.text('TOTAL GERAL', 18, cursorY - 1);
+      const totalsStartY = cursorY;
+      cursorY += 2;
+
       const totalGeral = report.total.valor_frete + report.total.valor_servico;
-    doc.text(
-        `Total: ${formatCurrency(totalGeral)}`,
-      196,
-      cursorY - 1,
-      { align: 'right' },
-    );
-    doc.setTextColor(0, 0, 0);
+      const boxWidth = (pageWidth - 8) / 3; // 3 caixas com espaçamento
+      const boxHeight = 8;
+      const boxSpacing = 2;
+
+      // Caixa 1: Vr.Serviços (sem Frete)
+      const box1X = marginLeft + 2;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('Vr.Serviços(sem Frete):', box1X + 2, cursorY);
+      cursorY += 3;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(box1X, cursorY - 1, boxWidth - 2, 3);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const servicoText = formatCurrency(report.total.valor_servico);
+      const servicoWidth = doc.getTextWidth(servicoText);
+      doc.text(servicoText, box1X + (boxWidth - 2 - servicoWidth) / 2, cursorY + 1.5);
+      cursorY -= 3;
+
+      // Caixa 2: (+) Vr.Frete
+      const box2X = marginLeft + boxWidth + boxSpacing;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('(+) Vr.Frete:', box2X + 2, cursorY);
+      cursorY += 3;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(box2X, cursorY - 1, boxWidth - 2, 3);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const freteText = formatCurrency(report.total.valor_frete);
+      const freteWidth = doc.getTextWidth(freteText);
+      doc.text(freteText, box2X + (boxWidth - 2 - freteWidth) / 2, cursorY + 1.5);
+      cursorY -= 3;
+
+      // Caixa 3: (=) Vr.Total
+      const box3X = marginLeft + (boxWidth + boxSpacing) * 2;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('(=) Vr.Total:', box3X + 2, cursorY);
+      cursorY += 3;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(box3X, cursorY - 1, boxWidth - 2, 3);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const totalText = formatCurrency(totalGeral);
+      const totalWidth = doc.getTextWidth(totalText);
+      doc.text(totalText, box3X + (boxWidth - 2 - totalWidth) / 2, cursorY + 1.5);
+      cursorY += 2;
+
+      const totalsHeight = cursorY - totalsStartY;
+      drawBlockBorder(totalsStartY, totalsHeight);
 
       const filenameSuffix =
         startDate && endDate && endDate !== startDate
