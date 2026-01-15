@@ -1886,6 +1886,154 @@ export const api = {
     });
   },
 
+  /**
+   * Busca pedidos para relatório de envios usando a rota dedicada
+   * Esta rota sempre filtra por data de entrega (sem necessidade de date_mode)
+   * Suporta filtros opcionais de status, cliente e paginação
+   */
+  getRelatorioEnviosPedidos: async (
+    startDate: string,
+    endDate?: string | null,
+    options?: {
+      status?: OrderStatus;
+      cliente?: string;
+      page?: number;
+      pageSize?: number;
+    }
+  ): Promise<OrderWithItems[]> => {
+    requireSessionToken();
+
+    const trimmedStart = (startDate ?? '').trim();
+    if (!trimmedStart) {
+      throw new Error('Informe a data inicial.');
+    }
+
+    // Validar formato de data
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(trimmedStart)) {
+      throw new Error('Data inicial inválida. Use o formato YYYY-MM-DD.');
+    }
+
+    if (endDate && !datePattern.test(endDate.trim())) {
+      throw new Error('Data final inválida. Use o formato YYYY-MM-DD.');
+    }
+
+    if (endDate && endDate.trim() < trimmedStart) {
+      throw new Error('A data final não pode ser anterior à data inicial.');
+    }
+
+    // Construir parâmetros da requisição
+    const params: Record<string, any> = {
+      data_inicio: trimmedStart,
+    };
+
+    if (endDate && endDate.trim()) {
+      params.data_fim = endDate.trim();
+    }
+
+    // Adicionar filtros opcionais
+    if (options?.status) {
+      const statusMap: Record<OrderStatus, string> = {
+        [OrderStatus.Pendente]: 'pendente',
+        [OrderStatus.EmProcessamento]: 'em_producao',
+        [OrderStatus.Concluido]: 'pronto',
+        [OrderStatus.Cancelado]: 'cancelado',
+      };
+      params.status = statusMap[options.status] || options.status;
+    }
+
+    if (options?.cliente) {
+      params.cliente = options.cliente;
+    }
+
+    // Adicionar paginação se fornecida
+    const pageSize = options?.pageSize || 100;
+    if (options?.page) {
+      const skip = (options.page - 1) * pageSize;
+      params.skip = skip;
+      params.limit = pageSize;
+    } else if (options?.pageSize) {
+      params.limit = pageSize;
+    }
+
+    // Buscar pedidos da rota dedicada de relatórios de envios
+    // Esta rota sempre filtra por data_entrega (sem necessidade de date_mode)
+    const allOrders: OrderWithItems[] = [];
+    
+    // Se não há paginação solicitada, buscar todos os resultados em páginas
+    // Se há paginação solicitada, buscar apenas a página específica
+    if (options?.page) {
+      // Buscar apenas a página solicitada
+      const skip = (options.page - 1) * pageSize;
+      const currentParams = {
+        ...params,
+        skip,
+        limit: pageSize,
+      };
+
+      logger.debug('[getRelatorioEnviosPedidos] 📡 Buscando pedidos (página específica):', {
+        endpoint: '/relatorios-envios/pedidos',
+        params: currentParams,
+        page: options.page,
+      });
+
+      const response = await apiClient.get<ApiPedido[]>('/relatorios-envios/pedidos', {
+        params: currentParams,
+      });
+
+      const paginatedData = (response.data ?? []).map(mapPedidoFromApi);
+      allOrders.push(...paginatedData);
+    } else {
+      // Buscar todos os resultados em páginas até não haver mais
+      let page = 1;
+      let hasMore = true;
+      const defaultPageSize = 100;
+      
+      // Limitar a 20 páginas (2000 pedidos) para evitar sobrecarga
+      while (hasMore && page <= 20) {
+        const currentParams = {
+          ...params,
+          skip: (page - 1) * defaultPageSize,
+          limit: defaultPageSize,
+        };
+
+        logger.debug('[getRelatorioEnviosPedidos] 📡 Buscando pedidos:', {
+          endpoint: '/relatorios-envios/pedidos',
+          params: currentParams,
+          page,
+        });
+
+        const response = await apiClient.get<ApiPedido[]>('/relatorios-envios/pedidos', {
+          params: currentParams,
+        });
+
+        const paginatedData = (response.data ?? []).map(mapPedidoFromApi);
+        allOrders.push(...paginatedData);
+
+        // Se retornou menos que pageSize, é a última página
+        hasMore = paginatedData.length === defaultPageSize;
+        page++;
+      }
+    }
+
+    // Ordenar resultados (data_entrega, forma_envio, cliente)
+    return allOrders.sort((a, b) => {
+      const dateA = a.data_entrega ?? '';
+      const dateB = b.data_entrega ?? '';
+      if (dateA === dateB) {
+        const formaA = (a.forma_envio ?? '').toLowerCase();
+        const formaB = (b.forma_envio ?? '').toLowerCase();
+        if (formaA === formaB) {
+          const clienteA = (a.cliente ?? a.customer_name ?? '').toLowerCase();
+          const clienteB = (b.cliente ?? b.customer_name ?? '').toLowerCase();
+          return clienteA.localeCompare(clienteB, 'pt-BR');
+        }
+        return formaA.localeCompare(formaB, 'pt-BR');
+      }
+      return dateA.localeCompare(dateB);
+    });
+  },
+
   deleteOrder: async (orderId: number): Promise<boolean> => {
     requireSessionToken();
     await apiClient.delete(`/pedidos/${orderId}`);

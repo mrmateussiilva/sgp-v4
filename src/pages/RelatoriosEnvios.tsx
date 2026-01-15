@@ -44,7 +44,7 @@ export default function RelatoriosEnvios() {
 
     try {
       const dataInicialSelecionada = dataInicio;
-      const pedidos = await api.getOrdersByDeliveryDateRange(
+      const pedidos = await api.getRelatorioEnviosPedidos(
         dataInicialSelecionada,
         dataFim || null,
       );
