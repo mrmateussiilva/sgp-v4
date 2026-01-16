@@ -1474,6 +1474,75 @@ const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<string, a
   return sanitizePayload(payload);
 };
 
+/**
+ * Converte um OrderItem para CreateOrderItemRequest
+ * Usado para duplicar pedidos
+ */
+const convertOrderItemToCreateRequest = (item: OrderItem): CreateOrderItemRequest => {
+  // Parsear valores monetários do item
+  const parseItemValue = (value: string | number | null | undefined): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^\d.,-]/g, '').replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
+  const createItem: CreateOrderItemRequest = {
+    item_name: item.item_name || item.descricao || 'Item',
+    quantity: item.quantity || 1,
+    unit_price: parseItemValue(item.unit_price),
+    tipo_producao: item.tipo_producao,
+    descricao: item.descricao,
+    largura: item.largura,
+    altura: item.altura,
+    metro_quadrado: item.metro_quadrado,
+    vendedor: item.vendedor,
+    designer: item.designer,
+    tecido: item.tecido,
+    overloque: item.overloque,
+    elastico: item.elastico,
+    tipo_acabamento: item.tipo_acabamento,
+    quantidade_ilhos: item.quantidade_ilhos || item.ilhos_qtd,
+    espaco_ilhos: item.espaco_ilhos || item.ilhos_distancia,
+    valor_ilhos: item.valor_ilhos || item.ilhos_valor_unitario,
+    quantidade_cordinha: item.quantidade_cordinha,
+    espaco_cordinha: item.espaco_cordinha,
+    valor_cordinha: item.valor_cordinha,
+    observacao: item.observacao,
+    imagem: item.imagem,
+    legenda_imagem: item.legenda_imagem,
+    quantidade_paineis: item.quantidade_paineis,
+    valor_painel: item.valor_painel,
+    valores_adicionais: item.valores_adicionais,
+    valor_unitario: item.valor_unitario,
+    emenda: item.emenda,
+    emenda_qtd: item.emenda_qtd || item.emendaQtd,
+    terceirizado: item.terceirizado,
+    acabamento_lona: item.acabamento_lona,
+    valor_lona: item.valor_lona,
+    quantidade_lona: item.quantidade_lona,
+    outros_valores_lona: item.outros_valores_lona,
+    tipo_adesivo: item.tipo_adesivo,
+    valor_adesivo: item.valor_adesivo,
+    quantidade_adesivo: item.quantidade_adesivo,
+    outros_valores_adesivo: item.outros_valores_adesivo,
+    ziper: item.ziper,
+    cordinha_extra: item.cordinha_extra,
+    alcinha: item.alcinha,
+    toalha_pronta: item.toalha_pronta,
+    acabamento_totem: item.acabamento_totem,
+    acabamento_totem_outro: item.acabamento_totem_outro,
+    valor_totem: item.valor_totem,
+    quantidade_totem: item.quantidade_totem,
+    outros_valores_totem: item.outros_valores_totem,
+  };
+
+  return createItem;
+};
+
 const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, any> => {
   const payload: Record<string, any> = {};
 
@@ -1804,6 +1873,87 @@ export const api = {
       logger.debug(`[api.createOrder] 📡 Broadcast enviado para pedido ${order.id}`);
     } catch (error) {
       logger.warn('[api.createOrder] Erro ao enviar broadcast WebSocket:', error);
+    }
+    
+    return order;
+  },
+
+  /**
+   * Duplica um pedido existente criando um novo pedido com os mesmos dados
+   * @param orderId - ID do pedido a ser duplicado
+   * @returns Novo pedido criado
+   */
+  duplicateOrder: async (orderId: number): Promise<OrderWithItems> => {
+    requireSessionToken();
+    
+    // Buscar o pedido completo com seus itens
+    const originalOrder = await fetchOrderById(orderId);
+    
+    if (!originalOrder) {
+      throw new Error('Pedido não encontrado');
+    }
+
+    // Parsear valor de frete
+    const parseFrete = (value: string | number | null | undefined): number => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const cleaned = value.replace(/[^\d.,-]/g, '').replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    };
+
+    // Converter itens do pedido original para CreateOrderItemRequest
+    const createItems: CreateOrderItemRequest[] = (originalOrder.items || []).map(
+      (item) => convertOrderItemToCreateRequest(item)
+    );
+
+    // Criar novo pedido com os dados do original, mas:
+    // - Nova data de entrada (hoje)
+    // - Status inicial (Pendente)
+    // - Sem campos de produção (serão resetados pelo backend)
+    const createRequest: CreateOrderRequest = {
+      cliente: originalOrder.cliente || originalOrder.customer_name || '',
+      customer_name: originalOrder.customer_name || originalOrder.cliente || '',
+      cidade_cliente: originalOrder.cidade_cliente || '',
+      estado_cliente: originalOrder.estado_cliente || undefined,
+      telefone_cliente: originalOrder.telefone_cliente || undefined,
+      data_entrada: new Date().toISOString().split('T')[0], // Nova data de entrada
+      data_entrega: originalOrder.data_entrega || undefined,
+      status: OrderStatus.Pendente, // Status inicial
+      prioridade: originalOrder.prioridade || 'NORMAL',
+      forma_pagamento_id: originalOrder.forma_pagamento_id || undefined,
+      forma_envio: originalOrder.forma_envio || '',
+      observacao: originalOrder.observacao ? `[Duplicado do pedido ${originalOrder.numero || originalOrder.id}] ${originalOrder.observacao}` : `[Duplicado do pedido ${originalOrder.numero || originalOrder.id}]`,
+      valor_frete: parseFrete(originalOrder.valor_frete),
+      items: createItems,
+    };
+
+    // Usar a função createOrder existente para criar o novo pedido
+    // Usar a referência direta da função para evitar recursão
+    requireSessionToken();
+    const payload = buildPedidoCreatePayload(createRequest);
+    const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
+    const order = mapPedidoFromApi(response.data);
+    
+    // Salvar pedido em JSON na API após criação
+    try {
+      await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+      logger.debug(`[api.duplicateOrder] ✅ JSON do pedido ${order.id} salvo na API`);
+    } catch (error) {
+      logger.warn('[api.duplicateOrder] Erro ao salvar JSON do pedido na API:', error);
+    }
+    
+    // Invalidar caches após criar novo pedido
+    ordersByStatusCache.clear();
+    
+    // 📡 Broadcast via WebSocket para notificar outros clientes conectados
+    try {
+      ordersSocket.broadcastOrderCreated(order.id, order);
+      logger.debug(`[api.duplicateOrder] 📡 Broadcast enviado para pedido ${order.id}`);
+    } catch (error) {
+      logger.warn('[api.duplicateOrder] Erro ao enviar broadcast WebSocket:', error);
     }
     
     return order;

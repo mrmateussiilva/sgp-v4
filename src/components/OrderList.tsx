@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
@@ -62,7 +62,7 @@ import { isTauri } from '@/utils/isTauri';
 
 export default function OrderList() {
   const navigate = useNavigate();
-  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
+  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder, addOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
   
@@ -492,6 +492,30 @@ export default function OrderList() {
   const handleDeleteClick = (orderId: number) => {
     setOrderToDelete(orderId);
     setDeleteDialogOpen(true);
+  };
+
+  const handleDuplicate = async (order: OrderWithItems) => {
+    try {
+      toast({
+        title: 'Duplicando pedido...',
+        description: 'Aguarde enquanto o pedido está sendo duplicado.',
+      });
+
+      const newOrder = await api.duplicateOrder(order.id);
+      addOrder(newOrder);
+
+      toast({
+        title: 'Sucesso',
+        description: `Pedido duplicado com sucesso! Novo pedido #${newOrder.numero || newOrder.id}`,
+      });
+    } catch (error) {
+      console.error('Erro ao duplicar pedido:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao duplicar pedido',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -1555,6 +1579,7 @@ export default function OrderList() {
             onEdit={handleEdit}
             onViewOrder={handleViewOrder}
             onDelete={handleDeleteClick}
+            onDuplicate={handleDuplicate}
             isAdmin={isAdmin}
             loading={loading}
           />
@@ -2251,6 +2276,27 @@ export default function OrderList() {
                           >
                             <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                           </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicate(order);
+                                  }}
+                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                  title="Duplicar pedido"
+                                >
+                                  <Copy className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Duplicar pedido</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           {isAdmin && (
                             <Button
                               size="icon"
