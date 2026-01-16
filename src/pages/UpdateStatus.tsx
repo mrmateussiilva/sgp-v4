@@ -105,6 +105,12 @@ export default function UpdateStatus() {
 
       console.info('[UpdateStatus] Baixando e instalando atualização...');
       
+      // Salvar versão atual antes de atualizar
+      if (currentVersion) {
+        localStorage.setItem('previous_version', currentVersion);
+        localStorage.setItem('show_changelog_after_update', 'true');
+      }
+      
       // downloadAndInstall() baixa, instala e prepara o reinício
       await update.downloadAndInstall();
 

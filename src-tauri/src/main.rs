@@ -12,7 +12,7 @@ use commands::devtools::{
     test_devtools_system,
     toggle_devtools,
 };
-use commands::update::get_app_version;
+use commands::update::{get_app_version, fetch_changelog};
 use commands::images::{
     save_image_locally,
     get_local_image_path,
@@ -44,6 +44,7 @@ fn main() {
             #[cfg(debug_assertions)]
             test_devtools_system,
             get_app_version,
+            fetch_changelog,
             // Comandos de gerenciamento de imagens
             save_image_locally,
             get_local_image_path,
