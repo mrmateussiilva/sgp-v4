@@ -1881,9 +1881,10 @@ export const api = {
   /**
    * Duplica um pedido existente criando um novo pedido com os mesmos dados
    * @param orderId - ID do pedido a ser duplicado
+   * @param options - Opções para personalizar a duplicação (datas)
    * @returns Novo pedido criado
    */
-  duplicateOrder: async (orderId: number): Promise<OrderWithItems> => {
+  duplicateOrder: async (orderId: number, options?: { data_entrada?: string; data_entrega?: string }): Promise<OrderWithItems> => {
     requireSessionToken();
     
     // Buscar o pedido completo com seus itens
@@ -1910,7 +1911,8 @@ export const api = {
     );
 
     // Criar novo pedido com os dados do original, mas:
-    // - Nova data de entrada (hoje)
+    // - Nova data de entrada (personalizada ou hoje)
+    // - Data de entrega (personalizada ou mesma do original)
     // - Status inicial (Pendente)
     // - Sem campos de produção (serão resetados pelo backend)
     const createRequest: CreateOrderRequest = {
@@ -1919,8 +1921,8 @@ export const api = {
       cidade_cliente: originalOrder.cidade_cliente || '',
       estado_cliente: originalOrder.estado_cliente || undefined,
       telefone_cliente: originalOrder.telefone_cliente || undefined,
-      data_entrada: new Date().toISOString().split('T')[0], // Nova data de entrada
-      data_entrega: originalOrder.data_entrega || undefined,
+      data_entrada: options?.data_entrada || new Date().toISOString().split('T')[0], // Data de entrada personalizada ou hoje
+      data_entrega: options?.data_entrega || originalOrder.data_entrega || undefined,
       status: OrderStatus.Pendente, // Status inicial
       prioridade: originalOrder.prioridade || 'NORMAL',
       forma_pagamento_id: originalOrder.forma_pagamento_id || undefined,

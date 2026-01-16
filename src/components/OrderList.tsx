@@ -94,6 +94,10 @@ export default function OrderList() {
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [orderToDuplicate, setOrderToDuplicate] = useState<OrderWithItems | null>(null);
+  const [duplicateDataEntrada, setDuplicateDataEntrada] = useState('');
+  const [duplicateDataEntrega, setDuplicateDataEntrega] = useState('');
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -494,20 +498,43 @@ export default function OrderList() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDuplicate = async (order: OrderWithItems) => {
+  const handleDuplicateClick = (order: OrderWithItems) => {
+    setOrderToDuplicate(order);
+    // Inicializar datas: entrada = hoje, entrega = mesma do pedido original
+    setDuplicateDataEntrada(new Date().toISOString().split('T')[0]);
+    setDuplicateDataEntrega(order.data_entrega || '');
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleDuplicateConfirm = async () => {
+    if (!orderToDuplicate) return;
+
     try {
+      setDuplicateDialogOpen(false);
+      
       toast({
         title: 'Duplicando pedido...',
         description: 'Aguarde enquanto o pedido está sendo duplicado.',
       });
 
-      const newOrder = await api.duplicateOrder(order.id);
-      addOrder(newOrder);
+      // Chamar duplicateOrder com as datas personalizadas
+      const newOrder = await api.duplicateOrder(orderToDuplicate.id, {
+        data_entrada: duplicateDataEntrada || undefined,
+        data_entrega: duplicateDataEntrega || undefined,
+      });
+
+      // Não chamar addOrder diretamente - o WebSocket vai adicionar automaticamente
+      // Isso evita duplicação
 
       toast({
         title: 'Sucesso',
         description: `Pedido duplicado com sucesso! Novo pedido #${newOrder.numero || newOrder.id}`,
       });
+
+      // Limpar estado
+      setOrderToDuplicate(null);
+      setDuplicateDataEntrada('');
+      setDuplicateDataEntrega('');
     } catch (error) {
       console.error('Erro ao duplicar pedido:', error);
       toast({
@@ -1579,7 +1606,7 @@ export default function OrderList() {
             onEdit={handleEdit}
             onViewOrder={handleViewOrder}
             onDelete={handleDeleteClick}
-            onDuplicate={handleDuplicate}
+            onDuplicate={handleDuplicateClick}
             isAdmin={isAdmin}
             loading={loading}
           />
@@ -2284,7 +2311,7 @@ export default function OrderList() {
                                   variant="ghost"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDuplicate(order);
+                                    handleDuplicateClick(order);
                                   }}
                                   className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
                                   title="Duplicar pedido"
@@ -2410,6 +2437,51 @@ export default function OrderList() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
               Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Duplicação */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicar Pedido</DialogTitle>
+            <DialogDescription>
+              Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="duplicate-data-entrada">Data de Entrada</Label>
+              <Input
+                id="duplicate-data-entrada"
+                type="date"
+                value={duplicateDataEntrada}
+                onChange={(e) => setDuplicateDataEntrada(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
+              <Input
+                id="duplicate-data-entrega"
+                type="date"
+                value={duplicateDataEntrega}
+                onChange={(e) => setDuplicateDataEntrega(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setDuplicateDialogOpen(false);
+              setOrderToDuplicate(null);
+              setDuplicateDataEntrada('');
+              setDuplicateDataEntrega('');
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleDuplicateConfirm}>
+              Duplicar Pedido
             </Button>
           </DialogFooter>
         </DialogContent>
