@@ -98,6 +98,7 @@ export default function OrderList() {
   const [orderToDuplicate, setOrderToDuplicate] = useState<OrderWithItems | null>(null);
   const [duplicateDataEntrada, setDuplicateDataEntrada] = useState('');
   const [duplicateDataEntrega, setDuplicateDataEntrega] = useState('');
+  const [duplicateDateError, setDuplicateDateError] = useState<string | null>(null);
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -498,16 +499,70 @@ export default function OrderList() {
     setDeleteDialogOpen(true);
   };
 
+  const validateDuplicateDates = (dataEntrada: string, dataEntrega: string): string | null => {
+    if (!dataEntrada) return null; // Data de entrada é obrigatória mas validação será feita no submit
+    if (!dataEntrega) return null; // Data de entrega é opcional
+    
+    const entrada = new Date(dataEntrada);
+    const saida = new Date(dataEntrega);
+    
+    if (entrada > saida) {
+      return 'Data de entrada não pode ser maior que data de entrega';
+    }
+    
+    return null;
+  };
+
   const handleDuplicateClick = (order: OrderWithItems) => {
     setOrderToDuplicate(order);
     // Inicializar datas: entrada = hoje, entrega = mesma do pedido original
-    setDuplicateDataEntrada(new Date().toISOString().split('T')[0]);
-    setDuplicateDataEntrega(order.data_entrega || '');
+    const hoje = new Date().toISOString().split('T')[0];
+    const dataEntrega = order.data_entrega || '';
+    setDuplicateDataEntrada(hoje);
+    setDuplicateDataEntrega(dataEntrega);
+    setDuplicateDateError(validateDuplicateDates(hoje, dataEntrega));
     setDuplicateDialogOpen(true);
+  };
+
+  const handleDuplicateDateChange = (field: 'entrada' | 'entrega', value: string) => {
+    if (field === 'entrada') {
+      setDuplicateDataEntrada(value);
+      if (duplicateDataEntrega) {
+        setDuplicateDateError(validateDuplicateDates(value, duplicateDataEntrega));
+      }
+    } else {
+      setDuplicateDataEntrega(value);
+      if (duplicateDataEntrada) {
+        setDuplicateDateError(validateDuplicateDates(duplicateDataEntrada, value));
+      }
+    }
   };
 
   const handleDuplicateConfirm = async () => {
     if (!orderToDuplicate) return;
+
+    // Validar datas antes de confirmar
+    if (duplicateDataEntrada && duplicateDataEntrega) {
+      const dateError = validateDuplicateDates(duplicateDataEntrada, duplicateDataEntrega);
+      if (dateError) {
+        toast({
+          title: 'Erro de Validação',
+          description: dateError,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Validar que data de entrada foi preenchida
+    if (!duplicateDataEntrada) {
+      toast({
+        title: 'Erro de Validação',
+        description: 'Data de entrada é obrigatória',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     try {
       setDuplicateDialogOpen(false);
@@ -535,6 +590,7 @@ export default function OrderList() {
       setOrderToDuplicate(null);
       setDuplicateDataEntrada('');
       setDuplicateDataEntrega('');
+      setDuplicateDateError(null);
     } catch (error) {
       console.error('Erro ao duplicar pedido:', error);
       toast({
@@ -2453,12 +2509,13 @@ export default function OrderList() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="duplicate-data-entrada">Data de Entrada</Label>
+              <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
               <Input
                 id="duplicate-data-entrada"
                 type="date"
                 value={duplicateDataEntrada}
-                onChange={(e) => setDuplicateDataEntrada(e.target.value)}
+                onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
+                className={duplicateDateError ? 'border-destructive' : ''}
               />
             </div>
             <div className="space-y-2">
@@ -2467,8 +2524,12 @@ export default function OrderList() {
                 id="duplicate-data-entrega"
                 type="date"
                 value={duplicateDataEntrega}
-                onChange={(e) => setDuplicateDataEntrega(e.target.value)}
+                onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
+                className={duplicateDateError ? 'border-destructive' : ''}
               />
+              {duplicateDateError && (
+                <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -2477,10 +2538,14 @@ export default function OrderList() {
               setOrderToDuplicate(null);
               setDuplicateDataEntrada('');
               setDuplicateDataEntrega('');
+              setDuplicateDateError(null);
             }}>
               Cancelar
             </Button>
-            <Button onClick={handleDuplicateConfirm}>
+            <Button 
+              onClick={handleDuplicateConfirm}
+              disabled={!!duplicateDateError || !duplicateDataEntrada}
+            >
               Duplicar Pedido
             </Button>
           </DialogFooter>
