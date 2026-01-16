@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { ReposicoesList } from './ReposicoesList';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -1293,6 +1294,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               </div>
             )}
           </div>
+
+          <Separator />
+
+          {/* Reposições */}
+          {order && (
+            <div>
+              <ReposicoesList order={order} />
+            </div>
+          )}
 
           <Separator />
 

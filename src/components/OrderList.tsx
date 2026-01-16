@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, RefreshCw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { useOrderStore } from '../store/orderStore';
@@ -15,6 +15,7 @@ import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderKanbanBoard } from './OrderKanbanBoard';
+import { CreateReposicaoDialog } from './CreateReposicaoDialog';
 // import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
 import { formatDateForDisplay } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
@@ -104,6 +105,8 @@ export default function OrderList() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
+  const [createReposicaoDialogOpen, setCreateReposicaoDialogOpen] = useState(false);
+  const [selectedOrderForReposicao, setSelectedOrderForReposicao] = useState<OrderWithItems | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
   // Desativado temporariamente: botões de alternância entre tabela e kanban
@@ -2380,6 +2383,28 @@ export default function OrderList() {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedOrderForReposicao(order);
+                                    setCreateReposicaoDialogOpen(true);
+                                  }}
+                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                  title="Criar reposição"
+                                >
+                                  <RefreshCw className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Criar reposição</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           {isAdmin && (
                             <Button
                               size="icon"
@@ -2616,6 +2641,16 @@ export default function OrderList() {
           if (selectedOrderForView && selectedOrderForView.id === order.id) {
             setSelectedOrderForView(order);
           }
+        }}
+      />
+
+      <CreateReposicaoDialog
+        open={createReposicaoDialogOpen}
+        onOpenChange={setCreateReposicaoDialogOpen}
+        order={selectedOrderForReposicao}
+        onSuccess={() => {
+          // Recarregar lista se necessário
+          loadOrders();
         }}
       />
 

@@ -677,3 +677,61 @@ export interface RelatorioTemplatesConfig {
   envios: RelatorioTemplateConfig;
   fechamentos: RelatorioTemplateConfig;
 }
+
+// ========================================
+// Reposições
+// ========================================
+
+export interface Reposicao {
+  id: number;
+  order_id: number;
+  numero?: string;
+  motivo: string;
+  descricao?: string;
+  data_solicitacao: string;
+  data_entrega_prevista?: string;
+  status: 'Pendente' | 'Em Processamento' | 'Concluída' | 'Cancelada';
+  prioridade?: 'NORMAL' | 'ALTA';
+  observacao?: string;
+  financeiro?: boolean;
+  conferencia?: boolean;
+  sublimacao?: boolean;
+  costura?: boolean;
+  expedicao?: boolean;
+  pronto?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  // Dados do pedido relacionado (opcional, para exibição)
+  pedido?: {
+    id: number;
+    numero?: string;
+    cliente?: string;
+  };
+}
+
+export interface CreateReposicaoRequest {
+  order_id: number;
+  motivo: string;
+  descricao?: string;
+  data_solicitacao: string;
+  data_entrega_prevista?: string;
+  prioridade?: 'NORMAL' | 'ALTA';
+  observacao?: string;
+}
+
+export interface UpdateReposicaoRequest {
+  id: number;
+  motivo?: string;
+  descricao?: string;
+  data_solicitacao?: string;
+  data_entrega_prevista?: string;
+  status?: 'Pendente' | 'Em Processamento' | 'Concluída' | 'Cancelada';
+  prioridade?: 'NORMAL' | 'ALTA';
+  observacao?: string;
+  financeiro?: boolean;
+  conferencia?: boolean;
+  sublimacao?: boolean;
+  costura?: boolean;
+  expedicao?: boolean;
+  pronto?: boolean;
+}

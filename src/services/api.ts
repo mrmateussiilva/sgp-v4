@@ -32,6 +32,9 @@ import {
   OrderFicha,
   FichaTemplatesConfig,
   RelatorioTemplatesConfig,
+  Reposicao,
+  CreateReposicaoRequest,
+  UpdateReposicaoRequest,
 } from '../types';
 import { ordersSocket } from '../lib/realtimeOrders';
 import { canonicalizeFromItemRequest } from '../mappers/productionItems';
@@ -2664,6 +2667,49 @@ export const api = {
     requireSessionToken();
     const response = await apiClient.get(`/relatorios/fechamentos/rankings/${category}`, { params });
     return response.data;
+  },
+
+  // ========================================
+  // Reposições
+  // ========================================
+  
+  createReposicao: async (request: CreateReposicaoRequest): Promise<Reposicao> => {
+    requireSessionToken();
+    const response = await apiClient.post<Reposicao>('/reposicoes/', request);
+    return response.data;
+  },
+
+  getReposicoesByOrder: async (orderId: number): Promise<Reposicao[]> => {
+    requireSessionToken();
+    const response = await apiClient.get<Reposicao[]>(`/reposicoes/?order_id=${orderId}`);
+    return response.data;
+  },
+
+  listarReposicoes: async (filters?: { order_id?: number; status?: string }): Promise<Reposicao[]> => {
+    requireSessionToken();
+    const params = new URLSearchParams();
+    if (filters?.order_id) params.append('order_id', filters.order_id.toString());
+    if (filters?.status) params.append('status', filters.status);
+    const response = await apiClient.get<Reposicao[]>(`/reposicoes/?${params.toString()}`);
+    return response.data;
+  },
+
+  getReposicaoById: async (id: number): Promise<Reposicao> => {
+    requireSessionToken();
+    const response = await apiClient.get<Reposicao>(`/reposicoes/${id}`);
+    return response.data;
+  },
+
+  updateReposicao: async (request: UpdateReposicaoRequest): Promise<Reposicao> => {
+    requireSessionToken();
+    const { id, ...updateData } = request;
+    const response = await apiClient.patch<Reposicao>(`/reposicoes/${id}`, updateData);
+    return response.data;
+  },
+
+  deleteReposicao: async (id: number): Promise<void> => {
+    requireSessionToken();
+    await apiClient.delete(`/reposicoes/${id}`);
   },
 };
 
