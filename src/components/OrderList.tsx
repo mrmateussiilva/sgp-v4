@@ -62,7 +62,7 @@ import { isTauri } from '@/utils/isTauri';
 
 export default function OrderList() {
   const navigate = useNavigate();
-  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder, addOrder } = useOrderStore();
+  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
   

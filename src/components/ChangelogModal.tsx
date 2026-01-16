@@ -65,7 +65,7 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
       const startIndex = content.indexOf(match[0]);
       const nextVersionMatch = content.slice(startIndex + match[0].length).match(/##?\s*\[?\d+\.\d+\.\d+\]?/);
       
-      if (nextVersionMatch) {
+      if (nextVersionMatch && nextVersionMatch.index !== undefined) {
         return content.slice(startIndex, startIndex + match[0].length + nextVersionMatch.index);
       }
       
