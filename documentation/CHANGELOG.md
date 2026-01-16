@@ -1,5 +1,17 @@
 # Changelog - SGP v4
 
+## [1.0.12] - 2025-01-XX
+
+### ✨ Adicionado
+- **Tela de Changelog após Atualização**: Agora após uma atualização ser instalada, o sistema exibe automaticamente um modal com todas as mudanças da nova versão
+  - Busca o CHANGELOG.md diretamente do repositório
+  - Extrai automaticamente apenas a seção da versão instalada
+  - Interface moderna e responsiva com renderização de markdown
+
+### 🔧 Melhorado
+- Sistema de atualização agora salva a versão anterior antes de reiniciar
+- Detecção automática de atualização ao iniciar o aplicativo
+
 ## [1.0.2] - 2025-10-14
 
 ### 🐛 Corrigido
