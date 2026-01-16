@@ -24,7 +24,19 @@ export const useOrderStore = create<OrderState>((set) => ({
     }
   },
   setSelectedOrder: (order) => set({ selectedOrder: order }),
-  addOrder: (order) => set((state) => ({ orders: [order, ...state.orders] })),
+  addOrder: (order) =>
+    set((state) => {
+      // Verificar se o pedido já existe para evitar duplicação
+      const exists = state.orders.some((o) => o.id === order.id);
+      if (exists) {
+        // Se já existe, atualizar em vez de adicionar
+        return {
+          orders: state.orders.map((o) => (o.id === order.id ? order : o)),
+        };
+      }
+      // Se não existe, adicionar no início da lista
+      return { orders: [order, ...state.orders] };
+    }),
   updateOrder: (order) =>
     set((state) => ({
       orders: state.orders.map((o) => (o.id === order.id ? order : o)),

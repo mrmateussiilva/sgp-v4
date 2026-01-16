@@ -3,7 +3,7 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, FileText, Trash2 } from 'lucide-react';
+import { Edit, FileText, Trash2, Copy } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { EditingIndicator } from './EditingIndicator';
 import {
@@ -19,6 +19,7 @@ interface OrderKanbanBoardProps {
   onEdit: (order: OrderWithItems) => void;
   onViewOrder: (order: OrderWithItems) => void;
   onDelete: (orderId: number) => void;
+  onDuplicate?: (order: OrderWithItems) => void;
   isAdmin: boolean;
   loading?: boolean;
 }
@@ -82,6 +83,7 @@ export function OrderKanbanBoard({
   onEdit,
   onViewOrder,
   onDelete,
+  onDuplicate,
   isAdmin,
   loading = false,
 }: OrderKanbanBoardProps) {
@@ -294,6 +296,24 @@ export function OrderKanbanBoard({
                               <TooltipContent>Editar</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+
+                          {onDuplicate && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => onDuplicate(order)}
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Duplicar pedido</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
 
                           {isAdmin && (
                             <TooltipProvider>
