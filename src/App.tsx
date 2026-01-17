@@ -55,40 +55,70 @@ function App() {
   useRealtimeNotifications();
 
   // Verificar se precisa mostrar changelog após atualização
+  // Verifica após a conexão estar pronta para garantir que o modal apareça
   useEffect(() => {
+    // Só verificar quando não estiver mais verificando conexão
+    if (isCheckingConnection) {
+      return;
+    }
+
     const checkForUpdateChangelog = async () => {
       const shouldShow = localStorage.getItem('show_changelog_after_update');
       const previousVersion = localStorage.getItem('previous_version');
+      
+      console.log('[App] Verificando changelog após atualização:', {
+        shouldShow,
+        previousVersion
+      });
       
       if (shouldShow === 'true' && previousVersion) {
         try {
           const currentVersion = await invoke<string>('get_app_version');
           
+          console.log('[App] Versões:', {
+            current: currentVersion,
+            previous: previousVersion,
+            changed: currentVersion !== previousVersion
+          });
+          
           // Se a versão mudou, mostrar changelog
           if (currentVersion !== previousVersion) {
+            console.log('[App] ✅ Versão mudou! Mostrando changelog...');
             setUpdateVersion(currentVersion);
             setShowChangelog(true);
+            // NÃO limpar flags aqui - limpar quando o modal for fechado
+          } else {
+            console.log('[App] Versão não mudou, limpando flags');
+            // Se a versão não mudou, limpar flags
+            localStorage.removeItem('show_changelog_after_update');
+            localStorage.removeItem('previous_version');
           }
-          
-          // Limpar flags
-          localStorage.removeItem('show_changelog_after_update');
-          localStorage.removeItem('previous_version');
         } catch (err) {
           console.error('[App] Erro ao verificar versão:', err);
-          // Limpar flags mesmo em caso de erro
-          localStorage.removeItem('show_changelog_after_update');
-          localStorage.removeItem('previous_version');
+          // Em caso de erro, manter flags para tentar novamente na próxima inicialização
+          // Não limpar aqui
         }
       }
     };
 
-    // Aguardar um pouco para não bloquear o startup
+    // Aguardar um pouco após a conexão estar pronta
     const timeoutId = setTimeout(() => {
       checkForUpdateChangelog();
-    }, 1000);
+    }, 2000); // Aumentado para 2s após conexão estar pronta
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [isCheckingConnection]); // Depende de isCheckingConnection
+
+  // Limpar flags quando o modal for fechado (após usuário visualizar)
+  useEffect(() => {
+    if (!showChangelog && updateVersion) {
+      // Modal foi fechado, limpar flags agora
+      console.log('[App] Modal de changelog fechado, limpando flags');
+      localStorage.removeItem('show_changelog_after_update');
+      localStorage.removeItem('previous_version');
+      setUpdateVersion('');
+    }
+  }, [showChangelog, updateVersion]);
 
   useEffect(() => {
     const verifyConfig = async () => {
