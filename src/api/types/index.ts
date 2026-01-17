@@ -271,3 +271,20 @@ export interface TipoProducaoEntity {
 export type MaterialEntity = Omit<MaterialApi, 'observacao'> & {
     observacao?: string;
 };
+
+// Re-export domain types from src/types/index.ts
+export { OrderStatus } from '../../types';
+export type {
+    OrderWithItems,
+    OrderItem,
+    OrderFicha,
+    CreateOrderRequest,
+    CreateOrderItemRequest,
+    UpdateOrderRequest,
+    UpdateOrderItemRequest,
+    UpdateOrderMetadataRequest,
+    UpdateOrderStatusRequest,
+    OrderFilters,
+    PaginatedOrders,
+    OrderAuditLogEntry,
+} from '../../types';
