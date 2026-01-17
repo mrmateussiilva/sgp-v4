@@ -20,7 +20,7 @@ export const api = {
   getOrdersPaginatedForTable: ordersApi.getOrdersPaginated, // Alias for now, as implementation is identical in logic
   getPendingOrdersLight: async () => {
     const orders = await ordersApi.getOrders();
-    return orders.filter(o => o.status === OrderStatus.Pendente || o.status === OrderStatus.EmProcessamento);
+    return orders.filter(o => o.pronto === false || o.pronto == null);
   },
   getPendingOrdersPaginated: async (page?: number, pageSize?: number) => 
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
@@ -139,4 +139,3 @@ export const getOrdersByDeliveryDate = async (_token: string, start: string, end
   return ordersApi.getOrdersByDeliveryDateRange(start, end);
 };
 export const getOrderFicha = (_token: string, id: number) => ordersApi.getOrderFicha(id);
-

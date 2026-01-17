@@ -322,6 +322,17 @@ export default function OrderList() {
         // TotalOrders será o número total de pedidos retornados
         setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
         setTotalOrders(paginatedData.orders.length);
+      } else if (productionStatusFilter === 'pending') {
+        const all = await api.getPendingOrdersLight();
+        if (loadRequestRef.current !== requestId) {
+          return;
+        }
+        logger.debug('[OrderList] getPendingOrdersLight retornou:', {
+          ordersLength: all.length
+        });
+        setOrders(all);
+        setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
+        setTotalOrders(all.length);
       } else if (dateFrom || dateTo) {
         // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
         // precisamos trazer um conjunto maior e filtrar localmente.
@@ -356,24 +367,6 @@ export default function OrderList() {
           };
 
           const paginatedData = await api.getOrdersWithFiltersForTable(filters);
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
-          setOrders(paginatedData.orders);
-          setTotalPages(paginatedData.total_pages);
-          setTotalOrders(paginatedData.total);
-        }
-      } else if (productionStatusFilter === 'pending') {
-        if (clientSideFiltersActive || hasSearch) {
-          const all = await api.getPendingOrdersLight();
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
-          setOrders(all);
-          setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
-          setTotalOrders(all.length);
-        } else {
-          const paginatedData = await api.getPendingOrdersPaginated(currentPage + 1, currentPageSize);
           if (loadRequestRef.current !== requestId) {
             return;
           }
@@ -1053,9 +1046,16 @@ export default function OrderList() {
   const isBackendPaginated =
     !clientSideFiltersActive &&
     productionStatusFilter !== 'all' && // 'all' sempre usa paginação frontend
-    (dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready');
+    productionStatusFilter !== 'pending' && // 'pending' sempre usa paginação frontend (filtra por pronto)
+    (dateFrom || dateTo || productionStatusFilter === 'ready');
 
   const filteredOrders = useMemo(() => {
+    logger.debug('[OrderList] filteredOrders - orders.length:', orders.length);
+    logger.debug('[OrderList] filteredOrders - productionStatusFilter:', productionStatusFilter);
+    logger.debug('[OrderList] filteredOrders - isBackendPaginated:', isBackendPaginated);
+    logger.debug('[OrderList] filteredOrders - activeSearchTerm:', activeSearchTerm);
+    logger.debug('[OrderList] filteredOrders - selectedStatuses:', selectedStatuses);
+    
     // Se estamos usando paginação do backend, os pedidos já vêm filtrados e paginados
     // Aplicar apenas filtros avançados que não estão disponíveis no backend
     let filtered = orders;
@@ -1096,6 +1096,21 @@ export default function OrderList() {
 
     // Se não estamos usando paginação do backend, aplicar todos os filtros localmente
     if (!isBackendPaginated) {
+      if (dateFrom || dateTo) {
+        const startDate = dateFrom ? new Date(dateFrom) : null;
+        const endDate = dateTo ? new Date(dateTo) : null;
+        if (startDate) startDate.setHours(0, 0, 0, 0);
+        if (endDate) endDate.setHours(23, 59, 59, 999);
+
+        filtered = filtered.filter((order) => {
+          if (!order.data_entrega) return false;
+          const deliveryDate = new Date(order.data_entrega);
+          if (Number.isNaN(deliveryDate.getTime())) return false;
+          if (startDate && deliveryDate < startDate) return false;
+          if (endDate && deliveryDate > endDate) return false;
+          return true;
+        });
+      }
 
       // Filtro por status de produção
       if (productionStatusFilter === 'pending') {
@@ -1184,6 +1199,7 @@ export default function OrderList() {
       });
     }
 
+    logger.debug('[OrderList] filteredOrders - resultado final length:', filtered.length);
     return filtered;
   }, [orders, activeSearchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, sortColumn, sortDirection, isBackendPaginated]);
 
@@ -1213,6 +1229,11 @@ export default function OrderList() {
   // Para pedidos com filtros de data, pendentes, prontos e 'all' com paginação, usar dados do backend
   // A paginação já foi feita no backend, então retornar os pedidos diretamente
   const paginatedOrders = useMemo(() => {
+    logger.debug('[OrderList] paginatedOrders - orders.length:', orders.length);
+    logger.debug('[OrderList] paginatedOrders - filteredOrders.length:', filteredOrders.length);
+    logger.debug('[OrderList] paginatedOrders - isBackendPaginated:', isBackendPaginated);
+    logger.debug('[OrderList] paginatedOrders - page:', page, 'rowsPerPage:', rowsPerPage);
+    
     if (isBackendPaginated) {
       // Mesmo com paginação do backend, aplicar ordenação local se houver
       if (sortColumn) {
@@ -1250,14 +1271,20 @@ export default function OrderList() {
           if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         });
-        return sorted;
+        const result = sorted;
+        logger.debug('[OrderList] paginatedOrders - resultado (backend com sort):', result.length);
+        return result;
       }
-      return orders; // orders já vem paginado do backend
+      const result = orders; // orders já vem paginado do backend
+      logger.debug('[OrderList] paginatedOrders - resultado (backend):', result.length);
+      return result;
     }
     // Paginação local (permite filtros avançados funcionarem em pending/ready/all quando necessário)
     const startIndex = page * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
-    return filteredOrders.slice(startIndex, endIndex);
+    const result = filteredOrders.slice(startIndex, endIndex);
+    logger.debug('[OrderList] paginatedOrders - resultado (frontend):', result.length, 'slice:', startIndex, '-', endIndex);
+    return result;
   }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated, sortColumn, sortDirection]);
 
   // Handlers para painel lateral - DESABILITADO
