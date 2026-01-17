@@ -1,9 +1,9 @@
-
 import { apiClient, setApiUrl, getApiUrl } from '../api/client';
 import { ordersApi } from '../api/endpoints/orders';
 import { customersApi } from '../api/endpoints/customers';
 import { resourcesApi } from '../api/endpoints/resources';
 import { authApi } from '../api/endpoints/auth';
+import { OrderStatus } from '../types';
 
 /**
  * @deprecated Legacy monolithic API service. Use individual modules from `src/api/` instead.
@@ -19,35 +19,20 @@ export const api = {
   getOrdersPaginated: ordersApi.getOrdersPaginated,
   getOrdersPaginatedForTable: ordersApi.getOrdersPaginated, // Alias for now, as implementation is identical in logic
   getPendingOrdersLight: async () => {
-    // Re-implementing light version or using filter?
-    // For now, let's use the full fetch but filtered, or the optimized internal logic if we exported it
-    // The original implementation used collectPendingOrders which did fetchOrdersByStatus('pendente') + 'em_producao'
-    // We can implement a helper here or reusing getOrdersPaginated with status?
-    // Let's rely on standard fetch for now to keep facade simple, or TODO: migrate to specific endpoint
     const orders = await ordersApi.getOrders();
-    return orders.filter(o => o.status === 'Pendente' || o.status === 'Em Processamento');
+    return orders.filter(o => o.status === OrderStatus.Pendente || o.status === OrderStatus.EmProcessamento);
   },
-  getPendingOrdersPaginated: async (page?: number, pageSize?: number) => ordersApi.getOrdersPaginated(page, pageSize, 'Pendente'), // Approximation
-  getReadyOrdersPaginated: async (page?: number, pageSize?: number) => ordersApi.getOrdersPaginated(page, pageSize, 'Concluido'),
+  getPendingOrdersPaginated: async (page?: number, pageSize?: number) => 
+    ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
+  getReadyOrdersPaginated: async (page?: number, pageSize?: number) => 
+    ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Concluido),
   getReadyOrdersLight: async () => {
     const orders = await ordersApi.getOrders();
-    return orders.filter(o => o.status === 'Concluido');
+    return orders.filter(o => o.status === OrderStatus.Concluido);
   },
   getOrderById: ordersApi.getOrderById,
   createOrder: ordersApi.createOrder,
-  duplicateOrder: async (orderId: number, options?: any) => {
-    // We need to implement duplicateOrder in ordersApi if it's missing
-    // I missed duplicateOrder in export! I will add it to ordersApi in a follow up or here locally if possible.
-    // Actually duplicateOrder logic was complex. Ideally it should be in ordersApi.
-    // I'll leave it as a TODO or try to implement it using createOrder.
-    const original = await ordersApi.getOrderById(orderId);
-    // ... (duplicate logic logic is complex to inline here without helper functions)
-    // I should have extracted duplicateOrder to orders.ts. 
-    // For now, I will skip re-implementing complex duplicateOrder in Facade if it wasn't strictly required by Plan, 
-    // BUT it breaks the app if used.
-    // I will add duplicateOrder to orders.ts in the next step.
-    throw new Error('duplicateOrder not implemented in Refactor yet');
-  },
+  duplicateOrder: ordersApi.duplicateOrder,
   updateOrder: ordersApi.updateOrder,
   updateOrderMetadata: ordersApi.updateOrderMetadata,
   updateOrderStatus: ordersApi.updateOrderStatus,
@@ -56,15 +41,10 @@ export const api = {
   resetOrderIds: async () => { await apiClient.post('/pedidos/reset-ids'); return true; },
   getOrdersWithFilters: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
   getOrdersWithFiltersForTable: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
-  getOrderHistory: async () => [],
+  getOrderHistory: async (_orderId?: number) => [],
   getOrderFicha: ordersApi.getOrderFicha,
   // Orders by range
-  getOrdersByDeliveryDateRange: async (start: string, end?: string) => {
-    // Re-implement or move to ordersApi? 
-    // I put getOrdersByDeliveryDate in api.ts export but maybe not in ordersApi object?
-    // I can add it to orders.ts
-    return [];
-  },
+  getOrdersByDeliveryDateRange: ordersApi.getOrdersByDeliveryDateRange,
   getRelatorioEnviosPedidos: async (start: string, end?: string, options?: any) => {
     return ordersApi.getOrdersPaginated(options?.page, options?.pageSize, options?.status, options?.cliente, start, end).then(r => r.orders);
   },
@@ -103,47 +83,60 @@ export const api = {
 export { setApiUrl, getApiUrl };
 export const getFichas = async () => { return []; };
 
+// Re-export types for backwards compatibility
+export type {
+  DesignerEntity,
+  VendedorEntity,
+  FormaEnvioEntity,
+  FormaPagamentoEntity,
+  UserEntity,
+  TipoProducaoEntity,
+  MaterialEntity,
+} from '../api/types';
+
 // Global function exports matching original file
-export const getMateriais = resourcesApi.getMateriais;
-export const createMaterial = (token: string, req: any) => resourcesApi.createMaterial(req);
-export const updateMaterial = (token: string, req: any) => resourcesApi.updateMaterial(req);
-export const deleteMaterial = (token: string, id: number) => resourcesApi.deleteMaterial(id);
+// Note: token parameter is kept for backwards compatibility but not used internally
+// as authentication is now handled by apiClient interceptor
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const getMateriais = async (_token?: string) => resourcesApi.getMateriais();
+export const createMaterial = (_token: string, req: any) => resourcesApi.createMaterial(req);
+export const updateMaterial = (_token: string, req: any) => resourcesApi.updateMaterial(req);
+export const deleteMaterial = (_token: string, id: number) => resourcesApi.deleteMaterial(id);
 
-export const getVendedores = resourcesApi.getVendedores;
-export const createVendedor = (token: string, req: any) => resourcesApi.createVendedor(req);
-export const updateVendedor = (token: string, req: any) => resourcesApi.updateVendedor(req);
-export const deleteVendedor = (token: string, id: number) => resourcesApi.deleteVendedor(id);
+export const getVendedores = async (_token?: string) => resourcesApi.getVendedores();
+export const createVendedor = (_token: string, req: any) => resourcesApi.createVendedor(req);
+export const updateVendedor = (_token: string, req: any) => resourcesApi.updateVendedor(req);
+export const deleteVendedor = (_token: string, id: number) => resourcesApi.deleteVendedor(id);
 
-export const getDesigners = resourcesApi.getDesigners;
-export const createDesigner = (token: string, req: any) => resourcesApi.createDesigner(req);
-export const updateDesigner = (token: string, req: any) => resourcesApi.updateDesigner(req);
-export const deleteDesigner = (token: string, id: number) => resourcesApi.deleteDesigner(id);
+export const getDesigners = async (_token?: string) => resourcesApi.getDesigners();
+export const createDesigner = (_token: string, req: any) => resourcesApi.createDesigner(req);
+export const updateDesigner = (_token: string, req: any) => resourcesApi.updateDesigner(req);
+export const deleteDesigner = (_token: string, id: number) => resourcesApi.deleteDesigner(id);
 
-export const getFormasEnvio = resourcesApi.getFormasEnvio;
-export const createFormaEnvio = (token: string, req: any) => resourcesApi.createFormaEnvio(req);
-export const updateFormaEnvio = (token: string, req: any) => resourcesApi.updateFormaEnvio(req);
-export const deleteFormaEnvio = (token: string, id: number) => resourcesApi.deleteFormaEnvio(id);
+export const getFormasEnvio = async (_token?: string) => resourcesApi.getFormasEnvio();
+export const createFormaEnvio = (_token: string, req: any) => resourcesApi.createFormaEnvio(req);
+export const updateFormaEnvio = (_token: string, req: any) => resourcesApi.updateFormaEnvio(req);
+export const deleteFormaEnvio = (_token: string, id: number) => resourcesApi.deleteFormaEnvio(id);
 
-export const getFormasPagamento = resourcesApi.getFormasPagamento;
-export const createFormaPagamento = (token: string, req: any) => resourcesApi.createFormaPagamento(req);
-export const updateFormaPagamento = (token: string, req: any) => resourcesApi.updateFormaPagamento(req);
-export const deleteFormaPagamento = (token: string, id: number) => resourcesApi.deleteFormaPagamento(id);
+export const getFormasPagamento = async (_token?: string) => resourcesApi.getFormasPagamento();
+export const createFormaPagamento = (_token: string, req: any) => resourcesApi.createFormaPagamento(req);
+export const updateFormaPagamento = (_token: string, req: any) => resourcesApi.updateFormaPagamento(req);
+export const deleteFormaPagamento = (_token: string, id: number) => resourcesApi.deleteFormaPagamento(id);
 
-export const getUsers = resourcesApi.getUsers;
-export const createUser = (token: string, req: any) => resourcesApi.createUser(req);
-export const updateUser = (token: string, req: any) => resourcesApi.updateUser(req);
-export const deleteUser = (token: string, id: number) => resourcesApi.deleteUser(id);
+export const getUsers = async (_token?: string) => resourcesApi.getUsers();
+export const createUser = (_token: string, req: any) => resourcesApi.createUser(req);
+export const updateUser = (_token: string, req: any) => resourcesApi.updateUser(req);
+export const deleteUser = (_token: string, id: number) => resourcesApi.deleteUser(id);
 
-export const getTiposProducao = resourcesApi.getTiposProducao;
-export const getTiposProducaoAtivos = resourcesApi.getTiposProducaoAtivos;
-export const createTipoProducao = (token: string, req: any) => resourcesApi.createTipoProducao(req);
-export const updateTipoProducao = (token: string, req: any) => resourcesApi.updateTipoProducao(req);
-export const deleteTipoProducao = (token: string, id: number) => resourcesApi.deleteTipoProducao(id);
+export const getTiposProducao = async (_token?: string) => resourcesApi.getTiposProducao();
+export const getTiposProducaoAtivos = async (_token?: string) => resourcesApi.getTiposProducaoAtivos();
+export const createTipoProducao = (_token: string, req: any) => resourcesApi.createTipoProducao(req);
+export const updateTipoProducao = (_token: string, req: any) => resourcesApi.updateTipoProducao(req);
+export const deleteTipoProducao = (_token: string, id: number) => resourcesApi.deleteTipoProducao(id);
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
-export const getOrdersByDeliveryDate = async (token: string, start: string, end: string) => {
-  // Basic implementation since we didn't export it in ordersApi yet.
-  // Ideally update ordersApi to include this.
-  return ordersApi.getOrdersPaginated(1, 1000, undefined, undefined, start, end).then(r => r.orders);
+export const getOrdersByDeliveryDate = async (_token: string, start: string, end: string) => {
+  return ordersApi.getOrdersByDeliveryDateRange(start, end);
 };
-export const getOrderFicha = (token: string, id: number) => ordersApi.getOrderFicha(id);
+export const getOrderFicha = (_token: string, id: number) => ordersApi.getOrderFicha(id);
 

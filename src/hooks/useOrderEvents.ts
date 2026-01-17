@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { OrderWithItems } from '../types';
 import { api } from '@/services/api';
 import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
+import { logger } from '@/utils/logger';
 
 // ========================================
 // HOOK PARA EVENTOS DE PEDIDOS EM TEMPO REAL
@@ -47,7 +48,7 @@ class OrderEventsManager {
     const orderPayload = messageWithOrder.order as { id?: number; order_id?: number; pedido_id?: number } | undefined;
     
     if (import.meta.env.DEV) {
-      console.log('📡 [OrderEventsManager] Evento WebSocket recebido:', {
+      logger.debug('📡 [OrderEventsManager] Evento WebSocket recebido:', {
         type: message.type,
         order_id: message.order_id,
         has_order: !!orderPayload,
@@ -95,20 +96,20 @@ class OrderEventsManager {
         // order_status_updated tem prioridade e dispara ambos os handlers
         if (onOrderStatusUpdated) {
           if (import.meta.env.DEV) {
-            console.log('🔄 [OrderEventsManager] Chamando onOrderStatusUpdated para pedido:', orderId);
+            logger.debug('🔄 [OrderEventsManager] Chamando onOrderStatusUpdated para pedido:', orderId);
           }
           onOrderStatusUpdated(orderId);
         }
         // Também disparar onOrderUpdated para garantir atualização
         if (onOrderUpdated) {
           if (import.meta.env.DEV) {
-            console.log('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
+            logger.debug('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
           }
           onOrderUpdated(orderId);
         }
       } else if (type === 'order_updated' && orderId && onOrderUpdated) {
         if (import.meta.env.DEV) {
-          console.log('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
+          logger.debug('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
         }
         onOrderUpdated(orderId);
       }
@@ -128,7 +129,7 @@ class OrderEventsManager {
     if (!this.globalSubscription) {
       this.globalSubscription = ordersSocket.subscribe(this.handleMessage);
       if (import.meta.env.DEV) {
-        console.log('✅ [OrderEventsManager] Assinatura WebSocket global criada');
+        logger.debug('✅ [OrderEventsManager] Assinatura WebSocket global criada');
       }
     }
 
@@ -144,7 +145,7 @@ class OrderEventsManager {
           this.globalSubscription();
           this.globalSubscription = null;
           if (import.meta.env.DEV) {
-            console.log('✅ [OrderEventsManager] Assinatura WebSocket global removida (sem mais handlers)');
+            logger.debug('✅ [OrderEventsManager] Assinatura WebSocket global removida (sem mais handlers)');
           }
         }
       },
@@ -285,7 +286,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   const handleOrderCreated = useCallback(
     async (orderId: number) => {
       try {
-        console.log('🆕 [useOrderAutoSync] Pedido criado, buscando dados:', orderId);
+        logger.debug('🆕 [useOrderAutoSync] Pedido criado, buscando dados:', orderId);
         const newOrder = await api.getOrderById(orderId);
         
         // 1. Sempre atualizar no store global primeiro
@@ -295,10 +296,10 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
         setOrders((currentOrders) => {
           const exists = currentOrders.some((order) => order.id === newOrder.id);
           if (exists) {
-            console.log('⚠️ [useOrderAutoSync] Pedido já existe na lista, atualizando');
+            logger.debug('⚠️ [useOrderAutoSync] Pedido já existe na lista, atualizando');
             return currentOrders.map((order) => (order.id === newOrder.id ? newOrder : order));
           }
-          console.log('✅ [useOrderAutoSync] Adicionando novo pedido à lista');
+          logger.debug('✅ [useOrderAutoSync] Adicionando novo pedido à lista');
           return [newOrder, ...currentOrders];
         });
         
@@ -306,7 +307,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
         // Recarregar apenas quando necessário (ex: quando modal fecha)
         // Isso evita loops infinitos e múltiplas conexões WebSocket
       } catch (error) {
-        console.error('❌ Erro ao sincronizar pedido criado:', error);
+        logger.error('❌ Erro ao sincronizar pedido criado:', error);
       }
     },
     [setOrders, updateOrder], // Remover loadOrders das dependências
@@ -315,18 +316,18 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   const handleOrderUpdated = useCallback(
     async (orderId: number) => {
       try {
-        console.log('🔄 [useOrderAutoSync] handleOrderUpdated chamado para pedido:', orderId);
+        logger.debug('🔄 [useOrderAutoSync] handleOrderUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
         
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);
-        console.log('✅ [useOrderAutoSync] Pedido atualizado no store global:', orderId);
+        logger.debug('✅ [useOrderAutoSync] Pedido atualizado no store global:', orderId);
         
         // 2. Atualizar na lista local se existir
         setOrders((currentOrders) => {
           const oldOrder = currentOrders.find(o => o.id === orderId);
           if (oldOrder) {
-            console.log('📦 [useOrderAutoSync] Comparando pedidos:', {
+            logger.debug('📦 [useOrderAutoSync] Comparando pedidos:', {
               orderId,
               oldStatus: oldOrder?.status,
               newStatus: updatedOrder.status,
@@ -336,13 +337,13 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
               newConferencia: updatedOrder.conferencia,
             });
             const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
-            console.log('✅ [useOrderAutoSync] Lista local atualizada:', {
+            logger.debug('✅ [useOrderAutoSync] Lista local atualizada:', {
               orderId,
               totalOrders: updated.length,
             });
             return updated;
           } else {
-            console.log('⚠️ [useOrderAutoSync] Pedido não está na lista atual, mas foi atualizado no store');
+            logger.debug('⚠️ [useOrderAutoSync] Pedido não está na lista atual, mas foi atualizado no store');
             return currentOrders;
           }
         });
@@ -352,7 +353,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
         // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
         // isso será tratado quando o usuário interagir com a interface ou quando o modal fechar
       } catch (error) {
-        console.error('❌ Erro ao sincronizar pedido atualizado:', error);
+        logger.error('❌ Erro ao sincronizar pedido atualizado:', error);
       }
     },
     [setOrders, updateOrder], // Remover loadOrders das dependências
@@ -360,7 +361,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
 
   const handleOrderDeleted = useCallback(
     (orderId: number) => {
-      console.log('🗑️ [useOrderAutoSync] Removendo pedido:', orderId);
+      logger.debug('🗑️ [useOrderAutoSync] Removendo pedido:', orderId);
       removeOrder(orderId);
       
       // NÃO recarregar lista automaticamente - apenas remover da lista atual
@@ -372,18 +373,18 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   const handleOrderStatusUpdated = useCallback(
     async (orderId: number) => {
       try {
-        console.log('🔄 [useOrderAutoSync] handleOrderStatusUpdated chamado para pedido:', orderId);
+        logger.debug('🔄 [useOrderAutoSync] handleOrderStatusUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
         
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);
-        console.log('✅ [useOrderAutoSync] Status do pedido atualizado no store global:', orderId);
+        logger.debug('✅ [useOrderAutoSync] Status do pedido atualizado no store global:', orderId);
         
         // 2. Atualizar na lista local se existir
         setOrders((currentOrders) => {
           const oldOrder = currentOrders.find(o => o.id === orderId);
           if (oldOrder) {
-            console.log('📦 [useOrderAutoSync] Pedido atualizado recebido:', {
+            logger.debug('📦 [useOrderAutoSync] Pedido atualizado recebido:', {
               id: updatedOrder.id,
               status: updatedOrder.status,
               financeiro: updatedOrder.financeiro,
@@ -396,7 +397,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
               oldConferencia: oldOrder?.conferencia,
             });
             const updated = currentOrders.map((order) => (order.id === orderId ? updatedOrder : order));
-            console.log('✅ [useOrderAutoSync] Atualizando lista de pedidos:', {
+            logger.debug('✅ [useOrderAutoSync] Atualizando lista de pedidos:', {
               orderId,
               totalOrders: updated.length,
               oldStatus: oldOrder?.status,
@@ -404,7 +405,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
             });
             return updated;
           } else {
-            console.log('⚠️ [useOrderAutoSync] Pedido não está na lista atual, mas foi atualizado no store');
+            logger.debug('⚠️ [useOrderAutoSync] Pedido não está na lista atual, mas foi atualizado no store');
             return currentOrders;
           }
         });
@@ -414,7 +415,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
         // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
         // isso será tratado quando o usuário interagir com a interface ou quando o modal fechar
       } catch (error) {
-        console.error('❌ Erro ao sincronizar status do pedido:', error);
+        logger.error('❌ Erro ao sincronizar status do pedido:', error);
       }
     },
     [setOrders, updateOrder], // Remover loadOrders das dependências

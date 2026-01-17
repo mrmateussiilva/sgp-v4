@@ -7,6 +7,7 @@ import { ChevronDown } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
+import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 
@@ -37,7 +38,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         const formas = await api.getFormasPagamentoAtivas();
         setFormasPagamento(formas);
       } catch (error) {
-        console.error("Erro ao carregar formas de pagamento:", error);
+        logger.error("Erro ao carregar formas de pagamento:", error);
       }
     };
     fetchFormasPagamento();
@@ -74,7 +75,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       setLoadingImages(prev => new Set(prev).add(imagePath));
 
       try {
-        console.log(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
+        logger.debug(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
         const blobUrl = await loadAuthenticatedImage(imagePath);
         
         // Atualizar estado com a URL da imagem
@@ -84,9 +85,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           return updated;
         });
         
-        console.log(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
+        logger.debug(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
       } catch (err) {
-        console.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
+        logger.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
           imagem: imagePath,
           error: err
         });
@@ -153,7 +154,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         const itemKey = String(itemId);
         blobUrl = itemImageUrls.get(itemKey);
         if (blobUrl) {
-          console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por itemId):', { itemKey, imageUrl });
+          logger.debug('[OrderViewModal] ✅ Usando blob URL do cache para modal (por itemId):', { itemKey, imageUrl });
         }
       }
       
@@ -163,7 +164,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           const item = order?.items?.find(i => String(i.id ?? i.item_name) === itemKey);
           if (item?.imagem === imageUrl) {
             blobUrl = url;
-            console.log('[OrderViewModal] ✅ Usando blob URL do cache para modal (por caminho):', { itemKey, imageUrl });
+            logger.debug('[OrderViewModal] ✅ Usando blob URL do cache para modal (por caminho):', { itemKey, imageUrl });
             break;
           }
         }
@@ -171,9 +172,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       
       // Se não encontrou, carregar a imagem
       if (!blobUrl) {
-        console.log('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
+        logger.debug('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
         blobUrl = await loadAuthenticatedImage(imageUrl);
-        console.log('[OrderViewModal] ✅ Imagem carregada para modal:', blobUrl);
+        logger.debug('[OrderViewModal] ✅ Imagem carregada para modal:', blobUrl);
       }
       
       // Verificar se a blob URL é válida
@@ -185,7 +186,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       setSelectedImageCaption(caption?.trim() ?? '');
       setImageError(false);
     } catch (error) {
-      console.error('[OrderViewModal] ❌ Erro ao carregar imagem para modal:', error);
+      logger.error('[OrderViewModal] ❌ Erro ao carregar imagem para modal:', error);
       setImageError(true);
       setSelectedImage(null);
     }
@@ -1021,7 +1022,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   
                   // Debug log
                   if (imagePath) {
-                    console.log('[OrderViewModal] Processando imagem:', {
+                    logger.debug('[OrderViewModal] Processando imagem:', {
                       original: imagePath?.substring(0, 50) + '...',
                       isBase64,
                       isValid,
@@ -1060,7 +1061,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                         className="h-full w-full object-contain"
                         style={{ display: 'block' }}
                         onError={() => {
-                          console.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
+                          logger.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
                             itemKey
                           });
                           setItemImageErrors(prev => ({
@@ -1099,7 +1100,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       className="h-full w-full object-contain"
                       style={{ display: 'block' }}
                       onLoad={() => {
-                        console.log('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
+                        logger.debug('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
                           itemKey,
                           blobUrl
                         });
@@ -1113,7 +1114,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       onError={(event) => {
                         const target = event.currentTarget as HTMLImageElement;
                         const imageSrc = target.src;
-                        console.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
+                        logger.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
                           originalPath: imagePath,
                           blobUrl,
                           finalSrc: imageSrc,
@@ -1348,11 +1349,11 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                     alt="Imagem do item"
                     className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
                     onLoad={() => {
-                      console.log('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
+                      logger.debug('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
                       setImageError(false);
                     }}
                     onError={(e) => {
-                      console.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
+                      logger.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
                         src: selectedImage,
                         error: e
                       });

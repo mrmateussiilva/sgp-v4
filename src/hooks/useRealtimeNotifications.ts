@@ -4,6 +4,7 @@ import { useOrderStore } from '../store/orderStore';
 import { useToast } from './use-toast';
 import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
 import { NotificationManager, NotificationType, OrderNotification } from './notificationManager';
+import { logger } from '@/utils/logger';
 
 // Re-exportar tipos para compatibilidade com outros arquivos que importam de useRealtimeNotifications
 export { NotificationType, type OrderNotification };
@@ -52,7 +53,7 @@ export const useRealtimeNotifications = () => {
   }, []);
 
   const handleNotification = useCallback((message: OrderEventMessage) => {
-    console.log('📨 Mensagem de notificação recebida:', {
+    logger.debug('📨 Mensagem de notificação recebida:', {
       type: message.type,
       message_user_id: (message as Record<string, unknown>).user_id,
       message_username: (message as Record<string, unknown>).username,
@@ -74,7 +75,7 @@ export const useRealtimeNotifications = () => {
       // Se é do próprio usuário E tem flag broadcast, ignorar completamente
       // Essa mensagem foi enviada por nós e será redistribuída pelo servidor
       if (messageUserId !== undefined && userId !== undefined && messageUserId === userId) {
-        console.log('🔇 Ignorando mensagem broadcast do próprio cliente:', message.type);
+        logger.debug('🔇 Ignorando mensagem broadcast do próprio cliente:', message.type);
         return;
       }
     }
@@ -94,7 +95,7 @@ export const useRealtimeNotifications = () => {
       : undefined;
     const extractedUserId: number | undefined = messageUserId ?? orderUserId;
 
-    console.log('🔍 Extração de user_id:', {
+    logger.debug('🔍 Extração de user_id:', {
       messageUserId,
       orderUserId,
       extractedUserId,
@@ -122,7 +123,7 @@ export const useRealtimeNotifications = () => {
       extractedUserId === userId &&
       notification.notification_type !== NotificationType.OrderDeleted
     ) {
-      console.log('🔇 Notificação do próprio usuário ignorada:', notification);
+      logger.debug('🔇 Notificação do próprio usuário ignorada:', notification);
       // Ainda recarregar a lista, mas sem mostrar toast
       refreshOrders();
       return;
@@ -135,7 +136,7 @@ export const useRealtimeNotifications = () => {
     }
 
     // Log para debug
-    console.log('✅ Notificação processada:', {
+    logger.debug('✅ Notificação processada:', {
       type: notification.notification_type,
       order_id: notification.order_id,
       notification_user_id: notification.user_id,
@@ -190,14 +191,14 @@ export const useRealtimeNotifications = () => {
   // Recarregar lista de pedidos
   const refreshOrders = async () => {
     try {
-      console.log('🔄 Disparando evento de refresh de pedidos...');
+      logger.debug('🔄 Disparando evento de refresh de pedidos...');
       
       // Disparar evento customizado para que os componentes escutem
       window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
         detail: { timestamp: Date.now() }
       }));
     } catch (error) {
-      console.error('Erro ao recarregar pedidos:', error);
+      logger.error('Erro ao recarregar pedidos:', error);
     }
   };
 
@@ -236,7 +237,7 @@ export const useOrderRefresh = () => {
 
   useEffect(() => {
     const handleRefreshRequest = (event: CustomEvent) => {
-      console.log('🔄 Evento de refresh recebido:', event.detail);
+      logger.debug('🔄 Evento de refresh recebido:', event.detail);
       setRefreshTrigger(prev => prev + 1);
     };
 

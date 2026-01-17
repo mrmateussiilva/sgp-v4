@@ -5,6 +5,7 @@ import { useOrderStore } from "../store/orderStore";
 import { api } from "../services/api";
 import { OrderWithItems } from "../types";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/utils/logger";
 
 interface WebSocketMessage {
   type: 'order_created' | 'order_updated' | 'order_status_updated' | 'order_deleted';
@@ -53,19 +54,19 @@ export function useNotifications() {
         }
         wsUrl = wsUrl + '/ws/orders?token=' + encodeURIComponent(sessionToken);
         
-        console.log('[WebSocket] Conectando ao WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+        logger.debug('[WebSocket] Conectando ao WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
         
         const ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
-          console.log('[WebSocket] Conectado com sucesso');
+          logger.debug('[WebSocket] Conectado com sucesso');
           reconnectAttempts.current = 0;
         };
         
         ws.onmessage = async (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
-            console.log('[WebSocket] Mensagem recebida:', message.type, message.order_id);
+            logger.debug('[WebSocket] Mensagem recebida:', message.type, message.order_id);
             
             switch (message.type) {
               case 'order_created':
@@ -94,7 +95,7 @@ export function useNotifications() {
                     const updatedOrder = await api.getOrderById(message.order_id);
                     updateOrder(updatedOrder);
                   } catch (error) {
-                    console.error('[WebSocket] Erro ao buscar pedido atualizado:', error);
+                    logger.error('[WebSocket] Erro ao buscar pedido atualizado:', error);
                   }
                 }
                 break;
@@ -110,20 +111,20 @@ export function useNotifications() {
                 break;
             }
           } catch (error) {
-            console.error('[WebSocket] Erro ao processar mensagem:', error);
+            logger.error('[WebSocket] Erro ao processar mensagem:', error);
           }
         };
         
         ws.onerror = (error) => {
-          console.error('[WebSocket] Erro na conexão:', error);
+          logger.error('[WebSocket] Erro na conexão:', error);
         };
         
         ws.onclose = (event) => {
-          console.log('[WebSocket] Conexão fechada:', event.code, event.reason);
+          logger.debug('[WebSocket] Conexão fechada:', event.code, event.reason);
           
           // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
           if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
-            console.log('[WebSocket] Outra sessão ativa. Não reconectando.');
+            logger.debug('[WebSocket] Outra sessão ativa. Não reconectando.');
             return; // NÃO reconectar
           }
           
@@ -147,20 +148,20 @@ export function useNotifications() {
             const timeSinceLastAttempt = now - lastReconnectAttempt.current;
             const actualDelay = Math.max(finalDelay - timeSinceLastAttempt, MIN_RECONNECT_INTERVAL);
             
-            console.log(`[WebSocket] Tentando reconectar em ${actualDelay}ms (tentativa ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+            logger.debug(`[WebSocket] Tentando reconectar em ${actualDelay}ms (tentativa ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
             
             lastReconnectAttempt.current = now;
             reconnectTimeoutRef.current = setTimeout(() => {
               connectWebSocket();
             }, actualDelay);
           } else if (reconnectAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
-            console.error(`[WebSocket] Máximo de tentativas de reconexão atingido (${MAX_RECONNECT_ATTEMPTS})`);
+            logger.error(`[WebSocket] Máximo de tentativas de reconexão atingido (${MAX_RECONNECT_ATTEMPTS})`);
           }
         };
         
         wsRef.current = ws;
       } catch (error) {
-        console.error('[WebSocket] Erro ao criar conexão:', error);
+        logger.error('[WebSocket] Erro ao criar conexão:', error);
       }
     };
 

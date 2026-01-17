@@ -46,7 +46,7 @@ export default function RelatoriosEnvios() {
       const dataInicialSelecionada = dataInicio;
       const pedidos = await api.getRelatorioEnviosPedidos(
         dataInicialSelecionada,
-        dataFim || null,
+        dataFim || undefined,
       );
 
       // Agrupar pedidos por forma de envio

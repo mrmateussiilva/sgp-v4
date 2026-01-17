@@ -15,6 +15,7 @@ import { AlertProvider } from './contexts/AlertContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { ChangelogModal } from './components/ChangelogModal';
+import { logger } from './utils/logger';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -66,7 +67,7 @@ function App() {
       const shouldShow = localStorage.getItem('show_changelog_after_update');
       const previousVersion = localStorage.getItem('previous_version');
       
-      console.log('[App] Verificando changelog após atualização:', {
+      logger.debug('[App] Verificando changelog após atualização:', {
         shouldShow,
         previousVersion
       });
@@ -75,7 +76,7 @@ function App() {
         try {
           const currentVersion = await invoke<string>('get_app_version');
           
-          console.log('[App] Versões:', {
+          logger.debug('[App] Versões:', {
             current: currentVersion,
             previous: previousVersion,
             changed: currentVersion !== previousVersion
@@ -83,18 +84,18 @@ function App() {
           
           // Se a versão mudou, mostrar changelog
           if (currentVersion !== previousVersion) {
-            console.log('[App] ✅ Versão mudou! Mostrando changelog...');
+            logger.info('[App] Versão mudou! Mostrando changelog...');
             setUpdateVersion(currentVersion);
             setShowChangelog(true);
             // NÃO limpar flags aqui - limpar quando o modal for fechado
           } else {
-            console.log('[App] Versão não mudou, limpando flags');
+            logger.debug('[App] Versão não mudou, limpando flags');
             // Se a versão não mudou, limpar flags
             localStorage.removeItem('show_changelog_after_update');
             localStorage.removeItem('previous_version');
           }
         } catch (err) {
-          console.error('[App] Erro ao verificar versão:', err);
+          logger.error('[App] Erro ao verificar versão:', err);
           // Em caso de erro, manter flags para tentar novamente na próxima inicialização
           // Não limpar aqui
         }
@@ -113,7 +114,7 @@ function App() {
   useEffect(() => {
     if (!showChangelog && updateVersion) {
       // Modal foi fechado, limpar flags agora
-      console.log('[App] Modal de changelog fechado, limpando flags');
+      logger.debug('[App] Modal de changelog fechado, limpando flags');
       localStorage.removeItem('show_changelog_after_update');
       localStorage.removeItem('previous_version');
       setUpdateVersion('');
@@ -126,7 +127,7 @@ function App() {
       
       // Timeout de segurança para não travar indefinidamente (8 segundos)
       const safetyTimeoutId = setTimeout(() => {
-        console.warn('⚠️ Verificação de conexão demorou muito, liberando UI');
+        logger.warn('Verificação de conexão demorou muito, liberando UI');
         setIsCheckingConnection(false);
         // Se não tiver URL configurada, mostrar tela de configuração
         loadConfig().then(config => {
@@ -150,7 +151,7 @@ function App() {
             setShowFallback(false);
           } catch (error) {
             clearTimeout(safetyTimeoutId);
-            console.error('Erro ao verificar conexão com a API:', error);
+            logger.error('Erro ao verificar conexão com a API:', error);
             // Mesmo com erro na verificação, permite usar a URL configurada
             applyApiUrl(normalizedUrl);
             setApiUrl(normalizedUrl);
@@ -163,7 +164,7 @@ function App() {
         }
       } catch (error) {
         clearTimeout(safetyTimeoutId);
-        console.error('Erro ao carregar configuração:', error);
+        logger.error('Erro ao carregar configuração:', error);
         setApiUrl(null);
         setShowFallback(true);
       } finally {
@@ -201,7 +202,7 @@ function App() {
           });
         });
       } catch (error) {
-        console.error("Erro ao configurar listener de notificações:", error);
+        logger.error("Erro ao configurar listener de notificações:", error);
       }
     };
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
+import { logger } from '@/utils/logger';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types';
@@ -153,7 +154,7 @@ export default function OrderList() {
         setFormasEnvio(formasEnvioData);
       } catch (error) {
         if (isMounted) {
-          console.error('Erro ao carregar dados para filtros:', error);
+          logger.error('Erro ao carregar dados para filtros:', error);
         }
       }
     };
@@ -300,7 +301,7 @@ export default function OrderList() {
       // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
         const bigPageSize = 10000; // Limite alto para buscar todos os pedidos
-        console.log('[OrderList] Buscando TODOS os pedidos com bigPageSize:', bigPageSize);
+        logger.debug('[OrderList] Buscando TODOS os pedidos com bigPageSize:', bigPageSize);
         const paginatedData = await api.getOrdersPaginatedForTable(
           1, // Sempre começar da página 1 quando buscando 'all'
           bigPageSize,
@@ -309,7 +310,7 @@ export default function OrderList() {
           dateFrom || undefined, // data_inicio
           dateTo || undefined // data_fim
         );
-        console.log('[OrderList] Pedidos recebidos:', paginatedData.orders.length, 'Total:', paginatedData.total);
+        logger.debug('[OrderList] Pedidos recebidos:', paginatedData.orders.length, 'Total:', paginatedData.total);
         if (loadRequestRef.current !== requestId) {
           return;
         }
@@ -407,7 +408,7 @@ export default function OrderList() {
           description: 'Faça login novamente para continuar.',
           variant: 'destructive',
         });
-        console.error('Session error while loading orders:', error);
+        logger.error('Session error while loading orders:', error);
         logout();
         navigate('/login', { replace: true });
       } else {
@@ -416,7 +417,7 @@ export default function OrderList() {
           description: 'Não foi possível carregar os pedidos.',
           variant: 'destructive',
         });
-        console.error('Error loading orders:', error);
+        logger.error('Error loading orders:', error);
       }
     } finally {
       if (loadRequestRef.current === requestId) {
@@ -470,7 +471,7 @@ export default function OrderList() {
     if (!viewModalOpen) {
       // Pequeno delay para garantir que o modal foi completamente fechado
       const timeoutId = setTimeout(() => {
-        console.log('[OrderList] Modal fechado, recarregando pedidos...');
+        logger.debug('[OrderList] Modal fechado, recarregando pedidos...');
         loadOrders();
       }, 100);
       
@@ -592,7 +593,7 @@ export default function OrderList() {
       setDuplicateDataEntrega('');
       setDuplicateDateError(null);
     } catch (error) {
-      console.error('Erro ao duplicar pedido:', error);
+      logger.error('Erro ao duplicar pedido:', error);
       toast({
         title: 'Erro',
         description: error instanceof Error ? error.message : 'Erro ao duplicar pedido',
@@ -622,7 +623,7 @@ export default function OrderList() {
             : errorMessage,
           variant: "destructive",
         });
-        console.error('Error deleting order:', error);
+        logger.error('Error deleting order:', error);
       }
     }
     setDeleteDialogOpen(false);
@@ -715,7 +716,7 @@ export default function OrderList() {
             
             itemDiv.appendChild(img);
           } catch (error) {
-            console.error('Erro ao carregar imagem do item:', error);
+            logger.error('Erro ao carregar imagem do item:', error);
             // Continuar mesmo se a imagem falhar
           }
         }
@@ -777,7 +778,7 @@ export default function OrderList() {
             variant: "success",
           });
         } catch (tauriError) {
-          console.error('Erro ao copiar via Tauri:', tauriError);
+          logger.error('Erro ao copiar via Tauri:', tauriError);
           // Fallback para download
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -810,7 +811,7 @@ export default function OrderList() {
             copied = true;
           }
         } catch (clipboardError) {
-          console.warn('Erro ao copiar para clipboard:', clipboardError);
+          logger.warn('Erro ao copiar para clipboard:', clipboardError);
         }
 
         if (copied) {
@@ -849,7 +850,7 @@ export default function OrderList() {
         document.body.removeChild(tempDiv);
       }
     } catch (error) {
-      console.error('Erro ao gerar screenshot:', error);
+      logger.error('Erro ao gerar screenshot:', error);
       
       // Limpar div temporário se ainda existir
       const tempDiv = document.querySelector('div[style*="-9999px"]');
@@ -885,7 +886,7 @@ export default function OrderList() {
 
   // Função para executar busca
   const handleSearch = () => {
-    console.log('[OrderList] handleSearch chamado com termo:', searchTerm);
+    logger.debug('[OrderList] handleSearch chamado com termo:', searchTerm);
     setActiveSearchTerm(searchTerm.trim());
     setPage(0); // Resetar para primeira página
   };
@@ -1089,7 +1090,7 @@ export default function OrderList() {
       });
       // Debug: log apenas em desenvolvimento
       if (import.meta.env.DEV && beforeCount > 0) {
-        console.log(`[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`);
+        logger.debug(`[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`);
       }
     }
 
@@ -1341,7 +1342,7 @@ export default function OrderList() {
         description: "A janela de impressão foi aberta. Selecione a impressora e confirme.",
       });
     } catch (error) {
-      console.error('Erro ao imprimir múltiplos pedidos:', error);
+      logger.error('Erro ao imprimir múltiplos pedidos:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao preparar impressão.';
       toast({
         title: "Erro ao imprimir",
@@ -1499,7 +1500,7 @@ export default function OrderList() {
 
     // Debug: verificar se financeiro está no payload quando não deveria
     if (campo !== 'financeiro' && 'financeiro' in payload) {
-      console.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
+      logger.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
     }
 
     try {
@@ -1553,7 +1554,7 @@ export default function OrderList() {
       
       // Log apenas em desenvolvimento para não poluir o console em produção
       if (import.meta.env.DEV) {
-        console.error('Error updating status:', error);
+        logger.error('Error updating status:', error);
       }
     } finally {
       setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });

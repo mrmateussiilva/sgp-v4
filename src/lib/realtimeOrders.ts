@@ -1,5 +1,6 @@
 import { getApiUrl } from '@/services/apiClient';
 import { useAuthStore } from '@/store/authStore';
+import { logger } from '@/utils/logger';
 
 export interface OrdersSocketStatus {
   isConnected: boolean;
@@ -95,7 +96,7 @@ class OrdersWebSocketManager {
     const timeSinceLastAttempt = now - this.lastReconnectAttempt;
     if (timeSinceLastAttempt < this.minReconnectInterval && !forceReconnect && this.lastReconnectAttempt > 0) {
       if (import.meta.env.DEV) {
-        console.log(`⏳ Aguardando ${this.minReconnectInterval - timeSinceLastAttempt}ms antes de reconectar...`);
+        logger.debug(`⏳ Aguardando ${this.minReconnectInterval - timeSinceLastAttempt}ms antes de reconectar...`);
       }
       this.scheduleReconnect();
       return;
@@ -171,7 +172,7 @@ class OrdersWebSocketManager {
 
     try {
       if (import.meta.env.DEV) {
-        console.log('🔌 Tentando conectar WebSocket:', wsUrl);
+        logger.debug('🔌 Tentando conectar WebSocket:', wsUrl);
       }
       
       this.socket = new WebSocket(wsUrl);
@@ -181,7 +182,7 @@ class OrdersWebSocketManager {
       
       // Silenciar erros esperados de criação de WebSocket
       if (import.meta.env.DEV) {
-        console.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
+        logger.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
       }
       this.scheduleReconnect();
       return;
@@ -193,7 +194,7 @@ class OrdersWebSocketManager {
       this.consecutiveFailures = 0;
       
       if (import.meta.env.DEV) {
-        console.log('✅ WebSocket conectado com sucesso:', this.currentUrl);
+        logger.debug('✅ WebSocket conectado com sucesso:', this.currentUrl);
       }
       
       // Tentar autenticar enviando token como mensagem (caso o servidor espere dessa forma)
@@ -211,11 +212,11 @@ class OrdersWebSocketManager {
           }));
           
           if (import.meta.env.DEV) {
-            console.log('🔐 Token de autenticação enviado via mensagem');
+            logger.debug('🔐 Token de autenticação enviado via mensagem');
           }
         } catch (error) {
           if (import.meta.env.DEV) {
-            console.warn('⚠️ Erro ao enviar token de autenticação:', error);
+            logger.warn('⚠️ Erro ao enviar token de autenticação:', error);
           }
         }
       }
@@ -236,7 +237,7 @@ class OrdersWebSocketManager {
       
       // Log SEMPRE em dev para debug (mesmo se for fechamento limpo)
       if (import.meta.env.DEV) {
-        console.log('🔌 WebSocket fechado:', {
+        logger.debug('🔌 WebSocket fechado:', {
           code: event.code,
           reason: event.reason || 'Sem razão fornecida',
           wasClean: event.wasClean,
@@ -247,11 +248,11 @@ class OrdersWebSocketManager {
         
         // Mensagens específicas por código de erro
         if (event.code === 1008) {
-          console.error('❌ Código 1008: Token inválido ou ausente. Verifique autenticação.');
+          logger.error('❌ Código 1008: Token inválido ou ausente. Verifique autenticação.');
         } else if (event.code === 1006) {
-          console.warn('⚠️ Código 1006: Conexão anormalmente fechada. Pode ser problema de rede ou servidor.');
+          logger.warn('⚠️ Código 1006: Conexão anormalmente fechada. Pode ser problema de rede ou servidor.');
         } else if (event.code === 1000) {
-          console.log('ℹ️ Código 1000: Fechamento normal.');
+          logger.debug('ℹ️ Código 1000: Fechamento normal.');
         }
       }
       
@@ -259,7 +260,7 @@ class OrdersWebSocketManager {
       // (código 1000 com razão "Nova conexão do mesmo usuário")
       if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
         if (import.meta.env.DEV) {
-          console.log('ℹ️ WebSocket: Conexão fechada - outra sessão ativa. Não reconectando.');
+          logger.debug('ℹ️ WebSocket: Conexão fechada - outra sessão ativa. Não reconectando.');
         }
         this.updateStatus({
           isConnected: false,
@@ -275,7 +276,7 @@ class OrdersWebSocketManager {
       // Não reconectar se token inválido (código 1008)
       if (event.code === 1008) {
         if (import.meta.env.DEV) {
-          console.error('❌ WebSocket: Token inválido. Não reconectando até que o token seja atualizado.');
+          logger.error('❌ WebSocket: Token inválido. Não reconectando até que o token seja atualizado.');
         }
         this.updateStatus({
           isConnected: false,
@@ -313,7 +314,7 @@ class OrdersWebSocketManager {
     this.socket.onerror = (event) => {
       // Log detalhado em desenvolvimento
       if (import.meta.env.DEV) {
-        console.error('❌ Erro no WebSocket:', {
+        logger.error('❌ Erro no WebSocket:', {
           type: event.type,
           target: event.target,
           url: this.currentUrl,
@@ -337,7 +338,7 @@ class OrdersWebSocketManager {
       try {
         const payload = typeof event.data === 'string' ? event.data : '';
         if (!payload) {
-          console.warn('⚠️ WebSocket recebeu mensagem vazia');
+          logger.warn('⚠️ WebSocket recebeu mensagem vazia');
           return;
         }
         
@@ -345,7 +346,7 @@ class OrdersWebSocketManager {
         
         // Log detalhado em desenvolvimento
         if (import.meta.env.DEV) {
-          console.log('📨 WebSocket mensagem recebida:', {
+          logger.debug('📨 WebSocket mensagem recebida:', {
             type: message.type,
             order_id: message.order_id,
             has_order: !!message.order,
@@ -360,15 +361,15 @@ class OrdersWebSocketManager {
             listener(message);
             processedCount++;
           } catch (error) {
-            console.error('❌ Erro ao processar listener do WebSocket:', error);
+            logger.error('❌ Erro ao processar listener do WebSocket:', error);
           }
         });
         
         if (import.meta.env.DEV) {
-          console.log(`✅ Mensagem processada por ${processedCount} listener(s)`);
+          logger.debug(`✅ Mensagem processada por ${processedCount} listener(s)`);
         }
       } catch (error) {
-        console.error('❌ Erro ao decodificar mensagem do WebSocket:', error);
+        logger.error('❌ Erro ao decodificar mensagem do WebSocket:', error);
         this.updateStatus({
           lastError: 'Mensagem inválida recebida do WebSocket',
         });
@@ -400,7 +401,7 @@ class OrdersWebSocketManager {
       url.hash = '';
       return url.toString();
     } catch (error) {
-      console.error('API base URL inválida para WebSocket:', apiBase, error);
+      logger.error('API base URL inválida para WebSocket:', apiBase, error);
       return null;
     }
   }
@@ -438,7 +439,7 @@ class OrdersWebSocketManager {
     });
     
     if (import.meta.env.DEV) {
-      console.log(`🔄 WebSocket: Agendando reconexão em ${finalDelay}ms (tentativa ${this.consecutiveFailures + 1}/${this.maxReconnectAttempts})`);
+      logger.debug(`🔄 WebSocket: Agendando reconexão em ${finalDelay}ms (tentativa ${this.consecutiveFailures + 1}/${this.maxReconnectAttempts})`);
     }
     
     this.reconnectTimer = setTimeout(() => {
@@ -464,7 +465,7 @@ class OrdersWebSocketManager {
         try {
           this.socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
         } catch (error) {
-          console.warn('Falha ao enviar ping do WebSocket:', error);
+          logger.warn('Falha ao enviar ping do WebSocket:', error);
         }
       }
     }, 30000);
@@ -494,7 +495,7 @@ class OrdersWebSocketManager {
       try {
         listener(this.status);
       } catch (error) {
-        console.error('Erro ao notificar listener de status do WebSocket:', error);
+        logger.error('Erro ao notificar listener de status do WebSocket:', error);
       }
     });
   }
@@ -507,7 +508,7 @@ class OrdersWebSocketManager {
   sendMessage(message: OrderEventMessage): boolean {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       if (import.meta.env.DEV) {
-        console.warn('⚠️ WebSocket não conectado, não foi possível enviar mensagem:', message);
+        logger.warn('⚠️ WebSocket não conectado, não foi possível enviar mensagem:', message);
       }
       return false;
     }
@@ -515,11 +516,11 @@ class OrdersWebSocketManager {
     try {
       this.socket.send(JSON.stringify(message));
       if (import.meta.env.DEV) {
-        console.log('📤 Mensagem WebSocket enviada:', message);
+        logger.debug('📤 Mensagem WebSocket enviada:', message);
       }
       return true;
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem WebSocket:', error);
+      logger.error('❌ Erro ao enviar mensagem WebSocket:', error);
       return false;
     }
   }
@@ -586,7 +587,7 @@ class OrdersWebSocketManager {
     };
     
     if (import.meta.env.DEV) {
-      console.log('📤 Enviando broadcast order_created:', {
+      logger.debug('📤 Enviando broadcast order_created:', {
         order_id: orderId,
         user_id: userId,
         has_order: !!order,

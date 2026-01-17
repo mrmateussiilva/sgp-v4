@@ -1,19 +1,14 @@
-import { apiClient, onApiFailure } from '../client';
+import { apiClient } from '../client';
 import {
     ApiPedido,
     OrderWithItems,
     PaginatedOrders,
     OrderStatus,
-    OrderFilters,
     CreateOrderRequest,
     UpdateOrderRequest,
     UpdateOrderMetadataRequest,
     UpdateOrderStatusRequest,
-    ApiOrderStatus,
     OrderFicha,
-    CreateOrderItemRequest,
-    OrderItem,
-    OrderAuditLogEntry,
 } from '../types';
 import {
     mapPedidoFromApi,
@@ -21,7 +16,6 @@ import {
     buildPedidoUpdatePayload,
     buildMetadataPayload,
     buildStatusPayload,
-    mapStatusToApi,
     mapOrderToFicha,
 } from '../mappers';
 import { logger } from '../../utils/logger';
@@ -30,9 +24,7 @@ import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
 
 // Cache constants
-const CATALOG_CACHE_TTL_MS = 60_000;
 const ORDER_BY_ID_CACHE_TTL_MS = 2_000;
-const ORDERS_BY_STATUS_CACHE_TTL_MS = 2_000;
 const DEFAULT_PAGE_SIZE = 20;
 
 interface TimedCache<T> {
@@ -40,7 +32,7 @@ interface TimedCache<T> {
     timestamp: number;
 }
 
-const isCacheFresh = <T>(cache: TimedCache<T> | null, ttlMs: number = CATALOG_CACHE_TTL_MS): cache is TimedCache<T> => {
+const isCacheFresh = <T>(cache: TimedCache<T> | null, ttlMs: number): cache is TimedCache<T> => {
     if (!cache) {
         return false;
     }
@@ -52,12 +44,29 @@ const createCacheEntry = <T>(data: T): TimedCache<T> => ({
     timestamp: Date.now(),
 });
 
-let ordersByIdCache: Map<number, TimedCache<OrderWithItems>> = new Map();
-let ordersByStatusCache: Map<string, TimedCache<OrderWithItems[]>> = new Map();
+// Cache simples por ID com limite de tamanho (LRU básico)
+const MAX_CACHE_SIZE = 100;
+const ordersByIdCache: Map<number, TimedCache<OrderWithItems>> = new Map();
+
+const setCacheWithLimit = (orderId: number, order: OrderWithItems): void => {
+    // LRU básico: remove o mais antigo se exceder limite
+    if (ordersByIdCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = ordersByIdCache.keys().next().value;
+        if (oldestKey !== undefined) {
+            ordersByIdCache.delete(oldestKey);
+        }
+    }
+    ordersByIdCache.set(orderId, createCacheEntry(order));
+};
 
 export const clearOrderCache = (orderId: number): void => {
     ordersByIdCache.delete(orderId);
-    logger.debug(`[clearOrderCache] 🗑️ Cache invalidado para pedido ${orderId}`);
+    logger.debug(`[clearOrderCache] Cache invalidado para pedido ${orderId}`);
+};
+
+export const clearAllOrderCache = (): void => {
+    ordersByIdCache.clear();
+    logger.debug('[clearAllOrderCache] Todo cache de pedidos invalidado');
 };
 
 const requireSessionToken = (): string => {
@@ -69,7 +78,22 @@ const requireSessionToken = (): string => {
     return token;
 };
 
-// ... copy of fetchOrderById, fetchOrdersRaw, etc.
+// Status mapping for API
+const STATUS_MAP: Record<OrderStatus, string> = {
+    [OrderStatus.Pendente]: 'pendente',
+    [OrderStatus.EmProcessamento]: 'em_producao',
+    [OrderStatus.Concluido]: 'pronto',
+    [OrderStatus.Cancelado]: 'cancelado',
+};
+
+interface FetchOrdersParams {
+    skip?: number;
+    limit?: number;
+    status?: string;
+    cliente?: string;
+    data_inicio?: string;
+    data_fim?: string;
+}
 
 const fetchOrdersPaginated = async (
     page: number = 1,
@@ -82,20 +106,14 @@ const fetchOrdersPaginated = async (
     requireSessionToken();
 
     const skip = (page - 1) * pageSize;
-    const limit = pageSize;
+    // Busca um item a mais para detectar se há próxima página
+    const limit = pageSize + 1;
 
-    const params: Record<string, any> = { skip, limit };
+    const params: FetchOrdersParams = { skip, limit };
 
     if (status) {
-        const statusMap: Record<OrderStatus, string> = {
-            [OrderStatus.Pendente]: 'pendente',
-            [OrderStatus.EmProcessamento]: 'em_producao',
-            [OrderStatus.Concluido]: 'pronto',
-            [OrderStatus.Cancelado]: 'cancelado',
-        };
-        params.status = statusMap[status] || status;
+        params.status = STATUS_MAP[status] || status;
     }
-
     if (cliente) {
         params.cliente = cliente;
     }
@@ -107,31 +125,26 @@ const fetchOrdersPaginated = async (
     }
 
     const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
-    const paginatedData = (response.data ?? []).map(mapPedidoFromApi);
+    const allData = (response.data ?? []).map(mapPedidoFromApi);
 
-    let total = paginatedData.length;
-    let totalPages = 1;
+    // Verifica se há mais páginas
+    const hasNextPage = allData.length > pageSize;
+    const paginatedData = hasNextPage ? allData.slice(0, pageSize) : allData;
 
-    if (paginatedData.length < pageSize) {
+    // Estimativa conservadora do total
+    // Se estamos na página 1 e não tem próxima, sabemos o total exato
+    // Caso contrário, estimamos baseado no que temos
+    let total: number;
+    let totalPages: number;
+
+    if (!hasNextPage) {
+        // Última página - sabemos o total exato
         total = skip + paginatedData.length;
-        totalPages = Math.ceil(total / pageSize);
-    } else if (page === 1) {
-        const countParams = { ...params };
-        delete countParams.skip;
-        delete countParams.limit;
-        countParams.limit = 10000;
-
-        try {
-            const countResponse = await apiClient.get<ApiPedido[]>('/pedidos/', { params: countParams });
-            total = (countResponse.data ?? []).length;
-            totalPages = Math.ceil(total / pageSize);
-        } catch (error) {
-            logger.warn('Erro ao contar total de pedidos, usando estimativa:', error);
-            total = paginatedData.length + pageSize;
-            totalPages = Math.ceil(total / pageSize);
-        }
+        totalPages = Math.max(1, Math.ceil(total / pageSize));
     } else {
-        total = skip + paginatedData.length + pageSize;
+        // Há mais páginas - estimativa baseada na página atual
+        // Assume pelo menos mais uma página
+        total = skip + pageSize + pageSize;
         totalPages = Math.ceil(total / pageSize);
     }
 
@@ -168,20 +181,37 @@ export const ordersApi = {
 
         const cached = ordersByIdCache.get(orderId);
         if (cached && isCacheFresh(cached, ORDER_BY_ID_CACHE_TTL_MS)) {
+            logger.debug(`[getOrderById] Cache hit para pedido ${orderId}`);
             return cached.data;
         }
 
         try {
             const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
             const mappedOrder = mapPedidoFromApi(jsonResponse.data);
-            ordersByIdCache.set(orderId, createCacheEntry(mappedOrder));
+            setCacheWithLimit(orderId, mappedOrder);
             return mappedOrder;
-        } catch (error) {
+        } catch {
             const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
             const mappedOrder = mapPedidoFromApi(response.data);
-            ordersByIdCache.set(orderId, createCacheEntry(mappedOrder));
+            setCacheWithLimit(orderId, mappedOrder);
             return mappedOrder;
         }
+    },
+
+    getOrdersByDeliveryDateRange: async (
+        startDate: string,
+        endDate?: string
+    ): Promise<OrderWithItems[]> => {
+        requireSessionToken();
+
+        const params: FetchOrdersParams = {
+            data_inicio: startDate,
+            data_fim: endDate || startDate,
+            limit: 1000, // Limite razoável para relatórios
+        };
+
+        const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
+        return (response.data ?? []).map(mapPedidoFromApi);
     },
 
     createOrder: async (request: CreateOrderRequest): Promise<OrderWithItems> => {
@@ -195,8 +225,6 @@ export const ordersApi = {
         } catch (error) {
             logger.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
         }
-
-        ordersByStatusCache.clear();
 
         try {
             ordersSocket.broadcastOrderCreated(order.id, order);
@@ -250,7 +278,6 @@ export const ordersApi = {
         await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
 
         clearOrderCache(request.id);
-        ordersByStatusCache.clear();
 
         const freshResponse = await apiClient.get<ApiPedido>(`/pedidos/${request.id}`);
         const updatedOrder = mapPedidoFromApi(freshResponse.data);
@@ -275,7 +302,6 @@ export const ordersApi = {
         await apiClient.delete(`/pedidos/${orderId}`);
 
         clearOrderCache(orderId);
-        ordersByStatusCache.clear();
 
         try {
             ordersSocket.broadcastOrderDeleted(orderId);
@@ -287,9 +313,98 @@ export const ordersApi = {
     },
 
     getOrderFicha: async (orderId: number): Promise<OrderFicha> => {
-        // Reimplement fetchOrderFicha logic locally or import (fetchOrderFicha was a helper in api.ts)
-        // Assuming fetchOrderFicha logic is just getById and mapToFicha
         const order = await ordersApi.getOrderById(orderId);
         return mapOrderToFicha(order);
+    },
+
+    /**
+     * Duplica um pedido existente, criando uma cópia com novo número
+     */
+    duplicateOrder: async (
+        orderId: number,
+        options?: { 
+            resetStatus?: boolean; 
+            newDataEntrada?: string;
+            data_entrada?: string;
+            data_entrega?: string;
+        }
+    ): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        // Busca o pedido original
+        const original = await ordersApi.getOrderById(orderId);
+
+        // Prepara os itens para o novo pedido (remove IDs)
+        const newItems = original.items.map((item) => ({
+            item_name: item.item_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            tipo_producao: item.tipo_producao,
+            descricao: item.descricao,
+            largura: item.largura,
+            altura: item.altura,
+            metro_quadrado: item.metro_quadrado,
+            vendedor: item.vendedor,
+            designer: item.designer,
+            tecido: item.tecido,
+            overloque: item.overloque,
+            elastico: item.elastico,
+            tipo_acabamento: item.tipo_acabamento,
+            quantidade_ilhos: item.quantidade_ilhos,
+            espaco_ilhos: item.espaco_ilhos,
+            valor_ilhos: item.valor_ilhos,
+            quantidade_cordinha: item.quantidade_cordinha,
+            espaco_cordinha: item.espaco_cordinha,
+            valor_cordinha: item.valor_cordinha,
+            observacao: item.observacao,
+            imagem: item.imagem,
+            legenda_imagem: item.legenda_imagem,
+            quantidade_paineis: item.quantidade_paineis,
+            valor_painel: item.valor_painel,
+            valores_adicionais: item.valores_adicionais,
+            valor_unitario: item.valor_unitario,
+            emenda: item.emenda,
+            emenda_qtd: item.emenda_qtd,
+            terceirizado: item.terceirizado,
+            acabamento_lona: item.acabamento_lona,
+            valor_lona: item.valor_lona,
+            quantidade_lona: item.quantidade_lona,
+            outros_valores_lona: item.outros_valores_lona,
+            tipo_adesivo: item.tipo_adesivo,
+            valor_adesivo: item.valor_adesivo,
+            quantidade_adesivo: item.quantidade_adesivo,
+            outros_valores_adesivo: item.outros_valores_adesivo,
+            ziper: item.ziper,
+            cordinha_extra: item.cordinha_extra,
+            alcinha: item.alcinha,
+            toalha_pronta: item.toalha_pronta,
+            acabamento_totem: item.acabamento_totem,
+            acabamento_totem_outro: item.acabamento_totem_outro,
+            valor_totem: item.valor_totem,
+            quantidade_totem: item.quantidade_totem,
+            outros_valores_totem: item.outros_valores_totem,
+        }));
+
+        // Cria o novo pedido
+        const createRequest: CreateOrderRequest = {
+            cliente: original.cliente || original.customer_name,
+            cidade_cliente: original.cidade_cliente || original.address,
+            estado_cliente: original.estado_cliente,
+            telefone_cliente: original.telefone_cliente,
+            data_entrada: options?.data_entrada || options?.newDataEntrada || new Date().toISOString().split('T')[0],
+            data_entrega: options?.data_entrega || original.data_entrega,
+            forma_envio: original.forma_envio,
+            forma_pagamento_id: original.forma_pagamento_id,
+            prioridade: original.prioridade,
+            observacao: original.observacao ? `[Cópia do pedido #${original.numero || original.id}] ${original.observacao}` : `Cópia do pedido #${original.numero || original.id}`,
+            status: options?.resetStatus ? OrderStatus.Pendente : original.status,
+            valor_frete: typeof original.valor_frete === 'string' ? parseFloat(original.valor_frete) : original.valor_frete,
+            items: newItems,
+        };
+
+        const newOrder = await ordersApi.createOrder(createRequest);
+        logger.info(`[duplicateOrder] Pedido ${orderId} duplicado como ${newOrder.id}`);
+
+        return newOrder;
     },
 };

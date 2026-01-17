@@ -27,6 +27,7 @@ import {
 } from '@/types';
 import { api, getTiposProducaoAtivos } from '@/services/api';
 import { useOrderEvents } from '@/hooks/useOrderEvents';
+import { logger } from '@/utils/logger';
 import { FormPainelCompleto } from '@/components/FormPainelCompleto';
 import { FormLonaProducao } from '@/components/FormLonaProducao';
 import { FormTotemProducao } from '@/components/FormTotemProducao';
@@ -125,7 +126,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const { updateOrder: updateOrderInStore } = useOrderStore();
   
 
-  console.log('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
+  logger.debug('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
 
   // Detectar automaticamente se está em modo edição baseado na rota
   // Se routeOrderId existir, está em modo edição
@@ -145,7 +146,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>(TIPOS_PRODUCAO_FALLBACK);
 
-  console.log('[CreateOrderComplete] Estado inicial:', { 
+  logger.debug('[CreateOrderComplete] Estado inicial:', { 
     mode, 
     routeOrderId, 
     isEditMode, 
@@ -451,7 +452,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         try {
           data[tabId] = mapItemToTab(items[index], tabId);
         } catch (itemError) {
-          console.error(`Erro ao mapear item ${index} para tab ${tabId}:`, itemError);
+          logger.error(`Erro ao mapear item ${index} para tab ${tabId}:`, itemError);
           // Criar tab vazia em caso de erro
           data[tabId] = createEmptyTab(tabId);
         }
@@ -469,7 +470,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       setInitialFormData(formData);
       setInitialTabsData(data);
     } catch (error) {
-      console.error('Erro ao popular formulário com dados do pedido:', error);
+      logger.error('Erro ao popular formulário com dados do pedido:', error);
       toast({
         title: 'Erro ao carregar dados',
         description: 'Ocorreu um erro ao preencher o formulário. Alguns dados podem estar incompletos.',
@@ -588,17 +589,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const loadTiposProducao = async () => {
       try {
         const tipos = await getTiposProducaoAtivos();
-        console.log('Tipos de produção carregados da API:', tipos);
+        logger.debug('Tipos de produção carregados da API:', tipos);
         // Sempre atualizar, mesmo que vazio (usará fallback se necessário)
         if (tipos.length > 0) {
           setTiposProducao(tipos);
-          console.log('Tipos de produção atualizados:', tipos);
+          logger.debug('Tipos de produção atualizados:', tipos);
         } else {
           console.warn('Nenhum tipo de produção encontrado na API, usando fallback');
           // Manter fallback se API não retornar dados
         }
       } catch (error) {
-        console.error('Erro ao carregar tipos de produção da API, usando fallback:', error);
+        logger.error('Erro ao carregar tipos de produção da API, usando fallback:', error);
         // Manter tipos padrão como fallback
       }
     };
@@ -627,7 +628,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             populateFormFromOrder(updatedOrder);
           }
         } catch (error) {
-          console.error('Erro ao recarregar pedido após evento:', error);
+          logger.error('Erro ao recarregar pedido após evento:', error);
         }
       }
     },
@@ -649,10 +650,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       try {
         const parsed = Number.parseInt(routeOrderId, 10);
         if (!Number.isNaN(parsed) && parsed > 0) {
-          console.log('[CreateOrderComplete] Definindo selectedOrderId para:', parsed);
+          logger.debug('[CreateOrderComplete] Definindo selectedOrderId para:', parsed);
           setSelectedOrderId(parsed);
         } else {
-          console.error('[CreateOrderComplete] ID inválido na rota:', routeOrderId);
+          logger.error('[CreateOrderComplete] ID inválido na rota:', routeOrderId);
           toast({
             title: 'ID inválido',
             description: 'O ID do pedido na URL é inválido.',
@@ -661,7 +662,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           navigate('/dashboard/orders');
         }
       } catch (error) {
-        console.error('[CreateOrderComplete] Erro ao processar ID da rota:', error);
+        logger.error('[CreateOrderComplete] Erro ao processar ID da rota:', error);
         toast({
           title: 'Erro',
           description: 'Erro ao processar o ID do pedido.',
@@ -685,23 +686,23 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   useEffect(() => {
     // Só carregar se tiver um ID válido
     if (!selectedOrderId || selectedOrderId <= 0) {
-      console.log('[CreateOrderComplete] Sem ID válido, não carregando pedido');
+      logger.debug('[CreateOrderComplete] Sem ID válido, não carregando pedido');
       return;
     }
 
     let active = true;
 
     // Carregar pedido pelo ID
-    console.log('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
+    logger.debug('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
     setIsLoadingOrder(true);
     
     (async () => {
       try {
         const order = await api.getOrderById(selectedOrderId);
-        console.log('[CreateOrderComplete] Pedido carregado da API:', order);
+        logger.debug('[CreateOrderComplete] Pedido carregado da API:', order);
         
         if (!active) {
-          console.log('[CreateOrderComplete] Componente desmontado, cancelando...');
+          logger.debug('[CreateOrderComplete] Componente desmontado, cancelando...');
           return;
         }
         
@@ -710,14 +711,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
         
         setCurrentOrder(order);
-        console.log('[CreateOrderComplete] Populando formulário...');
+        logger.debug('[CreateOrderComplete] Populando formulário...');
         populateFormFromOrder(order);
-        console.log('[CreateOrderComplete] Formulário populado com sucesso');
+        logger.debug('[CreateOrderComplete] Formulário populado com sucesso');
       } catch (error) {
         if (!active) {
           return;
         }
-        console.error('[CreateOrderComplete] Erro ao carregar pedido para edição:', error);
+        logger.error('[CreateOrderComplete] Erro ao carregar pedido para edição:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         toast({
           title: 'Erro ao carregar pedido',
@@ -733,7 +734,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       } finally {
         if (active) {
           setIsLoadingOrder(false);
-          console.log('[CreateOrderComplete] Loading finalizado');
+          logger.debug('[CreateOrderComplete] Loading finalizado');
         }
       }
     })();
@@ -765,7 +766,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setMateriaisLona(lonas);
         setTiposAdesivo(adesivos);
       } catch (e) {
-        console.error('Erro ao carregar catálogos:', e);
+        logger.error('Erro ao carregar catálogos:', e);
       }
     })();
     return () => {
@@ -780,7 +781,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         const formas = await api.getFormasEnvioAtivas();
         setFormasEnvio(formas);
       } catch (error) {
-        console.error("Erro ao carregar formas de envio:", error);
+        logger.error("Erro ao carregar formas de envio:", error);
       }
     };
     fetchFormasEnvio();
@@ -792,7 +793,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         const formas = await api.getFormasPagamentoAtivas();
         setFormasPagamento(formas);
       } catch (error) {
-        console.error("Erro ao carregar formas de pagamento:", error);
+        logger.error("Erro ao carregar formas de pagamento:", error);
       }
     };
     fetchFormasPagamento();
@@ -1763,7 +1764,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return; // Nenhuma imagem para upload
     }
     
-    console.log(`[uploadImagesBeforeSave] Fazendo upload obrigatório de ${itemsWithLocalImages.length} imagens antes de salvar pedido`);
+    logger.debug(`[uploadImagesBeforeSave] Fazendo upload obrigatório de ${itemsWithLocalImages.length} imagens antes de salvar pedido`);
     
     // Fazer uploads em paralelo - usar Promise.all para falhar rápido se algum falhar
     const uploadPromises = itemsWithLocalImages.map((item) => {
@@ -1785,7 +1786,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           );
           if (itemIndex >= 0) {
             items[itemIndex].imagem = result.server_reference;
-            console.log(`[uploadImagesBeforeSave] ✅ Imagem ${index + 1} enviada: ${result.server_reference}`);
+            logger.debug(`[uploadImagesBeforeSave] ✅ Imagem ${index + 1} enviada: ${result.server_reference}`);
           }
         } else {
           const error = result.error || 'Erro desconhecido no upload';
@@ -1793,9 +1794,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       });
       
-      console.log(`[uploadImagesBeforeSave] ✅ Todas as ${uploadResults.length} imagens foram enviadas com sucesso`);
+      logger.debug(`[uploadImagesBeforeSave] ✅ Todas as ${uploadResults.length} imagens foram enviadas com sucesso`);
     } catch (error) {
-      console.error('[uploadImagesBeforeSave] ❌ Erro no upload obrigatório de imagens:', error);
+      logger.error('[uploadImagesBeforeSave] ❌ Erro no upload obrigatório de imagens:', error);
       throw error; // Re-lançar para impedir salvamento
     }
   };
@@ -2300,7 +2301,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setInitialTabsData(tabsData);
         
         // Imagens já foram enviadas antes de salvar, então estão prontas
-        console.log('[handleConfirmSave] ✅ Pedido atualizado com imagens já enviadas ao servidor');
+        logger.debug('[handleConfirmSave] ✅ Pedido atualizado com imagens já enviadas ao servidor');
         
         navigate('/dashboard/orders');
         return;
@@ -2349,7 +2350,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
       // Imagens já foram enviadas antes de criar o pedido, então estão prontas
-      console.log('[handleConfirmSave] ✅ Pedido criado com imagens já enviadas ao servidor');
+      logger.debug('[handleConfirmSave] ✅ Pedido criado com imagens já enviadas ao servidor');
 
       toast({
         title: 'Pedido criado!',
@@ -2379,7 +2380,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       setInitialTabsData({ 'tab-1': createEmptyTab('tab-1') });
       navigate('/dashboard/orders');
     } catch (error) {
-      console.error('Erro detalhado ao salvar pedido:', error);
+      logger.error('Erro detalhado ao salvar pedido:', error);
       toast({
         title: 'Erro',
         description: `Não foi possível salvar o pedido: ${error}`,
