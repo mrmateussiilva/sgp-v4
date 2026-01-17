@@ -63,8 +63,8 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
   let lastError: unknown;
   let lastResponse: AxiosError | null = null;
 
-  // Aumentar timeout para 15 segundos para dar tempo em conexões de rede
-  const timeout = 15000;
+  // Timeout de 5 segundos para verificação rápida sem travar a UI
+  const timeout = 5000;
 
   for (const endpoint of STATUS_ENDPOINTS) {
     try {

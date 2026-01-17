@@ -93,19 +93,47 @@ function App() {
   useEffect(() => {
     const verifyConfig = async () => {
       setIsCheckingConnection(true);
+      
+      // Timeout de segurança para não travar indefinidamente (8 segundos)
+      const safetyTimeoutId = setTimeout(() => {
+        console.warn('⚠️ Verificação de conexão demorou muito, liberando UI');
+        setIsCheckingConnection(false);
+        // Se não tiver URL configurada, mostrar tela de configuração
+        loadConfig().then(config => {
+          if (!config?.api_url) {
+            setApiUrl(null);
+            setShowFallback(true);
+          }
+        });
+      }, 8000);
+      
       try {
         const config = await loadConfig();
+        
         if (config?.api_url) {
           const normalizedUrl = normalizeApiUrl(config.api_url);
-          await verifyApiConnection(normalizedUrl);
-          applyApiUrl(normalizedUrl);
-          setApiUrl(normalizedUrl);
-          setShowFallback(false);
+          try {
+            await verifyApiConnection(normalizedUrl);
+            clearTimeout(safetyTimeoutId);
+            applyApiUrl(normalizedUrl);
+            setApiUrl(normalizedUrl);
+            setShowFallback(false);
+          } catch (error) {
+            clearTimeout(safetyTimeoutId);
+            console.error('Erro ao verificar conexão com a API:', error);
+            // Mesmo com erro na verificação, permite usar a URL configurada
+            applyApiUrl(normalizedUrl);
+            setApiUrl(normalizedUrl);
+            setShowFallback(false);
+          }
         } else {
+          clearTimeout(safetyTimeoutId);
           setApiUrl(null);
           setShowFallback(true);
         }
-      } catch {
+      } catch (error) {
+        clearTimeout(safetyTimeoutId);
+        console.error('Erro ao carregar configuração:', error);
         setApiUrl(null);
         setShowFallback(true);
       } finally {
