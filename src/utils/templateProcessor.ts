@@ -1,7 +1,7 @@
 import { OrderWithItems, OrderItem, TemplateFieldConfig as TemplateField, FichaTemplateConfig as FichaTemplate, FichaTemplatesConfig as TemplatesConfig, TemplateType } from '../types';
 import { imageToBase64, loadAuthenticatedImage } from './imageLoader';
 import { isValidImagePath } from './path';
-import { apiClient } from '../services/apiClient';
+import { apiClient } from '../api/client';
 import { logger } from './logger';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 import { resizeImageToBase64 } from './imageResizer';
@@ -13,36 +13,36 @@ import { resizeImageToBase64 } from './imageResizer';
 /**
  * Agrupa itens em arrays de tamanho fixo para paginação
  * @param itens - Array de itens a serem agrupados
- * @param itensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @param itensPorPagina - Quantidade máxima de itens por página (padrão: 2)
  * @returns Array de arrays, onde cada sub-array representa uma página
  * 
  * @example
- * // Input: 7 itens
- * const itens = [item1, item2, item3, item4, item5, item6, item7];
+ * // Input: 5 itens
+ * const itens = [item1, item2, item3, item4, item5];
  * // Output: 3 páginas
  * const paginas = [
- *   [item1, item2, item3],  // Página 1
- *   [item4, item5, item6],  // Página 2
- *   [item7]                 // Página 3 (última página pode ter menos de 3)
+ *   [item1, item2],  // Página 1
+ *   [item3, item4],  // Página 2
+ *   [item5]          // Página 3 (última página pode ter menos de 2)
  * ];
  */
-export function agruparItensPorPagina<T>(itens: T[], itensPorPagina: number = 3): T[][] {
+export function agruparItensPorPagina<T>(itens: T[], itensPorPagina: number = 2): T[][] {
   if (!itens || itens.length === 0) {
     return [];
   }
-  
+
   const paginas: T[][] = [];
   for (let i = 0; i < itens.length; i += itensPorPagina) {
     paginas.push(itens.slice(i, i + itensPorPagina));
   }
-  
+
   return paginas;
 }
 
 /**
  * Valida se as páginas estão corretamente agrupadas
  * @param paginas - Array de páginas a validar
- * @param maxItensPorPagina - Quantidade máxima de itens por página (padrão: 3)
+ * @param maxItensPorPagina - Quantidade máxima de itens por página (padrão: 2)
  * @returns true se todas as páginas são válidas
  * 
  * Regras de validação:
@@ -50,12 +50,12 @@ export function agruparItensPorPagina<T>(itens: T[], itensPorPagina: number = 3)
  * - Nenhuma página pode estar vazia
  * - Última página pode ter menos de maxItensPorPagina itens
  */
-export function validarPaginas<T>(paginas: T[][], maxItensPorPagina: number = 3): boolean {
+export function validarPaginas<T>(paginas: T[][], maxItensPorPagina: number = 2): boolean {
   if (!paginas || paginas.length === 0) {
     return true; // Array vazio é válido (0 itens = 0 páginas)
   }
-  
-  return paginas.every(pagina => 
+
+  return paginas.every(pagina =>
     pagina.length > 0 && pagina.length <= maxItensPorPagina
   );
 }
@@ -63,10 +63,10 @@ export function validarPaginas<T>(paginas: T[][], maxItensPorPagina: number = 3)
 /**
  * Calcula o número de páginas necessárias para uma quantidade de itens
  * @param totalItens - Total de itens
- * @param itensPorPagina - Itens por página (padrão: 3)
+ * @param itensPorPagina - Itens por página (padrão: 2)
  * @returns Número de páginas necessárias
  */
-export function calcularNumeroPaginas(totalItens: number, itensPorPagina: number = 3): number {
+export function calcularNumeroPaginas(totalItens: number, itensPorPagina: number = 2): number {
   if (totalItens <= 0) return 0;
   return Math.ceil(totalItens / itensPorPagina);
 }
@@ -84,26 +84,26 @@ function extractItemTemplate(fullHtml: string): string {
   // Regex para encontrar o primeiro <div class="item" ...> ... </div>
   // Usa um approach mais robusto que lida com divs aninhados
   const itemStartMatch = fullHtml.match(/<div[^>]*class="item"[^>]*>/i);
-  
+
   if (!itemStartMatch) {
     // Se não encontrar .item, retornar o HTML original (fallback)
     logger.warn('[extractItemTemplate] Não foi possível encontrar .item no template, usando HTML completo');
     return fullHtml;
   }
-  
+
   const startIndex = fullHtml.indexOf(itemStartMatch[0]);
-  
+
   // Encontrar o </div> correspondente contando níveis de aninhamento
   let depth = 0;
   let endIndex = startIndex;
   let tagStart = 0;
-  
+
   for (let i = startIndex; i < fullHtml.length; i++) {
     if (fullHtml[i] === '<') {
       tagStart = i;
     } else if (fullHtml[i] === '>') {
       const tag = fullHtml.substring(tagStart, i + 1);
-      
+
       if (tag.match(/^<div/i)) {
         depth++;
       } else if (tag.match(/^<\/div>/i)) {
@@ -115,15 +115,15 @@ function extractItemTemplate(fullHtml: string): string {
       }
     }
   }
-  
+
   const itemTemplate = fullHtml.substring(startIndex, endIndex);
-  
+
   logger.debug('[extractItemTemplate] Template de item extraído:', {
     originalLength: fullHtml.length,
     extractedLength: itemTemplate.length,
     startsWithItem: itemTemplate.startsWith('<div')
   });
-  
+
   return itemTemplate;
 }
 
@@ -133,22 +133,22 @@ function extractItemTemplate(fullHtml: string): string {
  */
 function extractTemplateStyles(fullHtml: string): string {
   const styleMatches = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-  
+
   if (!styleMatches) {
     return '';
   }
-  
+
   // Extrair conteúdo de todas as tags <style>
   const styles = styleMatches.map(styleTag => {
     const content = styleTag.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
     return content ? content[1] : '';
   }).join('\n');
-  
+
   logger.debug('[extractTemplateStyles] Estilos extraídos:', {
     styleTagsCount: styleMatches.length,
     totalStylesLength: styles.length
   });
-  
+
   return styles;
 }
 
@@ -283,7 +283,7 @@ const formatDimensions = (item: OrderItem): string => {
   const largura = item.largura?.trim() || '';
   const altura = item.altura?.trim() || '';
   const metroQuadrado = item.metro_quadrado?.trim() || '';
-  
+
   if (largura && altura) {
     const dimensoes = `${largura} x ${altura}`;
     if (metroQuadrado) {
@@ -299,8 +299,8 @@ const formatDimensions = (item: OrderItem): string => {
  */
 const formatCurrency = (value: string | number | undefined): string => {
   if (!value) return 'R$ 0,00';
-  const num = typeof value === 'string' 
-    ? parseFloat(value.replace(',', '.').replace(/[^\d.,-]/g, '')) 
+  const num = typeof value === 'string'
+    ? parseFloat(value.replace(',', '.').replace(/[^\d.,-]/g, ''))
     : value;
   if (Number.isNaN(num) || num === 0) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', {
@@ -336,10 +336,10 @@ export const createOrderDataMap = (
       quantidade_adesivo: item.quantidade_adesivo
     } : null
   });
-  
+
   const itemRecord = item as unknown as Record<string, unknown> || {};
   const printFields = item ? toPrintFields(canonicalizeFromOrderItem(item)) : {};
-  
+
   // Campos específicos com formatação
   const dimensoes = item ? formatDimensions(item) : '';
   const cidadeEstado = [
@@ -363,11 +363,11 @@ export const createOrderDataMap = (
     valor_frete: '',
     total_value: '',
     observacao: order.observacao || '',
-    
+
     // Status e prioridade do pedido
     status: order.status || '',
     prioridade: order.prioridade || '',
-    
+
     // Status de produção (checkboxes) - convertidos para texto
     financeiro: order.financeiro ? 'Sim' : 'Não',
     conferencia: order.conferencia ? 'Sim' : 'Não',
@@ -377,7 +377,7 @@ export const createOrderDataMap = (
     pronto: order.pronto ? 'Sim' : 'Não',
     sublimacao_maquina: order.sublimacao_maquina || '',
     sublimacao_data_impressao: formatDate(order.sublimacao_data_impressao),
-    
+
     // Dados do item
     item_name: item?.item_name || item?.descricao || '',
     descricao: item?.descricao || item?.item_name || '',
@@ -398,7 +398,7 @@ export const createOrderDataMap = (
     observacao_item: item?.observacao || '',
     imagem: item?.imagem || '',
     legenda_imagem: item?.legenda_imagem || '',
-    
+
     // Campos adicionais do item
     overloque: item?.overloque ? 'Sim' : 'Não',
     elastico: item?.elastico ? 'Sim' : 'Não',
@@ -411,61 +411,61 @@ export const createOrderDataMap = (
     valor_cordinha: '', // Valor monetário removido
     emenda: item?.emenda ? (item.emenda === 'vertical' ? 'Vertical' : item.emenda === 'horizontal' ? 'Horizontal' : item.emenda) : '',
     emenda_qtd: item?.emenda_qtd || item?.emendaQtd || '',
-    
+
     // Campos de painéis
     quantidade_paineis: item?.quantidade_paineis || '',
     valor_painel: '', // Valor monetário removido
     valores_adicionais: '', // Valor monetário removido
     valor_unitario: '', // Valor monetário removido
-    
+
     // Campos booleanos
     terceirizado: item?.terceirizado ? 'Sim' : 'Não',
     ziper: item?.ziper ? 'Sim' : 'Não',
     cordinha_extra: item?.cordinha_extra ? 'Sim' : 'Não',
     alcinha: item?.alcinha ? 'Sim' : 'Não',
     toalha_pronta: item?.toalha_pronta ? 'Sim' : 'Não',
-    
+
     // Campos de lona
     acabamento_lona: item?.acabamento_lona || '',
-    acabamento_lona_display: item?.acabamento_lona === 'refilar' ? 'Refilar' 
+    acabamento_lona_display: item?.acabamento_lona === 'refilar' ? 'Refilar'
       : item?.acabamento_lona === 'nao_refilar' ? 'Não refilar'
-      : '',
+        : '',
     valor_lona: formatCurrency(item?.valor_lona),
     quantidade_lona: item?.quantidade_lona || '',
     outros_valores_lona: formatCurrency(item?.outros_valores_lona),
-    
+
     // Campos de adesivo
     tipo_adesivo: item?.tipo_adesivo || '',
     valor_adesivo: formatCurrency(item?.valor_adesivo),
     quantidade_adesivo: item?.quantidade_adesivo || '',
     outros_valores_adesivo: formatCurrency(item?.outros_valores_adesivo),
-    
+
     // Campos de totem
     acabamento_totem: item?.acabamento_totem || '',
-    acabamento_totem_display: item?.acabamento_totem === 'com_pe' ? 'Com pé' 
+    acabamento_totem_display: item?.acabamento_totem === 'com_pe' ? 'Com pé'
       : item?.acabamento_totem === 'sem_pe' ? 'Sem pé'
-      : item?.acabamento_totem === 'outro' ? (item?.acabamento_totem_outro || 'Outro')
-      : '',
+        : item?.acabamento_totem === 'outro' ? (item?.acabamento_totem_outro || 'Outro')
+          : '',
     acabamento_totem_outro: item?.acabamento_totem_outro || '',
     valor_totem: formatCurrency(item?.valor_totem),
     quantidade_totem: item?.quantidade_totem || '',
     outros_valores_totem: formatCurrency(item?.outros_valores_totem),
-    
+
     // Campos de impressão (para anotação manual no resumo)
     data_impressao: item?.data_impressao || '',
     rip_maquina: item?.rip_maquina || '',
-    
+
     // Campos genéricos (fallback) - excluindo valores monetários
     ...Object.keys(itemRecord).reduce((acc, key) => {
       // Pular campos de valores monetários
-      const valorFields = ['valor_frete', 'total_value', 'unit_price', 'subtotal', 
-                          'valor_ilhos', 'valor_cordinha', 'valor_painel', 'valores_adicionais',
-                          'valor_unitario', 'valor_lona', 'outros_valores_lona', 'valor_adesivo',
-                          'outros_valores_adesivo', 'valor_totem', 'outros_valores_totem'];
+      const valorFields = ['valor_frete', 'total_value', 'unit_price', 'subtotal',
+        'valor_ilhos', 'valor_cordinha', 'valor_painel', 'valores_adicionais',
+        'valor_unitario', 'valor_lona', 'outros_valores_lona', 'valor_adesivo',
+        'outros_valores_adesivo', 'valor_totem', 'outros_valores_totem'];
       if (valorFields.includes(key.toLowerCase())) {
         return acc;
       }
-      
+
       if (!acc[key]) {
         const value = itemRecord[key];
         if (value !== null && value !== undefined) {
@@ -480,7 +480,7 @@ export const createOrderDataMap = (
       return acc;
     }, {} as OrderDataMap),
   };
-  
+
   logger.debug(`[createOrderDataMap] ✅ Mapa criado:`, {
     orderId: order.id,
     itemId: item?.id,
@@ -500,7 +500,7 @@ export const createOrderDataMap = (
       quantidade_adesivo: dataMap.quantidade_adesivo
     }
   });
-  
+
   return dataMap;
 };
 
@@ -597,15 +597,15 @@ const mapVariableToLabel: Record<string, string> = {
  */
 const removeEmptyFields = (html: string, fieldsToPreserve: readonly string[]): string => {
   // Converter nomes de variáveis para labels se necessário
-  const labelsToPreserve = fieldsToPreserve.map(field => 
+  const labelsToPreserve = fieldsToPreserve.map(field =>
     mapVariableToLabel[field] || field
   );
-  
+
   // Criar padrão de campos a preservar
-  const preservePattern = labelsToPreserve.length > 0 
+  const preservePattern = labelsToPreserve.length > 0
     ? `(?!${labelsToPreserve.join('|')})`
     : '';
-  
+
   // Remove divs com valor vazio, "Não" ou "0" após os dois pontos
   const regex = new RegExp(`<div[^>]*>• ${preservePattern}[^:]+: (?:|Não|0| )</div>`, 'gi');
   return html.replace(regex, '');
@@ -627,19 +627,19 @@ const normalizeTipoProducao = (html: string, tipoProducao: string): string => {
  */
 const removeUnrenderedVariables = (html: string): string => {
   let result = html;
-  
+
   // Remover blocos condicionais não processados ({{#IF ...}}, {{#ELSE}}, {{#ENDIF}}, {{/IF}})
   result = result.replace(/\{\{#IF[^}]*\}\}/gi, '');
   result = result.replace(/\{\{#ELSE\}\}/gi, '');
   result = result.replace(/\{\{#ENDIF\}\}/gi, '');
   result = result.replace(/\{\{\/IF\}\}/gi, '');
-  
+
   // Remover variáveis não substituídas ({{...}})
   result = result.replace(/\{\{[^}]+\}\}/g, '');
-  
+
   // Remover linhas vazias extras (máximo 2 linhas vazias consecutivas)
   result = result.replace(/\n\s*\n\s*\n+/g, '\n\n');
-  
+
   return result;
 };
 
@@ -650,7 +650,7 @@ const addHiddenEmptyClass = (html: string): string => {
   // Adicionar classe hidden-empty em campos com "Não", vazio ou "0" após os dois pontos
   // Para elementos com spec-painel ou spec-tecido
   let result = html;
-  
+
   // Substituir class="..." por class="... hidden-empty" quando encontrar ": 0" ou ": "
   // IMPORTANTE: NÃO esconder valores "Não" — na ficha de resumo queremos ver explicitamente Sim/Não.
   result = result.replace(
@@ -665,7 +665,7 @@ const addHiddenEmptyClass = (html: string): string => {
       return match.replace(p1, `${p1} hidden-empty`);
     }
   );
-  
+
   return result;
 };
 
@@ -674,15 +674,15 @@ const addHiddenEmptyClass = (html: string): string => {
  */
 const applyFieldVisibilityRules = (html: string, tipoProducao: string): string => {
   const rules = FIELD_VISIBILITY_RULES[tipoProducao as keyof typeof FIELD_VISIBILITY_RULES];
-  
+
   if (!rules) {
     // Tipo de produção desconhecido - remover apenas campos vazios genéricos
     return removeEmptyFields(html, []);
   }
-  
+
   // 1. Remover classes que devem ser escondidas
   let result = removeElementsByClass(html, rules.hide);
-  
+
   // 2. Remover campos vazios se não for para preservar
   if (!rules.preserveEmpty) {
     result = removeEmptyFields(result, rules.show);
@@ -691,7 +691,7 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
     result = addHiddenEmptyClass(result);
     logger.debug(`[templateProcessor] Preservando campos vazios para tipo: ${tipoProducao}`);
   }
-  
+
   return result;
 };
 
@@ -710,21 +710,21 @@ const processConditionals = (
 ): string => {
   let result = html;
   const normalizedTipo = tipoProducao.toLowerCase().trim();
-  
+
   // 1. Sintaxe legada: {{#IF tipo_producao == 'valor'}} ... {{/IF}}
   const legacyIfRegex = /\{\{#IF\s+tipo_producao\s*==\s*['"]([^'"]+)['"]\s*\}\}([\s\S]*?)\{\{\/IF\}\}/gi;
   result = result.replace(legacyIfRegex, (_match, tipoEsperado, conteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
     return normalizedTipo === normalizedEsperado ? conteudo : '';
   });
-  
+
   // 2. Sintaxe Handlebars: {{#if (eq tipo_producao 'valor')}} ... {{/if}}
   const handlebarsEqRegex = /\{\{#if\s+\(eq\s+tipo_producao\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
   result = result.replace(handlebarsEqRegex, (_match, tipoEsperado, conteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
     return normalizedTipo === normalizedEsperado ? conteudo : '';
   });
-  
+
   // 3. Condicional simples: {{#if variavel}} ... {{/if}}
   // Verifica se a variável tem valor truthy no dataMap
   if (dataMap) {
@@ -736,7 +736,7 @@ const processConditionals = (
       return isTruthy ? conteudo : '';
     });
   }
-  
+
   return result;
 };
 
@@ -751,13 +751,13 @@ const replaceVariables = (
   item?: OrderItem
 ): string => {
   let result = html;
-  
+
   for (const [key, value] of Object.entries(dataMap)) {
     // Ignorar campos de debug
     if (key.startsWith('_debug_')) continue;
-    
+
     let replacementValue = String(value || '');
-    
+
     // Tratamento especial para imagens
     if (key === 'imagem' && item?.imagem) {
       const imagePath = item.imagem.trim();
@@ -767,12 +767,12 @@ const replaceVariables = (
         replacementValue = imagePath;
       }
     }
-    
+
     // Substituição case-insensitive: {{numero}}, {{NUMERO}}, {{Numero}} funcionam
     // Escapar caracteres especiais da chave para regex
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'gi'); // 'i' flag para case-insensitive
-    
+
     // Para imagens, não escapar HTML (já é base64 ou URL)
     if (key === 'imagem') {
       result = result.replace(regex, replacementValue);
@@ -780,7 +780,7 @@ const replaceVariables = (
       result = result.replace(regex, escapeHtml(replacementValue));
     }
   }
-  
+
   return result;
 };
 
@@ -793,13 +793,13 @@ const processImageTags = (
   imageBase64Map: Map<string, string>
 ): string => {
   if (!imagePath) return html;
-  
-  const imageUrl = imageBase64Map.has(imagePath) 
-    ? imageBase64Map.get(imagePath)! 
+
+  const imageUrl = imageBase64Map.has(imagePath)
+    ? imageBase64Map.get(imagePath)!
     : (isValidImagePath(imagePath) ? imagePath : '');
-  
+
   if (!imageUrl) return html;
-  
+
   // Substituir src="{{imagem}}" com a URL da imagem
   return html.replace(
     /src\s*=\s*["']?\{\{imagem\}\}["']?/gi,
@@ -822,13 +822,13 @@ const normalizeItemContent = (content: string): string => {
     .replace(/ã/g, '&atilde;')
     .replace(/á/g, '&aacute;')
     .replace(/ê/g, '&ecirc;');
-  
+
   // Se o template já contém a estrutura .item, retornar sem wrapper
   // O template em /api-sgp/media/templates/template-resumo.html já define a estrutura
   if (normalizedContent.includes('class="item"') || normalizedContent.includes("class='item'")) {
     return normalizedContent;
   }
-  
+
   // Caso contrário (template legado), envolver em estrutura padrão
   return `<div class="item">${normalizedContent}</div>`;
 };
@@ -844,7 +844,7 @@ const processItemTemplate = (
 ): string => {
   const dataMap = createOrderDataMap(order, item);
   const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
-  
+
   logger.debug(`[processItemTemplate] 🔧 Processando item:`, {
     itemId: item.id,
     itemName: item.item_name,
@@ -858,26 +858,26 @@ const processItemTemplate = (
       tecido: dataMap.tecido
     }
   });
-  
+
   // 1. Processar condicionais (suporta sintaxe legada e Handlebars)
   // IMPORTANTE: Processar condicionais ANTES de substituir variáveis para melhor performance
   let processed = processConditionals(html, tipoProducao, dataMap);
-  
+
   // 2. Substituir variáveis
   processed = replaceVariables(processed, dataMap, imageBase64Map, item);
-  
+
   // 3. Processar tags de imagem
   processed = processImageTags(processed, item.imagem, imageBase64Map);
-  
+
   // 4. Normalizar tipo de produção
   processed = normalizeTipoProducao(processed, tipoProducao);
-  
+
   // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
-  
+
   // 6. Remover variáveis não renderizadas ({{...}}, #IF, #ELSE, etc.)
   processed = removeUnrenderedVariables(processed);
-  
+
   logger.debug(`[processItemTemplate] ✅ Item processado:`, {
     itemId: item.id,
     tipoProducao,
@@ -886,9 +886,9 @@ const processItemTemplate = (
     hasElastico: processed.includes('Elástico') || processed.includes('Elastico'),
     hasEmenda: processed.includes('Emenda')
   });
-  
+
   // Estruturar item com seções fixas para garantir layout consistente
-  // Cada item tem altura fixa de 33% da página A4
+  // Cada item tem altura fixa de 50% da página A4 (2 por página)
   const normalized = normalizeItemContent(processed);
   return injectExtraFieldsIntoItem(normalized, dataMap);
 };
@@ -1006,7 +1006,7 @@ const renderField = (
 
   const value = dataMap[field.key] || '';
   const displayValue = value ? escapeHtml(String(value)) : '';
-  
+
   const style = `
     position: absolute;
     left: ${mmToPx(field.x) * scale}px;
@@ -1023,12 +1023,12 @@ const renderField = (
     const resolvedImagePath = field.imageUrl ?? dataMap.imagem ?? '';
     const imagePath = typeof resolvedImagePath === 'number' ? String(resolvedImagePath) : resolvedImagePath;
     if (!imagePath) return '';
-    
+
     // Usar base64 se disponível, senão usar o caminho original
-    const imageUrl = imageBase64Map?.has(imagePath) 
-      ? imageBase64Map.get(imagePath)! 
+    const imageUrl = imageBase64Map?.has(imagePath)
+      ? imageBase64Map.get(imagePath)!
       : imagePath;
-    
+
     return `
       <div class="template-field template-field-image" style="${style}">
         <img src="${escapeHtml(String(imageUrl))}" 
@@ -1058,13 +1058,13 @@ const renderField = (
 /**
  * Gera o CSS para o template (função legada, não usada atualmente - mantida para referência)
  */
-    // Unused function - kept for reference
-    // @ts-expect-error - Function kept for future reference, intentionally unused
-    const _generateTemplateStyles = (_template: FichaTemplate): string => {
-      const template = _template;
-      const isResumo = template.title?.toLowerCase().includes('resumo');
-      
-      return `
+// Unused function - kept for reference
+// @ts-expect-error - Function kept for future reference, intentionally unused
+const _generateTemplateStyles = (_template: FichaTemplate): string => {
+  const template = _template;
+  const isResumo = template.title?.toLowerCase().includes('resumo');
+
+  return `
         .template-page {
           width: ${mmToPx(template.width)}px;
           height: ${mmToPx(template.height)}px;
@@ -1124,9 +1124,9 @@ const renderField = (
           }
         }
       `;
-    };
-    // Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
-    // Função não utilizada atualmente - mantida para referência futura
+};
+// Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
+// Função não utilizada atualmente - mantida para referência futura
 
 /**
  * Gera o HTML completo de uma ficha baseada no template
@@ -1175,20 +1175,20 @@ const processTemplateHTML = (
     })) || [],
     imageBase64MapSize: imageBase64Map.size
   });
-  
+
   // Múltiplos itens - processar cada um separadamente
   if (items && items.length > 1) {
-    const ITENS_POR_PAGINA = 3;
+    const ITENS_POR_PAGINA = 2;
     logger.debug(`[processTemplateHTML] 📦 Processando ${items.length} itens múltiplos (${ITENS_POR_PAGINA} por página)`);
-    
+
     // Processar cada item individualmente
-    const itemTemplates = items.map(item => 
+    const itemTemplates = items.map(item =>
       processItemTemplate(html, order, item, imageBase64Map)
     );
-    
+
     // Agrupar itens em páginas usando a função de agrupamento
     const paginas = agruparItensPorPagina(itemTemplates, ITENS_POR_PAGINA);
-    
+
     // Validar agrupamento
     if (!validarPaginas(paginas, ITENS_POR_PAGINA)) {
       logger.warn(`[processTemplateHTML] ⚠️ Agrupamento de páginas inválido`, {
@@ -1196,65 +1196,65 @@ const processTemplateHTML = (
         itensPorPagina: paginas.map(p => p.length)
       });
     }
-    
+
     logger.debug(`[processTemplateHTML] 📄 Itens agrupados em ${paginas.length} página(s):`, {
       totalItens: items.length,
       itensPorPagina: ITENS_POR_PAGINA,
       paginasGeradas: paginas.length,
       distribuicao: paginas.map((p, i) => `Página ${i + 1}: ${p.length} item(s)`)
     });
-    
+
     // Gerar HTML das páginas
     const pages: string[] = paginas.map((paginaItens, index) => {
       const isLastPage = index === paginas.length - 1;
       const itensHtml = paginaItens.join('');
-      
+
       // Envolver os itens em uma página A4 com altura fixa
-      // Cada item ocupa exatamente 1/3 da altura (33%)
+      // Cada item ocupa exatamente 1/2 da altura (50%)
       return `<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${itensHtml}</div></div>`;
     });
-    
+
     return pages.join('\n');
   }
-  
+
   // Item único ou sem itens - usar processItemTemplate ou processar diretamente
   if (items && items.length === 1) {
     return `<div class="template-page">${processItemTemplate(html, order, items[0], imageBase64Map)}</div>`;
   }
-  
+
   // Sem itens - processar com dados do pedido apenas
   const dataMap = createOrderDataMap(order, undefined);
   const tipoProducao = String(dataMap.tipo_producao || '').toLowerCase().trim();
-  
+
   // 1. Processar condicionais primeiro
   let processed = processConditionals(html, tipoProducao);
-  
+
   // 2. Substituir variáveis
   processed = replaceVariables(processed, dataMap, imageBase64Map);
-  
+
   // 3. Processar tags de imagem
   processed = processImageTags(processed, undefined, imageBase64Map);
-  
+
   // 4. Normalizar tipo de produção
   processed = normalizeTipoProducao(processed, tipoProducao);
-  
+
   // 5. Aplicar regras de visibilidade
   processed = applyFieldVisibilityRules(processed, tipoProducao);
-  
+
   // 6. Remover variáveis não renderizadas
   processed = removeUnrenderedVariables(processed);
-  
+
   return `<div class="template-page">${processed}</div>`;
 };
 
 /**
  * Gera CSS básico para templates HTML
- * Para resumo: 3 itens por página A4, cada um ocupando exatamente 1/3 (33%)
+ * Para resumo: 2 itens por página A4, cada um ocupando exatamente 1/2 (50%)
  * Reestruturação completa com seções fixas
  */
 const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
   const isResumo = templateType === 'resumo';
-  
+
   return `
     * {
       box-sizing: border-box;
@@ -1320,9 +1320,9 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     
       ${isResumo ? `
     /* ============================================================
-       ESTRUTURA BASE: PÁGINA A4 COM 3 ITENS POR PÁGINA
+       ESTRUTURA BASE: PÁGINA A4 COM 2 ITENS POR PÁGINA
        A4 = 210mm x 297mm
-       Cada item: 99mm de altura (297mm / 3)
+       Cada item: 148.5mm de altura (297mm / 2)
        
        NOTA: Não sobrescrever estilos do template original!
        O template em /api-sgp/media/templates/template-resumo.html
@@ -1426,37 +1426,37 @@ export const generateTemplatePrintContent = async (
       imagem: item.imagem
     })) || []
   });
-  
+
   // PRIMEIRO: Tentar buscar template HTML editado manualmente
   try {
     const { api } = await import('../services/api');
     const templateHTML = await api.getFichaTemplateHTML(templateType);
-    
+
     logger.debug(`[templateProcessor] Template HTML buscado:`, {
       templateType,
       exists: templateHTML.exists,
       hasHtml: !!templateHTML.html,
       htmlLength: templateHTML.html?.length || 0
     });
-    
+
     // Só usar HTML editado manualmente se existir E tiver conteúdo (não vazio)
     if (templateHTML.exists && templateHTML.html && templateHTML.html.trim().length > 0) {
       // Template HTML editado manualmente encontrado - usar ele!
       logger.debug(`[templateProcessor] ✅ Usando template HTML da API: ${templateType}`);
-      
+
       // Extrair apenas o template de um item (primeiro .item encontrado)
       // O template completo tem a estrutura: .print-page > .item (x3)
       // Precisamos apenas do conteúdo de um .item para usar como template
       const rawHtml = extractItemTemplate(templateHTML.html);
-      
+
       // Extrair CSS do template para preservar os estilos originais
       const templateStyles = extractTemplateStyles(templateHTML.html);
-      
+
       logger.debug(`[templateProcessor] Template de item extraído, tamanho: ${rawHtml.length}`);
-      
+
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
-      
+
       logger.debug(`[generateTemplatePrintContent] 📋 Itens para renderizar:`, {
         itemsToRenderCount: itemsToRender.length,
         itemsToRender: itemsToRender.map(item => ({
@@ -1469,10 +1469,10 @@ export const generateTemplatePrintContent = async (
           emenda_qtd: item.emenda_qtd
         }))
       });
-      
+
       // Carregar todas as imagens para base64 antes de processar
       const imageBase64Map = new Map<string, string>();
-      
+
       const allItems = itemsToRender.length > 0 ? itemsToRender : (order.items || []);
       const imagePromises = allItems
         .filter(item => item.imagem && isValidImagePath(item.imagem))
@@ -1480,10 +1480,10 @@ export const generateTemplatePrintContent = async (
           try {
             const imagePath = item.imagem!.trim();
             logger.debug('[templateProcessor] 🔄 Carregando e redimensionando imagem:', imagePath);
-            
+
             // Carregar blob da imagem
             const blobUrl = await loadAuthenticatedImage(imagePath);
-            
+
             // SEMPRE redimensionar imagem para impressão considerando altura E largura máximas
             // Altura: 70mm, Largura: 110mm (63% de ~187mm da coluna direita com margem de segurança)
             // Isso garante que a imagem sempre caiba sem ser cortada
@@ -1507,43 +1507,43 @@ export const generateTemplatePrintContent = async (
             // Continuar mesmo se uma imagem falhar
           }
         });
-      
+
       await Promise.all(imagePromises);
-      
+
       // Processar o template HTML substituindo variáveis do pedido
       // Se itemsToRender estiver vazio mas order.items tiver itens, usar order.items
-      const itemsForProcessing = itemsToRender.length > 0 
-        ? itemsToRender 
+      const itemsForProcessing = itemsToRender.length > 0
+        ? itemsToRender
         : (order.items && order.items.length > 0 ? order.items : undefined);
-      
+
       const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
-      
+
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
-      
+
       // Combinar CSS: estilos do template original + CSS básico complementar
       const basicCss = generateBasicTemplateCSS(templateType);
       const css = `${templateStyles}\n${basicCss}`;
-      
+
       return {
         html: processedHTML,
         css: css
       };
     } else {
       // Template HTML não encontrado ou vazio - NÃO usar fallback, lançar erro
-      const errorMessage = templateHTML.exists 
+      const errorMessage = templateHTML.exists
         ? `Template HTML '${templateType}' existe na API mas está vazio. Verifique o conteúdo do template.`
         : `Template HTML '${templateType}' não encontrado na API. Certifique-se de que o template foi salvo corretamente.`;
-      
+
       logger.error(`[templateProcessor] ❌ ${errorMessage}`, {
         templateType,
         exists: templateHTML.exists,
         hasHtml: !!templateHTML.html,
         htmlLength: templateHTML.html?.length || 0
       });
-      
+
       throw new Error(errorMessage);
     }
-      } catch (error) {
+  } catch (error) {
     // Se já for um Error que lançamos, re-lançar
     if (error instanceof Error) {
       throw error;

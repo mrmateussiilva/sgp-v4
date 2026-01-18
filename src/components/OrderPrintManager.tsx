@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { OrderItem, OrderWithItems } from '../types';
 import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { 
+import {
   baixarRelatorioResumoPDF
 } from '../utils/pdfReportAdapter';
 import { printOrderServiceForm } from '@/utils/printOrderServiceForm';
@@ -66,7 +66,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   // Salvar em PDF usando PDFMake
   const handleSavePDF = async () => {
     if (!order) return;
-    
+
     setIsGenerating(true);
     try {
       const reorderedOrder = getReorderedOrder();
@@ -80,7 +80,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         .replace(/[^a-zA-Z0-9-_]+/g, '-');
       const filename = `Pedido-${sanitizedIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
 
-      // Usar PDFMake para gerar PDF (3 itens por página, layout profissional)
+      // Usar PDFMake para gerar PDF (2 itens por página, layout profissional)
       await baixarRelatorioResumoPDF(reorderedOrder, orderedItems, filename);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -93,14 +93,14 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   // Imprimir usando HTML + window.print() (abre seletor de impressora no WebView/Tauri)
   const handlePrint = async () => {
     if (!order) return;
-    
+
     setIsGenerating(true);
     try {
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Usa template HTML da API e chama window.print() automaticamente
-      // 'resumo' = layout compacto (1/3 A4); altere para 'geral' se quiser A4 completo
+      // Uses template HTML da API e chama window.print() automaticamente
+      // 'resumo' = layout compacto (1/2 A4); altere para 'geral' se quiser A4 completo
       await printOrderServiceForm(reorderedOrder, 'resumo', orderedItems);
     } catch (error) {
       console.error('Erro ao imprimir:', error);

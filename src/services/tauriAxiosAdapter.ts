@@ -3,22 +3,40 @@ import { AxiosError } from 'axios';
 import { fetch } from '@tauri-apps/plugin-http';
 import { isTauri } from '@/utils/isTauri';
 
+let fallbackBaseUrl = '';
+
+/**
+ * Define uma URL base de fallback caso não seja fornecida no config do Axios.
+ * Útil para situações onde o merge do Axios falha ou em chamadas diretas.
+ */
+export function setAdapterFallbackBaseUrl(url: string): void {
+  fallbackBaseUrl = url;
+}
+
 function resolveUrl(config: AxiosRequestConfig): string {
   let { url = '', baseURL } = config;
 
+  // Usar fallback se baseURL do config estiver ausente
+  const effectiveBaseUrl = baseURL || fallbackBaseUrl;
+
   // Primeiro, resolver a URL base
   if (!/^https?:\/\//i.test(url)) {
-    if (baseURL) {
+    if (effectiveBaseUrl) {
+      // Garantir que baseURL tenha protocolo
+      const baseWithProtocol = /^https?:\/\//i.test(effectiveBaseUrl) ? effectiveBaseUrl : `http://${effectiveBaseUrl}`;
+
       try {
-        // Tentar construir URL usando URL constructor
-        const fullUrl = new URL(url, baseURL);
+        // Garantir que a URL relativa não comece com / se a base termina com / (ou vice-versa)
+        // O construtor URL lida bem com isso se url começar com /
+        const normalizedRelUrl = url.startsWith('/') ? url : `/${url}`;
+        const fullUrl = new URL(normalizedRelUrl, baseWithProtocol);
         url = fullUrl.toString();
       } catch (error) {
         // Se falhar, fazer concatenação manual mais robusta
-        const trimmedBase = baseURL.replace(/\/+$/, '');
+        const trimmedBase = baseWithProtocol.replace(/\/+$/, '');
         const trimmedUrl = url.replace(/^\/+/, '');
         const combined = `${trimmedBase}/${trimmedUrl}`;
-        
+
         // Validar se a URL resultante é válida
         try {
           new URL(combined);
@@ -26,10 +44,14 @@ function resolveUrl(config: AxiosRequestConfig): string {
         } catch {
           // Se ainda falhar, retornar a URL combinada mesmo assim
           // O fetch do Tauri pode aceitar URLs relativas
-          console.warn('URL construction warning:', { baseURL, url: url, combined, error });
+          console.warn('[tauriAxiosAdapter] ⚠️ Falha ao construir URL usando URL():', { baseURL: effectiveBaseUrl, url, combined, error });
           url = combined;
         }
       }
+    } else {
+      // Se não houver baseURL e a URL for relativa, lançar erro mais descritivo
+      console.error('[tauriAxiosAdapter] ❌ Requisição relativa detectada sem baseURL configurada:', { url });
+      throw new Error(`Configuração de API ausente. Não foi possível resolver a URL alvo: ${url}. Verifique se a URL base da API foi configurada corretamente.`);
     }
   }
 
@@ -64,7 +86,7 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
   const method = (config.method ?? 'GET').toUpperCase();
-  
+
   // Log para debug de query parameters
   if (config.params && Object.keys(config.params).length > 0) {
     console.log('[tauriAxiosAdapter] 📡 Query params:', config.params, 'URL final:', url);
@@ -75,7 +97,7 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     const headerObj = (config.headers && typeof (config.headers as any).toJSON === 'function')
       ? (config.headers as any).toJSON()
       : { ...(config.headers as Record<string, string> | undefined) };
-    
+
     Object.entries(headerObj).forEach(([key, value]) => {
       // Não definir Content-Type para FormData - o fetch/Tauri define automaticamente
       if (value !== undefined && value !== null && !(key.toLowerCase() === 'content-type' && config.data instanceof FormData)) {

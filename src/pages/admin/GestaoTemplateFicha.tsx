@@ -96,7 +96,7 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
 const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   title: 'FICHA DE SERVIÇO - RESUMO PRODUÇÃO',
   width: 187, // Largura do template resumo
-  height: 92, // Altura do template resumo
+  height: 140, // Altura do template resumo (2 por página A4)
   marginTop: 1,
   marginBottom: 1,
   marginLeft: 2,
@@ -106,79 +106,79 @@ const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
     // Coluna 1: ID e Cliente
     { id: 'numero_resumo', type: 'text', label: '#', key: 'numero', x: 2, y: 2, width: 12, height: 5, fontSize: 9, bold: true, visible: true, editable: true },
     { id: 'cliente_resumo', type: 'text', label: 'Cliente:', key: 'cliente', x: 15, y: 2, width: 50, height: 5, fontSize: 8, bold: true, visible: true, editable: true },
-    
+
     // Coluna 2: Tipo e Descrição
     { id: 'tipo_item', type: 'text', label: 'Tipo:', key: 'tipo_producao', x: 67, y: 2, width: 35, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'descricao_item', type: 'text', label: 'Desc:', key: 'item_name', x: 104, y: 2, width: 50, height: 5, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Coluna 3: Quantidade
     { id: 'quantidade_item', type: 'number', label: 'Qtd:', key: 'quantity', x: 156, y: 2, width: 15, height: 5, fontSize: 8, bold: false, visible: true, editable: true },
-    
+
     // Coluna 4: Imagem (pequena, fixa - lado direito)
     { id: 'imagem_item', type: 'image', label: '', key: 'imagem', x: 173, y: 2, width: 12, height: 34, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 2 (y: 8-12mm)
     // Coluna 1: Telefone e Cidade
     { id: 'telefone_resumo', type: 'text', label: 'Tel:', key: 'telefone_cliente', x: 2, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'cidade_resumo', type: 'text', label: 'Cidade:', key: 'cidade_estado', x: 39, y: 8, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Coluna 2: Vendedor e Designer
     { id: 'vendedor_resumo', type: 'text', label: 'Vend:', key: 'vendedor', x: 76, y: 8, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'designer_resumo', type: 'text', label: 'Des:', key: 'designer', x: 108, y: 8, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Coluna 3: Tecido
     { id: 'tecido_resumo', type: 'text', label: 'Tecido:', key: 'tecido', x: 140, y: 8, width: 45, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 3 (y: 13-17mm)
     // Dimensões
     { id: 'dimensoes_resumo', type: 'text', label: 'Dimensões:', key: 'dimensoes', x: 2, y: 13, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'metro_quadrado_resumo', type: 'text', label: 'm²:', key: 'metro_quadrado', x: 44, y: 13, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Acabamentos
     { id: 'tipo_acabamento_resumo', type: 'text', label: 'Acab:', key: 'tipo_acabamento', x: 66, y: 13, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'overloque_resumo', type: 'text', label: 'Overloque:', key: 'overloque', x: 98, y: 13, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'elastico_resumo', type: 'text', label: 'Elástico:', key: 'elastico', x: 125, y: 13, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'emenda_resumo', type: 'text', label: 'Emenda:', key: 'emenda', x: 152, y: 13, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'emenda_qtd_resumo', type: 'text', label: 'Qtd:', key: 'emenda_qtd', x: 174, y: 13, width: 11, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 4 (y: 18-22mm)
     // Ilhós
     { id: 'quantidade_ilhos_resumo', type: 'text', label: 'Ilhós Qtd:', key: 'quantidade_ilhos', x: 2, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'espaco_ilhos_resumo', type: 'text', label: 'Esp:', key: 'espaco_ilhos', x: 29, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Cordinha
     { id: 'quantidade_cordinha_resumo', type: 'text', label: 'Cord Qtd:', key: 'quantidade_cordinha', x: 51, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'espaco_cordinha_resumo', type: 'text', label: 'Esp:', key: 'espaco_cordinha', x: 78, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Campos booleanos
     { id: 'ziper_resumo', type: 'text', label: 'Zíper:', key: 'ziper', x: 100, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'cordinha_extra_resumo', type: 'text', label: 'Cord Extra:', key: 'cordinha_extra', x: 122, y: 18, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'alcinha_resumo', type: 'text', label: 'Alcinha:', key: 'alcinha', x: 149, y: 18, width: 20, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'toalha_pronta_resumo', type: 'text', label: 'Toalha:', key: 'toalha_pronta', x: 171, y: 18, width: 14, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 5 (y: 23-27mm)
     // Painéis
     { id: 'quantidade_paineis_resumo', type: 'text', label: 'Painéis Qtd:', key: 'quantidade_paineis', x: 2, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Lona
     { id: 'terceirizado_resumo', type: 'text', label: 'Terceirizado:', key: 'terceirizado', x: 34, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'acabamento_lona_resumo', type: 'text', label: 'Acab Lona:', key: 'acabamento_lona', x: 66, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'quantidade_lona_resumo', type: 'text', label: 'Lona Qtd:', key: 'quantidade_lona', x: 98, y: 23, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Totem
     { id: 'acabamento_totem_resumo', type: 'text', label: 'Acab Totem:', key: 'acabamento_totem', x: 125, y: 23, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'acabamento_totem_outro_resumo', type: 'text', label: 'Totem Outro:', key: 'acabamento_totem_outro', x: 157, y: 23, width: 28, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 6 (y: 28-32mm)
     // Totem e Adesivo
     { id: 'quantidade_totem_resumo', type: 'text', label: 'Totem Qtd:', key: 'quantidade_totem', x: 2, y: 28, width: 25, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'tipo_adesivo_resumo', type: 'text', label: 'Tipo Adesivo:', key: 'tipo_adesivo', x: 29, y: 28, width: 35, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'quantidade_adesivo_resumo', type: 'text', label: 'Adesivo Qtd:', key: 'quantidade_adesivo', x: 66, y: 28, width: 30, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // Entrega e Observações
     { id: 'entrega_resumo', type: 'text', label: 'Entrega:', key: 'forma_envio', x: 98, y: 28, width: 40, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
     { id: 'observacao_resumo', type: 'text', label: 'Obs:', key: 'observacao_item', x: 140, y: 28, width: 45, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
-    
+
     // FAIXA HORIZONTAL - Linha 7 (y: 33-37mm) - Legenda da imagem
     { id: 'legenda_imagem_resumo', type: 'text', label: 'Legenda:', key: 'legenda_imagem', x: 2, y: 33, width: 183, height: 4, fontSize: 7, bold: false, visible: true, editable: true },
   ],
@@ -307,7 +307,7 @@ export default function GestaoTemplateFicha() {
         api.getFichaTemplateHTML('geral'),
         api.getFichaTemplateHTML('resumo'),
       ]);
-      
+
       setHtmlContent({
         geral: geralHTML.html || '',
         resumo: resumoHTML.html || '',
@@ -333,7 +333,7 @@ export default function GestaoTemplateFicha() {
         geral: htmlContent.geral || '',
         resumo: htmlContent.resumo || '',
       });
-      
+
       toast({
         title: 'Sucesso',
         description: 'Template HTML salvo com sucesso!',
@@ -381,16 +381,16 @@ export default function GestaoTemplateFicha() {
       setTemplates(normalized);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
       setHasChanges(false);
-      
+
       // IMPORTANTE: Preservar HTML editado manualmente - só gerar se não existir
       try {
         // Verificar se já existe HTML editado manualmente
         const resumoHTMLExistente = await api.getFichaTemplateHTML('resumo');
         const geralHTMLExistente = await api.getFichaTemplateHTML('geral');
-        
+
         // A API espera strings (mesmo que vazias) para ambos os templates.
         const htmlToSave: { geral: string; resumo: string } = { geral: '', resumo: '' };
-        
+
         // Resumo: não gerar template local automaticamente.
         // O projeto usa apenas templates da API; se não existir, o usuário deve configurar na API.
         if (!resumoHTMLExistente.exists || !resumoHTMLExistente.html || resumoHTMLExistente.html.trim().length === 0) {
@@ -398,7 +398,7 @@ export default function GestaoTemplateFicha() {
         } else {
           console.log('[saveTemplates] ✅ HTML editado manualmente encontrado para resumo - preservando');
         }
-        
+
         if (!geralHTMLExistente.exists || !geralHTMLExistente.html || geralHTMLExistente.html.trim().length === 0) {
           // Para geral, usar o HTML gerado do JSON (só se não existir editado)
           const { generateTemplatesHTML } = await import('@/utils/generateTemplateHTML');
@@ -407,18 +407,18 @@ export default function GestaoTemplateFicha() {
         } else {
           console.log('[saveTemplates] ⚠️ HTML editado manualmente encontrado para geral - preservando');
         }
-        
+
         // Só salvar se houver algo para salvar
         if (htmlToSave.geral || htmlToSave.resumo) {
           await api.saveFichaTemplatesHTML(htmlToSave);
-          
+
           const messages = [];
           if (htmlToSave.resumo) messages.push('HTML gerado para resumo');
           if (htmlToSave.geral) messages.push('HTML gerado para geral');
           const preserved = [];
           if (resumoHTMLExistente.exists && resumoHTMLExistente.html) preserved.push('resumo');
           if (geralHTMLExistente.exists && geralHTMLExistente.html) preserved.push('geral');
-          
+
           toast({
             title: 'Sucesso',
             description: `Templates salvos! ${messages.join(', ')}.${preserved.length > 0 ? ` HTML editado manualmente preservado para: ${preserved.join(', ')}.` : ''}`,
@@ -538,10 +538,10 @@ export default function GestaoTemplateFicha() {
   }, [selectedField, template, templates, currentTemplateType, toast, hasChanges, saveTemplates, handleDeleteField, editMode, htmlHasChanges, saveHTMLTemplate]);
 
   const resetCurrentTemplate = () => {
-    const defaultTemplate = currentTemplateType === 'geral' 
-      ? TEMPLATE_GERAL_DEFAULT 
+    const defaultTemplate = currentTemplateType === 'geral'
+      ? TEMPLATE_GERAL_DEFAULT
       : TEMPLATE_RESUMO_DEFAULT;
-    
+
     setTemplates({
       ...templates,
       [currentTemplateType]: applyTemplateDefaults(defaultTemplate, defaultTemplate),
@@ -587,7 +587,7 @@ export default function GestaoTemplateFicha() {
     setSelectedField(null);
     setHasChanges(false);
     setHtmlHasChanges(false);
-    
+
     // Se estiver no modo HTML, recarregar HTML do novo template
     if (editMode === 'html') {
       await loadHTMLTemplates();
@@ -598,7 +598,7 @@ export default function GestaoTemplateFicha() {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('text/plain', fieldType);
     e.dataTransfer.setData('application/x-field-type', fieldType);
-    
+
     // Criar uma imagem de preview personalizada
     const fieldLabel = AVAILABLE_FIELDS.find(f => f.id === fieldType)?.label || 'Campo';
     const dragImage = document.createElement('div');
@@ -626,7 +626,7 @@ export default function GestaoTemplateFicha() {
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
     setIsDraggingOver(true);
-    
+
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -648,7 +648,7 @@ export default function GestaoTemplateFicha() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Tentar obter o dado de múltiplas formas para garantir compatibilidade
     const fieldId = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('application/x-field-type');
     if (!fieldId || !canvasRef.current) {
@@ -659,10 +659,10 @@ export default function GestaoTemplateFicha() {
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const currentScale = zoomLevel / 100;
-    
+
     const xPx = e.clientX - canvasRect.left;
     const yPx = e.clientY - canvasRect.top;
-    
+
     let xMm = pxToMm(xPx / currentScale);
     let yMm = pxToMm(yPx / currentScale);
 
@@ -709,7 +709,7 @@ export default function GestaoTemplateFicha() {
     setSelectedField(uniqueId);
     setIsDraggingOver(false);
     setDragPosition(null);
-    
+
     toast({
       title: 'Campo Adicionado',
       description: `${fieldTemplate.label} foi adicionado à ficha.`,
@@ -787,7 +787,7 @@ export default function GestaoTemplateFicha() {
       [currentTemplateType]: {
         ...prev[currentTemplateType],
         fields: prev[currentTemplateType].fields.map((f) =>
-          f.id === fieldId 
+          f.id === fieldId
             ? { ...f, width: finalWidth, height: finalHeight, x: Math.max(0, finalX), y: Math.max(0, finalY) }
             : f
         ),
@@ -832,11 +832,11 @@ export default function GestaoTemplateFicha() {
         const containerHeight = container.clientHeight - 32;
         const pageWidth = mmToPx(canvasWidth);
         const pageHeight = mmToPx(canvasHeight);
-        
+
         const scaleX = containerWidth / pageWidth;
         const scaleY = containerHeight / pageHeight;
         const fitScale = Math.min(scaleX, scaleY, 0.95) * 100; // 95% para dar um pouco de margem
-        
+
         setZoomLevel(Math.max(25, Math.min(200, fitScale)));
       }
     }
@@ -925,21 +925,21 @@ export default function GestaoTemplateFicha() {
         <div className="p-3 border-b border-gray-200 bg-gray-50">
           <h3 className="text-sm font-semibold text-gray-900">Painel de Campos</h3>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {/* Seleção de Template */}
           <div>
             <Label className="text-xs font-semibold text-gray-700 mb-2 block">Template</Label>
             <Tabs value={currentTemplateType} onValueChange={(v) => handleTemplateTypeChange(v as TemplateType)}>
               <TabsList className="grid w-full grid-cols-2 h-8 bg-gray-100 border border-gray-200">
-                <TabsTrigger 
-                  value="geral" 
+                <TabsTrigger
+                  value="geral"
                   className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-gray-600"
                 >
                   Geral
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="resumo" 
+                <TabsTrigger
+                  value="resumo"
                   className="text-xs data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm text-gray-600"
                 >
                   Resumo
@@ -1033,249 +1033,249 @@ export default function GestaoTemplateFicha() {
                   <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
                 )}
               </div>
-          
-          <div className="flex items-center gap-1">
-            {/* Controles de Zoom */}
-            <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
-                onClick={handleZoomOut} 
-                title="Diminuir zoom (Ctrl + Scroll)"
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-              <div className="min-w-[50px] text-center text-xs font-medium text-gray-700">
-                {zoomLevel}%
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
-                onClick={handleZoomIn} 
-                title="Aumentar zoom (Ctrl + Scroll)"
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
-                onClick={handleZoomReset} 
-                title="Resetar zoom (50%)"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900" 
-                onClick={handleZoomFit} 
-                title="Ajustar à tela"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            
-            <Button 
-              variant="ghost" 
-              onClick={resetCurrentTemplate} 
-              size="sm" 
-              className="h-7 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            >
-              Restaurar
-            </Button>
-          </div>
-        </div>
 
-        {/* Área de Edição Visual - Canvas */}
-        <div 
-          className="flex-1 overflow-auto p-4 bg-gray-200 flex items-center justify-center"
-          onWheel={handleWheelZoom}
-        >
-          <div
-            ref={canvasRef}
-            className={cn(
-              "bg-white shadow-2xl relative transition-all",
-              isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-gray-200 ring-opacity-75"
-            )}
-            style={{
-              width: `${mmToPx(canvasWidth) * currentScale}px`,
-              height: `${mmToPx(canvasHeight) * currentScale}px`,
-              minWidth: `${mmToPx(canvasWidth) * currentScale}px`,
-              minHeight: `${mmToPx(canvasHeight) * currentScale}px`,
-              backgroundImage: showGrid 
-                ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)` 
-                : 'none',
-              backgroundSize: `${mmToPx(GRID_SIZE) * currentScale}px ${mmToPx(GRID_SIZE) * currentScale}px`,
-            }}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              setIsDraggingOver(true);
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setSelectedField(null);
-              }
-            }}
-          >
-            {/* Indicador de posição durante drag - Estilo Photoshop */}
-            {isDraggingOver && dragPosition && (
+              <div className="flex items-center gap-1">
+                {/* Controles de Zoom */}
+                <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={handleZoomOut}
+                    title="Diminuir zoom (Ctrl + Scroll)"
+                  >
+                    <ZoomOut className="h-3.5 w-3.5" />
+                  </Button>
+                  <div className="min-w-[50px] text-center text-xs font-medium text-gray-700">
+                    {zoomLevel}%
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={handleZoomIn}
+                    title="Aumentar zoom (Ctrl + Scroll)"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={handleZoomReset}
+                    title="Resetar zoom (50%)"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={handleZoomFit}
+                    title="Ajustar à tela"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  onClick={resetCurrentTemplate}
+                  size="sm"
+                  className="h-7 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  Restaurar
+                </Button>
+              </div>
+            </div>
+
+            {/* Área de Edição Visual - Canvas */}
+            <div
+              className="flex-1 overflow-auto p-4 bg-gray-200 flex items-center justify-center"
+              onWheel={handleWheelZoom}
+            >
               <div
-                className="absolute pointer-events-none z-50"
+                ref={canvasRef}
+                className={cn(
+                  "bg-white shadow-2xl relative transition-all",
+                  isDraggingOver && "ring-2 ring-blue-500 ring-offset-4 ring-offset-gray-200 ring-opacity-75"
+                )}
                 style={{
-                  left: `${dragPosition.x}px`,
-                  top: `${dragPosition.y}px`,
-                  transform: 'translate(-50%, -50%)',
+                  width: `${mmToPx(canvasWidth) * currentScale}px`,
+                  height: `${mmToPx(canvasHeight) * currentScale}px`,
+                  minWidth: `${mmToPx(canvasWidth) * currentScale}px`,
+                  minHeight: `${mmToPx(canvasHeight) * currentScale}px`,
+                  backgroundImage: showGrid
+                    ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)`
+                    : 'none',
+                  backgroundSize: `${mmToPx(GRID_SIZE) * currentScale}px ${mmToPx(GRID_SIZE) * currentScale}px`,
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOver(true);
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setSelectedField(null);
+                  }
                 }}
               >
-                <div className="relative">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full ring-2 ring-white shadow-lg animate-pulse" />
-                  {snapToGridEnabled && (
-                    <div
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                      style={{
-                        width: `${mmToPx(GRID_SIZE) * currentScale}px`,
-                        height: `${mmToPx(GRID_SIZE) * currentScale}px`,
-                        border: '1px dashed rgba(59, 130, 246, 0.5)',
-                        borderRadius: '2px',
-                        background: 'rgba(59, 130, 246, 0.15)',
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-            {template.fields.map((field) => {
-              // Template já está na orientação correta (horizontal), sem transformações
-              return (
-                <FieldEditor
-                  key={field.id}
-                  field={field}
-                  scale={currentScale}
-                  isSelected={selectedField === field.id}
-                  onSelect={(e) => handleFieldClick(field.id, e)}
-                  onMove={(x, y) => {
-                    handleFieldMove(field.id, x, y);
-                  }}
-                  onResize={(handle, w, h, dx, dy) => {
-                    handleFieldResize(field.id, handle, w, h, dx, dy);
-                  }}
-                  onDelete={() => handleDeleteField(field.id)}
-                  onImageUpload={(file) => handleImageUpload(field.id, file)}
-                  onUpdate={(prop, value) => {
-                    updateFieldProperty(field.id, prop, value);
-                  }}
-                />
-              );
-            })}
-            
-            {/* Popup de Propriedades Flutuante */}
-            {selectedField && (() => {
-              const selectedFieldData = template.fields.find((f) => f.id === selectedField);
-              if (!selectedFieldData) return null;
-              
-              // Coordenadas diretas (template já está na orientação correta)
-              const fieldX = mmToPx(selectedFieldData.x) * currentScale;
-              const fieldY = mmToPx(selectedFieldData.y) * currentScale;
-              const fieldWidth = mmToPx(selectedFieldData.width) * currentScale;
-              const fieldHeight = mmToPx(selectedFieldData.height) * currentScale;
-              
-              // Posicionar popup acima do campo se houver espaço, senão abaixo
-              const popupX = fieldX + fieldWidth / 2;
-              const spaceAbove = fieldY;
-              const spaceBelow = (mmToPx(canvasHeight) * currentScale) - (fieldY + fieldHeight);
-              const showAbove = spaceAbove > 80 || spaceAbove > spaceBelow;
-              const popupY = showAbove ? fieldY - 8 : fieldY + fieldHeight + 8;
-              
-              return (
-                <div
-                  className="absolute z-50 bg-white border border-gray-300 rounded-md shadow-2xl p-2 pointer-events-auto"
-                  style={{
-                    left: `${popupX}px`,
-                    top: `${popupY}px`,
-                    transform: showAbove ? 'translate(-50%, -100%)' : 'translateX(-50%)',
-                    width: '160px',
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="space-y-1.5">
-                    <div className="text-[10px] font-semibold text-gray-700 mb-1 pb-1 border-b border-gray-200 truncate">
-                      {selectedFieldData.label}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-1">
-                      <div>
-                        <Label htmlFor="popup-x" className="text-[9px] text-gray-600 mb-0.5 block">X</Label>
-                        <Input
-                          id="popup-x"
-                          type="number"
-                          step="0.1"
-                          value={selectedFieldData.x.toFixed(1)}
-                          onChange={(e) => {
-                            const newValue = Number(e.target.value);
-                            updateFieldProperty(selectedField, 'x', newValue);
+                {/* Indicador de posição durante drag - Estilo Photoshop */}
+                {isDraggingOver && dragPosition && (
+                  <div
+                    className="absolute pointer-events-none z-50"
+                    style={{
+                      left: `${dragPosition.x}px`,
+                      top: `${dragPosition.y}px`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  >
+                    <div className="relative">
+                      <div className="w-4 h-4 bg-blue-500 rounded-full ring-2 ring-white shadow-lg animate-pulse" />
+                      {snapToGridEnabled && (
+                        <div
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                          style={{
+                            width: `${mmToPx(GRID_SIZE) * currentScale}px`,
+                            height: `${mmToPx(GRID_SIZE) * currentScale}px`,
+                            border: '1px dashed rgba(59, 130, 246, 0.5)',
+                            borderRadius: '2px',
+                            background: 'rgba(59, 130, 246, 0.15)',
                           }}
-                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="popup-y" className="text-[9px] text-gray-600 mb-0.5 block">Y</Label>
-                        <Input
-                          id="popup-y"
-                          type="number"
-                          step="0.1"
-                          value={selectedFieldData.y.toFixed(1)}
-                          onChange={(e) => {
-                            const newValue = Number(e.target.value);
-                            updateFieldProperty(selectedField, 'y', newValue);
-                          }}
-                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-1">
-                      <div>
-                        <Label htmlFor="popup-w" className="text-[9px] text-gray-600 mb-0.5 block">Larg</Label>
-                        <Input
-                          id="popup-w"
-                          type="number"
-                          step="0.1"
-                          value={selectedFieldData.width.toFixed(1)}
-                          onChange={(e) => {
-                            const value = Number(e.target.value);
-                            updateFieldProperty(selectedField, 'width', value);
-                          }}
-                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="popup-h" className="text-[9px] text-gray-600 mb-0.5 block">Alt</Label>
-                        <Input
-                          id="popup-h"
-                          type="number"
-                          step="0.1"
-                          value={selectedFieldData.height.toFixed(1)}
-                          onChange={(e) => {
-                            const value = Number(e.target.value);
-                            updateFieldProperty(selectedField, 'height', value);
-                          }}
-                          className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
-                        />
-                      </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-        </>
+                )}
+                {template.fields.map((field) => {
+                  // Template já está na orientação correta (horizontal), sem transformações
+                  return (
+                    <FieldEditor
+                      key={field.id}
+                      field={field}
+                      scale={currentScale}
+                      isSelected={selectedField === field.id}
+                      onSelect={(e) => handleFieldClick(field.id, e)}
+                      onMove={(x, y) => {
+                        handleFieldMove(field.id, x, y);
+                      }}
+                      onResize={(handle, w, h, dx, dy) => {
+                        handleFieldResize(field.id, handle, w, h, dx, dy);
+                      }}
+                      onDelete={() => handleDeleteField(field.id)}
+                      onImageUpload={(file) => handleImageUpload(field.id, file)}
+                      onUpdate={(prop, value) => {
+                        updateFieldProperty(field.id, prop, value);
+                      }}
+                    />
+                  );
+                })}
+
+                {/* Popup de Propriedades Flutuante */}
+                {selectedField && (() => {
+                  const selectedFieldData = template.fields.find((f) => f.id === selectedField);
+                  if (!selectedFieldData) return null;
+
+                  // Coordenadas diretas (template já está na orientação correta)
+                  const fieldX = mmToPx(selectedFieldData.x) * currentScale;
+                  const fieldY = mmToPx(selectedFieldData.y) * currentScale;
+                  const fieldWidth = mmToPx(selectedFieldData.width) * currentScale;
+                  const fieldHeight = mmToPx(selectedFieldData.height) * currentScale;
+
+                  // Posicionar popup acima do campo se houver espaço, senão abaixo
+                  const popupX = fieldX + fieldWidth / 2;
+                  const spaceAbove = fieldY;
+                  const spaceBelow = (mmToPx(canvasHeight) * currentScale) - (fieldY + fieldHeight);
+                  const showAbove = spaceAbove > 80 || spaceAbove > spaceBelow;
+                  const popupY = showAbove ? fieldY - 8 : fieldY + fieldHeight + 8;
+
+                  return (
+                    <div
+                      className="absolute z-50 bg-white border border-gray-300 rounded-md shadow-2xl p-2 pointer-events-auto"
+                      style={{
+                        left: `${popupX}px`,
+                        top: `${popupY}px`,
+                        transform: showAbove ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+                        width: '160px',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] font-semibold text-gray-700 mb-1 pb-1 border-b border-gray-200 truncate">
+                          {selectedFieldData.label}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1">
+                          <div>
+                            <Label htmlFor="popup-x" className="text-[9px] text-gray-600 mb-0.5 block">X</Label>
+                            <Input
+                              id="popup-x"
+                              type="number"
+                              step="0.1"
+                              value={selectedFieldData.x.toFixed(1)}
+                              onChange={(e) => {
+                                const newValue = Number(e.target.value);
+                                updateFieldProperty(selectedField, 'x', newValue);
+                              }}
+                              className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="popup-y" className="text-[9px] text-gray-600 mb-0.5 block">Y</Label>
+                            <Input
+                              id="popup-y"
+                              type="number"
+                              step="0.1"
+                              value={selectedFieldData.y.toFixed(1)}
+                              onChange={(e) => {
+                                const newValue = Number(e.target.value);
+                                updateFieldProperty(selectedField, 'y', newValue);
+                              }}
+                              className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1">
+                          <div>
+                            <Label htmlFor="popup-w" className="text-[9px] text-gray-600 mb-0.5 block">Larg</Label>
+                            <Input
+                              id="popup-w"
+                              type="number"
+                              step="0.1"
+                              value={selectedFieldData.width.toFixed(1)}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                updateFieldProperty(selectedField, 'width', value);
+                              }}
+                              className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="popup-h" className="text-[9px] text-gray-600 mb-0.5 block">Alt</Label>
+                            <Input
+                              id="popup-h"
+                              type="number"
+                              step="0.1"
+                              value={selectedFieldData.height.toFixed(1)}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                updateFieldProperty(selectedField, 'height', value);
+                              }}
+                              className="h-6 text-[11px] bg-white border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-1.5"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </>
         ) : (
           /* Modo de Edição HTML */
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -1292,9 +1292,9 @@ export default function GestaoTemplateFicha() {
                   <span className="text-xs text-amber-600 font-medium">● Não salvo</span>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Button 
+                <Button
                   variant="ghost"
                   onClick={loadHTMLTemplates}
                   disabled={htmlLoading}
@@ -1303,7 +1303,7 @@ export default function GestaoTemplateFicha() {
                 >
                   Recarregar
                 </Button>
-                <Button 
+                <Button
                   onClick={saveHTMLTemplate}
                   disabled={htmlLoading || !htmlHasChanges}
                   size="sm"
@@ -1336,9 +1336,9 @@ export default function GestaoTemplateFicha() {
               <Textarea
                 value={htmlContent[currentTemplateType] || ''}
                 onChange={(e) => {
-                  setHtmlContent(prev => ({ 
-                    ...prev, 
-                    [currentTemplateType]: e.target.value 
+                  setHtmlContent(prev => ({
+                    ...prev,
+                    [currentTemplateType]: e.target.value
                   }));
                   setHtmlHasChanges(true);
                 }}
@@ -1430,7 +1430,7 @@ function FieldEditor({
         } else if (isResizing) {
           const deltaX = pxToMm((e.clientX - resizeStart.x) / scale);
           const deltaY = pxToMm((e.clientY - resizeStart.y) / scale);
-          
+
           let newWidth = resizeStart.width;
           let newHeight = resizeStart.height;
           let deltaWidth = 0;
@@ -1488,12 +1488,12 @@ function FieldEditor({
     ) {
       return;
     }
-    
+
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-    setDragStart({ 
-      x: e.clientX, 
+    setDragStart({
+      x: e.clientX,
       y: e.clientY,
       fieldX: field.x,
       fieldY: field.y,
@@ -1534,8 +1534,8 @@ function FieldEditor({
     <div
       className={cn(
         "absolute border-2 cursor-move transition-all group",
-        isSelected 
-          ? "border-blue-500 bg-blue-50/50 z-10 shadow-lg shadow-blue-500/20" 
+        isSelected
+          ? "border-blue-500 bg-blue-50/50 z-10 shadow-lg shadow-blue-500/20"
           : "border-gray-300 hover:border-blue-400/70 z-0",
         isDragging && "shadow-xl shadow-blue-500/30 scale-[1.02]"
       )}
@@ -1568,7 +1568,7 @@ function FieldEditor({
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
-          
+
           {/* Resize handles - Estilo Photoshop */}
           {resizeHandles.map((handle) => (
             <div
@@ -1590,9 +1590,9 @@ function FieldEditor({
           ))}
         </>
       )}
-      
+
       {field.type === 'image' ? (
-        <div 
+        <div
           className="w-full h-full border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
@@ -1600,9 +1600,9 @@ function FieldEditor({
           }}
         >
           {field.imageUrl ? (
-            <img 
-              src={field.imageUrl} 
-              alt="Preview" 
+            <img
+              src={field.imageUrl}
+              alt="Preview"
               className="max-w-full max-h-full object-contain"
             />
           ) : (
@@ -1626,7 +1626,7 @@ function FieldEditor({
             minHeight: '20px',
           }}
         >
-          <span 
+          <span
             className="whitespace-nowrap select-none text-gray-900"
             style={{
               fontSize: `${(field.fontSize || 11) * scale}px`,

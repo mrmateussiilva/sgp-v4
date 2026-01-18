@@ -124,14 +124,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
   const { updateOrder: updateOrderInStore } = useOrderStore();
-  
+
 
   logger.debug('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
 
   // Detectar automaticamente se está em modo edição baseado na rota
   // Se routeOrderId existir, está em modo edição
   const isEditMode = mode === 'edit' || Boolean(routeOrderId);
-  
+
   // Calcular ID inicial de forma segura
   const getInitialId = () => {
     if (routeOrderId) {
@@ -140,19 +140,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
     return null;
   };
-  
+
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(getInitialId());
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>(TIPOS_PRODUCAO_FALLBACK);
 
-  logger.debug('[CreateOrderComplete] Estado inicial:', { 
-    mode, 
-    routeOrderId, 
-    isEditMode, 
-    selectedOrderId, 
-    isLoadingOrder, 
-    hasCurrentOrder: !!currentOrder 
+  logger.debug('[CreateOrderComplete] Estado inicial:', {
+    mode,
+    routeOrderId,
+    isEditMode,
+    selectedOrderId,
+    isLoadingOrder,
+    hasCurrentOrder: !!currentOrder
   });
 
   function createEmptyTab(tabId: string): TabItem {
@@ -240,10 +240,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const parsed = Number.parseFloat(normalized);
     if (Number.isNaN(parsed)) {
       return '0,00';
-  }
+    }
 
-  return parsed.toFixed(2).replace('.', ',');
-}
+    return parsed.toFixed(2).replace('.', ',');
+  }
 
   function formatCurrencyBR(value: number): string {
     return value.toLocaleString('pt-BR', {
@@ -264,16 +264,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return 0;
     }
     const compact = trimmed.replace(/\s+/g, '');
-    
+
     // Remove caracteres não numéricos exceto vírgula e ponto
     const cleaned = compact.replace(/[^\d,.-]/g, '');
-    
+
     // Encontra a posição da última vírgula e do último ponto
     const lastComma = cleaned.lastIndexOf(',');
     const lastDot = cleaned.lastIndexOf('.');
-    
+
     let normalized = cleaned;
-    
+
     // Se tem vírgula e ponto, determinar qual é o separador decimal
     if (lastComma > -1 && lastDot > -1) {
       // O separador decimal é o que aparece por último
@@ -291,7 +291,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       // Só tem ponto: tratar como separador decimal
       normalized = cleaned;
     }
-    
+
     const parsed = Number.parseFloat(normalized);
     return Number.isNaN(parsed) ? 0 : parsed;
   }
@@ -405,18 +405,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const portadorNome =
         isPortador
           ? rawFormaEnvio
-              .replace(/^portador\b/i, '')
-              .replace(/^(\s*[-:]\s*)/, '')
-              .trim()
+            .replace(/^portador\b/i, '')
+            .replace(/^(\s*[-:]\s*)/, '')
+            .trim()
           : '';
       const formaEnvioBase = isPortador ? 'Portador' : (order.forma_envio ?? '');
 
       const orderStatus = order.status ?? OrderStatus.Pendente;
       const isConcluido = orderStatus === OrderStatus.Concluido;
-      
+
       setIsLocked(isConcluido);
       setLocalStatus(orderStatus);
-      
+
       setFormData((prev) => ({
         ...prev,
         numero: order.numero ?? '',
@@ -510,20 +510,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateQuantity, setDuplicateQuantity] = useState('1');
   const [duplicateKeepImage, setDuplicateKeepImage] = useState(true);
-  
+
   // Estado para rastrear dados iniciais (para detectar mudanças)
   // Desabilitado - não usado atualmente (comentado no useEffect beforeunload)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_initialFormData, setInitialFormData] = useState(formData);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
-  
+
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
     // Desativado a pedido do usuário: não exibir popup de confirmação de saída
     navigate(path);
   };
-  
+
   // Prevenir fechamento da janela/aba se houver mudanças não salvas
   // useEffect(() => {
   //   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -543,12 +543,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Estados para validação de item
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [optionalWarnings, setOptionalWarnings] = useState<string[]>([]);
-  
+
   // Estado para controlar se a ficha está bloqueada (concluída)
   const [isLocked, setIsLocked] = useState(false);
   const [_localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
@@ -563,14 +563,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   // Campo de desconto desativado por padrão
   const descontoAtivo = false;
-  
+
   const [descontos] = useState([
     { id: 1, name: 'Sem Desconto', type: 'none', value: 0 },
     { id: 2, name: '5%', type: 'percentual', value: 5 },
     { id: 3, name: '10%', type: 'percentual', value: 10 },
     { id: 4, name: 'R$ 50,00', type: 'valor_fixo', value: 50 },
   ]);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const normalizeNomeList = (entries: Array<{ nome: string }>) => {
     const unique = new Set<string>();
@@ -618,7 +618,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           description: 'Este pedido foi atualizado em outra máquina. Recarregando dados...',
           variant: 'default',
         });
-        
+
         // Recarregar o pedido
         try {
           const updatedOrder = await api.getOrderById(orderId);
@@ -695,21 +695,21 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     // Carregar pedido pelo ID
     logger.debug('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
     setIsLoadingOrder(true);
-    
+
     (async () => {
       try {
         const order = await api.getOrderById(selectedOrderId);
         logger.debug('[CreateOrderComplete] Pedido carregado da API:', order);
-        
+
         if (!active) {
           logger.debug('[CreateOrderComplete] Componente desmontado, cancelando...');
           return;
         }
-        
+
         if (!order) {
           throw new Error('Pedido não encontrado');
         }
-        
+
         setCurrentOrder(order);
         logger.debug('[CreateOrderComplete] Populando formulário...');
         populateFormFromOrder(order);
@@ -805,7 +805,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const largura = parseLocaleNumber(currentData.largura);
       const altura = parseLocaleNumber(currentData.altura);
       const area = (largura * altura).toFixed(2).replace('.', ',');
-      
+
       // Atualizar área apenas se mudou
       if (currentData.metro_quadrado !== area) {
         handleTabDataChange(activeTab, 'metro_quadrado', area);
@@ -821,7 +821,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         // Calcular valor total do painel baseado nos campos específicos
         const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
         const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-        
+
         // Calcular valor dos ilhós se aplicável
         let valorIlhos = 0;
         if (item.tipo_acabamento === 'ilhos') {
@@ -829,7 +829,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
           valorIlhos = qtdIlhos * valorUnitIlhos;
         }
-        
+
         // Calcular valor da cordinha se aplicável
         let valorCordinha = 0;
         if (item.tipo_acabamento === 'cordinha') {
@@ -837,31 +837,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const valorUnitCordinha = parseLocaleNumber(item.valor_cordinha || '0,00');
           valorCordinha = qtdCordinha * valorUnitCordinha;
         }
-        
+
         // Calcular valor total
         const valorTotal = valorPainel + valoresAdicionais + valorIlhos + valorCordinha;
-        
+
         // Converter para formato brasileiro (sem multiplicar pela quantidade aqui)
         const valorFormatado = valorTotal.toFixed(2).replace('.', ',');
-        
+
         // Atualizar valor unitário apenas se mudou
         if (item.valor_unitario !== valorFormatado) {
           handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
         }
       }
     });
-  }, [
-    tabsData,
-    // Dependências específicas para painéis
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_painel),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.tipo_acabamento),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_ilhos),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_ilhos),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_cordinha),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_cordinha),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_paineis),
-  ]);
+  }, [tabsData]);
 
   // Calcular valor unitário automaticamente para totems
   useEffect(() => {
@@ -878,11 +867,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       }
     });
-  }, [
-    tabsData,
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_totem),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_totem),
-  ]);
+  }, [tabsData]);
 
   // Calcular valor unitário automaticamente para lonas
   useEffect(() => {
@@ -905,14 +890,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       }
     });
-  }, [
-    tabsData,
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_lona),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_lona),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.tipo_acabamento),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.quantidade_ilhos),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_ilhos),
-  ]);
+  }, [tabsData]);
 
   // Calcular valor unitário automaticamente para adesivos
   useEffect(() => {
@@ -929,11 +907,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       }
     });
-  }, [
-    tabsData,
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_adesivo),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.outros_valores_adesivo),
-  ]);
+  }, [tabsData]);
 
   // Calcular valor unitário automaticamente para cangas
   useEffect(() => {
@@ -950,11 +924,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       }
     });
-  }, [
-    tabsData,
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_canga),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
-  ]);
+  }, [tabsData]);
 
   // Calcular valor unitário automaticamente para impressão 3D
   useEffect(() => {
@@ -971,16 +941,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
       }
     });
-  }, [
-    tabsData,
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valor_impressao_3d),
-    ...Object.keys(tabsData).map(tabId => tabsData[tabId]?.valores_adicionais),
-  ]);
+  }, [tabsData]);
 
 
   // Funções de validação completas
   const validateClientData = () => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
 
     // Validar nome do cliente
     if (!formData.cliente || formData.cliente.trim().length < 2) {
@@ -1002,19 +968,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const validateDates = (dataEntrada: string, dataSaida: string): string | null => {
     if (!dataEntrada || !dataSaida) return null; // Campos opcionais
-    
+
     const entrada = new Date(dataEntrada);
     const saida = new Date(dataSaida);
-    
+
     if (entrada > saida) {
       return 'Data de entrada não pode ser maior que data de entrega';
     }
-    
+
     return null;
   };
 
   const validateItems = () => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
 
     // Verificar se há pelo menos um item preenchido
     const itensPreenchidos = tabs.filter(tabId => {
@@ -1053,12 +1019,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
         // Validar valor unitário
         const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
-        
+
         // Para painéis, verificar se pelo menos um campo de valor foi preenchido
         if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
           const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-          
+
           if (valorPainel <= 0 && valoresAdicionais <= 0) {
             errors[`item_${tabId}_valor`] = 'Preencha pelo menos o valor do painel ou valores adicionais';
           }
@@ -1133,7 +1099,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
   const validateShippingAndPayment = () => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
     const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
 
     // Validar forma de envio
@@ -1155,7 +1121,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
   const validateTotals = () => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
 
     // Calcular valor total dos itens
     const valorItens = calcularValorItens();
@@ -1179,7 +1145,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const totalErrors = validateTotals();
 
     // Validar datas
-    const dateErrors: {[key: string]: string} = {};
+    const dateErrors: { [key: string]: string } = {};
     if (formData.data_entrada && formData.data_entrega) {
       const dateError = validateDates(formData.data_entrada, formData.data_entrega);
       if (dateError) {
@@ -1257,7 +1223,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Validar campo em tempo real
     validateField(field, value);
   };
@@ -1332,7 +1298,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     for (let i = 0; i < quantity; i++) {
       const newTabId = `tab-${tabs.length + newTabs.length + 1}-${Date.now()}-${i}`;
       newTabs.push(newTabId);
-      
+
       // Duplicar todos os dados, opcionalmente manter a imagem
       newTabsDataEntries[newTabId] = {
         ...sourceData,
@@ -1361,10 +1327,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     // Ir para a primeira nova aba
     setActiveTab(newTabs[0]);
 
-    const imageMessage = keepImage 
-      ? 'com a mesma imagem.' 
+    const imageMessage = keepImage
+      ? 'com a mesma imagem.'
       : 'Altere a imagem de cada uma.';
-    
+
     toast({
       title: "Item duplicado",
       description: `${quantity} ${quantity === 1 ? 'cópia criada' : 'cópias criadas'} ${imageMessage}`,
@@ -1411,7 +1377,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
       const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
       const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-      
+
       if (valorPainel <= 0 && valoresAdicionais <= 0) {
         errors.push("Valor é obrigatório (preencha pelo menos o valor do painel ou valores adicionais)");
       }
@@ -1493,26 +1459,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
     }
 
-      if (item.tipo_producao === 'adesivo') {
-        const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
-        if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
-          errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
-        }
+    if (item.tipo_producao === 'adesivo') {
+      const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
+      if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
+        errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
       }
+    }
 
-      if (item.tipo_producao === 'canga') {
-        const quantidadeCanga = parseInt(item.quantidade_canga || '0', 10);
-        if (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0) {
-          errors.push("Quantidade de cangas é obrigatória e deve ser maior que zero");
-        }
+    if (item.tipo_producao === 'canga') {
+      const quantidadeCanga = parseInt(item.quantidade_canga || '0', 10);
+      if (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0) {
+        errors.push("Quantidade de cangas é obrigatória e deve ser maior que zero");
       }
+    }
 
-      if (item.tipo_producao === 'impressao_3d') {
-        const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0', 10);
-        if (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0) {
-          errors.push("Quantidade de impressões 3D é obrigatória e deve ser maior que zero");
-        }
+    if (item.tipo_producao === 'impressao_3d') {
+      const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0', 10);
+      if (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0) {
+        errors.push("Quantidade de impressões 3D é obrigatória e deve ser maior que zero");
       }
+    }
 
     // Campos opcionais - gerar avisos
     if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
@@ -1552,9 +1518,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const handleSaveItem = (tabId: string) => {
     const validation = validateItemComplete(tabId);
-    
+
     if (!validation) return;
-    
+
     if (validation.errors.length > 0) {
       // Mostrar modal de erros obrigatórios
       setValidationErrors(validation.errors);
@@ -1567,7 +1533,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       // Mostrar confirmação com avisos opcionais
       const warningsList = validation.warnings.map(w => `• ${w}`).join('\n');
       const confirmMessage = `Tem certeza que deseja salvar este item?\n\nAvisos:\n${warningsList}`;
-      
+
       confirm(confirmMessage, {
         title: "Confirmar Salvamento",
         variant: "warning",
@@ -1622,10 +1588,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const totalBruto = tabs.reduce((sum, tabId) => {
       const item = tabsData[tabId];
       if (!item || !item.tipo_producao || !item.descricao) return sum;
-      
+
       // Converter valor unitário corretamente
       const valor = parseLocaleNumber(item.valor_unitario || '0,00');
-      
+
       // Para painéis, considerar a quantidade
       if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
         const quantidade = parseInt(item.quantidade_paineis || '1');
@@ -1660,7 +1626,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         const quantidadeValida = Number.isNaN(quantidadeImpressao3DParse) || quantidadeImpressao3DParse <= 0 ? 1 : quantidadeImpressao3DParse;
         return sum + (valor * quantidadeValida);
       }
-      
+
       return sum + valor;
     }, 0);
 
@@ -1668,7 +1634,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     if (!descontoAtivo) {
       return totalBruto;
     }
-    
+
     const desconto = descontos.find(d => d.name === formData.desconto_tipo);
     if (desconto && desconto.type !== 'none') {
       if (desconto.type === 'percentual') {
@@ -1759,13 +1725,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const itemsWithLocalImages = items.filter(
       (item) => item.imagem && needsUpload(item.imagem)
     );
-    
+
     if (itemsWithLocalImages.length === 0) {
       return; // Nenhuma imagem para upload
     }
-    
+
     logger.debug(`[uploadImagesBeforeSave] Fazendo upload obrigatório de ${itemsWithLocalImages.length} imagens antes de salvar pedido`);
-    
+
     // Fazer uploads em paralelo - usar Promise.all para falhar rápido se algum falhar
     const uploadPromises = itemsWithLocalImages.map((item) => {
       if (!item.imagem) {
@@ -1774,10 +1740,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       // Usar orderItemId se disponível (edição), senão undefined (criação)
       return uploadImageToServer(item.imagem, item.orderItemId);
     });
-    
+
     try {
       const uploadResults = await Promise.all(uploadPromises);
-      
+
       // Atualizar referências nos items normalizados
       uploadResults.forEach((result, index) => {
         if (result.success && result.server_reference) {
@@ -1793,7 +1759,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           throw new Error(`Falha no upload da imagem ${index + 1}: ${error}`);
         }
       });
-      
+
       logger.debug(`[uploadImagesBeforeSave] ✅ Todas as ${uploadResults.length} imagens foram enviadas com sucesso`);
     } catch (error) {
       logger.error('[uploadImagesBeforeSave] ❌ Erro no upload obrigatório de imagens:', error);
@@ -2295,14 +2261,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setCurrentOrder(finalOrder);
         populateFormFromOrder(finalOrder);
         updateOrderInStore(finalOrder);
-        
+
         // Atualizar estado inicial após salvar com sucesso
         setInitialFormData(formData);
         setInitialTabsData(tabsData);
-        
+
         // Imagens já foram enviadas antes de salvar, então estão prontas
         logger.debug('[handleConfirmSave] ✅ Pedido atualizado com imagens já enviadas ao servidor');
-        
+
         navigate('/dashboard/orders');
         return;
       }
@@ -2419,7 +2385,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         </div>
       );
     }
-    
+
     // Se tem selectedOrderId mas está carregando ou não tem pedido ainda
     if (selectedOrderId) {
       if (isLoadingOrder || !currentOrder) {
@@ -2509,7 +2475,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           </div>
         </div>
       </div>
-      
+
       {/* 1. DADOS DO PEDIDO - Roxo */}
       <Card className="border-l-4 border-l-purple-500 bg-purple-50/30">
         <CardContent className="p-6 space-y-4">
@@ -2663,7 +2629,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               </Button>
             </div>
           </div>
-          
+
           {errors.items && (
             <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg">
               <p className="text-red-700 text-sm font-medium">{errors.items}</p>
@@ -2683,15 +2649,25 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                         )}
                       </div>
                       {tabs.length > 1 && (
-                        <button
+                        <span
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemoveTab(tabId);
                           }}
-                          className="ml-2 hover:bg-red-100 rounded-full p-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleRemoveTab(tabId);
+                            }
+                          }}
+                          className="ml-2 hover:bg-red-100 rounded-full p-1 cursor-pointer flex items-center justify-center"
+                          title="Remover item"
                         >
                           <X className="h-4 w-4 text-red-600" />
-                        </button>
+                        </span>
                       )}
                     </TabsTrigger>
                   </div>
@@ -2988,18 +2964,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                         </Select>
                       </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Valor Unitário (R$)</Label>
-                      <CurrencyInput
-                        value={tabsData[tabId]?.valor_unitario || '0,00'}
-                        onValueChange={(formatted) => handleTabDataChange(tabId, 'valor_unitario', formatted)}
-                        placeholder="0,00"
-                        className={`h-12 bg-white text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                      />
-                      {errors[`item_${tabId}_valor`] && (
-                        <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
-                      )}
-                    </div>
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Valor Unitário (R$)</Label>
+                        <CurrencyInput
+                          value={tabsData[tabId]?.valor_unitario || '0,00'}
+                          onValueChange={(formatted) => handleTabDataChange(tabId, 'valor_unitario', formatted)}
+                          placeholder="0,00"
+                          className={`h-12 bg-white text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                        />
+                        {errors[`item_${tabId}_valor`] && (
+                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Observações */}
@@ -3022,7 +2998,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                           <span>Mudanças não salvas</span>
                         </div>
                       )}
-                      
+
                       <div className="flex gap-4 ml-auto">
                         <Button
                           variant="outline"
@@ -3291,11 +3267,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               {tabs.map((tabId, index) => {
                 const item = tabsData[tabId];
                 if (!item?.tipo_producao) return null;
-                
+
                 // Calcular valor total do item considerando quantidade
                 const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
                 let valorTotalItem = valorUnitario;
-                
+
                 if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
                   const quantidade = parseInt(item.quantidade_paineis || '1');
                   valorTotalItem = valorUnitario * quantidade;
@@ -3315,9 +3291,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '1');
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0 ? 1 : quantidadeImpressao3D);
                 }
-                
+
                 const valorFormatado = formatCurrencyBR(valorTotalItem);
-                
+
                 return (
                   <div key={tabId} className="text-sm mb-2">
                     <strong>{index + 1}.</strong> {item.descricao} - {tiposProducao.find(t => t.value === item.tipo_producao)?.label}
@@ -3396,7 +3372,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               Crie cópias do item atual com os mesmos dados.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="duplicate-quantity" className="text-base font-medium">

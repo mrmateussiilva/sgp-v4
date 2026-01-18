@@ -169,9 +169,9 @@ function formatValue(value: unknown): string {
 }
 
 /**
- * Agrupa itens em páginas de 3
+ * Agrupa itens em páginas de 2
  */
-function agruparEmPaginas<T>(itens: T[], itensPorPagina: number = 3): T[][] {
+function agruparEmPaginas<T>(itens: T[], itensPorPagina: number = 2): T[][] {
   const paginas: T[][] = [];
   for (let i = 0; i < itens.length; i += itensPorPagina) {
     paginas.push(itens.slice(i, i + itensPorPagina));
@@ -429,8 +429,8 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
   // Imagem
   conteudo.push({
     image: imagemBase64,
-    width: 90,
-    height: 90,
+    width: 140,
+    height: 140,
     alignment: 'center',
     margin: [0, 0, 0, 5],
   });
@@ -529,7 +529,7 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
     columns: [
       Object.assign({}, colunaEsquerda, { width: '*' }),
       { width: 10, text: '' }, // Espaçador
-      Object.assign({}, colunaDireita, { width: 130 }),
+      Object.assign({}, colunaDireita, { width: 180 }),
     ],
   } as Content) : colunaEsquerda;
   
@@ -587,8 +587,8 @@ async function gerarPagina(itens: ItemRelatorio[], isLastPage: boolean): Promise
  * Gera definição do documento PDF
  */
 async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefinitions> {
-  // Agrupar itens em páginas de 3
-  const paginas = agruparEmPaginas(itens, 3);
+  // Agrupar itens em páginas de 2
+  const paginas = agruparEmPaginas(itens, 2);
   
   // Gerar conteúdo de cada página
   const conteudo: Content[] = [];

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle, Loader2, WifiOff, AlertTriangle } from 'lucide-react';
 import { loadConfig, saveConfig } from '@/utils/config';
-import { normalizeApiUrl, verifyApiConnection } from '@/services/apiClient';
+import { normalizeApiUrl, verifyApiConnection } from '@/api/client';
 
 interface ConfigApiProps {
   onConfigured: (url: string) => void;
@@ -174,15 +174,14 @@ export default function ConfigApi({ onConfigured }: ConfigApiProps) {
 
               {/* Status Message */}
               {status.message && (
-                <div className={`flex items-start gap-2 p-3 rounded-md mb-4 ${
-                  status.type === 'success'
+                <div className={`flex items-start gap-2 p-3 rounded-md mb-4 ${status.type === 'success'
                     ? 'bg-green-50 text-green-800 border border-green-200'
                     : status.type === 'error'
-                    ? 'bg-red-50 text-red-800 border border-red-200'
-                    : status.type === 'testing'
-                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                    : 'bg-slate-50 text-slate-800 border border-slate-200'
-                }`}>
+                      ? 'bg-red-50 text-red-800 border border-red-200'
+                      : status.type === 'testing'
+                        ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                        : 'bg-slate-50 text-slate-800 border border-slate-200'
+                  }`}>
                   {status.type === 'success' ? (
                     <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                   ) : status.type === 'error' ? (

@@ -1,4 +1,4 @@
-import { getApiUrl } from '@/services/apiClient';
+import { getApiUrl } from '@/api/client';
 import { useAuthStore } from '@/store/authStore';
 import { logger } from '@/utils/logger';
 
@@ -114,7 +114,7 @@ class OrdersWebSocketManager {
     // Se já existe um socket, verificar o estado
     if (this.socket) {
       const currentState = this.socket.readyState;
-      
+
       // Se está conectado ou conectando, não fazer nada (a menos que force reconnect)
       if (!forceReconnect && (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING)) {
         // Se a URL mudou, precisamos reconectar
@@ -124,7 +124,7 @@ class OrdersWebSocketManager {
           return; // Já está conectando ou conectado com a URL correta
         }
       }
-      
+
       // Se precisa reconectar, fechar o socket antigo de forma segura
       if (forceReconnect || (this.currentUrl && this.currentUrl !== wsUrl)) {
         // Se está conectando, aguardar um pouco antes de fechar
@@ -150,7 +150,7 @@ class OrdersWebSocketManager {
           }, 200);
           return;
         }
-        
+
         // Se está aberto, pode fechar normalmente
         try {
           if (currentState === WebSocket.OPEN) {
@@ -174,12 +174,12 @@ class OrdersWebSocketManager {
       if (import.meta.env.DEV) {
         logger.debug('🔌 Tentando conectar WebSocket:', wsUrl);
       }
-      
+
       this.socket = new WebSocket(wsUrl);
     } catch (error) {
       // Resetar flag de conexão em caso de erro
       this.isConnecting = false;
-      
+
       // Silenciar erros esperados de criação de WebSocket
       if (import.meta.env.DEV) {
         logger.warn('⚠️ Não foi possível criar conexão WebSocket:', error);
@@ -192,25 +192,25 @@ class OrdersWebSocketManager {
       // Resetar flag de conexão e contador de falhas
       this.isConnecting = false;
       this.consecutiveFailures = 0;
-      
+
       if (import.meta.env.DEV) {
         logger.debug('✅ WebSocket conectado com sucesso:', this.currentUrl);
       }
-      
+
       // Tentar autenticar enviando token como mensagem (caso o servidor espere dessa forma)
       // Alguns servidores podem esperar autenticação após a conexão ser estabelecida
       const authState = useAuthStore.getState();
       const token = authState.sessionToken;
-      
+
       if (token && this.socket && this.socket.readyState === WebSocket.OPEN) {
         try {
           // Enviar mensagem de autenticação (alguns servidores esperam isso)
           // O servidor pode esperar: { type: 'auth', token: '...' } ou similar
-          this.socket.send(JSON.stringify({ 
-            type: 'authenticate', 
-            token: token 
+          this.socket.send(JSON.stringify({
+            type: 'authenticate',
+            token: token
           }));
-          
+
           if (import.meta.env.DEV) {
             logger.debug('🔐 Token de autenticação enviado via mensagem');
           }
@@ -220,7 +220,7 @@ class OrdersWebSocketManager {
           }
         }
       }
-      
+
       this.updateStatus({
         isConnected: true,
         reconnectAttempts: 0,
@@ -231,10 +231,10 @@ class OrdersWebSocketManager {
 
     this.socket.onclose = (event) => {
       const wasConnected = this.status.isConnected;
-      
+
       // Resetar flag de conexão
       this.isConnecting = false;
-      
+
       // Log SEMPRE em dev para debug (mesmo se for fechamento limpo)
       if (import.meta.env.DEV) {
         logger.debug('🔌 WebSocket fechado:', {
@@ -245,7 +245,7 @@ class OrdersWebSocketManager {
           consecutiveFailures: this.consecutiveFailures,
           url: this.currentUrl,
         });
-        
+
         // Mensagens específicas por código de erro
         if (event.code === 1008) {
           logger.error('❌ Código 1008: Token inválido ou ausente. Verifique autenticação.');
@@ -255,7 +255,7 @@ class OrdersWebSocketManager {
           logger.debug('ℹ️ Código 1000: Fechamento normal.');
         }
       }
-      
+
       // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
       // (código 1000 com razão "Nova conexão do mesmo usuário")
       if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
@@ -272,7 +272,7 @@ class OrdersWebSocketManager {
         this.consecutiveFailures = 0;
         return; // NÃO reconectar
       }
-      
+
       // Não reconectar se token inválido (código 1008)
       if (event.code === 1008) {
         if (import.meta.env.DEV) {
@@ -288,7 +288,7 @@ class OrdersWebSocketManager {
         // NÃO reconectar - o usuário precisa fazer login novamente
         return;
       }
-      
+
       // Incrementar contador de falhas se não foi um fechamento limpo
       if (!event.wasClean) {
         this.consecutiveFailures++;
@@ -296,11 +296,11 @@ class OrdersWebSocketManager {
         // Resetar se foi fechamento limpo (mas não o caso especial acima)
         this.consecutiveFailures = 0;
       }
-      
+
       this.updateStatus({
         isConnected: false,
-        lastError: event.wasClean 
-          ? undefined 
+        lastError: event.wasClean
+          ? undefined
           : event.reason || `Conexão fechada (código: ${event.code})`,
       });
       this.stopPing();
@@ -321,7 +321,7 @@ class OrdersWebSocketManager {
           socketState: this.socket?.readyState,
         });
       }
-      
+
       // Não fechar imediatamente - deixar o onclose lidar com isso
       // Isso evita o erro "closed before connection is established"
       this.updateStatus({
@@ -341,9 +341,9 @@ class OrdersWebSocketManager {
           logger.warn('⚠️ WebSocket recebeu mensagem vazia');
           return;
         }
-        
+
         const message = JSON.parse(payload) as OrderEventMessage;
-        
+
         // Log detalhado em desenvolvimento
         if (import.meta.env.DEV) {
           logger.debug('📨 WebSocket mensagem recebida:', {
@@ -353,7 +353,7 @@ class OrdersWebSocketManager {
             listeners_count: this.listeners.size,
           });
         }
-        
+
         // Notificar todos os listeners
         let processedCount = 0;
         this.listeners.forEach((listener) => {
@@ -364,7 +364,7 @@ class OrdersWebSocketManager {
             logger.error('❌ Erro ao processar listener do WebSocket:', error);
           }
         });
-        
+
         if (import.meta.env.DEV) {
           logger.debug(`✅ Mensagem processada por ${processedCount} listener(s)`);
         }
@@ -387,17 +387,17 @@ class OrdersWebSocketManager {
       const url = new URL(apiBase);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       url.pathname = '/ws/orders';
-      
+
       // Obter token de autenticação do store
       // Como estamos em uma classe, precisamos acessar o store de forma estática
       const authState = useAuthStore.getState();
       const token = authState.sessionToken;
-      
+
       // Adicionar token como query parameter se disponível
       if (token) {
         url.searchParams.set('token', token);
       }
-      
+
       url.hash = '';
       return url.toString();
     } catch (error) {
@@ -410,7 +410,7 @@ class OrdersWebSocketManager {
     if (!this.shouldStayConnected || this.reconnectTimer) {
       return;
     }
-    
+
     // CORREÇÃO 4: Limitar número de tentativas de reconexão
     if (this.consecutiveFailures >= this.maxReconnectAttempts) {
       if (import.meta.env.DEV) {
@@ -421,7 +421,7 @@ class OrdersWebSocketManager {
       });
       return;
     }
-    
+
     // CORREÇÃO 3: Implementar exponential backoff
     // Calcular delay: 1s, 2s, 4s, 8s... máximo 30s
     const baseDelay = 1000; // 1 segundo base
@@ -430,18 +430,18 @@ class OrdersWebSocketManager {
       baseDelay * Math.pow(2, this.consecutiveFailures - 1),
       maxDelay
     );
-    
+
     // CORREÇÃO 2: Garantir delay mínimo de 2-3 segundos
     const finalDelay = Math.max(exponentialDelay, this.minReconnectInterval);
-    
+
     this.updateStatus({
       reconnectAttempts: this.status.reconnectAttempts + 1,
     });
-    
+
     if (import.meta.env.DEV) {
       logger.debug(`🔄 WebSocket: Agendando reconexão em ${finalDelay}ms (tentativa ${this.consecutiveFailures + 1}/${this.maxReconnectAttempts})`);
     }
-    
+
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.lastReconnectAttempt = Date.now();
@@ -585,7 +585,7 @@ class OrdersWebSocketManager {
       timestamp: Date.now(),
       broadcast: true,
     };
-    
+
     if (import.meta.env.DEV) {
       logger.debug('📤 Enviando broadcast order_created:', {
         order_id: orderId,
@@ -593,7 +593,7 @@ class OrdersWebSocketManager {
         has_order: !!order,
       });
     }
-    
+
     this.sendMessage(message);
   }
 

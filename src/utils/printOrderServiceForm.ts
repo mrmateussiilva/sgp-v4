@@ -60,10 +60,10 @@ const performCleanup = (doc: Document) => {
       const img = item.querySelector('img');
       if (!img) continue;
 
-      const right = item.querySelector('.right-column') || 
-                   (img.closest && img.closest('.right-column')) || 
-                   img.parentElement || 
-                   item;
+      const right = item.querySelector('.right-column') ||
+        (img.closest && img.closest('.right-column')) ||
+        img.parentElement ||
+        item;
 
       // 1) Esconder título "VISUALIZAÇÃO"
       try {
@@ -157,17 +157,17 @@ const performCleanup = (doc: Document) => {
 /**
  * Imprime ficha de serviço usando template da API
  * @param order - Pedido a ser impresso
- * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
+ * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/2 A4)
  * @param items - Itens específicos para imprimir (opcional, se não fornecido, imprime todos)
  */
 export const printOrderServiceForm = async (
-  order: OrderWithItems, 
+  order: OrderWithItems,
   templateType: 'geral' | 'resumo' = 'geral',
   items?: OrderItem[]
 ) => {
   // Sempre usar template da API
   const templateContent = await generateTemplatePrintContent(templateType, order, items);
-  
+
   if (!templateContent) {
     throw new Error(
       `Template ${templateType} não encontrado. Certifique-se de que a API está disponível e os templates estão configurados.`
@@ -233,7 +233,7 @@ export const printOrderServiceForm = async (
     }
 
     /* ============================================================
-       FIX: evitar sobreposição no template RESUMO (3 por página)
+       FIX: evitar sobreposição no template RESUMO (2 por página)
        - quando ESPECIFICAÇÕES cresce, alguns templates usam rodapé absolute
        - aqui a gente força o rodapé a fluir e corta overflow dentro do slot
        ============================================================ */
@@ -244,9 +244,9 @@ export const printOrderServiceForm = async (
       box-sizing: border-box !important;
     }
 
-    /* Slot fixo do resumo (aprox 99mm por item). Permite conteúdo visível sem cortar. */
+    /* Slot fixo do resumo (aprox 140mm por item). Permite conteúdo visível sem cortar. */
     .item {
-      height: 90mm !important;
+      height: 140mm !important;
       overflow: visible !important;
       position: relative !important;
     }
@@ -304,8 +304,8 @@ export const printOrderServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      /* Limitar altura máxima para 70mm, mas permitir que seja menor se necessário */
-      max-height: 70mm !important;
+      /* Limitar altura máxima para 110mm, mas permitir que seja menor se necessário */
+      max-height: 110mm !important;
       min-height: 0 !important;
       height: auto !important;
       overflow: visible !important;
@@ -357,7 +357,7 @@ export const printOrderServiceForm = async (
       width: auto !important;
       height: auto !important;
       max-width: 100% !important;
-      max-height: 70mm !important;
+      max-height: 110mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -436,7 +436,7 @@ export const printOrderServiceForm = async (
       width: auto !important;
       height: auto !important;
       max-width: 100% !important;
-      max-height: 70mm !important;
+      max-height: 110mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -467,7 +467,7 @@ export const printOrderServiceForm = async (
     console.warn('Não foi possível abrir janela de impressão:', err);
     win = null;
   }
-  
+
   if (!win) {
     // Fallback: usa iframe oculto
     const temp = document.createElement('iframe');
@@ -481,27 +481,27 @@ export const printOrderServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
-      
+
       // Executar cleanup e print via TypeScript após carregar
       const tryPrint = () => {
         try {
           if (doc.readyState === 'complete' || doc.readyState === 'interactive') {
             performCleanup(doc);
-      setTimeout(() => {
-        try { 
-          temp.contentWindow?.focus(); 
-          temp.contentWindow?.print(); 
+            setTimeout(() => {
+              try {
+                temp.contentWindow?.focus();
+                temp.contentWindow?.print();
               } catch (e) {
                 console.warn('Erro ao chamar print no iframe:', e);
-        }
+              }
             }, 150);
-            
-        setTimeout(() => { 
-          try { 
-            document.body.removeChild(temp); 
-          } catch {
-            // Ignorar erros de remoção
-          }
+
+            setTimeout(() => {
+              try {
+                document.body.removeChild(temp);
+              } catch {
+                // Ignorar erros de remoção
+              }
             }, 4000);
           } else {
             setTimeout(tryPrint, 50);
@@ -510,7 +510,7 @@ export const printOrderServiceForm = async (
           console.warn('Erro ao tentar imprimir:', e);
         }
       };
-      
+
       if (doc.readyState === 'complete') {
         tryPrint();
       } else {
@@ -520,7 +520,7 @@ export const printOrderServiceForm = async (
     }
     return;
   }
-  
+
   win.document.open();
   win.document.write(html);
   win.document.close();
@@ -557,7 +557,7 @@ export const printOrderServiceForm = async (
 /**
  * Imprime múltiplos pedidos usando template da API
  * @param orders - Array de pedidos a serem impressos
- * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/3 A4)
+ * @param templateType - Tipo de template: 'geral' (A4) ou 'resumo' (1/2 A4)
  */
 export const printMultipleOrdersServiceForm = async (
   orders: OrderWithItems[],
@@ -570,7 +570,7 @@ export const printMultipleOrdersServiceForm = async (
   // Carregar template uma vez (todos os pedidos usam o mesmo template)
   const firstOrder = orders[0];
   const templateContent = await generateTemplatePrintContent(templateType, firstOrder);
-  
+
   if (!templateContent) {
     throw new Error(
       `Template ${templateType} não encontrado. Certifique-se de que a API está disponível e os templates estão configurados.`
@@ -604,7 +604,7 @@ export const printMultipleOrdersServiceForm = async (
   // Para impressão múltipla, cada `.pedido` é um bloco independente.
   // Quebras de página são controladas EXPLICITAMENTE via CSS (ver @media print abaixo).
   const combinedContent: string = validOrdersHtml.join('\n');
-  
+
   const styles = `
     ${templateContent.css}
     .template-document {
@@ -623,7 +623,7 @@ export const printMultipleOrdersServiceForm = async (
       color: #1a1a1a;
     }
     ${templateType === 'resumo' ? `
-    /* CSS de impressão para 3 itens por página está no generateBasicTemplateCSS */
+    /* CSS de impressão para 2 itens por página está no generateBasicTemplateCSS */
     /* Manter apenas regras específicas adicionais se necessário */
     ` : ''}
     @media print {
@@ -688,8 +688,8 @@ export const printMultipleOrdersServiceForm = async (
         break-inside: auto !important;
       }
 
-      /* Quebrar página APENAS ENTRE pedidos: a cada 3 pedidos */
-      .pedido:nth-of-type(3n) {
+      /* Quebrar página APENAS ENTRE pedidos: a cada 2 pedidos */
+      .pedido:nth-of-type(2n) {
         break-after: page !important;
         page-break-after: always !important;
       }
@@ -703,7 +703,7 @@ export const printMultipleOrdersServiceForm = async (
     }
 
     /* ============================================================
-       FIX: evitar sobreposição no template RESUMO (3 por página)
+       FIX: evitar sobreposição no template RESUMO (2 por página)
        ============================================================ */
     ${templateType === 'resumo' ? `
     .item,
@@ -713,7 +713,7 @@ export const printMultipleOrdersServiceForm = async (
     }
 
     .item {
-      height: 99mm !important;
+      height: 140mm !important;
       overflow: visible !important;
       position: relative !important;
     }
@@ -745,7 +745,7 @@ export const printMultipleOrdersServiceForm = async (
     }
 
     /* ============================================================
-       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 3 itens/página
+       MELHORIA: aumentar imagem (proporcional) no RESUMO sem quebrar 2 itens/página
        ============================================================ */
     .item .content-wrapper {
       gap: 2mm !important;
@@ -773,8 +773,8 @@ export const printMultipleOrdersServiceForm = async (
       background: transparent !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      /* Limitar altura máxima para 70mm, mas permitir que seja menor se necessário */
-      max-height: 70mm !important;
+      /* Limitar altura máxima para 110mm, mas permitir que seja menor se necessário */
+      max-height: 110mm !important;
       min-height: 0 !important;
       height: auto !important;
       overflow: visible !important;
@@ -823,7 +823,7 @@ export const printMultipleOrdersServiceForm = async (
       width: auto !important;
       height: auto !important;
       max-width: 100% !important;
-      max-height: 70mm !important;
+      max-height: 110mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -902,7 +902,7 @@ export const printMultipleOrdersServiceForm = async (
       width: auto !important;
       height: auto !important;
       max-width: 100% !important;
-      max-height: 70mm !important;
+      max-height: 110mm !important;
       object-fit: contain !important;
       object-position: center !important;
       display: block !important;
@@ -947,7 +947,7 @@ export const printMultipleOrdersServiceForm = async (
     console.warn('Não foi possível abrir janela de impressão:', err);
     win = null;
   }
-  
+
   if (!win) {
     // Fallback: usa iframe oculto
     const temp = document.createElement('iframe');
@@ -961,7 +961,7 @@ export const printMultipleOrdersServiceForm = async (
       doc.open();
       doc.write(html);
       doc.close();
-      
+
       // Executar cleanup e print via TypeScript após carregar
       const tryPrint = () => {
         try {
@@ -969,10 +969,10 @@ export const printMultipleOrdersServiceForm = async (
             // Reset scrollTop em elementos de especificações
             try {
               doc.querySelectorAll('.section-content.especificacoes-content').forEach((el) => {
-                try { (el as HTMLElement).scrollTop = 0; } catch (e) {}
+                try { (el as HTMLElement).scrollTop = 0; } catch (e) { }
               });
-            } catch (e) {}
-            
+            } catch (e) { }
+
             performCleanup(doc);
             setTimeout(() => {
               try {
@@ -982,7 +982,7 @@ export const printMultipleOrdersServiceForm = async (
                 console.warn('Erro ao chamar print no iframe:', e);
               }
             }, 150);
-            
+
             setTimeout(() => {
               try {
                 document.body.removeChild(temp);
@@ -997,7 +997,7 @@ export const printMultipleOrdersServiceForm = async (
           console.warn('Erro ao tentar imprimir:', e);
         }
       };
-      
+
       if (doc.readyState === 'complete') {
         tryPrint();
       } else {
@@ -1007,7 +1007,7 @@ export const printMultipleOrdersServiceForm = async (
     }
     return;
   }
-  
+
   win.document.open();
   win.document.write(html);
   win.document.close();
@@ -1019,10 +1019,10 @@ export const printMultipleOrdersServiceForm = async (
         // Reset scrollTop em elementos de especificações
         try {
           win.document.querySelectorAll('.section-content.especificacoes-content').forEach((el) => {
-            try { (el as HTMLElement).scrollTop = 0; } catch (e) {}
+            try { (el as HTMLElement).scrollTop = 0; } catch (e) { }
           });
-        } catch (e) {}
-        
+        } catch (e) { }
+
         performCleanup(win.document);
         setTimeout(() => {
           try {

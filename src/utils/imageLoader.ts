@@ -1,4 +1,4 @@
-import { apiClient, getApiUrl } from '../services/apiClient';
+import { apiClient, getApiUrl } from '../api/client';
 import { getLocalImagePath, loadLocalImageAsBase64, cacheImageFromUrl } from './localImageManager';
 import { isTauri } from './isTauri';
 
@@ -45,7 +45,7 @@ function isOtherSystemLocalPath(path: string): boolean {
  */
 function normalizeImageUrl(imagePath: string): string {
   const apiUrl = getApiUrl();
-  
+
   // Se for base64, retornar diretamente
   if (imagePath.startsWith('data:image/')) {
     return imagePath;
@@ -53,7 +53,7 @@ function normalizeImageUrl(imagePath: string): string {
 
   // Normalizar o caminho
   let normalized = imagePath.replace(/\\/g, '/').trim();
-  
+
   // Se for local_path de outro sistema, extrair apenas o nome do arquivo
   // e tentar buscar no servidor (assumindo que o servidor salva pelo nome do arquivo)
   if (isOtherSystemLocalPath(normalized)) {
@@ -67,7 +67,7 @@ function normalizeImageUrl(imagePath: string): string {
       console.log('[normalizeImageUrl] 🔄 Convertendo para caminho do servidor:', normalized);
     }
   }
-  
+
   // Se for protocolo tauri://localhost, converter para http usando a API configurada
   if (normalized.startsWith('tauri://localhost/') && apiUrl) {
     try {
@@ -86,7 +86,7 @@ function normalizeImageUrl(imagePath: string): string {
       console.warn('[normalizeImageUrl] ⚠️ Erro ao converter tauri://localhost:', e);
     }
   }
-  
+
   // Se já for URL completa (http/https)
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
     // Se contém localhost, substituir pela URL da API configurada
@@ -121,7 +121,7 @@ function normalizeImageUrl(imagePath: string): string {
 export async function loadAuthenticatedImage(imagePath: string): Promise<string> {
   // Normalizar SEMPRE primeiro - usar como chave única consistente do cache
   const normalized = normalizeImageUrl(imagePath);
-  
+
   // Verificar cache usando apenas caminho normalizado
   if (blobUrlCache.has(normalized)) {
     return blobUrlCache.get(normalized)!;
@@ -159,20 +159,20 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         responseType: 'blob',
         baseURL: '', // Não usar baseURL para URLs completas
       });
-      
+
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
       // Salvar usando apenas caminho normalizado (chave única)
       blobUrlCache.set(normalized, blobUrl);
       blobCache.set(normalized, blob);
-      
+
       // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
       if (isTauri() && response.data) {
         try {
           // Converter blob para Uint8Array
           const arrayBuffer = await blob.arrayBuffer();
           const imageData = new Uint8Array(arrayBuffer);
-          
+
           // Cachear localmente usando caminho normalizado
           await cacheImageFromUrl(normalized, imageData);
           console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
@@ -181,20 +181,20 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
           console.warn('[loadAuthenticatedImage] ⚠️ Erro ao cachear imagem localmente:', cacheError);
         }
       }
-      
+
       return blobUrl;
     }
 
     // Para caminhos relativos, usar o apiClient com baseURL configurado
     // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
     let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    
+
     // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
     // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
     // IMPORTANTE: Verificar tanto o normalized quanto o relativePath para capturar todos os casos
     const isPedidosTmp = relativePath.startsWith('/pedidos/tmp/') || normalized.startsWith('pedidos/tmp/');
     const isPedidosId = /^\/pedidos\/\d+\//.test(relativePath) || /^pedidos\/\d+\//.test(normalized);
-    
+
     if (isPedidosTmp || isPedidosId) {
       // Construir caminho para o endpoint /pedidos/media/{file_path}
       // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
@@ -208,7 +208,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         relativePath
       });
     }
-    
+
     console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {
       originalPath: imagePath,
       normalized,
@@ -237,7 +237,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         // Converter blob para Uint8Array
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);
-        
+
         // Cachear localmente usando caminho normalizado
         await cacheImageFromUrl(normalized, imageData);
         console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
@@ -301,7 +301,7 @@ export async function imageToBase64(
   try {
     // Normalizar caminho para usar chave consistente do cache
     const normalized = normalizeImageUrl(imagePath);
-    
+
     // Se já for base64, retornar diretamente
     if (normalized.startsWith('data:image/')) {
       return normalized;
@@ -309,12 +309,12 @@ export async function imageToBase64(
 
     // Verificar se já temos o blob em cache usando caminho normalizado
     let blob: Blob | undefined = blobCache.get(normalized);
-    
+
     if (!blob) {
       // Carregar a imagem autenticada (retorna blob URL)
       // loadAuthenticatedImage já normaliza internamente, então pode passar imagePath original
       const blobUrl = await loadAuthenticatedImage(imagePath);
-      
+
       // Se for base64, retornar diretamente
       if (blobUrl.startsWith('data:image/')) {
         return blobUrl;
@@ -323,7 +323,7 @@ export async function imageToBase64(
       // Tentar obter o blob do cache novamente usando caminho normalizado
       // (pode ter sido adicionado durante loadAuthenticatedImage)
       blob = blobCache.get(normalized);
-      
+
       // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
       if (!blob) {
         const response = await fetch(blobUrl);
@@ -332,7 +332,7 @@ export async function imageToBase64(
         blobCache.set(normalized, blob);
       }
     }
-    
+
     // Se redimensionamento foi solicitado, processar antes de converter para base64
     if (options?.resize && blob) {
       try {
@@ -345,7 +345,7 @@ export async function imageToBase64(
         // Continuar com conversão normal se redimensionamento falhar
       }
     }
-    
+
     // Converter blob para base64
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -381,31 +381,31 @@ async function resizeImageToBase64(
   return new Promise((resolve, reject) => {
     const img = new Image();
     // NÃO definir crossOrigin para blob URLs (causa erro de CORS)
-    
+
     img.onload = () => {
       try {
         // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
         const mmToPx = 3.779527559;
         const maxHeightPx = maxHeight * mmToPx;
-        
+
         // Calcular proporção original da imagem
         const aspectRatio = img.width / img.height;
-        
+
         let newWidth: number;
         let newHeight: number;
-        
+
         if (maxWidth !== undefined) {
           // Se maxWidth foi fornecido, considerar ambos os limites
           const maxWidthPx = maxWidth * mmToPx;
-          
+
           // Calcular dimensões se limitássemos apenas pela altura
           const widthByHeight = maxHeightPx * aspectRatio;
           const heightByHeight = maxHeightPx;
-          
+
           // Calcular dimensões se limitássemos apenas pela largura
           const widthByWidth = maxWidthPx;
           const heightByWidth = maxWidthPx / aspectRatio;
-          
+
           // Escolher a dimensão mais restritiva (a menor)
           if (widthByHeight <= maxWidthPx && heightByHeight <= maxHeightPx) {
             // Cabe limitando pela altura
@@ -432,27 +432,27 @@ async function resizeImageToBase64(
           newWidth = maxHeightPx * aspectRatio;
           newHeight = maxHeightPx;
         }
-        
+
         console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Limites: ${maxWidth || 'auto'}mm x ${maxHeight}mm, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}px`);
-        
+
         // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(newWidth);
         canvas.height = Math.round(newHeight);
-        
+
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           reject(new Error('Não foi possível criar contexto do canvas'));
           return;
         }
-        
+
         // Melhorar qualidade da imagem redimensionada
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        
+
         // Desenhar imagem redimensionada
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
+
         // Converter para data URL (JPEG com qualidade 0.9)
         const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
         console.log(`[resizeImageToBase64] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
@@ -462,12 +462,12 @@ async function resizeImageToBase64(
         reject(error);
       }
     };
-    
+
     img.onerror = (error) => {
       console.error('[resizeImageToBase64] ❌ Erro ao carregar imagem:', error);
       reject(new Error('Erro ao carregar imagem para redimensionamento'));
     };
-    
+
     img.src = imageSrc;
   });
 }

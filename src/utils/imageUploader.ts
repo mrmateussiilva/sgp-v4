@@ -1,5 +1,5 @@
 import { readImageFile } from './localImageManager';
-import { apiClient } from '../services/apiClient';
+import { apiClient } from '../api/client';
 import { isTauri } from './isTauri';
 
 /**
@@ -35,7 +35,7 @@ export async function uploadImageToServer(
   try {
     // Ler arquivo do disco
     const imageData = await readImageFile(localPath);
-    
+
     // Converter para FormData
     // NÃO especificar Content-Type manualmente - o navegador define automaticamente com boundary
     // Detectar tipo MIME baseado na extensão do arquivo local
@@ -48,30 +48,27 @@ export async function uploadImageToServer(
     } else if (localPathLower.endsWith('.webp')) {
       mimeType = 'image/webp';
     }
-    
-    // Converter Uint8Array para Array de números para compatibilidade com Blob
-    // Criar um novo ArrayBuffer a partir dos bytes
-    const bytesArray = Array.from(imageData);
-    const arrayBuffer = new Uint8Array(bytesArray).buffer;
-    const blob = new Blob([arrayBuffer], { type: mimeType });
+
+    // Criar o Blob diretamente do Uint8Array (cast para any para evitar erro de SharedArrayBuffer no TS)
+    const blob = new Blob([imageData as any], { type: mimeType });
     const formData = new FormData();
-    
+
     // Gerar nome de arquivo baseado no orderItemId ou timestamp
-    const fileName = orderItemId 
+    const fileName = orderItemId
       ? `item_${orderItemId}_${Date.now()}${localPathLower.endsWith('.png') ? '.png' : '.jpg'}`
       : `image_${Date.now()}${localPathLower.endsWith('.png') ? '.png' : '.jpg'}`;
-    
+
     formData.append('image', blob, fileName);
-    
+
     if (orderItemId) {
       formData.append('order_item_id', orderItemId.toString());
     }
-    
+
     // Upload para API
     // O router de pedidos tem prefixo /pedidos, então o endpoint é /pedidos/order-items/upload-image
     // NÃO definir Content-Type manualmente - axios/navegador define automaticamente com boundary
     const response = await apiClient.post('/pedidos/order-items/upload-image', formData);
-    
+
     return {
       success: true,
       server_reference: response.data.server_reference || response.data.image_reference || response.data.path || response.data.url,
@@ -99,7 +96,7 @@ export async function uploadMultipleImages(
   const promises = uploads.map(({ localPath, orderItemId }) =>
     uploadImageToServer(localPath, orderItemId)
   );
-  
+
   return Promise.all(promises);
 }
 
@@ -114,7 +111,7 @@ export function needsUpload(imageReference: string | null | undefined): boolean 
   if (!imageReference || !isTauri()) {
     return false;
   }
-  
+
   // Se for base64 ou URL, não precisa upload
   if (
     imageReference.startsWith('data:image/') ||
@@ -123,13 +120,13 @@ export function needsUpload(imageReference: string | null | undefined): boolean 
   ) {
     return false;
   }
-  
+
   // Se começar com "pedidos/" ou "/pedidos/", já está no servidor (não precisa upload)
   const normalized = imageReference.trim().replace(/\\/g, '/');
   if (normalized.startsWith('pedidos/') || normalized.startsWith('/pedidos/')) {
     return false;
   }
-  
+
   // Se for caminho local (contém / ou \), precisa upload
   return imageReference.includes('/') || imageReference.includes('\\');
 }

@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
-import { applyTauriAdapter } from '../services/tauriAxiosAdapter';
+import { applyTauriAdapter, setAdapterFallbackBaseUrl } from '../services/tauriAxiosAdapter';
 import { logger } from '../utils/logger';
 
 // Endpoints para verificação de conexão (sem autenticação)
@@ -42,6 +42,9 @@ const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '');
 export function setApiUrl(url: string): void {
   API_BASE_URL = normalizeBaseUrl(url);
   apiClient.defaults.baseURL = API_BASE_URL;
+  // Sincronizar o fallback do adaptador Tauri para garantir que requisições relativas
+  // funcionem mesmo se o config.baseURL for perdido durante o merge do Axios
+  setAdapterFallbackBaseUrl(API_BASE_URL);
 }
 
 export function getApiUrl(): string {

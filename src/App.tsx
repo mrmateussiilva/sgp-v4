@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { loadConfig } from '@/utils/config';
-import { normalizeApiUrl, onApiFailure, verifyApiConnection } from './services/apiClient';
+import { normalizeApiUrl, onApiFailure, verifyApiConnection } from './api/client';
 import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -66,22 +66,22 @@ function App() {
     const checkForUpdateChangelog = async () => {
       const shouldShow = localStorage.getItem('show_changelog_after_update');
       const previousVersion = localStorage.getItem('previous_version');
-      
+
       logger.debug('[App] Verificando changelog após atualização:', {
         shouldShow,
         previousVersion
       });
-      
+
       if (shouldShow === 'true' && previousVersion) {
         try {
           const currentVersion = await invoke<string>('get_app_version');
-          
+
           logger.debug('[App] Versões:', {
             current: currentVersion,
             previous: previousVersion,
             changed: currentVersion !== previousVersion
           });
-          
+
           // Se a versão mudou, mostrar changelog
           if (currentVersion !== previousVersion) {
             logger.info('[App] Versão mudou! Mostrando changelog...');
@@ -124,7 +124,7 @@ function App() {
   useEffect(() => {
     const verifyConfig = async () => {
       setIsCheckingConnection(true);
-      
+
       // Timeout de segurança para não travar indefinidamente (8 segundos)
       const safetyTimeoutId = setTimeout(() => {
         logger.warn('Verificação de conexão demorou muito, liberando UI');
@@ -137,10 +137,10 @@ function App() {
           }
         });
       }, 8000);
-      
+
       try {
         const config = await loadConfig();
-        
+
         if (config?.api_url) {
           const normalizedUrl = normalizeApiUrl(config.api_url);
           try {
@@ -231,53 +231,53 @@ function App() {
       <AlertProvider>
         <ConfirmProvider>
           <Suspense fallback={<LoadingFallback />}>
-          {showFallback || !apiUrl ? (
-            <div className="bg-background text-foreground min-h-screen">
-              <ConfigApi
-                onConfigured={(url) => {
-                  const normalizedUrl = normalizeApiUrl(url);
-                  applyApiUrl(normalizedUrl);
-                  setApiUrl(normalizedUrl);
-                  setShowFallback(false);
-                }}
-              />
-              <Toaster />
-            </div>
-          ) : (
-            <HashRouter>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/dashboard/*"
-                  element={
-                    <PrivateRoute>
-                      <Dashboard />
-                    </PrivateRoute>
-                  }
+            {showFallback || !apiUrl ? (
+              <div className="bg-background text-foreground min-h-screen">
+                <ConfigApi
+                  onConfigured={(url) => {
+                    const normalizedUrl = normalizeApiUrl(url);
+                    applyApiUrl(normalizedUrl);
+                    setApiUrl(normalizedUrl);
+                    setShowFallback(false);
+                  }}
                 />
-                <Route
-                  path="/update-status"
-                  element={
-                    <PrivateRoute>
-                      <UpdateStatus />
-                    </PrivateRoute>
-                  }
-                />
-                <Route path="/" element={<Navigate to="/dashboard" />} />
-              </Routes>
-              <Toaster />
-            </HashRouter>
+                <Toaster />
+              </div>
+            ) : (
+              <HashRouter>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/dashboard/*"
+                    element={
+                      <PrivateRoute>
+                        <Dashboard />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/update-status"
+                    element={
+                      <PrivateRoute>
+                        <UpdateStatus />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="/" element={<Navigate to="/dashboard" />} />
+                </Routes>
+                <Toaster />
+              </HashRouter>
+            )}
+          </Suspense>
+
+          {/* Modal de Changelog após atualização */}
+          {showChangelog && (
+            <ChangelogModal
+              version={updateVersion}
+              isOpen={showChangelog}
+              onClose={() => setShowChangelog(false)}
+            />
           )}
-        </Suspense>
-        
-        {/* Modal de Changelog após atualização */}
-        {showChangelog && (
-          <ChangelogModal
-            version={updateVersion}
-            isOpen={showChangelog}
-            onClose={() => setShowChangelog(false)}
-          />
-        )}
         </ConfirmProvider>
       </AlertProvider>
     </ThemeProvider>

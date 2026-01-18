@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
-import { getApiUrl } from '@/services/apiClient';
+import { apiClient, getApiUrl } from '@/api/client';
 
 export const NotificationDebugPanel = () => {
   const { isConnected, subscriberCount, connect, disconnect } = useRealtimeNotifications();
@@ -72,7 +72,7 @@ export const NotificationDebugPanel = () => {
   return (
     <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg max-w-sm max-h-96 overflow-y-auto">
       <h3 className="font-bold text-sm mb-2">🔧 Debug Notificações</h3>
-      
+
       <div className="space-y-2 text-xs">
         <div className="flex justify-between">
           <span>Status:</span>
@@ -80,19 +80,19 @@ export const NotificationDebugPanel = () => {
             {isConnected ? 'Conectado' : 'Desconectado'}
           </span>
         </div>
-        
+
         {debugInfo && (
           <div className="flex justify-between">
             <span>Versão:</span>
             <span>{debugInfo.version}</span>
           </div>
         )}
-        
+
         <div className="flex justify-between">
           <span>Clientes (local):</span>
           <span>{subscriberCount}</span>
         </div>
-        
+
         <div className="flex gap-1 mt-3">
           <button
             onClick={connect}
