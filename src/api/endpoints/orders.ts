@@ -125,7 +125,15 @@ const fetchOrdersPaginated = async (
     }
 
     const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
+    logger.debug('[fetchOrdersPaginated] Response status:', response.status);
+    logger.debug('[fetchOrdersPaginated] Response data type:', typeof response.data);
+    logger.debug('[fetchOrdersPaginated] Response data is array:', Array.isArray(response.data));
+    logger.debug('[fetchOrdersPaginated] Response data length:', Array.isArray(response.data) ? response.data.length : 'not array');
+    logger.debug('[fetchOrdersPaginated] Response data sample:', Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : 'empty');
+    
     const allData = (response.data ?? []).map(mapPedidoFromApi);
+    logger.debug('[fetchOrdersPaginated] Mapped data length:', allData.length);
+    logger.debug('[fetchOrdersPaginated] Mapped data sample:', allData.length > 0 ? allData[0] : 'empty');
 
     // Verifica se há mais páginas
     const hasNextPage = allData.length > pageSize;
