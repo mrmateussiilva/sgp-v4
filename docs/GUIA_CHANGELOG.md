@@ -32,7 +32,7 @@ Antes de criar a release, adicione a nova versão no **topo** do arquivo:
 - Performance do sistema X
 - Interface do componente Y
 
-## [1.0.12] - 2025-01-XX
+## [1.0.13] - 2025-01-XX
 ...
 ```
 
@@ -108,7 +108,7 @@ Atualize o arquivo `updater/latest.json` com a nova versão:
 - Melhorada a interface do modal de changelog
 - Otimizada a busca de pedidos
 
-## [1.0.12] - 2025-01-XX
+## [1.0.13] - 2025-01-XX
 ...
 ```
 
@@ -128,7 +128,7 @@ Para testar se o changelog está sendo buscado corretamente:
 2. Faça commit e push
 3. No app, execute no console:
 ```javascript
-localStorage.setItem('previous_version', '1.0.12');
+localStorage.setItem('previous_version', '1.0.13');
 localStorage.setItem('show_changelog_after_update', 'true');
 window.location.reload();
 ```

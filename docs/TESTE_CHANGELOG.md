@@ -11,7 +11,7 @@ localStorage.setItem('show_changelog_after_update', 'true');
 ```
 
 ### Passo 2: Alterar versão atual
-1. Edite `src-tauri/Cargo.toml` e altere a versão para `1.0.12` (ou qualquer versão diferente)
+1. Edite `src-tauri/Cargo.toml` e altere a versão para `1.0.13` (ou qualquer versão diferente)
 2. Recompile o app: `pnpm tauri:dev` ou `pnpm tauri:build`
 
 ### Passo 3: Reiniciar o app
@@ -21,7 +21,7 @@ localStorage.setItem('show_changelog_after_update', 'true');
 
 ### Passo 4: Verificar funcionamento
 - ✅ Modal deve aparecer automaticamente
-- ✅ Deve mostrar o changelog da versão 1.0.12
+- ✅ Deve mostrar o changelog da versão 1.0.13
 - ✅ Deve extrair apenas a seção da versão específica
 - ✅ Ao fechar, as flags devem ser removidas do localStorage
 
