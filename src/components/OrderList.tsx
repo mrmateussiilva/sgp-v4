@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, LayoutGrid, Table2 } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { logger } from '@/utils/logger';
@@ -15,7 +15,7 @@ import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
-import { OrderKanbanBoard } from './OrderKanbanBoard';
+import { OrderProductionPipeline } from './OrderProductionPipeline';
 // import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
 import { formatDateForDisplay } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
@@ -107,8 +107,8 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  // Alternância entre tabela e kanban
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  // Alternância entre tabela e pipeline de produção
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
     show: boolean;
     pedidoId: number;
@@ -1647,18 +1647,18 @@ export default function OrderList() {
     }
   };
 
-  // Se estiver no modo kanban, renderizar layout full-screen limpo
-  if (viewMode === 'kanban') {
+  // Se estiver no modo pipeline, renderizar layout de fluxo de produção
+  if (viewMode === 'pipeline') {
     return (
       <div className="flex flex-col h-full w-full overflow-hidden bg-background/50 animate-in fade-in duration-500">
         {/* Header minimalista com Glassmorphism */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 py-4 gap-4 border-b border-border/40 bg-background/40 backdrop-blur-md sticky top-0 z-20">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <LayoutGrid className="h-5 w-5 text-primary" />
-              Quadro de Produção
+              <div className="h-6 w-1 bg-primary rounded-full" />
+              Status de Produção — Visão em Pipeline
             </h1>
-            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Gestão Visual de Pedidos</p>
+            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Fluxo Linear e Sequencial</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -1666,7 +1666,7 @@ export default function OrderList() {
               <div className="relative group flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
-                  placeholder="Pesquisar pedidos..."
+                  placeholder="Pesquisar no pipeline..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
@@ -1706,13 +1706,17 @@ export default function OrderList() {
               </Button>
               <Button
                 type="button"
-                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setViewMode('kanban')}
-                className={`h-7 px-2.5 text-xs transition-all ${viewMode === 'kanban' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}`}
+                onClick={() => setViewMode('pipeline')}
+                className={`h-7 px-2.5 text-xs transition-all ${viewMode === 'pipeline' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}`}
               >
-                <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
-                Kanban
+                <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                  <div className="h-2 w-2 rounded-full bg-current" />
+                  <ChevronRight className="h-2 w-2" />
+                  <div className="h-2 w-2 rounded-full bg-current" />
+                </div>
+                Pipeline
               </Button>
             </div>
 
@@ -1727,9 +1731,9 @@ export default function OrderList() {
           </div>
         </div>
 
-        {/* Área do Kanban - ocupa todo o espaço restante sem scroll externo */}
-        <div className="flex-1 overflow-hidden p-6 bg-muted/10">
-          <OrderKanbanBoard
+        {/* Área do Pipeline - ocupa todo o espaço restante sem scroll externo */}
+        <div className="flex-1 overflow-hidden p-6 bg-muted/5">
+          <OrderProductionPipeline
             orders={filteredOrders}
             onStatusChange={handleKanbanStatusChange}
             onEdit={handleEdit}
@@ -1761,20 +1765,24 @@ export default function OrderList() {
                 variant={viewMode === 'table' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('table')}
-                className={`h-8 px-3 ${viewMode === 'table' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`h-8 px-3 ${viewMode === 'table' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Table2 className="h-4 w-4 mr-2" />
                 Tabela
               </Button>
               <Button
                 type="button"
-                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setViewMode('kanban')}
-                className={`h-8 px-3 ${viewMode === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                onClick={() => setViewMode('pipeline')}
+                className={`h-8 px-3 ${viewMode === 'pipeline' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                <LayoutGrid className="h-4 w-4 mr-2" />
-                Kanban
+                <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                  <div className="h-2 w-2 rounded-full bg-current" />
+                  <ChevronRight className="h-2 w-2" />
+                  <div className="h-2 w-2 rounded-full bg-current" />
+                </div>
+                Pipeline
               </Button>
             </div>
           </div>
