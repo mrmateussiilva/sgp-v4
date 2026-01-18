@@ -1045,6 +1045,13 @@ export default function OrderList() {
     productionStatusFilter !== 'pending' && // 'pending' sempre usa paginação frontend (filtra por pronto)
     (dateFrom || dateTo || productionStatusFilter === 'ready');
 
+  // Salvaguarda: Se não for admin, forçar visão de tabela
+  useEffect(() => {
+    if (!isAdmin && viewMode === 'pipeline') {
+      setViewMode('table');
+    }
+  }, [isAdmin, viewMode]);
+
   const filteredOrders = useMemo(() => {
     logger.debug('[OrderList] filteredOrders - orders.length:', orders.length);
     logger.debug('[OrderList] filteredOrders - productionStatusFilter:', productionStatusFilter);
@@ -1693,33 +1700,35 @@ export default function OrderList() {
 
                 <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
 
-                {/* Alternância de Visualização */}
-                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-border/40 shadow-inner">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                    className="h-7 px-2.5 text-xs transition-all text-muted-foreground hover:text-foreground hover:bg-background/50"
-                  >
-                    <Table2 className="h-3.5 w-3.5 mr-1.5" />
-                    Tabela
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setViewMode('pipeline')}
-                    className="h-7 px-2.5 text-xs transition-all bg-background shadow-sm text-primary"
-                  >
-                    <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
-                      <div className="h-2 w-2 rounded-full bg-current" />
-                      <ChevronRight className="h-2 w-2" />
-                      <div className="h-2 w-2 rounded-full bg-current" />
-                    </div>
-                    Pipeline
-                  </Button>
-                </div>
+                {/* Alternância de Visualização - Apenas para Admins */}
+                {isAdmin && (
+                  <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-border/40 shadow-inner">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewMode('table')}
+                      className="h-7 px-2.5 text-xs transition-all text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    >
+                      <Table2 className="h-3.5 w-3.5 mr-1.5" />
+                      Tabela
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setViewMode('pipeline')}
+                      className="h-7 px-2.5 text-xs transition-all bg-background shadow-sm text-primary"
+                    >
+                      <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                        <div className="h-2 w-2 rounded-full bg-current" />
+                        <ChevronRight className="h-2 w-2" />
+                        <div className="h-2 w-2 rounded-full bg-current" />
+                      </div>
+                      Pipeline
+                    </Button>
+                  </div>
+                )}
 
                 <Button
                   size="sm"
@@ -1754,32 +1763,34 @@ export default function OrderList() {
                 <h1 className="text-2xl font-bold text-foreground">Gestão de Pedidos</h1>
                 <p className="text-sm text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
               </div>
-              <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setViewMode('table')}
-                  className="h-8 px-3 bg-background shadow-sm text-primary"
-                >
-                  <Table2 className="h-4 w-4 mr-2" />
-                  Tabela
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewMode('pipeline')}
-                  className="h-8 px-3 text-muted-foreground hover:text-foreground"
-                >
-                  <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
-                    <div className="h-2 w-2 rounded-full bg-current" />
-                    <ChevronRight className="h-2 w-2" />
-                    <div className="h-2 w-2 rounded-full bg-current" />
-                  </div>
-                  Pipeline
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setViewMode('table')}
+                    className="h-8 px-3 bg-background shadow-sm text-primary"
+                  >
+                    <Table2 className="h-4 w-4 mr-2" />
+                    Tabela
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewMode('pipeline')}
+                    className="h-8 px-3 text-muted-foreground hover:text-foreground"
+                  >
+                    <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                      <div className="h-2 w-2 rounded-full bg-current" />
+                      <ChevronRight className="h-2 w-2" />
+                      <div className="h-2 w-2 rounded-full bg-current" />
+                    </div>
+                    Pipeline
+                  </Button>
+                </div>
+              )}
             </div>
             {/* Barra de Filtros Principais - Sempre Visível */}
             <Card className="border-2">
