@@ -182,16 +182,15 @@ export const printOrderServiceForm = async (
       background: white;
     }
     @page {
-      size: ${templateType === 'resumo' ? '187mm 280mm' : 'A4 portrait'};
-      margin: ${templateType === 'resumo' ? '0' : '10mm'};
+      size: A4 portrait;
+      margin: 5mm;
     }
     ${templateType === 'resumo' ? `
     body {
-      width: 187mm;
-      height: 280mm;
+      width: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      overflow: visible;
     }
     ` : ''}
     body {
@@ -244,11 +243,16 @@ export const printOrderServiceForm = async (
       box-sizing: border-box !important;
     }
 
-    /* Slot fixo do resumo (aprox 140mm por item). Permite conteúdo visível sem cortar. */
-    .item {
-      height: 140mm !important;
+    /* Slot fixo do resumo (aprox 135mm por item). Permite conteúdo visível sem cortar. */
+    .item,
+    .resumo-item,
+    .item-container,
+    .template-page .item,
+    .template-page .resumo-item {
+      height: 135mm !important;
       overflow: visible !important;
       position: relative !important;
+      display: block !important;
     }
 
     /* Mata posicionamento absoluto do rodapé (Designer/Vendedor) se existir */
@@ -588,7 +592,8 @@ export const printMultipleOrdersServiceForm = async (
       // Cada pedido fica isolado em um container `.pedido` com índice para controle de quebra
       // Índice baseado em 1 para facilitar seleção CSS (1, 2, 3, 4, 5, 6...)
       const pedidoIndex = index + 1;
-      return `<article class="pedido" data-pedido-index="${pedidoIndex}">
+      const isResumo = templateType === 'resumo';
+      return `<article class="pedido ${isResumo ? 'resumo-print' : ''}" data-pedido-index="${pedidoIndex}">
         ${orderTemplateContent.html}
       </article>`;
     })
@@ -635,7 +640,7 @@ export const printMultipleOrdersServiceForm = async (
       
       @page {
         size: A4;
-        margin: 10mm;
+        margin: 5mm;
       }
       
       body {
@@ -671,7 +676,6 @@ export const printMultipleOrdersServiceForm = async (
       }
 
       /* Neutralizar paginação/alturas fixas do template dentro do pedido */
-      .pedido .print-page,
       .pedido .template-page,
       .pedido .items-container,
       .pedido .item-container,
@@ -712,17 +716,27 @@ export const printMultipleOrdersServiceForm = async (
       box-sizing: border-box !important;
     }
 
-    .item {
-      height: 140mm !important;
+    .item,
+    .resumo-item,
+    .item-container {
+      height: 135mm !important;
       overflow: visible !important;
       position: relative !important;
     }
 
-    /* Na impressão múltipla, remover altura fixa para permitir altura natural */
-    .pedido .item {
+    /* Na impressão múltipla, remover altura fixa apenas se NÃO for resumo */
+    .pedido:not(.resumo-print) .item,
+    .pedido:not(.resumo-print) .resumo-item,
+    .pedido:not(.resumo-print) .item-container {
       height: auto !important;
       min-height: 0 !important;
       max-height: none !important;
+    }
+    
+    .pedido.resumo-print .item,
+    .pedido.resumo-print .resumo-item,
+    .pedido.resumo-print .item-container {
+      height: 135mm !important;
     }
 
     .item .designer,

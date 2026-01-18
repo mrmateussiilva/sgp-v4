@@ -1211,7 +1211,7 @@ const processTemplateHTML = (
 
       // Envolver os itens em uma página A4 com altura fixa
       // Cada item ocupa exatamente 1/2 da altura (50%)
-      return `<div class="print-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${itensHtml}</div></div>`;
+      return `<div class="template-page" ${isLastPage ? '' : 'data-page-break="always"'}><div class="items-container">${itensHtml}</div></div>`;
     });
 
     return pages.join('\n');
@@ -1338,6 +1338,17 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       gap: 0;
       padding: 0;
       margin: 0;
+    }
+    
+    /* Garantir que cada item ocupe exatamente 50% da página (para 2 itens/página) */
+    .items-container > .item-content,
+    .items-container > .template-page,
+    .items-container > .item,
+    .items-container > div {
+      flex: 1 1 48% !important;
+      height: 48% !important;
+      max-height: 48% !important;
+      overflow: hidden !important;
     }
     
     /* ============================================================

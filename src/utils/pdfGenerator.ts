@@ -1,6 +1,5 @@
 /**
- * Gerador de PDF para Relatório de Pedidos usando PDFMake
- * Gera PDF 100% no client-side com layout de 3 itens por página A4
+ * Gera PDF 100% no client-side com layout de 2 itens por página A4
  */
 
 import pdfMake from 'pdfmake/build/pdfmake';
@@ -27,7 +26,7 @@ export interface ItemRelatorio {
   emenda_label?: string;
   emenda_qtd?: number;
   tipo_producao: 'painel' | 'totem' | 'lona' | 'adesivo' | 'tecido' | string;
-  
+
   // Campos específicos por tipo
   acabamentos_painel?: string;
   overloque?: string;
@@ -35,21 +34,21 @@ export interface ItemRelatorio {
   ilhos_resumo?: string;
   cordinha_resumo?: string;
   quantidade_paineis?: number;
-  
+
   acabamento_totem_resumo?: string;
   acabamento_totem_outro?: string;
   quantidade_totem?: number;
-  
+
   acabamento_lona?: string;
   quantidade_lona?: number;
   quantidade_ilhos?: number;
   espaco_ilhos?: string;
   quantidade_cordinha?: number;
   espaco_cordinha?: string;
-  
+
   tipo_adesivo?: string;
   quantidade_adesivo?: number;
-  
+
   // Opcionais gerais
   observacao_item?: string;
   designer?: string;
@@ -134,10 +133,10 @@ async function imageUrlToBase64(url: string): Promise<string | null> {
     if (url.startsWith('data:image')) {
       return url;
     }
-    
+
     const response = await fetch(url);
     const blob = await response.blob();
-    
+
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
@@ -189,7 +188,7 @@ function agruparEmPaginas<T>(itens: T[], itensPorPagina: number = 2): T[][] {
 function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
   const bullets: Content[] = [];
   const tipo = item.tipo_producao?.toLowerCase() || '';
-  
+
   const addBullet = (label: string, value: unknown) => {
     const formatted = formatValue(value);
     if (formatted) {
@@ -203,7 +202,7 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
       });
     }
   };
-  
+
   switch (tipo) {
     case 'painel':
     case 'tecido':
@@ -214,7 +213,7 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
       addBullet('Cordinha', item.cordinha_resumo);
       addBullet('Qtd. Painéis', item.quantidade_paineis);
       break;
-      
+
     case 'totem':
       addBullet('Acabamento', item.acabamento_totem_resumo);
       if (isValid(item.acabamento_totem_outro)) {
@@ -222,7 +221,7 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
       }
       addBullet('Qtd. Totens', item.quantidade_totem);
       break;
-      
+
     case 'lona':
       addBullet('Acabamento Lona', item.acabamento_lona);
       addBullet('Qtd. Lonas', item.quantidade_lona);
@@ -231,13 +230,13 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
       addBullet('Cordinha', item.quantidade_cordinha);
       addBullet('Espaçamento Cordinha', item.espaco_cordinha);
       break;
-      
+
     case 'adesivo':
       addBullet('Tipo Adesivo', item.tipo_adesivo);
       addBullet('Qtd. Adesivos', item.quantidade_adesivo);
       break;
   }
-  
+
   return bullets;
 }
 
@@ -246,7 +245,7 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
  */
 function gerarObservacao(observacao?: string): Content | null {
   if (!isValid(observacao)) return null;
-  
+
   return {
     table: {
       widths: ['*'],
@@ -281,9 +280,9 @@ function gerarObservacao(observacao?: string): Content | null {
 function gerarDesignerVendedor(item: ItemRelatorio): Content | null {
   const hasDesigner = isValid(item.designer);
   const hasVendedor = isValid(item.vendedor);
-  
+
   if (!hasDesigner && !hasVendedor) return null;
-  
+
   return {
     columns: [
       hasDesigner ? {
@@ -310,7 +309,7 @@ function gerarDesignerVendedor(item: ItemRelatorio): Content | null {
  */
 function gerarColunaEsquerda(item: ItemRelatorio): Content {
   const conteudo: Content[] = [];
-  
+
   // Seção DESCRIÇÃO
   conteudo.push({
     text: 'DESCRIÇÃO',
@@ -319,13 +318,13 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
     decoration: 'underline',
     decorationColor: CORES.borda,
   });
-  
+
   conteudo.push({
     text: item.descricao || 'Sem descrição',
     style: 'descricaoProduto',
     margin: [0, 0, 0, 3],
   });
-  
+
   if (isValid(item.dimensoes)) {
     conteudo.push({
       text: `Dimensões: ${item.dimensoes}`,
@@ -333,7 +332,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 0, 0, 2],
     });
   }
-  
+
   if (isValid(item.quantity)) {
     conteudo.push({
       text: `Quantidade: ${item.quantity}`,
@@ -341,7 +340,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 0, 0, 8],
     });
   }
-  
+
   // Seção ESPECIFICAÇÕES TÉCNICAS
   conteudo.push({
     text: 'ESPECIFICAÇÕES TÉCNICAS',
@@ -350,7 +349,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
     decoration: 'underline',
     decorationColor: CORES.borda,
   });
-  
+
   // Material e Emenda
   if (isValid(item.material)) {
     conteudo.push({
@@ -361,7 +360,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 0, 0, 2],
     });
   }
-  
+
   if (isValid(item.emenda_label)) {
     conteudo.push({
       text: [
@@ -371,7 +370,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 0, 0, 2],
     });
   }
-  
+
   if (isValid(item.emenda_qtd) && item.emenda_qtd && item.emenda_qtd > 0) {
     conteudo.push({
       text: `Qtd. Emendas: ${item.emenda_qtd}`,
@@ -379,7 +378,7 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 0, 0, 2],
     });
   }
-  
+
   // Bullets específicos por tipo
   const bullets = gerarBulletsPorTipo(item);
   if (bullets.length > 0) {
@@ -388,19 +387,19 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
       margin: [0, 3, 0, 0],
     });
   }
-  
+
   // Observação
   const obs = gerarObservacao(item.observacao_item);
   if (obs) {
     conteudo.push(obs);
   }
-  
+
   // Designer/Vendedor
   const dv = gerarDesignerVendedor(item);
   if (dv) {
     conteudo.push(dv);
   }
-  
+
   return {
     stack: conteudo,
   };
@@ -411,13 +410,13 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
  */
 async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> {
   if (!isValid(item.imagem)) return null;
-  
+
   // Converter imagem para base64 se necessário
   const imagemBase64 = await imageUrlToBase64(item.imagem!);
   if (!imagemBase64) return null;
-  
+
   const conteudo: Content[] = [];
-  
+
   // Título
   conteudo.push({
     text: 'VISUALIZAÇÃO',
@@ -425,16 +424,16 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
     alignment: 'center',
     margin: [0, 0, 0, 8],
   });
-  
+
   // Imagem
   conteudo.push({
     image: imagemBase64,
-    width: 140,
-    height: 140,
+    width: 130,
+    height: 130,
     alignment: 'center',
     margin: [0, 0, 0, 5],
   });
-  
+
   // Legenda
   if (isValid(item.legenda_imagem)) {
     conteudo.push({
@@ -442,7 +441,7 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
       style: 'legenda',
     });
   }
-  
+
   return {
     table: {
       widths: ['*'],
@@ -472,7 +471,7 @@ function gerarCabecalhoItem(item: ItemRelatorio): Content {
   if (isValid(item.telefone_cliente)) contato.push(item.telefone_cliente!);
   if (isValid(item.cidade_estado)) contato.push(item.cidade_estado!);
   const contatoStr = contato.join(' • ');
-  
+
   return {
     columns: [
       // Pill do número
@@ -521,7 +520,7 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
   const cabecalho = gerarCabecalhoItem(item);
   const colunaEsquerda = gerarColunaEsquerda(item);
   const colunaDireita = await gerarColunaDireita(item);
-  
+
   // Corpo com colunas
   // Se colunaDireita existe, criar layout em 2 colunas
   // Type assertion necessária porque pdfmake aceita Content em columns
@@ -532,10 +531,10 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
       Object.assign({}, colunaDireita, { width: 180 }),
     ],
   } as Content) : colunaEsquerda;
-  
+
   // Estrutura do item
   const itemContent: Content[] = [cabecalho, corpo];
-  
+
   // Container com borda
   const itemContainer: Content = {
     table: {
@@ -555,27 +554,27 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
     },
     margin: isLast ? [0, 0, 0, 0] : [0, 0, 0, 8],
   };
-  
+
   return itemContainer;
 }
 
 /**
- * Gera uma página com até 3 itens
+ * Gera uma página com até 2 itens
  */
 async function gerarPagina(itens: ItemRelatorio[], isLastPage: boolean): Promise<Content[]> {
   const conteudo: Content[] = [];
-  
+
   for (let i = 0; i < itens.length; i++) {
     const isLastItem = i === itens.length - 1;
     const itemContent = await gerarItem(itens[i], isLastItem);
     conteudo.push(itemContent);
   }
-  
+
   // Quebra de página se não for a última
   if (!isLastPage) {
     conteudo.push({ text: '', pageBreak: 'after' });
   }
-  
+
   return conteudo;
 }
 
@@ -589,7 +588,7 @@ async function gerarPagina(itens: ItemRelatorio[], isLastPage: boolean): Promise
 async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefinitions> {
   // Agrupar itens em páginas de 2
   const paginas = agruparEmPaginas(itens, 2);
-  
+
   // Gerar conteúdo de cada página
   const conteudo: Content[] = [];
   for (let i = 0; i < paginas.length; i++) {
@@ -597,7 +596,7 @@ async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefi
     const paginaContent = await gerarPagina(paginas[i], isLastPage);
     conteudo.push(...paginaContent);
   }
-  
+
   return {
     pageSize: 'A4',
     pageMargins: [40, 30, 40, 30],
@@ -625,7 +624,7 @@ function isTauriEnvironment(): boolean {
 async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAposSalvar: boolean = false): Promise<string | null> {
   return new Promise((resolve, reject) => {
     console.log('[pdfGenerator] 📦 Iniciando getBuffer do PDFMake...');
-    
+
     // Tentar usar getBuffer primeiro
     if (typeof pdfDocGenerator.getBuffer === 'function') {
       pdfDocGenerator.getBuffer(async (buffer: Buffer | ArrayBuffer | Uint8Array) => {
@@ -641,7 +640,7 @@ async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAp
           reject(new Error('Falha ao gerar blob do PDF'));
           return;
         }
-        
+
         // Converter Blob para ArrayBuffer e depois para Uint8Array
         const arrayBuffer = await blob.arrayBuffer();
         await processarESalvarPDF(arrayBuffer, nomeArquivo, abrirAposSalvar, resolve, reject);
@@ -659,9 +658,9 @@ async function processarESalvarPDF(
 ): Promise<void> {
   try {
     console.log('[pdfGenerator] 📥 Importando APIs do Tauri...');
-        // Importar APIs do Tauri apenas quando necessário
-        const { save } = await import('@tauri-apps/plugin-dialog');
-        const { writeFile } = await import('@tauri-apps/plugin-fs');
+    // Importar APIs do Tauri apenas quando necessário
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
 
     console.log('[pdfGenerator] 💾 Abrindo diálogo de salvar...');
     // Abrir diálogo para escolher onde salvar
@@ -693,9 +692,9 @@ async function processarESalvarPDF(
       uint8Array = new Uint8Array(buffer);
     }
 
-        console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
-        // Salvar arquivo
-        await writeFile(filePath, uint8Array);
+    console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
+    // Salvar arquivo
+    await writeFile(filePath, uint8Array);
 
     console.log('[pdfGenerator] ✅ PDF salvo com sucesso:', filePath);
 
@@ -910,9 +909,9 @@ export async function gerarPDFBlob(itens: ItemRelatorio[]): Promise<Blob> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
-  
+
   const docDefinition = await gerarDocDefinition(itens);
-  
+
   return new Promise((resolve, reject) => {
     pdfMake.createPdf(docDefinition).getBlob((blob) => {
       if (blob) {
@@ -931,9 +930,9 @@ export async function gerarPDFBase64(itens: ItemRelatorio[]): Promise<string> {
   if (!itens || itens.length === 0) {
     throw new Error('Nenhum item fornecido para gerar o PDF');
   }
-  
+
   const docDefinition = await gerarDocDefinition(itens);
-  
+
   return new Promise((resolve, reject) => {
     pdfMake.createPdf(docDefinition).getBase64((base64) => {
       if (base64) {
@@ -963,7 +962,7 @@ export async function printPdfWindowPrint(
     // Obter blob do PDF - tentar getBase64 primeiro (mais confiável)
     console.log('[printPdfWindowPrint] 📦 Tentando obter PDF via getBase64...');
     let blob: Blob;
-    
+
     try {
       // Primeiro tentar getBase64 (mais confiável)
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -980,12 +979,12 @@ export async function printPdfWindowPrint(
           if (resolved) return;
           resolved = true;
           clearTimeout(timeout);
-          
+
           if (!base64) {
             reject(new Error('Falha ao gerar base64 do PDF'));
             return;
           }
-          
+
           resolve(base64);
         });
       });
@@ -999,10 +998,10 @@ export async function printPdfWindowPrint(
       }
       blob = new Blob([bytes], { type: 'application/pdf' });
       console.log('[printPdfWindowPrint] ✅ Blob criado a partir de base64, tamanho:', blob.size, 'bytes');
-      
+
     } catch (base64Error) {
       console.warn('[printPdfWindowPrint] ⚠️ getBase64 falhou, tentando getBlob...', base64Error);
-      
+
       // Fallback: tentar getBlob
       blob = await new Promise<Blob>((resolve, reject) => {
         let resolved = false;
@@ -1026,7 +1025,7 @@ export async function printPdfWindowPrint(
           resolve(blob);
         });
       });
-      
+
       console.log('[printPdfWindowPrint] ✅ Blob recebido via getBlob, tamanho:', blob.size, 'bytes');
     }
 
@@ -1039,7 +1038,7 @@ export async function printPdfWindowPrint(
     if (isTauriEnvironment()) {
       // No Tauri: criar iframe temporário para imprimir
       console.log('[printPdfWindowPrint] 🖥️ Tauri: criando iframe para impressão...');
-      
+
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
       iframe.style.width = '100vw';
@@ -1049,7 +1048,7 @@ export async function printPdfWindowPrint(
       iframe.style.zIndex = '999999';
       iframe.style.border = 'none';
       iframe.style.display = 'none'; // Ocultar inicialmente
-      
+
       document.body.appendChild(iframe);
 
       iframe.onload = () => {
@@ -1061,7 +1060,7 @@ export async function printPdfWindowPrint(
               iframe.contentWindow.focus();
               iframe.contentWindow.print();
               console.log('[printPdfWindowPrint] ✅ print() chamado');
-              
+
               // Limpar após um tempo
               setTimeout(() => {
                 if (document.body.contains(iframe)) {
@@ -1089,12 +1088,12 @@ export async function printPdfWindowPrint(
       };
 
       iframe.src = blobUrl;
-      
+
     } else {
       // No navegador: usar window.open e print()
       console.log('[printPdfWindowPrint] 🌐 Navegador: abrindo nova janela para impressão...');
       const printWindow = window.open(blobUrl, '_blank');
-      
+
       if (printWindow) {
         printWindow.onload = () => {
           setTimeout(() => {
@@ -1160,7 +1159,7 @@ export async function printPdf(
       temStyles: !!docDefinition.styles,
       pageSize: docDefinition.pageSize || 'A4'
     });
-    
+
     const pdfDocGenerator = pdfMake.createPdf(docDefinition);
     console.log('[printPdf] ✅ PDF generator criado');
     console.log('[printPdf] 🔍 Métodos disponíveis:', {
@@ -1174,7 +1173,7 @@ export async function printPdf(
     // 2. Obter buffer do PDF - tentar getBase64 primeiro (mais confiável)
     console.log('[printPdf] 📦 Tentando obter PDF via getBase64...');
     let buffer: Uint8Array;
-    
+
     try {
       // Primeiro tentar getBase64 (mais confiável e rápido)
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -1191,12 +1190,12 @@ export async function printPdf(
           if (resolved) return;
           resolved = true;
           clearTimeout(timeout);
-          
+
           if (!base64) {
             reject(new Error('Falha ao gerar base64 do PDF'));
             return;
           }
-          
+
           resolve(base64);
         });
       });
@@ -1209,10 +1208,10 @@ export async function printPdf(
         buffer[i] = binaryString.charCodeAt(i);
       }
       console.log('[printPdf] ✅ Buffer criado a partir de base64, tamanho:', buffer.length, 'bytes');
-      
+
     } catch (base64Error) {
       console.warn('[printPdf] ⚠️ getBase64 falhou, tentando getBlob...', base64Error);
-      
+
       // Fallback: tentar getBlob
       buffer = await new Promise<Uint8Array>((resolve, reject) => {
         let resolved = false;
@@ -1231,22 +1230,22 @@ export async function printPdf(
               console.log('[printPdf] ⚠️ Callback já foi resolvido, ignorando...');
               return;
             }
-            
+
             resolved = true;
             clearTimeout(timeout);
-            
+
             console.log('[printPdf] 📦 Blob recebido:', {
               existe: !!blob,
               tamanho: blob?.size || 0,
               tipo: blob?.type || 'desconhecido'
             });
-            
+
             if (!blob) {
               console.error('[printPdf] ❌ Blob é null ou undefined');
               reject(new Error('Falha ao gerar blob do PDF - blob é null'));
               return;
             }
-            
+
             console.log('[printPdf] 🔄 Convertendo blob para ArrayBuffer...');
             blob.arrayBuffer()
               .then((arrayBuffer) => {
@@ -1259,7 +1258,7 @@ export async function printPdf(
                 reject(new Error(`Erro ao converter blob: ${error}`));
               });
           });
-          
+
           console.log('[printPdf] ✅ getBlob() chamado, aguardando callback...');
         } catch (error) {
           if (resolved) return;
@@ -1269,7 +1268,7 @@ export async function printPdf(
           reject(new Error(`Erro ao chamar getBlob: ${error}`));
         }
       });
-      
+
       console.log('[printPdf] ✅ Buffer recebido via getBlob, tamanho:', buffer.length, 'bytes');
     }
 
@@ -1278,7 +1277,7 @@ export async function printPdf(
     // 3. Abrir diálogo para escolher onde salvar
     console.log('[printPdf] 💾 Abrindo diálogo de salvar...');
     const { save } = await import('@tauri-apps/plugin-dialog');
-    
+
     const filePath = await save({
       defaultPath: nomeArquivoPadrao,
       filters: [{
@@ -1297,7 +1296,7 @@ export async function printPdf(
     console.log('[printPdf] 💾 Salvando arquivo em:', filePath);
     const { writeFile } = await import('@tauri-apps/plugin-fs');
     await writeFile(filePath, buffer);
-    
+
     console.log('[printPdf] ✅ PDF salvo com sucesso:', filePath);
 
     // 6. Abrir arquivo no sistema operacional
@@ -1305,7 +1304,7 @@ export async function printPdf(
     console.log('[printPdf] 🖨️ Abrindo PDF no sistema operacional...');
     const { open } = await import('@tauri-apps/plugin-shell');
     await open(filePath);
-    
+
     console.log('[printPdf] ✅ PDF aberto. Usuário pode escolher impressora ou salvar como PDF.');
 
     return filePath;

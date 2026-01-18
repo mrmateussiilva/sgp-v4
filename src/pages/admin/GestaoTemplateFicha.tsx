@@ -96,7 +96,7 @@ const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
 const TEMPLATE_RESUMO_DEFAULT: FichaTemplate = {
   title: 'FICHA DE SERVIÇO - RESUMO PRODUÇÃO',
   width: 187, // Largura do template resumo
-  height: 140, // Altura do template resumo (2 por página A4)
+  height: 135, // Altura do template resumo (2 por página A4)
   marginTop: 1,
   marginBottom: 1,
   marginLeft: 2,
