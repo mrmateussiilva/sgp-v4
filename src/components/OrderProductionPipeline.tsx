@@ -317,7 +317,7 @@ export function OrderProductionPipeline({
                                                     </div>
 
                                                     {/* Action Buttons on Hover */}
-                                                    <div className="flex items-center justify-end gap-1 pt-3 border-t border-border/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 relative z-20">
+                                                    <div className="flex items-center justify-end gap-1 pt-3 border-t border-border/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 relative z-30 pointer-events-auto">
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -325,8 +325,10 @@ export function OrderProductionPipeline({
                                                                         size="icon"
                                                                         variant="ghost"
                                                                         className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary"
-                                                                        onClick={(e) => { e.stopPropagation(); onViewOrder(order); }}
+                                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewOrder(order); }}
+                                                                        onMouseDown={(e) => e.stopPropagation()}
                                                                         onPointerDown={(e) => e.stopPropagation()}
+                                                                        onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                                     >
                                                                         <FileText className="h-3 w-3" />
                                                                     </Button>
@@ -340,8 +342,10 @@ export function OrderProductionPipeline({
                                                                         size="icon"
                                                                         variant="ghost"
                                                                         className="h-7 w-7 rounded-full hover:bg-amber-500/10 hover:text-amber-500"
-                                                                        onClick={(e) => { e.stopPropagation(); onEdit(order); }}
+                                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(order); }}
+                                                                        onMouseDown={(e) => e.stopPropagation()}
                                                                         onPointerDown={(e) => e.stopPropagation()}
+                                                                        onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                                     >
                                                                         <Edit className="h-3 w-3" />
                                                                     </Button>
@@ -356,8 +360,10 @@ export function OrderProductionPipeline({
                                                                             size="icon"
                                                                             variant="ghost"
                                                                             className="h-7 w-7 rounded-full hover:bg-blue-500/10 hover:text-blue-500"
-                                                                            onClick={(e) => { e.stopPropagation(); onDuplicate(order); }}
+                                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDuplicate(order); }}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
                                                                             onPointerDown={(e) => e.stopPropagation()}
+                                                                            onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                                         >
                                                                             <Copy className="h-3 w-3" />
                                                                         </Button>
@@ -373,8 +379,10 @@ export function OrderProductionPipeline({
                                                                             size="icon"
                                                                             variant="ghost"
                                                                             className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive"
-                                                                            onClick={(e) => { e.stopPropagation(); onDelete(order.id); }}
+                                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(order.id); }}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
                                                                             onPointerDown={(e) => e.stopPropagation()}
+                                                                            onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                                         >
                                                                             <Trash2 className="h-3 w-3" />
                                                                         </Button>
