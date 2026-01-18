@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
-import { apiClient, getApiUrl } from '@/api/client';
+import { getApiUrl } from '@/api/client';
 
 export const NotificationDebugPanel = () => {
   const { isConnected, subscriberCount, connect, disconnect } = useRealtimeNotifications();

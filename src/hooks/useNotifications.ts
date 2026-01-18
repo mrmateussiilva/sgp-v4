@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getApiUrl } from "../services/apiClient";
+import { getApiUrl } from "@/api/client";
 import { useAuthStore } from "../store/authStore";
 import { useOrderStore } from "../store/orderStore";
 import { api } from "../services/api";
@@ -28,7 +28,7 @@ export function useNotifications() {
 
   useEffect(() => {
     const apiUrl = getApiUrl();
-    
+
     // Só conectar se API estiver configurada e usuário estiver autenticado
     if (!apiUrl || !isAuthenticated || !sessionToken) {
       // Fechar conexão existente se houver
@@ -53,21 +53,21 @@ export function useNotifications() {
           wsUrl = 'ws://' + wsUrl;
         }
         wsUrl = wsUrl + '/ws/orders?token=' + encodeURIComponent(sessionToken);
-        
+
         logger.debug('[WebSocket] Conectando ao WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
-        
+
         const ws = new WebSocket(wsUrl);
-        
+
         ws.onopen = () => {
           logger.debug('[WebSocket] Conectado com sucesso');
           reconnectAttempts.current = 0;
         };
-        
+
         ws.onmessage = async (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
             logger.debug('[WebSocket] Mensagem recebida:', message.type, message.order_id);
-            
+
             switch (message.type) {
               case 'order_created':
                 if (message.order) {
@@ -78,7 +78,7 @@ export function useNotifications() {
                   });
                 }
                 break;
-                
+
               case 'order_updated':
               case 'order_status_updated':
                 if (message.order) {
@@ -99,7 +99,7 @@ export function useNotifications() {
                   }
                 }
                 break;
-                
+
               case 'order_deleted':
                 if (message.order_id) {
                   removeOrder(message.order_id);
@@ -114,24 +114,24 @@ export function useNotifications() {
             logger.error('[WebSocket] Erro ao processar mensagem:', error);
           }
         };
-        
+
         ws.onerror = (error) => {
           logger.error('[WebSocket] Erro na conexão:', error);
         };
-        
+
         ws.onclose = (event) => {
           logger.debug('[WebSocket] Conexão fechada:', event.code, event.reason);
-          
+
           // CORREÇÃO 1: Não reconectar se foi fechamento intencional do servidor
           if (event.code === 1000 && event.reason === "Nova conexão do mesmo usuário") {
             logger.debug('[WebSocket] Outra sessão ativa. Não reconectando.');
             return; // NÃO reconectar
           }
-          
+
           // Tentar reconectar se não foi um fechamento intencional
           if (event.code !== 1000 && reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
             reconnectAttempts.current++;
-            
+
             // CORREÇÃO 3: Implementar exponential backoff
             const baseDelay = 1000; // 1 segundo base
             const maxDelay = 30000; // 30 segundos máximo
@@ -139,17 +139,17 @@ export function useNotifications() {
               baseDelay * Math.pow(2, reconnectAttempts.current - 1),
               maxDelay
             );
-            
+
             // CORREÇÃO 2: Garantir delay mínimo
             const finalDelay = Math.max(exponentialDelay, MIN_RECONNECT_INTERVAL);
-            
+
             // Debounce: verificar se passou tempo suficiente desde a última tentativa
             const now = Date.now();
             const timeSinceLastAttempt = now - lastReconnectAttempt.current;
             const actualDelay = Math.max(finalDelay - timeSinceLastAttempt, MIN_RECONNECT_INTERVAL);
-            
+
             logger.debug(`[WebSocket] Tentando reconectar em ${actualDelay}ms (tentativa ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
-            
+
             lastReconnectAttempt.current = now;
             reconnectTimeoutRef.current = setTimeout(() => {
               connectWebSocket();
@@ -158,7 +158,7 @@ export function useNotifications() {
             logger.error(`[WebSocket] Máximo de tentativas de reconexão atingido (${MAX_RECONNECT_ATTEMPTS})`);
           }
         };
-        
+
         wsRef.current = ws;
       } catch (error) {
         logger.error('[WebSocket] Erro ao criar conexão:', error);
