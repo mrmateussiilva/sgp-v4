@@ -320,68 +320,47 @@ export function OrderProductionPipeline({
 
                                                         {/* Action Buttons on Hover */}
                                                         <div
-                                                            className="flex items-center justify-end gap-2 pt-3 border-t border-border/10 transition-all relative z-50 bg-background/90"
-                                                            onClick={(e) => {
-                                                                console.log('Actions container clicked for order:', order.id);
-                                                                e.stopPropagation();
-                                                            }}
-                                                            onMouseEnter={() => {
-                                                                console.log('Mouse entered actions area for order:', order.id);
-                                                                setHoveringButtonsOrderId(order.id);
-                                                            }}
-                                                            onMouseLeave={() => {
-                                                                console.log('Mouse left actions area for order:', order.id);
-                                                                setHoveringButtonsOrderId(null);
-                                                            }}
+                                                            className="flex items-center justify-end gap-2 pt-3 border-t border-border/10 transition-all relative z-50 bg-background/90 opacity-0 group-hover:opacity-100"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onMouseEnter={() => setHoveringButtonsOrderId(order.id)}
+                                                            onMouseLeave={() => setHoveringButtonsOrderId(null)}
                                                         >
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors pointer-events-auto cursor-pointer border-none p-0"
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 pointer-events-auto"
                                                                         onClick={(e) => {
-                                                                            console.log('Native View button clicked for order:', order.id);
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
                                                                             onViewOrder(order);
                                                                         }}
-                                                                        onMouseDown={(e) => {
-                                                                            console.log('Native View mouseDown for order:', order.id);
-                                                                            e.stopPropagation();
-                                                                        }}
-                                                                        onPointerDown={(e) => {
-                                                                            console.log('Native View pointerDown for order:', order.id);
-                                                                            e.stopPropagation();
-                                                                        }}
+                                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                                        onPointerDown={(e) => e.stopPropagation()}
                                                                     >
                                                                         <FileText className="h-4 w-4" />
-                                                                    </button>
+                                                                    </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent className="text-[10px] uppercase font-bold">Ver</TooltipContent>
                                                             </Tooltip>
 
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors pointer-events-auto cursor-pointer border-none p-0"
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 pointer-events-auto"
                                                                         onClick={(e) => {
-                                                                            console.log('Native Edit button clicked for order:', order.id);
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
                                                                             onEdit(order);
                                                                         }}
-                                                                        onMouseDown={(e) => {
-                                                                            console.log('Native Edit mouseDown for order:', order.id);
-                                                                            e.stopPropagation();
-                                                                        }}
-                                                                        onPointerDown={(e) => {
-                                                                            console.log('Native Edit pointerDown for order:', order.id);
-                                                                            e.stopPropagation();
-                                                                        }}
+                                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                                        onPointerDown={(e) => e.stopPropagation()}
                                                                     >
                                                                         <Edit className="h-4 w-4" />
-                                                                    </button>
+                                                                    </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent className="text-[10px] uppercase font-bold">Editar</TooltipContent>
                                                             </Tooltip>
@@ -389,26 +368,20 @@ export function OrderProductionPipeline({
                                                             {onDuplicate && (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors pointer-events-auto cursor-pointer border-none p-0"
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 pointer-events-auto"
                                                                             onClick={(e) => {
-                                                                                console.log('Native Duplicate button clicked for order:', order.id);
                                                                                 e.preventDefault();
                                                                                 e.stopPropagation();
                                                                                 onDuplicate(order);
                                                                             }}
-                                                                            onMouseDown={(e) => {
-                                                                                console.log('Native Duplicate mouseDown for order:', order.id);
-                                                                                e.stopPropagation();
-                                                                            }}
-                                                                            onPointerDown={(e) => {
-                                                                                console.log('Native Duplicate pointerDown for order:', order.id);
-                                                                                e.stopPropagation();
-                                                                            }}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
                                                                         >
                                                                             <Copy className="h-4 w-4" />
-                                                                        </button>
+                                                                        </Button>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent className="text-[10px] uppercase font-bold">Duplicar</TooltipContent>
                                                                 </Tooltip>
@@ -417,26 +390,20 @@ export function OrderProductionPipeline({
                                                             {isAdmin && (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors pointer-events-auto cursor-pointer border-none p-0"
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 pointer-events-auto"
                                                                             onClick={(e) => {
-                                                                                console.log('Native Delete button clicked for order:', order.id);
                                                                                 e.preventDefault();
                                                                                 e.stopPropagation();
                                                                                 onDelete(order.id);
                                                                             }}
-                                                                            onMouseDown={(e) => {
-                                                                                console.log('Native Delete mouseDown for order:', order.id);
-                                                                                e.stopPropagation();
-                                                                            }}
-                                                                            onPointerDown={(e) => {
-                                                                                console.log('Native Delete pointerDown for order:', order.id);
-                                                                                e.stopPropagation();
-                                                                            }}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
                                                                         >
                                                                             <Trash2 className="h-4 w-4" />
-                                                                        </button>
+                                                                        </Button>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent className="text-[10px] uppercase font-bold">Excluir</TooltipContent>
                                                                 </Tooltip>

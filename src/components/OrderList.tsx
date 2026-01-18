@@ -354,10 +354,7 @@ export default function OrderList() {
           setTotalOrders(paginatedData.orders.length);
         } else {
           const filters = {
-            status:
-              productionStatusFilter === 'pending'
-                ? OrderStatus.Pendente
-                : OrderStatus.Concluido,
+            status: OrderStatus.Concluido,
             cliente: hasSearch ? undefined : (activeSearchTerm || undefined), // Não passar cliente se há busca - vamos filtrar localmente
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
@@ -1648,609 +1645,605 @@ export default function OrderList() {
   };
 
   // Se estiver no modo pipeline, renderizar layout de fluxo de produção
-  if (viewMode === 'pipeline') {
-    return (
-      <div className="flex flex-col h-full w-full overflow-hidden bg-background/50 animate-in fade-in duration-500">
-        {/* Header minimalista com Glassmorphism */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 py-4 gap-4 border-b border-border/40 bg-background/40 backdrop-blur-md sticky top-0 z-20">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <div className="h-6 w-1 bg-primary rounded-full" />
-              Status de Produção — Visão em Pipeline
-            </h1>
-            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Fluxo Linear e Sequencial</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2 flex-1 md:flex-initial">
-              <div className="relative group flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <Input
-                  placeholder="Pesquisar no pipeline..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearch();
-                  }}
-                  className="pl-9 h-9 text-xs bg-muted/30 border-border/40 focus:bg-background transition-all"
-                />
-              </div>
-              <Select
-                value={productionStatusFilter}
-                onValueChange={(value) => setProductionStatusFilter(value as any)}
-              >
-                <SelectTrigger className="h-9 text-xs w-[130px] bg-muted/30 border-border/40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pendentes</SelectItem>
-                  <SelectItem value="ready">Prontos</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
-
-            {/* Alternância de Visualização */}
-            <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-border/40 shadow-inner">
-              <Button
-                type="button"
-                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className={`h-7 px-2.5 text-xs transition-all ${viewMode === 'table' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}`}
-              >
-                <Table2 className="h-3.5 w-3.5 mr-1.5" />
-                Tabela
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('pipeline')}
-                className={`h-7 px-2.5 text-xs transition-all ${viewMode === 'pipeline' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}`}
-              >
-                <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                  <ChevronRight className="h-2 w-2" />
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                </div>
-                Pipeline
-              </Button>
-            </div>
-
-            <Button
-              size="sm"
-              className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm shadow-primary/20"
-              onClick={() => navigate('/dashboard/pedido/novo')}
-            >
-              <FileText className="h-4 w-4" />
-              Novo Pedido
-            </Button>
-          </div>
-        </div>
-
-        {/* Área do Pipeline - ocupa todo o espaço restante sem scroll externo */}
-        <div className="flex-1 overflow-hidden p-6 bg-muted/5">
-          <OrderProductionPipeline
-            orders={filteredOrders}
-            onStatusChange={handleKanbanStatusChange}
-            onEdit={handleEdit}
-            onViewOrder={handleViewOrder}
-            onDelete={handleDeleteClick}
-            onDuplicate={handleDuplicateClick}
-            isAdmin={isAdmin}
-            loading={loading}
-          />
-        </div>
-      </div>
-    );
-  }
 
   // Modo tabela - layout original
   return (
-    <div className="flex flex-col h-full space-y-4 min-h-screen">
-      {viewMode === 'table' && (
-        <>
-          {/* Header com alternância de visualização */}
-          <div className="flex items-center justify-between py-2 mb-2">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Gestão de Pedidos</h1>
-              <p className="text-sm text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
-            </div>
-            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
-              <Button
-                type="button"
-                variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className={`h-8 px-3 ${viewMode === 'table' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                <Table2 className="h-4 w-4 mr-2" />
-                Tabela
-              </Button>
-              <Button
-                type="button"
-                variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('pipeline')}
-                className={`h-8 px-3 ${viewMode === 'pipeline' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                  <ChevronRight className="h-2 w-2" />
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                </div>
-                Pipeline
-              </Button>
-            </div>
-          </div>
-          {/* Barra de Filtros Principais - Sempre Visível */}
-          <Card className="border-2">
-            <CardContent className="pt-6">
-              <div className="flex flex-col gap-4">
-                {/* Linha 1: Busca e Status */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {/* Busca - Prioridade 1 */}
-                  <div className="flex-1 flex gap-2 items-center">
-                    <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar por nome do cliente, ID ou número do pedido"
-                        ref={searchInputRef}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSearch();
-                          }
-                        }}
-                        className="pl-10 h-10"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleSearch}
-                      className="h-10 px-4 whitespace-nowrap"
-                      variant="default"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      Buscar
-                    </Button>
-                  </div>
+    <>
+      <div className={`flex flex-col h-full ${viewMode === 'pipeline' ? 'w-full overflow-hidden bg-background/50 animate-in fade-in duration-500' : 'space-y-4 min-h-screen'}`}>
+        {viewMode === 'pipeline' ? (
+          <>
+            {/* Header minimalista com Glassmorphism */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 py-4 gap-4 border-b border-border/40 bg-background/40 backdrop-blur-md sticky top-0 z-20">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                  <div className="h-6 w-1 bg-primary rounded-full" />
+                  Status de Produção — Visão em Pipeline
+                </h1>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Fluxo Linear e Sequencial</p>
+              </div>
 
-                  {/* Status - Prioridade 1 */}
-                  <div className="w-full sm:w-[180px]">
-                    <Select
-                      value={productionStatusFilter}
-                      onValueChange={(value) =>
-                        setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
-                      }
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Status de produção" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
-                        <SelectItem value="ready">Prontos para entrega</SelectItem>
-                        <SelectItem value="all">Todos os pedidos</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 flex-1 md:flex-initial">
+                  <div className="relative group flex-1 md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input
+                      placeholder="Pesquisar no pipeline..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSearch();
+                      }}
+                      className="pl-9 h-9 text-xs bg-muted/30 border-border/40 focus:bg-background transition-all"
+                    />
                   </div>
-
-                  {/* Data de Entrega - Prioridade 1 */}
-                  <div className="flex gap-2 flex-1 sm:flex-initial">
-                    <div className="flex-1 sm:w-[160px] relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        type="date"
-                        placeholder="Data inicial de entrega"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                        className="pl-10 h-10"
-                        title="Data inicial de entrega"
-                      />
-                    </div>
-                    <div className="flex-1 sm:w-[160px] relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        type="date"
-                        placeholder="Data final de entrega"
-                        value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
-                        className="pl-10 h-10"
-                        title="Data final de entrega"
-                      />
-                    </div>
-                  </div>
+                  <Select
+                    value={productionStatusFilter}
+                    onValueChange={(value) => setProductionStatusFilter(value as any)}
+                  >
+                    <SelectTrigger className="h-9 text-xs w-[130px] bg-muted/30 border-border/40">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendentes</SelectItem>
+                      <SelectItem value="ready">Prontos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Linha 2: Filtros Ativos e Controles - Sempre visível quando há filtros */}
-                {activeFiltersList.length > 0 && (
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">Mostrando:</span>
-                        {activeFiltersList.map((filter, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="gap-1.5 px-2.5 py-1 text-sm font-medium"
-                          >
-                            <span>{filter.label}</span>
-                            <button
-                              onClick={filter.onRemove}
-                              className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5 transition-colors"
-                              aria-label={`Remover filtro ${filter.label}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllFilters}
-                      className="h-8 gap-1.5 font-medium"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Limpar todos os filtros
-                    </Button>
-                  </div>
-                )}
+                <div className="h-6 w-px bg-border/40 mx-1 hidden sm:block" />
 
-                {/* Indicador quando não há filtros */}
-                {activeFiltersList.length === 0 && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      Use os filtros acima para buscar pedidos. Todos os filtros são aplicados instantaneamente.
-                    </p>
-                  </div>
-                )}
-
-                {/* Linha 3: Filtros Avançados (Colapsáveis) */}
-                <div className="border-t pt-3">
+                {/* Alternância de Visualização */}
+                <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-border/40 shadow-inner">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
-                    className="w-full justify-between h-9"
+                    onClick={() => setViewMode('table')}
+                    className="h-7 px-2.5 text-xs transition-all text-muted-foreground hover:text-foreground hover:bg-background/50"
                   >
-                    <span className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filtros Adicionais
-                      {activeFiltersCount > 0 && (
-                        <Badge variant="secondary" className="ml-1">
-                          {activeFiltersCount}
-                        </Badge>
-                      )}
-                    </span>
-                    {advancedFiltersOpen ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
+                    <Table2 className="h-3.5 w-3.5 mr-1.5" />
+                    Tabela
                   </Button>
-
-                  {advancedFiltersOpen && (
-                    <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Status de Produção */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold">Status de Produção</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { value: 'financeiro', label: 'Financeiro' },
-                              { value: 'conferencia', label: 'Conferência' },
-                              { value: 'sublimacao', label: 'Sublimação' },
-                              { value: 'costura', label: 'Costura' },
-                              { value: 'expedicao', label: 'Expedição' },
-                              { value: 'pronto', label: 'Pronto' },
-                            ].map((status) => (
-                              <div key={status.value} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`status-${status.value}`}
-                                  checked={selectedStatuses.includes(status.value)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setSelectedStatuses([...selectedStatuses, status.value]);
-                                    } else {
-                                      setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
-                                    }
-                                  }}
-                                />
-                                <Label
-                                  htmlFor={`status-${status.value}`}
-                                  className="text-sm font-normal cursor-pointer"
-                                >
-                                  {status.label}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Filtros Secundários */}
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="vendedor-filter" className="text-sm font-semibold">Vendedor</Label>
-                            <Select
-                              value={selectedVendedor || "all"}
-                              onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
-                            >
-                              <SelectTrigger id="vendedor-filter" className="h-9">
-                                <SelectValue placeholder="Todos os vendedores" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                {vendedores.filter(v => v.nome).map((v) => (
-                                  <SelectItem key={v.id} value={v.nome}>
-                                    {v.nome}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="designer-filter" className="text-sm font-semibold">Designer</Label>
-                            <Select
-                              value={selectedDesigner || "all"}
-                              onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
-                            >
-                              <SelectTrigger id="designer-filter" className="h-9">
-                                <SelectValue placeholder="Todos os designers" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                {designers.filter(d => d.nome).map((d) => (
-                                  <SelectItem key={d.id} value={d.nome}>
-                                    {d.nome}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="cidade-filter" className="text-sm font-semibold">Cidade</Label>
-                            <Select
-                              value={selectedCidade || "all"}
-                              onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
-                            >
-                              <SelectTrigger id="cidade-filter" className="h-9">
-                                <SelectValue placeholder="Todas as cidades" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                {cidades.filter(c => c && c.trim()).map((cidade) => (
-                                  <SelectItem key={cidade} value={cidade}>
-                                    {cidade}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">Forma de Envio</Label>
-                            <Select
-                              value={selectedFormaEnvio || "all"}
-                              onValueChange={(value) => setSelectedFormaEnvio(value === "all" ? "" : value)}
-                            >
-                              <SelectTrigger id="forma-envio-filter" className="h-9">
-                                <SelectValue placeholder="Todas as formas de envio" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">Todas</SelectItem>
-                                {formasEnvio.filter(f => f.nome).map((forma) => (
-                                  <SelectItem key={forma.id} value={forma.nome}>
-                                    {forma.nome}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setViewMode('pipeline')}
+                    className="h-7 px-2.5 text-xs transition-all bg-background shadow-sm text-primary"
+                  >
+                    <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                      <div className="h-2 w-2 rounded-full bg-current" />
+                      <ChevronRight className="h-2 w-2" />
+                      <div className="h-2 w-2 rounded-full bg-current" />
                     </div>
-                  )}
+                    Pipeline
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Barra de Seleção de Pedidos para Impressão */}
-          {selectedOrderIdsForPrint.length > 0 && (
-            <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
-                  {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
-                </span>
-              </div>
-              <div className="flex gap-2">
                 <Button
-                  type="button"
-                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedOrderIdsForPrint([])}
+                  className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm shadow-primary/20"
+                  onClick={() => navigate('/dashboard/pedido/novo')}
                 >
-                  <X className="h-4 w-4 mr-1" />
-                  Limpar
-                </Button>
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={handlePrintSelected}
-                >
-                  <Printer className="h-4 w-4 mr-1" />
-                  Imprimir Selecionados
+                  <FileText className="h-4 w-4" />
+                  Novo Pedido
                 </Button>
               </div>
             </div>
-          )}
-        </>
-      )}
 
-      <Card className="flex-1 flex flex-col min-h-0 flex-grow">
-        <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-          {viewMode === 'table' ? (
-            <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
-              {/* Indicador de loading sutil */}
-              {loading && paginatedOrders.length > 0 && (
-                <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
-                  <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
-                </div>
-              )}
-              <SmoothTableWrapper>
-                <Table className="w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
-                        <Checkbox
-                          checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedOrderIdsForPrint(paginatedOrders.map(o => o.id));
-                            } else {
-                              setSelectedOrderIdsForPrint([]);
+            {/* Área do Pipeline - ocupa todo o espaço restante sem scroll externo */}
+            <div className="flex-1 overflow-hidden p-6 bg-muted/5">
+              <OrderProductionPipeline
+                orders={filteredOrders}
+                onStatusChange={handleKanbanStatusChange}
+                onEdit={handleEdit}
+                onViewOrder={handleViewOrder}
+                onDelete={handleDeleteClick}
+                onDuplicate={handleDuplicateClick}
+                isAdmin={isAdmin}
+                loading={loading}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header com alternância de visualização */}
+            <div className="flex items-center justify-between py-2 mb-2">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Gestão de Pedidos</h1>
+                <p className="text-sm text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
+              </div>
+              <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="h-8 px-3 bg-background shadow-sm text-primary"
+                >
+                  <Table2 className="h-4 w-4 mr-2" />
+                  Tabela
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode('pipeline')}
+                  className="h-8 px-3 text-muted-foreground hover:text-foreground"
+                >
+                  <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                    <div className="h-2 w-2 rounded-full bg-current" />
+                    <ChevronRight className="h-2 w-2" />
+                    <div className="h-2 w-2 rounded-full bg-current" />
+                  </div>
+                  Pipeline
+                </Button>
+              </div>
+            </div>
+            {/* Barra de Filtros Principais - Sempre Visível */}
+            <Card className="border-2">
+              <CardContent className="pt-6">
+                <div className="flex flex-col gap-4">
+                  {/* Linha 1: Busca e Status */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Busca - Prioridade 1 */}
+                    <div className="flex-1 flex gap-2 items-center">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                          ref={searchInputRef}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSearch();
                             }
                           }}
+                          className="pl-10 h-10"
                         />
-                      </TableHead>
-                      <TableHead
-                        className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
-                        onClick={() => handleSort('id')}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleSearch}
+                        className="h-10 px-4 whitespace-nowrap"
+                        variant="default"
                       >
-                        <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          ID
-                          {getSortIcon('id')}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4"
-                        onClick={() => handleSort('cliente')}
+                        <Search className="h-4 w-4 mr-2" />
+                        Buscar
+                      </Button>
+                    </div>
+
+                    {/* Status - Prioridade 1 */}
+                    <div className="w-full sm:w-[180px]">
+                      <Select
+                        value={productionStatusFilter}
+                        onValueChange={(value) =>
+                          setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+                        }
                       >
-                        <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          Nome Cliente
-                          {getSortIcon('cliente')}
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Status de produção" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
+                          <SelectItem value="ready">Prontos para entrega</SelectItem>
+                          <SelectItem value="all">Todos os pedidos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Data de Entrega - Prioridade 1 */}
+                    <div className="flex gap-2 flex-1 sm:flex-initial">
+                      <div className="flex-1 sm:w-[160px] relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="date"
+                          placeholder="Data inicial de entrega"
+                          value={dateFrom}
+                          onChange={(e) => setDateFrom(e.target.value)}
+                          className="pl-10 h-10"
+                          title="Data inicial de entrega"
+                        />
+                      </div>
+                      <div className="flex-1 sm:w-[160px] relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="date"
+                          placeholder="Data final de entrega"
+                          value={dateTo}
+                          onChange={(e) => setDateTo(e.target.value)}
+                          className="pl-10 h-10"
+                          title="Data final de entrega"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linha 2: Filtros Ativos e Controles - Sempre visível quando há filtros */}
+                  {activeFiltersList.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">Mostrando:</span>
+                          {activeFiltersList.map((filter, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="gap-1.5 px-2.5 py-1 text-sm font-medium"
+                            >
+                              <span>{filter.label}</span>
+                              <button
+                                onClick={filter.onRemove}
+                                className="ml-1 hover:bg-secondary-foreground/20 rounded-full p-0.5 transition-colors"
+                                aria-label={`Remover filtro ${filter.label}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
                         </div>
-                      </TableHead>
-                      <TableHead
-                        className="hidden sm:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
-                        onClick={() => handleSort('data_entrega')}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="h-8 gap-1.5 font-medium"
                       >
-                        <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          Data Entrega
-                          {getSortIcon('data_entrega')}
+                        <X className="h-3.5 w-3.5" />
+                        Limpar todos os filtros
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Indicador quando não há filtros */}
+                  {activeFiltersList.length === 0 && (
+                    <div className="pt-2 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Use os filtros acima para buscar pedidos. Todos os filtros são aplicados instantaneamente.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Linha 3: Filtros Avançados (Colapsáveis) */}
+                  <div className="border-t pt-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+                      className="w-full justify-between h-9"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Filter className="h-4 w-4" />
+                        Filtros Adicionais
+                        {activeFiltersCount > 0 && (
+                          <Badge variant="secondary" className="ml-1">
+                            {activeFiltersCount}
+                          </Badge>
+                        )}
+                      </span>
+                      {advancedFiltersOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+
+                    {advancedFiltersOpen && (
+                      <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Status de Produção */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">Status de Produção</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { value: 'financeiro', label: 'Financeiro' },
+                                { value: 'conferencia', label: 'Conferência' },
+                                { value: 'sublimacao', label: 'Sublimação' },
+                                { value: 'costura', label: 'Costura' },
+                                { value: 'expedicao', label: 'Expedição' },
+                                { value: 'pronto', label: 'Pronto' },
+                              ].map((status) => (
+                                <div key={status.value} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`status-${status.value}`}
+                                    checked={selectedStatuses.includes(status.value)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedStatuses([...selectedStatuses, status.value]);
+                                      } else {
+                                        setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
+                                      }
+                                    }}
+                                  />
+                                  <Label
+                                    htmlFor={`status-${status.value}`}
+                                    className="text-sm font-normal cursor-pointer"
+                                  >
+                                    {status.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Filtros Secundários */}
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="vendedor-filter" className="text-sm font-semibold">Vendedor</Label>
+                              <Select
+                                value={selectedVendedor || "all"}
+                                onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
+                              >
+                                <SelectTrigger id="vendedor-filter" className="h-9">
+                                  <SelectValue placeholder="Todos os vendedores" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Todos</SelectItem>
+                                  {vendedores.filter(v => v.nome).map((v) => (
+                                    <SelectItem key={v.id} value={v.nome}>
+                                      {v.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="designer-filter" className="text-sm font-semibold">Designer</Label>
+                              <Select
+                                value={selectedDesigner || "all"}
+                                onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
+                              >
+                                <SelectTrigger id="designer-filter" className="h-9">
+                                  <SelectValue placeholder="Todos os designers" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Todos</SelectItem>
+                                  {designers.filter(d => d.nome).map((d) => (
+                                    <SelectItem key={d.id} value={d.nome}>
+                                      {d.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="cidade-filter" className="text-sm font-semibold">Cidade</Label>
+                              <Select
+                                value={selectedCidade || "all"}
+                                onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
+                              >
+                                <SelectTrigger id="cidade-filter" className="h-9">
+                                  <SelectValue placeholder="Todas as cidades" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Todas</SelectItem>
+                                  {cidades.filter(c => c && c.trim()).map((cidade) => (
+                                    <SelectItem key={cidade} value={cidade}>
+                                      {cidade}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">Forma de Envio</Label>
+                              <Select
+                                value={selectedFormaEnvio || "all"}
+                                onValueChange={(value) => setSelectedFormaEnvio(value === "all" ? "" : value)}
+                              >
+                                <SelectTrigger id="forma-envio-filter" className="h-9">
+                                  <SelectValue placeholder="Todas as formas de envio" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Todas</SelectItem>
+                                  {formasEnvio.filter(f => f.nome).map((forma) => (
+                                    <SelectItem key={forma.id} value={forma.nome}>
+                                      {forma.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                         </div>
-                      </TableHead>
-                      <TableHead
-                        className="hidden md:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
-                        onClick={() => handleSort('prioridade')}
-                      >
-                        <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          Prioridade
-                          {getSortIcon('prioridade')}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
-                        onClick={() => handleSort('cidade')}
-                      >
-                        <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                          Cidade/UF
-                          {getSortIcon('cidade')}
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Fin.</TableHead>
-                      <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Conf.</TableHead>
-                      <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
-                      <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
-                      <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
-                      <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
-                      <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading && paginatedOrders.length === 0 ? (
-                      <>
-                        {Array.from({ length: 5 }).map((_, index) => (
-                          <TableRow key={`skeleton-${index}`}>
-                            <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
-                              <Skeleton className="h-4 w-4" />
-                            </TableCell>
-                            <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2">
-                              <Skeleton className="h-4 w-10 lg:w-12 xl:w-14 hd:w-16" />
-                            </TableCell>
-                            <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
-                              <Skeleton className="h-4 w-24 lg:w-32" />
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell">
-                              <Skeleton className="h-4 w-24" />
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <Skeleton className="h-4 w-20" />
-                            </TableCell>
-                            <TableCell className="hidden hd:table-cell">
-                              <Skeleton className="h-4 w-16" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-24" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-20" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-16" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-20" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-24" />
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell text-center">
-                              <Skeleton className="h-5 w-16 mx-auto" />
-                            </TableCell>
-                            <TableCell className="text-right sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
-                              <div className="flex justify-end gap-2">
-                                <Skeleton className="h-8 w-8" />
-                                <Skeleton className="h-8 w-8" />
-                                <Skeleton className="h-8 w-8" />
-                                <Skeleton className="h-8 w-8" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Barra de Seleção de Pedidos para Impressão */}
+            {selectedOrderIdsForPrint.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedOrderIdsForPrint([])}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Limpar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={handlePrintSelected}
+                  >
+                    <Printer className="h-4 w-4 mr-1" />
+                    Imprimir Selecionados
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Card className="flex-1 flex flex-col min-h-0 flex-grow">
+              <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+                <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
+                  {/* Indicador de loading sutil */}
+                  {loading && paginatedOrders.length > 0 && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
+                      <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
+                    </div>
+                  )}
+
+                  <SmoothTableWrapper>
+                    <Table className="w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                            <Checkbox
+                              checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedOrderIdsForPrint(paginatedOrders.map(o => o.id));
+                                } else {
+                                  setSelectedOrderIdsForPrint([]);
+                                }
+                              }}
+                            />
+                          </TableHead>
+                          <TableHead
+                            className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
+                            onClick={() => handleSort('id')}
+                          >
+                            <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              ID
+                              {getSortIcon('id')}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4"
+                            onClick={() => handleSort('cliente')}
+                          >
+                            <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              Nome Cliente
+                              {getSortIcon('cliente')}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="hidden sm:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                            onClick={() => handleSort('data_entrega')}
+                          >
+                            <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              Data Entrega
+                              {getSortIcon('data_entrega')}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="hidden md:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                            onClick={() => handleSort('prioridade')}
+                          >
+                            <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              Prioridade
+                              {getSortIcon('prioridade')}
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                            onClick={() => handleSort('cidade')}
+                          >
+                            <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              Cidade/UF
+                              {getSortIcon('cidade')}
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Fin.</TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Conf.</TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
+                          <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
+                          <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loading && paginatedOrders.length === 0 ? (
+                          <>
+                            {Array.from({ length: 5 }).map((_, index) => (
+                              <TableRow key={`skeleton-${index}`}>
+                                <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                                  <Skeleton className="h-4 w-4" />
+                                </TableCell>
+                                <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2">
+                                  <Skeleton className="h-4 w-10 lg:w-12 xl:w-14 hd:w-16" />
+                                </TableCell>
+                                <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
+                                  <Skeleton className="h-4 w-24 lg:w-32" />
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell">
+                                  <Skeleton className="h-4 w-24" />
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">
+                                  <Skeleton className="h-4 w-20" />
+                                </TableCell>
+                                <TableCell className="hidden hd:table-cell">
+                                  <Skeleton className="h-4 w-16" />
+                                </TableCell>
+                                <TableCell>
+                                  <Skeleton className="h-4 w-24" />
+                                </TableCell>
+                                <TableCell>
+                                  <Skeleton className="h-4 w-20" />
+                                </TableCell>
+                                <TableCell>
+                                  <Skeleton className="h-4 w-16" />
+                                </TableCell>
+                                <TableCell>
+                                  <Skeleton className="h-4 w-20" />
+                                </TableCell>
+                                <TableCell>
+                                  <Skeleton className="h-4 w-24" />
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell text-center">
+                                  <Skeleton className="h-5 w-16 mx-auto" />
+                                </TableCell>
+                                <TableCell className="text-right sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                                  <div className="flex justify-end gap-2">
+                                    <Skeleton className="h-8 w-8" />
+                                    <Skeleton className="h-8 w-8" />
+                                    <Skeleton className="h-8 w-8" />
+                                    <Skeleton className="h-8 w-8" />
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        ) : paginatedOrders.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={13} className="h-24 text-center">
+                              <div className="flex flex-col items-center gap-2">
+                                <Inbox className="h-10 w-10 text-muted-foreground" />
+                                <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
+                                <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </>
-                    ) : paginatedOrders.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={13} className="h-24 text-center">
-                          <div className="flex flex-col items-center gap-2">
-                            <Inbox className="h-10 w-10 text-muted-foreground" />
-                            <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
-                            <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedOrders.map((order: OrderWithItems) => {
-                        const urgency = getOrderUrgency(order.data_entrega);
-                        const isOverdue = urgency.type === 'overdue';
-                        const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
-                        const isHighPriority = order.prioridade === 'ALTA';
-                        const isDelayed = isOverdue && !order.pronto;
+                        ) : (
+                          paginatedOrders.map((order: OrderWithItems) => {
+                            const urgency = getOrderUrgency(order.data_entrega);
+                            const isOverdue = urgency.type === 'overdue';
+                            const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
+                            const isHighPriority = order.prioridade === 'ALTA';
+                            const isDelayed = isOverdue && !order.pronto;
 
-                        // Classe base da linha com destaque visual baseado em urgência e prioridade
-                        const rowClassName = `
+                            // Classe base da linha com destaque visual baseado em urgência e prioridade
+                            const rowClassName = `
                       hover:bg-muted/50 transition-all duration-200
                       ${isDelayed ? 'bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''}
                       ${isOverdue && order.pronto ? 'bg-orange-50/30 dark:bg-orange-950/10 border-l-2 border-l-orange-400' : ''}
@@ -2258,479 +2251,480 @@ export default function OrderList() {
                       ${isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''}
                     `.trim().replace(/\s+/g, ' ');
 
-                        return (
-                          <TableRow
-                            key={order.id}
-                            className={rowClassName}
-                            data-overdue={isDelayed}
-                            data-urgent={isUrgent}
-                            data-priority={order.prioridade}
-                          >
-                            <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
-                              <Checkbox
-                                checked={selectedOrderIdsForPrint.includes(order.id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedOrderIdsForPrint([...selectedOrderIdsForPrint, order.id]);
-                                  } else {
-                                    setSelectedOrderIdsForPrint(selectedOrderIdsForPrint.filter(id => id !== order.id));
-                                  }
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                              <div className="flex items-center gap-1 lg:gap-2">
-                                #{formatOrderNumber(order.numero, order.id)}
-                                <EditingIndicator orderId={order.id} />
-                              </div>
-                            </TableCell>
-                            <TableCell className={`
+                            return (
+                              <TableRow
+                                key={order.id}
+                                className={rowClassName}
+                                data-overdue={isDelayed}
+                                data-urgent={isUrgent}
+                                data-priority={order.prioridade}
+                              >
+                                <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                                  <Checkbox
+                                    checked={selectedOrderIdsForPrint.includes(order.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedOrderIdsForPrint([...selectedOrderIdsForPrint, order.id]);
+                                      } else {
+                                        setSelectedOrderIdsForPrint(selectedOrderIdsForPrint.filter(id => id !== order.id));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <div className="flex items-center gap-1 lg:gap-2">
+                                    #{formatOrderNumber(order.numero, order.id)}
+                                    <EditingIndicator orderId={order.id} />
+                                  </div>
+                                </TableCell>
+                                <TableCell className={`
                           font-medium min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] truncate px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base
                           ${isDelayed ? 'font-semibold' : ''}
                           ${isUrgent && !order.pronto ? 'font-semibold' : ''}
                         `}>
-                              {order.cliente || order.customer_name}
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                              <div className="flex items-center gap-1.5">
-                                {urgency.type === 'overdue' && (
-                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" aria-hidden="true" />
-                                )}
-                                {urgency.type === 'today' && (
-                                  <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" aria-hidden="true" />
-                                )}
-                                {urgency.type === 'tomorrow' && (
-                                  <Clock className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" aria-hidden="true" />
-                                )}
-                                <span className={`
+                                  {order.cliente || order.customer_name}
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <div className="flex items-center gap-1.5">
+                                    {urgency.type === 'overdue' && (
+                                      <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" aria-hidden="true" />
+                                    )}
+                                    {urgency.type === 'today' && (
+                                      <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" aria-hidden="true" />
+                                    )}
+                                    {urgency.type === 'tomorrow' && (
+                                      <Clock className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" aria-hidden="true" />
+                                    )}
+                                    <span className={`
                               font-medium
                               ${urgency.type === 'overdue' ? 'text-red-600 dark:text-red-400' : ''}
                               ${urgency.type === 'today' ? 'text-orange-600 dark:text-orange-400' : ''}
                               ${urgency.type === 'tomorrow' ? 'text-yellow-600 dark:text-yellow-500' : ''}
                               ${urgency.type === 'soon' ? 'text-amber-600 dark:text-amber-400' : ''}
                             `}>
-                                  {formatDateForDisplay(order.data_entrega, '-')}
-                                </span>
-                                {urgency.type === 'overdue' && (
-                                  <span className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400" title={`Atrasado há ${urgency.days} dia(s)`}>
-                                    ({urgency.days}d)
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
-                              <Badge
-                                variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
-                                className={`
+                                      {formatDateForDisplay(order.data_entrega, '-')}
+                                    </span>
+                                    {urgency.type === 'overdue' && (
+                                      <span className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400" title={`Atrasado há ${urgency.days} dia(s)`}>
+                                        ({urgency.days}d)
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
+                                  <Badge
+                                    variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
+                                    className={`
                               text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
                               ${order.prioridade === 'ALTA' ? 'animate-pulse' : ''}
                               ${order.prioridade === 'ALTA' && isDelayed ? 'ring-2 ring-red-400 ring-offset-1' : ''}
                             `}
-                              >
-                                {order.prioridade || 'NORMAL'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                              {order.cidade_cliente && order.estado_cliente
-                                ? `${order.cidade_cliente}/${order.estado_cliente}`
-                                : order.cidade_cliente || '-'}
-                            </TableCell>
+                                  >
+                                    {order.prioridade || 'NORMAL'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  {order.cidade_cliente && order.estado_cliente
+                                    ? `${order.cidade_cliente}/${order.estado_cliente}`
+                                    : order.cidade_cliente || '-'}
+                                </TableCell>
 
-                            {/* Checkboxes de Status */}
-                            {/* Financeiro - Apenas admins podem alterar */}
-                            <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="inline-block">
-                                      <Checkbox
-                                        checked={order.financeiro === true}
-                                        disabled={!isAdmin}
-                                        onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
-                                        className={`
+                                {/* Checkboxes de Status */}
+                                {/* Financeiro - Apenas admins podem alterar */}
+                                <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                          <Checkbox
+                                            checked={order.financeiro === true}
+                                            disabled={!isAdmin}
+                                            onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
+                                            className={`
                                       transition-all duration-150
                                       ${!isAdmin ? "opacity-50 cursor-not-allowed" : ""}
                                       ${order.financeiro ? "scale-110" : ""}
                                     `}
-                                      />
+                                          />
+                                        </div>
+                                      </TooltipTrigger>
+                                      {!isAdmin && (
+                                        <TooltipContent>
+                                          <p>Somente administradores podem executar esta ação.</p>
+                                        </TooltipContent>
+                                      )}
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
+
+                                {/* Conferência - Só habilitado se Financeiro estiver marcado */}
+                                <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <Checkbox
+                                    checked={order.conferencia === true}
+                                    disabled={!order.financeiro}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
+                                    className="transition-all duration-150 data-[state=checked]:scale-110"
+                                  />
+                                </TableCell>
+
+                                {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
+                                <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <Checkbox
+                                    checked={order.sublimacao === true}
+                                    disabled={!order.financeiro}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
+                                    className="transition-all duration-150 data-[state=checked]:scale-110"
+                                  />
+                                  {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
+                                    <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
+                                      {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
+                                      {order.sublimacao_data_impressao && (
+                                        <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
+                                      )}
                                     </div>
-                                  </TooltipTrigger>
-                                  {!isAdmin && (
-                                    <TooltipContent>
-                                      <p>Somente administradores podem executar esta ação.</p>
-                                    </TooltipContent>
                                   )}
-                                </Tooltip>
-                              </TooltipProvider>
-                            </TableCell>
+                                </TableCell>
 
-                            {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                            <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                              <Checkbox
-                                checked={order.conferencia === true}
-                                disabled={!order.financeiro}
-                                onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
-                                className="transition-all duration-150 data-[state=checked]:scale-110"
-                              />
-                            </TableCell>
+                                {/* Costura - Só habilitado se Financeiro estiver marcado */}
+                                <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <Checkbox
+                                    checked={order.costura === true}
+                                    disabled={!order.financeiro}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
+                                    className="transition-all duration-150 data-[state=checked]:scale-110"
+                                  />
+                                </TableCell>
 
-                            {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
-                            <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                              <Checkbox
-                                checked={order.sublimacao === true}
-                                disabled={!order.financeiro}
-                                onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
-                                className="transition-all duration-150 data-[state=checked]:scale-110"
-                              />
-                              {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
-                                <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
-                                  {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
-                                  {order.sublimacao_data_impressao && (
-                                    <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
-                                  )}
-                                </div>
-                              )}
-                            </TableCell>
+                                {/* Expedição - Só habilitado se Financeiro estiver marcado */}
+                                <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <Checkbox
+                                    checked={order.expedicao === true}
+                                    disabled={!order.financeiro}
+                                    onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
+                                    className="transition-all duration-150 data-[state=checked]:scale-110"
+                                  />
+                                </TableCell>
 
-                            {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                            <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                              <Checkbox
-                                checked={order.costura === true}
-                                disabled={!order.financeiro}
-                                onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
-                                className="transition-all duration-150 data-[state=checked]:scale-110"
-                              />
-                            </TableCell>
-
-                            {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                            <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                              <Checkbox
-                                checked={order.expedicao === true}
-                                disabled={!order.financeiro}
-                                onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
-                                className="transition-all duration-150 data-[state=checked]:scale-110"
-                              />
-                            </TableCell>
-
-                            {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                            <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {order.pronto && (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
-                                )}
-                                <Badge
-                                  variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
-                                  className={`
+                                {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
+                                <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {order.pronto && (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
+                                    )}
+                                    <Badge
+                                      variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
+                                      className={`
                                 text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
                                 ${order.pronto ? '' : isDelayed ? 'animate-pulse' : ''}
                               `}
-                                >
-                                  {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
-                              <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleQuickShare(order)}
-                                        className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                        title="Ação Rápida: Copiar itens para WhatsApp"
-                                      >
-                                        <Camera className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Copiar itens do pedido para WhatsApp</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleViewOrder(order)}
-                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                  title="Visualizar Pedido"
-                                >
-                                  <FileText className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEdit(order);
-                                  }}
-                                  className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                >
-                                  <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                </Button>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
+                                    >
+                                      {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                                    </Badge>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                                  <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleQuickShare(order)}
+                                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                            title="Ação Rápida: Copiar itens para WhatsApp"
+                                          >
+                                            <Camera className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Copiar itens do pedido para WhatsApp</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleViewOrder(order)}
+                                      className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                      title="Visualizar Pedido"
+                                    >
+                                      <FileText className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEdit(order);
+                                      }}
+                                      className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                    >
+                                      <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                    </Button>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDuplicateClick(order);
+                                            }}
+                                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                            title="Duplicar pedido"
+                                          >
+                                            <Copy className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Duplicar pedido</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    {isAdmin && (
                                       <Button
                                         size="icon"
                                         variant="ghost"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleDuplicateClick(order);
+                                          handleDeleteClick(order.id);
                                         }}
-                                        className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                        title="Duplicar pedido"
+                                        className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-destructive hover:text-destructive"
                                       >
-                                        <Copy className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                        <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
                                       </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Duplicar pedido</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                {isAdmin && (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick(order.id);
-                                    }}
-                                    className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </SmoothTableWrapper>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {filteredOrders.length > 0 && (
-        <div className="w-full bg-background border-t border-border p-4 mt-auto">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-sm text-muted-foreground text-center lg:text-left">
-              {dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready'
-                ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
-                : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`
-              }
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <Select
-                value={rowsPerPage.toString()}
-                onValueChange={(value) => {
-                  setRowsPerPage(Number(value));
-                  setPage(0); // Resetar para primeira página ao mudar tamanho
-                }}
-              >
-                <SelectTrigger className="h-9 w-[140px]">
-                  <SelectValue placeholder="Itens por página" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100, 500].map((size) => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size === 500 ? 'Todos' : `${size} por página`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-1 flex-wrap justify-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(Math.max(0, page - 1))}
-                  disabled={page === 0}
-                >
-                  Anterior
-                </Button>
-                <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
-                  {Array.from({
-                    length: isBackendPaginated ? totalPages : totalPagesFiltered
-                  }).map((_, index) => (
-                    <Button
-                      key={index}
-                      variant={index === page ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setPage(index)}
-                      className="min-w-[40px]"
-                    >
-                      {index + 1}
-                    </Button>
-                  ))}
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </SmoothTableWrapper>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const maxPage = isBackendPaginated ? totalPages - 1 : totalPagesFiltered - 1;
-                    setPage(Math.min(maxPage, page + 1));
-                  }}
-                  disabled={
-                    isBackendPaginated ? page >= totalPages - 1 : page >= totalPagesFiltered - 1
-                  }
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </CardContent>
+            </Card>
 
-      {/* Modal de Confirmação de Exclusão */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Duplicação */}
-      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Duplicar Pedido</DialogTitle>
-            <DialogDescription>
-              Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
-              <Input
-                id="duplicate-data-entrada"
-                type="date"
-                value={duplicateDataEntrada}
-                onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
-                className={duplicateDateError ? 'border-destructive' : ''}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
-              <Input
-                id="duplicate-data-entrega"
-                type="date"
-                value={duplicateDataEntrega}
-                onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
-                className={duplicateDateError ? 'border-destructive' : ''}
-              />
-              {duplicateDateError && (
-                <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setDuplicateDialogOpen(false);
-              setOrderToDuplicate(null);
-              setDuplicateDataEntrada('');
-              setDuplicateDataEntrega('');
-              setDuplicateDateError(null);
-            }}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleDuplicateConfirm}
-              disabled={!!duplicateDateError || !duplicateDataEntrada}
-            >
-              Duplicar Pedido
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={statusConfirmModal.show} onOpenChange={(open) => {
-        if (!open) {
-          setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Alteração de Status</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-2">
-                {statusConfirmModal.novoValor ? (
-                  <div>
-                    Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído para o pedido #{statusConfirmModal.pedidoId}?
-                  </div>
-                ) : (
-                  <div>
-                    <div>
-                      Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o pedido #{statusConfirmModal.pedidoId}?
-                    </div>
-                    {statusConfirmModal.campo === 'financeiro' && (
-                      <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                        ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Sublimação, Costura e Expedição) também serão desmarcados!
+            {filteredOrders.length > 0 && (
+              <div className="w-full bg-background border-t border-border p-4 mt-auto">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <p className="text-sm text-muted-foreground text-center lg:text-left">
+                    {dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready'
+                      ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
+                      : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`
+                    }
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <Select
+                      value={rowsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setRowsPerPage(Number(value));
+                        setPage(0); // Resetar para primeira página ao mudar tamanho
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-[140px]">
+                        <SelectValue placeholder="Itens por página" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 20, 50, 100, 500].map((size) => (
+                          <SelectItem key={size} value={size.toString()}>
+                            {size === 500 ? 'Todos' : `${size} por página`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-1 flex-wrap justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(Math.max(0, page - 1))}
+                        disabled={page === 0}
+                      >
+                        Anterior
+                      </Button>
+                      <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
+                        {Array.from({
+                          length: isBackendPaginated ? totalPages : totalPagesFiltered
+                        }).map((_, index) => (
+                          <Button
+                            key={index}
+                            variant={index === page ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setPage(index)}
+                            className="min-w-[40px]"
+                          >
+                            {index + 1}
+                          </Button>
+                        ))}
                       </div>
-                    )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const maxPage = isBackendPaginated ? totalPages - 1 : totalPagesFiltered - 1;
+                          setPage(Math.min(maxPage, page + 1));
+                        }}
+                        disabled={
+                          isBackendPaginated ? page >= totalPages - 1 : page >= totalPagesFiltered - 1
+                        }
+                      >
+                        Próxima
+                      </Button>
+                    </div>
                   </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Modal de Confirmação de Exclusão */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteConfirm}>
+                Excluir
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Duplicação */}
+        <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Duplicar Pedido</DialogTitle>
+              <DialogDescription>
+                Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
+                <Input
+                  id="duplicate-data-entrada"
+                  type="date"
+                  value={duplicateDataEntrada}
+                  onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
+                  className={duplicateDateError ? 'border-destructive' : ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
+                <Input
+                  id="duplicate-data-entrega"
+                  type="date"
+                  value={duplicateDataEntrega}
+                  onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
+                  className={duplicateDateError ? 'border-destructive' : ''}
+                />
+                {duplicateDateError && (
+                  <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
                 )}
               </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' })}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleConfirmStatusChange}>
-              Confirmar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setDuplicateDialogOpen(false);
+                setOrderToDuplicate(null);
+                setDuplicateDataEntrada('');
+                setDuplicateDataEntrega('');
+                setDuplicateDateError(null);
+              }}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleDuplicateConfirm}
+                disabled={!!duplicateDateError || !duplicateDataEntrada}
+              >
+                Duplicar Pedido
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <OrderViewModal
-        isOpen={viewModalOpen}
-        onClose={() => setViewModalOpen(false)}
-        order={selectedOrderForView}
-      />
-
-      <OrderQuickEditDialog
-        orderId={editOrderId}
-        open={editDialogOpen}
-        onOpenChange={(open) => {
-          setEditDialogOpen(open);
+        <Dialog open={statusConfirmModal.show} onOpenChange={(open) => {
           if (!open) {
-            setEditOrderId(null);
+            setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
           }
-        }}
-        onUpdated={(order) => {
-          updateOrder(order);
-          setSelectedOrder(order);
-          if (selectedOrderForView && selectedOrderForView.id === order.id) {
-            setSelectedOrderForView(order);
-          }
-        }}
-      />
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Alteração de Status</DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-2">
+                  {statusConfirmModal.novoValor ? (
+                    <div>
+                      Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído para o pedido #{statusConfirmModal.pedidoId}?
+                    </div>
+                  ) : (
+                    <div>
+                      <div>
+                        Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o pedido #{statusConfirmModal.pedidoId}?
+                      </div>
+                      {statusConfirmModal.campo === 'financeiro' && (
+                        <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Sublimação, Costura e Expedição) também serão desmarcados!
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' })}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmStatusChange}>
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Painel Lateral de Contexto - DESABILITADO */}
-      {/* 
+        <OrderViewModal
+          isOpen={viewModalOpen}
+          onClose={() => setViewModalOpen(false)}
+          order={selectedOrderForView}
+        />
+
+        <OrderQuickEditDialog
+          orderId={editOrderId}
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) {
+              setEditOrderId(null);
+            }
+          }}
+          onUpdated={(order) => {
+            updateOrder(order);
+            setSelectedOrder(order);
+            if (selectedOrderForView && selectedOrderForView.id === order.id) {
+              setSelectedOrderForView(order);
+            }
+          }}
+        />
+
+        {/* Painel Lateral de Contexto - DESABILITADO */}
+        {/* 
       <OrderContextPanel
         order={selectedOrder}
         isOpen={contextPanelOpen}
@@ -2765,6 +2759,7 @@ export default function OrderList() {
         isAdmin={isAdmin}
       />
       */}
-    </div>
+      </div>
+    </>
   );
 }
