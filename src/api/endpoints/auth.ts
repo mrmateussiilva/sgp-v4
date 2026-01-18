@@ -22,7 +22,17 @@ export const authApi = {
     logout: async (): Promise<void> => {
         try {
             requireSessionToken();
-            await apiClient.post('/auth/logout');
+            // Usar header X-Silent-Request para evitar que falhas no logout 
+            // disparem a tela global de erro de conexão
+            await apiClient.post('/auth/logout', null, {
+                headers: {
+                    'X-Silent-Request': 'true'
+                }
+            });
+        } catch (error) {
+            // No logout, ignoramos erros de API pois o objetivo principal 
+            // é limpar o estado local do usuário.
+            console.warn('[authApi] Erro ao notificar servidor sobre logout:', error);
         } finally {
             setAuthToken(null);
             useAuthStore.getState().logout();

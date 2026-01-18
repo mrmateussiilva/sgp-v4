@@ -30,7 +30,11 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (!error.response) {
+    // Se a requisição tiver o header 'X-Silent-Request', não notificar os listeners globais
+    // Isso evita que falhas em chamadas não essenciais (ex: logout) acionem a tela de fallback
+    const isSilent = error.config?.headers?.['X-Silent-Request'] === 'true';
+
+    if (!error.response && !isSilent) {
       listeners.forEach((listener) => listener(error));
     }
     return Promise.reject(error);
