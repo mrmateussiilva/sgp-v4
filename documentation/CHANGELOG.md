@@ -1,6 +1,20 @@
 # Changelog - SGP v4
 
-## [1.0.12] - 2025-01-XX
+## [1.0.13] - 2026-01-18
+
+### ✨ Adicionado
+- **Pipeline de Produção**: Nova visualização linear e sequencial para gestão do fluxo de trabalho.
+  - Substituição do Quadro Kanban por um Pipeline corporativo robusto.
+  - Funcionalidade nativa de Arrastar e Soltar (Drag & Drop).
+  - Cards enriquecidos com dados de entrega, urgência, vendedor e envio.
+- **Restrição de Acesso**: Visão de Pipeline restrita exclusivamente para usuários Administradores.
+
+### 🔧 Melhorado
+- **Estabilidade do Logout**: Otimização do processo de saída para evitar telas de erro de conexão e tratamento robusto de respostas vazias no adaptador Tauri.
+- **Visibilidade de Modais**: Unificação da lógica de renderização para garantir que todos os diálogos de ação funcionem em qualquer visualização.
+- **UI Premium**: Restauração de componentes Shadcn e efeitos de micro-interação (hover) nos cards de produção.
+
+## [1.0.12] - 2026-01-16
 
 ### ✨ Adicionado
 - **Tela de Changelog após Atualização**: Agora após uma atualização ser instalada, o sistema exibe automaticamente um modal com todas as mudanças da nova versão
