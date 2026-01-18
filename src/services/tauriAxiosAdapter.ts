@@ -70,16 +70,44 @@ function resolveUrl(config: AxiosRequestConfig): string {
 }
 
 async function getResponseData(response: Response, responseType?: AxiosRequestConfig['responseType']): Promise<any> {
-  switch (responseType) {
-    case 'arraybuffer':
-      return await response.arrayBuffer();
-    case 'blob':
-      return await response.blob();
-    case 'text':
-      return await response.text();
-    case 'json':
-    default:
-      return await response.json();
+  // Se o status for 204 No Content ou 205 Reset Content, ou se o status for 200/201 mas o corpo estiver vazio
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  try {
+    // Verificar se há conteúdo antes de tentar parsear
+    // Note: Clonamos para poder ler como texto se falhar como JSON
+    const clonedResponse = response.clone();
+    const text = await clonedResponse.text();
+
+    if (!text || text.trim().length === 0) {
+      return null;
+    }
+
+    switch (responseType) {
+      case 'arraybuffer':
+        return await response.arrayBuffer();
+      case 'blob':
+        return await response.blob();
+      case 'text':
+        return text;
+      case 'json':
+      default:
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          // Se falhou o parse JSON mas o responseType era padrão, retorna como texto
+          if (!responseType || responseType === 'json') {
+            console.warn('[tauriAxiosAdapter] ⚠️ Falha ao parsear JSON, retornando texto puro:', e);
+            return text;
+          }
+          throw e;
+        }
+    }
+  } catch (error) {
+    console.error('[tauriAxiosAdapter] ❌ Erro ao processar corpo da resposta:', error);
+    return null;
   }
 }
 
