@@ -317,11 +317,17 @@ export function OrderProductionPipeline({
                                                     </div>
 
                                                     {/* Action Buttons on Hover */}
-                                                    <div className="flex items-center justify-end gap-1 pt-3 border-t border-border/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
+                                                    <div className="flex items-center justify-end gap-1 pt-3 border-t border-border/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0 relative z-20">
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary" onClick={(e) => { e.stopPropagation(); onViewOrder(order); }}>
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary"
+                                                                        onClick={(e) => { e.stopPropagation(); onViewOrder(order); }}
+                                                                        onPointerDown={(e) => e.stopPropagation()}
+                                                                    >
                                                                         <FileText className="h-3 w-3" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -330,7 +336,13 @@ export function OrderProductionPipeline({
 
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-amber-500/10 hover:text-amber-500" onClick={(e) => { e.stopPropagation(); onEdit(order); }}>
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 rounded-full hover:bg-amber-500/10 hover:text-amber-500"
+                                                                        onClick={(e) => { e.stopPropagation(); onEdit(order); }}
+                                                                        onPointerDown={(e) => e.stopPropagation()}
+                                                                    >
                                                                         <Edit className="h-3 w-3" />
                                                                     </Button>
                                                                 </TooltipTrigger>
@@ -340,7 +352,13 @@ export function OrderProductionPipeline({
                                                             {onDuplicate && (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-blue-500/10 hover:text-blue-500" onClick={(e) => { e.stopPropagation(); onDuplicate(order); }}>
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className="h-7 w-7 rounded-full hover:bg-blue-500/10 hover:text-blue-500"
+                                                                            onClick={(e) => { e.stopPropagation(); onDuplicate(order); }}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                                        >
                                                                             <Copy className="h-3 w-3" />
                                                                         </Button>
                                                                     </TooltipTrigger>
@@ -354,8 +372,9 @@ export function OrderProductionPipeline({
                                                                         <Button
                                                                             size="icon"
                                                                             variant="ghost"
-                                                                            className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                                                                            className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive"
                                                                             onClick={(e) => { e.stopPropagation(); onDelete(order.id); }}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
                                                                         >
                                                                             <Trash2 className="h-3 w-3" />
                                                                         </Button>
