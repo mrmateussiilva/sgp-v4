@@ -53,7 +53,7 @@ export function FormPainelCompleto({
 }: FormPainelCompletoProps) {
   const isGenerica = mode === 'generica';
   const { toast } = useToast();
-  
+
   // Estado para preview da imagem (temporário, apenas para exibição)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -78,7 +78,7 @@ export function FormPainelCompleto({
         setImageLoading(false);
       });
   }, [tabData?.imagem]);
-  
+
   // Funções de parsing e formatação
   const parseBR = (v: string | number): number => {
     if (!v) return 0;
@@ -130,7 +130,7 @@ export function FormPainelCompleto({
             className="h-10 text-sm"
           />
         </div>
-        
+
         <div className="w-2/5">
           <MedidasCalculator
             largura={tabData?.largura || ''}
@@ -186,7 +186,7 @@ export function FormPainelCompleto({
         <div className="space-y-4">
           <div className="space-y-3">
             <Label className="text-base font-semibold">Acabamento:</Label>
-            
+
             {/* Overloque */}
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -231,7 +231,7 @@ export function FormPainelCompleto({
                   <SelectItem value="horizontal">Horizontal</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               {/* Campo condicional para quantidade de emendas */}
               {tabData?.emenda !== 'sem-emenda' && (
                 <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-300">
@@ -264,7 +264,7 @@ export function FormPainelCompleto({
                   Ilhós
                 </label>
               </div>
-              
+
               {/* Campos condicionais para ilhós */}
               {tabData?.tipo_acabamento === 'ilhos' && (
                 <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-300 space-y-2">
@@ -319,7 +319,7 @@ export function FormPainelCompleto({
                   Cordinha
                 </label>
               </div>
-              
+
               {/* Campos condicionais para cordinha */}
               {tabData?.tipo_acabamento === 'cordinha' && (
                 <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-300 space-y-2">
@@ -428,27 +428,27 @@ export function FormPainelCompleto({
                 if (isTauri()) {
                   try {
                     setImageLoading(true);
-                    
+
                     // Converter File para Uint8Array
                     const arrayBuffer = await file.arrayBuffer();
                     const imageData = new Uint8Array(arrayBuffer);
-                    
+
                     // Processar e salvar localmente (redimensiona se necessário)
                     const metadata = await processAndSaveImage(
                       imageData,
-                      1200, // maxWidth
-                      1200, // maxHeight
+                      5000, // maxWidth
+                      400, // maxHeight
                       85    // quality
                     );
-                    
+
                     // Armazenar local_path no estado (NÃO base64!)
                     onDataChange('imagem', metadata.local_path);
                     onDataChange('_image_metadata', metadata); // Metadados para upload posterior
-                    
+
                     // Carregar preview temporário para exibição
                     const preview = await getImagePreviewUrl(metadata.local_path);
                     setImagePreviewUrl(preview);
-                    
+
                     toast({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
@@ -505,27 +505,27 @@ export function FormPainelCompleto({
                 if (isTauri()) {
                   try {
                     setImageLoading(true);
-                    
+
                     // Converter File para Uint8Array
                     const arrayBuffer = await file.arrayBuffer();
                     const imageData = new Uint8Array(arrayBuffer);
-                    
+
                     // Processar e salvar localmente
                     const metadata = await processAndSaveImage(
                       imageData,
-                      1200, // maxWidth
-                      1200, // maxHeight
+                      5000, // maxWidth
+                      400, // maxHeight
                       85    // quality
                     );
-                    
+
                     // Armazenar local_path no estado
                     onDataChange('imagem', metadata.local_path);
                     onDataChange('_image_metadata', metadata);
-                    
+
                     // Carregar preview temporário
                     const preview = await getImagePreviewUrl(metadata.local_path);
                     setImagePreviewUrl(preview);
-                    
+
                     toast({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
@@ -699,7 +699,7 @@ export function FormPainelCompleto({
               <span>Mudanças não salvas</span>
             </div>
           )}
-          
+
           <div className="flex gap-4 ml-auto">
             <Button
               variant="outline"

@@ -3,7 +3,7 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, FileText, Trash2, Copy } from 'lucide-react';
+import { Edit, FileText, Trash2, Copy, AlertTriangle, Clock } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { EditingIndicator } from './EditingIndicator';
 import {
@@ -36,44 +36,44 @@ const STATUS_COLUMNS: StatusColumn[] = [
   {
     id: 'financeiro',
     label: 'Financeiro',
-    color: 'text-gray-600 dark:text-gray-400',
-    bgColor: 'bg-gray-50/50 dark:bg-gray-900/50',
-    borderColor: 'border-gray-200 dark:border-gray-800',
+    color: 'text-slate-600 dark:text-slate-400',
+    bgColor: 'bg-slate-50/40 dark:bg-slate-900/40',
+    borderColor: 'border-slate-200/60 dark:border-slate-800/60',
   },
   {
     id: 'conferencia',
     label: 'Conferência',
-    color: 'text-yellow-600 dark:text-yellow-400',
-    bgColor: 'bg-yellow-50/50 dark:bg-yellow-900/10',
-    borderColor: 'border-yellow-200 dark:border-yellow-800',
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-50/40 dark:bg-amber-900/20',
+    borderColor: 'border-amber-200/60 dark:border-amber-800/60',
   },
   {
     id: 'sublimacao',
     label: 'Sublimação',
     color: 'text-orange-600 dark:text-orange-400',
-    bgColor: 'bg-orange-50/50 dark:bg-orange-900/10',
-    borderColor: 'border-orange-200 dark:border-orange-800',
+    bgColor: 'bg-orange-50/40 dark:bg-orange-900/20',
+    borderColor: 'border-orange-200/60 dark:border-orange-800/60',
   },
   {
     id: 'costura',
     label: 'Costura',
-    color: 'text-purple-600 dark:text-purple-400',
-    bgColor: 'bg-purple-50/50 dark:bg-purple-900/10',
-    borderColor: 'border-purple-200 dark:border-purple-800',
+    color: 'text-fuchsia-600 dark:text-fuchsia-400',
+    bgColor: 'bg-fuchsia-50/40 dark:bg-fuchsia-900/20',
+    borderColor: 'border-fuchsia-200/60 dark:border-fuchsia-800/60',
   },
   {
     id: 'expedicao',
     label: 'Expedição',
-    color: 'text-blue-600 dark:text-blue-400',
-    bgColor: 'bg-blue-50/50 dark:bg-blue-900/10',
-    borderColor: 'border-blue-200 dark:border-blue-800',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bgColor: 'bg-indigo-50/40 dark:bg-indigo-900/20',
+    borderColor: 'border-indigo-200/60 dark:border-indigo-800/60',
   },
   {
     id: 'pronto',
     label: 'Pronto',
-    color: 'text-green-600 dark:text-green-400',
-    bgColor: 'bg-green-50/50 dark:bg-green-900/10',
-    borderColor: 'border-green-200 dark:border-green-800',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bgColor: 'bg-emerald-50/40 dark:bg-emerald-900/20',
+    borderColor: 'border-emerald-200/60 dark:border-emerald-800/60',
   },
 ];
 
@@ -87,8 +87,33 @@ export function OrderKanbanBoard({
   isAdmin,
   loading = false,
 }: OrderKanbanBoardProps) {
-  const [draggedOrderId, setDraggedOrderId] = useState<number | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [draggedOrderId, setDraggedOrderId] = useState<number | null>(null);
+
+  const getOrderUrgency = (dataEntrega: string | null | undefined) => {
+    if (!dataEntrega) return { type: 'no-date', days: null };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const deliveryDate = new Date(dataEntrega);
+    deliveryDate.setHours(0, 0, 0, 0);
+
+    const diffTime = deliveryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { type: 'overdue', days: Math.abs(diffDays) };
+    } else if (diffDays === 0) {
+      return { type: 'today', days: 0 };
+    } else if (diffDays === 1) {
+      return { type: 'tomorrow', days: 1 };
+    } else if (diffDays <= 3) {
+      return { type: 'soon', days: diffDays };
+    } else {
+      return { type: 'ok', days: diffDays };
+    }
+  };
 
   // Determinar em qual coluna cada pedido deve aparecer
   const getOrderStatus = (order: OrderWithItems): string => {
@@ -188,7 +213,7 @@ export function OrderKanbanBoard({
   }
 
   return (
-    <div className="flex gap-6 overflow-x-auto overflow-y-hidden h-full pb-6">
+    <div className="flex gap-4 overflow-x-auto overflow-y-hidden h-full pb-4 scrollbar-hide">
       {STATUS_COLUMNS.map((column) => {
         const columnOrders = ordersByStatus[column.id] || [];
         const isDraggingOver = dragOverColumn === column.id;
@@ -196,25 +221,36 @@ export function OrderKanbanBoard({
         return (
           <div
             key={column.id}
-            className={`flex-shrink-0 w-80 ${column.bgColor} ${column.borderColor} border rounded-xl p-5 transition-all ${
-              isDraggingOver ? 'ring-2 ring-primary ring-offset-2 scale-[1.02]' : 'hover:shadow-sm'
-            }`}
+            className={`flex-shrink-0 w-[320px] flex flex-col h-full rounded-2xl border transition-all duration-200 ${column.bgColor
+              } ${column.borderColor} ${isDraggingOver
+                ? 'ring-2 ring-primary/30 bg-primary/5 scale-[1.01] border-primary/30 z-10 shadow-lg'
+                : 'shadow-sm active:shadow-md'
+              }`}
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
-            <div className="mb-5 pb-3 border-b border-border/50">
-              <div className="flex items-center justify-between">
-                <h3 className={`${column.color} text-base font-semibold`}>
+            {/* Header da Coluna */}
+            <div className="p-4 flex items-center justify-between border-b border-border/10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className={`h-2 w-2 rounded-full animate-pulse ${column.color.replace('text', 'bg')}`} />
+                <h3 className={`text-sm font-bold tracking-tight uppercase ${column.color}`}>
                   {column.label}
                 </h3>
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {getOrderCount(column.id)}
-                </Badge>
               </div>
+              <Badge
+                variant="outline"
+                className="bg-background/50 border-border/30 text-[10px] font-bold px-1.5 h-5 min-w-[20px] justify-center"
+              >
+                {getOrderCount(column.id)}
+              </Badge>
             </div>
 
-            <div className="space-y-3 overflow-y-auto overflow-x-hidden max-h-[calc(100vh-240px)] pr-2" style={{ scrollbarWidth: 'thin' }}>
+            {/* Lista de Cards com Scroll Interno */}
+            <div
+              className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar"
+              style={{ minHeight: 0 }}
+            >
               {columnOrders.map((order) => {
                 const isDragging = draggedOrderId === order.id;
 
@@ -224,114 +260,89 @@ export function OrderKanbanBoard({
                     draggable
                     onDragStart={(e) => handleDragStart(e, order.id)}
                     onDragEnd={handleDragEnd}
-                    className={`cursor-move hover:shadow-md transition-all border-border/50 ${
-                      isDragging ? 'opacity-50 scale-95' : 'hover:border-border'
-                    }`}
+                    className={`group cursor-grab active:cursor-grabbing hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 border-border/40 overflow-hidden ring-primary/20 ${isDragging ? 'opacity-30 scale-95' : 'hover:-translate-y-1'
+                      } ${order.prioridade === 'ALTA' && !order.pronto ? 'border-l-[6px] border-l-destructive shadow-sm shadow-destructive/10' : 'border-l-4 border-l-transparent'
+                      } ${getOrderUrgency(order.data_entrega).type === 'overdue' && !order.pronto ? 'bg-destructive/5' : 'bg-card'
+                      }`}
                   >
                     <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold text-sm text-foreground">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                              PED
+                            </span>
+                            <span className="font-mono font-black text-sm text-foreground/90">
                               #{order.numero || order.id}
                             </span>
                             <EditingIndicator orderId={order.id} />
                           </div>
                           <Badge
                             variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
-                            className="text-xs font-normal"
+                            className="text-[9px] font-black uppercase tracking-wider px-1.5 h-4.5"
                           >
                             {order.prioridade || 'NORMAL'}
                           </Badge>
                         </div>
 
-                        <div className="font-medium text-sm mb-2 text-foreground line-clamp-2">
-                          {order.cliente || order.customer_name}
+                        <div className="space-y-1.5">
+                          <h4 className="font-bold text-sm tracking-tight text-foreground/90 leading-snug line-clamp-2 min-h-[2.5rem]">
+                            {order.cliente || order.customer_name}
+                          </h4>
+
+                          <div className="flex flex-col gap-1">
+                            {order.data_entrega && (() => {
+                              const urgency = getOrderUrgency(order.data_entrega);
+                              return (
+                                <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${urgency.type === 'overdue' ? 'text-destructive animate-pulse' :
+                                    urgency.type === 'today' ? 'text-orange-500' :
+                                      urgency.type === 'tomorrow' ? 'text-amber-500' :
+                                        'text-muted-foreground'
+                                  }`}>
+                                  {urgency.type === 'overdue' ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                                  <span>{formatDateForDisplay(order.data_entrega, '-')}</span>
+                                  {urgency.type === 'overdue' && (
+                                    <span className="text-[9px] bg-destructive/10 px-1 rounded">-{urgency.days}d</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            {order.cidade_cliente && (
+                              <div className="text-[11px] text-muted-foreground/80 flex items-center gap-1 leading-none">
+                                <span className="text-primary/50 text-xs">📍</span>
+                                <span className="truncate">{order.cidade_cliente}{order.estado_cliente && `/${order.estado_cliente}`}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="space-y-1 mb-3">
-                          {order.data_entrega && (
-                            <div className="text-xs text-muted-foreground">
-                              📅 {formatDateForDisplay(order.data_entrega, '-')}
-                            </div>
-                          )}
-
-                          {order.cidade_cliente && (
-                            <div className="text-xs text-muted-foreground">
-                              📍 {order.cidade_cliente}
-                              {order.estado_cliente && `/${order.estado_cliente}`}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1 pt-3 border-t border-border/50">
+                        <div className="flex items-center justify-end gap-0.5 pt-3 border-t border-border/10 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
                           <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7"
-                                  onClick={() => onViewOrder(order)}
-                                >
-                                  <FileText className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Visualizar</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7"
-                                  onClick={() => onEdit(order)}
-                                >
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Editar</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          {onDuplicate && (
-                            <TooltipProvider>
-                              <Tooltip>
+                            {[
+                              { icon: FileText, label: 'Ver', action: () => onViewOrder(order), color: 'hover:text-primary hover:bg-primary/10' },
+                              { icon: Edit, label: 'Editar', action: () => onEdit(order), color: 'hover:text-amber-500 hover:bg-amber-500/10' },
+                              ...(onDuplicate ? [{ icon: Copy, label: 'Duplicar', action: () => onDuplicate(order), color: 'hover:text-blue-500 hover:bg-blue-500/10' }] : []),
+                              ...(isAdmin ? [{ icon: Trash2, label: 'Excluir', action: () => onDelete(order.id), color: 'hover:text-destructive hover:bg-destructive/10' }] : [])
+                            ].map((btn, i) => (
+                              <Tooltip key={i}>
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7"
-                                    onClick={() => onDuplicate(order)}
+                                    className={`h-8 w-8 rounded-full transition-colors ${btn.color}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      btn.action();
+                                    }}
                                   >
-                                    <Copy className="h-3.5 w-3.5" />
+                                    <btn.icon className="h-3.5 w-3.5" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Duplicar pedido</TooltipContent>
+                                <TooltipContent side="bottom" className="text-[10px] font-bold uppercase">{btn.label}</TooltipContent>
                               </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {isAdmin && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-destructive hover:text-destructive"
-                                    onClick={() => onDelete(order.id)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Excluir</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                            ))}
+                          </TooltipProvider>
                         </div>
                       </div>
                     </CardContent>

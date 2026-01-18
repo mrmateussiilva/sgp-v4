@@ -276,15 +276,10 @@ pub async fn process_and_save_image(
     let img = image::load_from_memory(&image_data)
         .map_err(|e| format!("Erro ao carregar imagem: {}", e))?;
 
-    // 2. Redimensionar se necessário
+    // 2. Redimensionar
     let processed = if let (Some(w), Some(h)) = (max_width, max_height) {
-        let (current_w, current_h) = img.dimensions();
-        if current_w > w || current_h > h {
-            info!("Redimensionando imagem de {}x{} para {}x{}", current_w, current_h, w, h);
-            img.resize(w, h, image::imageops::FilterType::Lanczos3)
-        } else {
-            img
-        }
+        info!("Redimensionando imagem para {}x{}", w, h);
+        img.resize(w, h, image::imageops::FilterType::Lanczos3)
     } else {
         img
     };

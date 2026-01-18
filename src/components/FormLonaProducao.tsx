@@ -51,7 +51,7 @@ export function FormLonaProducao({
   hasUnsavedChanges = false,
 }: FormLonaProducaoProps) {
   const { toast } = useToast();
-  
+
   // Estado para preview da imagem (temporário, apenas para exibição)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -305,27 +305,27 @@ export function FormLonaProducao({
                 if (isTauri()) {
                   try {
                     setImageLoading(true);
-                    
+
                     // Converter File para Uint8Array
                     const arrayBuffer = await file.arrayBuffer();
                     const imageData = new Uint8Array(arrayBuffer);
-                    
+
                     // Processar e salvar localmente
                     const metadata = await processAndSaveImage(
                       imageData,
-                      1200, // maxWidth
-                      1200, // maxHeight
+                      5000, // maxWidth
+                      400, // maxHeight
                       85    // quality
                     );
-                    
+
                     // Armazenar local_path no estado (NÃO base64!)
                     onDataChange('imagem', metadata.local_path);
                     onDataChange('_image_metadata', metadata);
-                    
+
                     // Carregar preview temporário
                     const preview = await getImagePreviewUrl(metadata.local_path);
                     setImagePreviewUrl(preview);
-                    
+
                     toast({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
@@ -381,27 +381,27 @@ export function FormLonaProducao({
                 if (isTauri()) {
                   try {
                     setImageLoading(true);
-                    
+
                     // Converter File para Uint8Array
                     const arrayBuffer = await file.arrayBuffer();
                     const imageData = new Uint8Array(arrayBuffer);
-                    
+
                     // Processar e salvar localmente
                     const metadata = await processAndSaveImage(
                       imageData,
-                      1200, // maxWidth
-                      1200, // maxHeight
+                      5000, // maxWidth
+                      400, // maxHeight
                       85    // quality
                     );
-                    
+
                     // Armazenar local_path no estado
                     onDataChange('imagem', metadata.local_path);
                     onDataChange('_image_metadata', metadata);
-                    
+
                     // Carregar preview temporário
                     const preview = await getImagePreviewUrl(metadata.local_path);
                     setImagePreviewUrl(preview);
-                    
+
                     toast({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',

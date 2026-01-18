@@ -22,18 +22,18 @@ export async function handleImageUpload(
       // Converter File para Uint8Array
       const arrayBuffer = await file.arrayBuffer();
       const imageData = new Uint8Array(arrayBuffer);
-      
+
       // Processar e salvar localmente (redimensiona se necessário)
       const metadata = await processAndSaveImage(
         imageData,
-        1200, // maxWidth
-        1200, // maxHeight
+        5000, // maxWidth
+        400, // maxHeight
         85    // quality
       );
-      
+
       // Carregar preview temporário para exibição
       const preview = await getImagePreviewUrl(metadata.local_path);
-      
+
       // Callback com local_path (não base64!)
       onSuccess(metadata.local_path, preview);
     } catch (error) {
