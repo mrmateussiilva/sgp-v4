@@ -31,6 +31,7 @@ export const api = {
     return orders.filter(o => o.status === OrderStatus.Concluido);
   },
   getOrderById: ordersApi.getOrderById,
+  getOrderByIdFresh: ordersApi.getOrderByIdFresh,
   createOrder: ordersApi.createOrder,
   duplicateOrder: ordersApi.duplicateOrder,
   createReplacementOrder: ordersApi.createReplacementOrder,

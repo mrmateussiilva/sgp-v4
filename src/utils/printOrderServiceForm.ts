@@ -1,4 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
+import { api } from '../services/api';
 import { generateTemplatePrintContent } from './templateProcessor';
 
 // ============================================================================
@@ -12,6 +13,94 @@ const escapeHtml = (value: string): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+const dedupeItemsById = (items: OrderItem[]): OrderItem[] => {
+  const seen = new Set<number>();
+  const result: OrderItem[] = [];
+
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push(item);
+  }
+
+  return result;
+};
+
+const mergeOrdersForPrint = (orders: OrderWithItems[]): OrderWithItems[] => {
+  const merged = new Map<string, OrderWithItems>();
+
+  for (const order of orders) {
+    const key = order.numero ? `num:${order.numero}` : `id:${order.id}`;
+    const existing = merged.get(key);
+
+    if (!existing) {
+      merged.set(key, {
+        ...order,
+        items: dedupeItemsById(order.items || [])
+      });
+      continue;
+    }
+
+    const combinedItems = dedupeItemsById([...(existing.items || []), ...(order.items || [])]);
+    merged.set(key, {
+      ...existing,
+      ...order,
+      items: combinedItems
+    });
+  }
+
+  return Array.from(merged.values());
+};
+
+const hydrateOrderForPrint = async (
+  order: OrderWithItems,
+  items?: OrderItem[]
+): Promise<{ order: OrderWithItems; items?: OrderItem[] }> => {
+  try {
+    const fullOrder = api.getOrderByIdFresh
+      ? await api.getOrderByIdFresh(order.id)
+      : await api.getOrderById(order.id);
+    const fullItemsById = new Map(fullOrder.items.map((item) => [item.id, item]));
+
+    if (!items || items.length === 0) {
+      return {
+        order: {
+          ...fullOrder,
+          ...order,
+          data_entrada: order.data_entrada ?? fullOrder.data_entrada,
+          observacao: order.observacao ?? fullOrder.observacao
+        }
+      };
+    }
+
+    const mergedItems = items.map((item) => {
+      const fullItem = fullItemsById.get(item.id);
+      if (!fullItem) return item;
+      return {
+        ...fullItem,
+        ...item,
+        observacao: item.observacao ?? fullItem.observacao,
+        imagem: item.imagem ?? fullItem.imagem,
+        legenda_imagem: item.legenda_imagem ?? fullItem.legenda_imagem
+      };
+    });
+
+    return {
+      order: {
+        ...fullOrder,
+        ...order,
+        data_entrada: order.data_entrada ?? fullOrder.data_entrada,
+        observacao: order.observacao ?? fullOrder.observacao,
+        items: mergedItems
+      },
+      items: mergedItems
+    };
+  } catch (error) {
+    console.warn('Falha ao hidratar pedido para impressão, usando dados atuais:', error);
+    return { order, items };
+  }
+};
 
 /**
  * Função compartilhada para fazer cleanup de imagens no documento de impressão
@@ -165,8 +254,12 @@ export const printOrderServiceForm = async (
   templateType: 'geral' | 'resumo' = 'geral',
   items?: OrderItem[]
 ) => {
+  const resolved = await hydrateOrderForPrint(order, items);
+  const orderForPrint = resolved.order;
+  const itemsForPrint = resolved.items ?? items;
+
   // Sempre usar template da API
-  const templateContent = await generateTemplatePrintContent(templateType, order, items);
+  const templateContent = await generateTemplatePrintContent(templateType, orderForPrint, itemsForPrint);
 
   if (!templateContent) {
     throw new Error(
@@ -571,8 +664,16 @@ export const printMultipleOrdersServiceForm = async (
     throw new Error('Nenhum pedido fornecido para impressão');
   }
 
+  const hydratedOrders = await Promise.all(
+    orders.map(async (order) => {
+      const resolved = await hydrateOrderForPrint(order);
+      return resolved.order;
+    })
+  );
+  const mergedOrders = mergeOrdersForPrint(hydratedOrders);
+
   // Carregar template uma vez (todos os pedidos usam o mesmo template)
-  const firstOrder = orders[0];
+  const firstOrder = mergedOrders[0];
   const templateContent = await generateTemplatePrintContent(templateType, firstOrder);
 
   if (!templateContent) {
@@ -583,7 +684,7 @@ export const printMultipleOrdersServiceForm = async (
 
   // Gerar conteúdo HTML para cada pedido
   const ordersHtml = await Promise.all(
-    orders.map(async (order, index) => {
+    mergedOrders.map(async (order, index) => {
       const orderTemplateContent = await generateTemplatePrintContent(templateType, order);
       if (!orderTemplateContent) {
         console.warn(`Erro ao gerar template para pedido #${order.numero || order.id}`);

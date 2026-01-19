@@ -129,6 +129,41 @@ function extractItemTemplate(fullHtml: string): string {
 }
 
 /**
+ * Extrai apenas o conteúdo do <body> quando o template é um HTML completo.
+ */
+function extractTemplateBody(fullHtml: string): string {
+  const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (bodyMatch && bodyMatch[1]) {
+    return bodyMatch[1].trim();
+  }
+  return fullHtml;
+}
+
+/**
+ * Detecta template com loops Handlebars de itens/produtos.
+ */
+function hasGroupedResumoTemplate(fullHtml: string): boolean {
+  return /\{\{#each\s+produtos\}\}/i.test(fullHtml);
+}
+
+/**
+ * Deduplica itens por id (fallback por JSON).
+ */
+function dedupeOrderItems(items: OrderItem[]): OrderItem[] {
+  const seen = new Set<string>();
+  const result: OrderItem[] = [];
+
+  for (const item of items) {
+    const key = item.id ? `id:${item.id}` : `json:${JSON.stringify(item)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+
+  return result;
+}
+
+/**
  * Extrai os estilos CSS do template HTML
  * Preserva os estilos originais definidos no template da API
  */
@@ -358,12 +393,14 @@ export const createOrderDataMap = (
     cidade_estado: cidadeEstado,
     data_entrada: formatDate(order.data_entrada || order.created_at),
     data_entrega: formatDate(order.data_entrega),
+    data_envio: formatDate(order.data_entrega || order.data_entrada || order.created_at),
     forma_envio: order.forma_envio || '',
     forma_pagamento_id: order.forma_pagamento_id?.toString() || '',
     // Valores monetários removidos (retornam vazio)
     valor_frete: '',
     total_value: '',
     observacao: order.observacao || '',
+    observacao_pedido: order.observacao || '',
 
     // Status e prioridade do pedido
     status: order.status || '',
@@ -703,6 +740,8 @@ const applyFieldVisibilityRules = (html: string, tipoProducao: string): string =
  * 1. Sintaxe legada: {{#IF tipo_producao == 'painel'}} ... {{/IF}}
  * 2. Sintaxe Handlebars com eq: {{#if (eq tipo_producao 'painel')}} ... {{/if}}
  * 3. Condicional simples: {{#if variavel}} ... {{/if}}
+ * 4. Condicional simples com else: {{#if variavel}} ... {{else}} ... {{/if}}
+ * 5. Condicional unless: {{#unless variavel}} ... {{/unless}}
  */
 const processConditionals = (
   html: string,
@@ -720,21 +759,41 @@ const processConditionals = (
   });
 
   // 2. Sintaxe Handlebars: {{#if (eq tipo_producao 'valor')}} ... {{/if}}
-  const handlebarsEqRegex = /\{\{#if\s+\(eq\s+tipo_producao\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
-  result = result.replace(handlebarsEqRegex, (_match, tipoEsperado, conteudo) => {
+  const handlebarsEqRegex = /\{\{#if\s+\(eq\s+tipo_producao\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/gi;
+  result = result.replace(handlebarsEqRegex, (_match, tipoEsperado, conteudo, elseConteudo) => {
     const normalizedEsperado = tipoEsperado.toLowerCase().trim();
-    return normalizedTipo === normalizedEsperado ? conteudo : '';
+    if (normalizedTipo === normalizedEsperado) return conteudo;
+    return elseConteudo || '';
   });
 
   // 3. Condicional simples: {{#if variavel}} ... {{/if}}
+  // 4. Condicional simples com else: {{#if variavel}} ... {{else}} ... {{/if}}
+  // 5. Condicional unless: {{#unless variavel}} ... {{/unless}}
   // Verifica se a variável tem valor truthy no dataMap
   if (dataMap) {
-    const simpleIfRegex = /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/if\}\}/gi;
-    result = result.replace(simpleIfRegex, (_match, varName, conteudo) => {
+    const genericEqRegex = /\{\{#if\s+\(eq\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+['"]([^'"]+)['"]\)\s*\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/gi;
+    result = result.replace(genericEqRegex, (_match, varName, expected, conteudo, elseConteudo) => {
+      const value = dataMap[varName];
+      const normalizedValue = String(value || '').toLowerCase().trim();
+      const normalizedExpected = String(expected || '').toLowerCase().trim();
+      if (normalizedValue === normalizedExpected) return conteudo;
+      return elseConteudo || '';
+    });
+
+    const simpleIfRegex = /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/gi;
+    result = result.replace(simpleIfRegex, (_match, varName, conteudo, elseConteudo) => {
       const value = dataMap[varName];
       // Truthy: tem valor, não é string vazia, não é "false", não é 0
       const isTruthy = value !== undefined && value !== null && value !== '' && value !== 'false' && value !== 0;
-      return isTruthy ? conteudo : '';
+      if (isTruthy) return conteudo;
+      return elseConteudo || '';
+    });
+
+    const unlessRegex = /\{\{#unless\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}([\s\S]*?)\{\{\/unless\}\}/gi;
+    result = result.replace(unlessRegex, (_match, varName, conteudo) => {
+      const value = dataMap[varName];
+      const isTruthy = value !== undefined && value !== null && value !== '' && value !== 'false' && value !== 0;
+      return isTruthy ? '' : conteudo;
     });
   }
 
@@ -892,6 +951,57 @@ const processItemTemplate = (
   // Cada item tem altura fixa de 50% da página A4 (2 por página)
   const normalized = normalizeItemContent(processed);
   return injectExtraFieldsIntoItem(normalized, dataMap);
+};
+
+/**
+ * Processa template agrupado (1 pedido = 1 bloco) com {{#each items}} e {{#each produtos}}.
+ */
+const processGroupedResumoTemplate = (
+  html: string,
+  order: OrderWithItems,
+  items: OrderItem[] | undefined,
+  imageBase64Map: Map<string, string>
+): string => {
+  const itemsToRender = items && items.length > 0 ? items : (order.items || []);
+  const uniqueItems = dedupeOrderItems(itemsToRender);
+  const headerData = uniqueItems.length > 0
+    ? createOrderDataMap(order, uniqueItems[0])
+    : createOrderDataMap(order, undefined);
+  const produtosData = uniqueItems.map(item => createOrderDataMap(order, item));
+  const baseTipoProducao = String(produtosData[0]?.tipo_producao || headerData.tipo_producao || '').toLowerCase().trim();
+
+  const itemsLoopRegex = /\{\{#each\s+items\}\}([\s\S]*?)\{\{\/each\}\}/i;
+  const itemsMatch = html.match(itemsLoopRegex);
+  if (!itemsMatch) {
+    return html;
+  }
+
+  let itemTemplate = itemsMatch[1];
+  const produtosLoopRegex = /\{\{#each\s+produtos\}\}([\s\S]*?)\{\{\/each\}\}/i;
+  const produtosMatch = itemTemplate.match(produtosLoopRegex);
+
+  if (produtosMatch) {
+    const produtoTemplate = produtosMatch[1];
+    const produtosHtml = produtosData.map(produto => {
+      const tipoProducao = String(produto.tipo_producao || '').toLowerCase().trim();
+      let processed = processConditionals(produtoTemplate, tipoProducao, produto);
+      processed = processImageTags(processed, String(produto.imagem || ''), imageBase64Map);
+      processed = replaceVariables(processed, produto, imageBase64Map);
+      processed = normalizeTipoProducao(processed, tipoProducao);
+      processed = applyFieldVisibilityRules(processed, tipoProducao);
+      processed = removeUnrenderedVariables(processed);
+      return processed;
+    }).join('');
+
+    itemTemplate = itemTemplate.replace(produtosLoopRegex, produtosHtml);
+  }
+
+  // Processar campos do pedido
+  let itemHtml = processConditionals(itemTemplate, baseTipoProducao, headerData);
+  itemHtml = replaceVariables(itemHtml, headerData, imageBase64Map);
+  itemHtml = removeUnrenderedVariables(itemHtml);
+
+  return html.replace(itemsLoopRegex, itemHtml);
 };
 
 /**
@@ -1497,15 +1607,16 @@ export const generateTemplatePrintContent = async (
       // Template HTML editado manualmente encontrado - usar ele!
       logger.debug(`[templateProcessor] ✅ Usando template HTML da API: ${templateType}`);
 
-      // Extrair apenas o template de um item (primeiro .item encontrado)
-      // O template completo tem a estrutura: .print-page > .item (x3)
-      // Precisamos apenas do conteúdo de um .item para usar como template
-      const rawHtml = extractItemTemplate(templateHTML.html);
-
-      // Extrair CSS do template para preservar os estilos originais
+      const isGroupedResumo = templateType === 'resumo' && hasGroupedResumoTemplate(templateHTML.html);
       const templateStyles = extractTemplateStyles(templateHTML.html);
+      const rawHtml = isGroupedResumo
+        ? extractTemplateBody(templateHTML.html)
+        : extractItemTemplate(templateHTML.html);
 
-      logger.debug(`[templateProcessor] Template de item extraído, tamanho: ${rawHtml.length}`);
+      logger.debug(`[templateProcessor] Template processado:`, {
+        isGroupedResumo,
+        rawHtmlLength: rawHtml.length
+      });
 
       // Se não houver itens especificados, usar todos os itens do pedido
       const itemsToRender = items || order.items || [];
@@ -1527,7 +1638,8 @@ export const generateTemplatePrintContent = async (
       const imageBase64Map = new Map<string, string>();
 
       const allItems = itemsToRender.length > 0 ? itemsToRender : (order.items || []);
-      const imagePromises = allItems
+      const uniqueItems = dedupeOrderItems(allItems);
+      const imagePromises = uniqueItems
         .filter(item => item.imagem && isValidImagePath(item.imagem))
         .map(async (item) => {
           try {
@@ -1569,7 +1681,9 @@ export const generateTemplatePrintContent = async (
         ? itemsToRender
         : (order.items && order.items.length > 0 ? order.items : undefined);
 
-      const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
+      const processedHTML = isGroupedResumo
+        ? processGroupedResumoTemplate(rawHtml, order, itemsForProcessing, imageBase64Map)
+        : processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
 
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
 
@@ -1591,7 +1705,7 @@ export const generateTemplatePrintContent = async (
         }
       );
 
-      const basicCss = generateBasicTemplateCSS(templateType);
+      const basicCss = isGroupedResumo ? '' : generateBasicTemplateCSS(templateType);
       const css = `${cleanedTemplateStyles}\n${basicCss}`;
 
       return {

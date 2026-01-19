@@ -205,6 +205,11 @@ export const ordersApi = {
             return mappedOrder;
         }
     },
+    getOrderByIdFresh: async (orderId: number): Promise<OrderWithItems> => {
+        requireSessionToken();
+        const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
+        return mapPedidoFromApi(response.data);
+    },
 
     getOrdersByDeliveryDateRange: async (
         startDate: string,
