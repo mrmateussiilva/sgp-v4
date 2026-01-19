@@ -77,14 +77,14 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       try {
         logger.debug(`[OrderViewModal] 🔄 Carregando imagem do item ${itemKey}:`, imagePath);
         const blobUrl = await loadAuthenticatedImage(imagePath);
-        
+
         // Atualizar estado com a URL da imagem
         setItemImageUrls(prev => {
           const updated = new Map(prev);
           updated.set(itemKey, blobUrl);
           return updated;
         });
-        
+
         logger.debug(`[OrderViewModal] ✅ Imagem do item ${itemKey} carregada com sucesso`);
       } catch (err) {
         logger.error(`[OrderViewModal] ❌ Erro ao carregar imagem do item ${itemKey}:`, {
@@ -128,7 +128,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     if (!imageUrl) {
       return;
     }
-    
+
     // Se for base64, usar diretamente
     if (imageUrl.startsWith('data:image/')) {
       setImageError(false);
@@ -136,19 +136,19 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       setSelectedImageCaption(caption?.trim() ?? '');
       return;
     }
-    
+
     if (!isValidImagePath(imageUrl)) {
       return;
     }
-    
+
     try {
       // Resetar erro antes de tentar carregar
       setImageError(false);
       setSelectedImage(null);
-      
+
       // Tentar encontrar a blob URL nos itens já carregados
       let blobUrl: string | undefined;
-      
+
       // Se temos o itemId, tentar buscar diretamente pelo itemKey
       if (itemId !== undefined) {
         const itemKey = String(itemId);
@@ -157,7 +157,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           logger.debug('[OrderViewModal] ✅ Usando blob URL do cache para modal (por itemId):', { itemKey, imageUrl });
         }
       }
-      
+
       // Se não encontrou pelo itemId, procurar pelo caminho da imagem
       if (!blobUrl) {
         for (const [itemKey, url] of itemImageUrls.entries()) {
@@ -169,19 +169,19 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           }
         }
       }
-      
+
       // Se não encontrou, carregar a imagem
       if (!blobUrl) {
         logger.debug('[OrderViewModal] 🔄 Carregando imagem para modal:', imageUrl);
         blobUrl = await loadAuthenticatedImage(imageUrl);
         logger.debug('[OrderViewModal] ✅ Imagem carregada para modal:', blobUrl);
       }
-      
+
       // Verificar se a blob URL é válida
       if (!blobUrl) {
         throw new Error('Blob URL não foi criada');
       }
-      
+
       setSelectedImage(blobUrl);
       setSelectedImageCaption(caption?.trim() ?? '');
       setImageError(false);
@@ -268,27 +268,27 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Não informado';
-    
+
     // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
     if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const [y, m, d] = dateString.split('-');
       return `${d}/${m}/${y}`;
     }
-    
+
     // Se tem timestamp, extrair apenas a parte da data
     if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}T/)) {
       const dateOnly = dateString.split('T')[0];
       const [y, m, d] = dateOnly.split('-');
       return `${d}/${m}/${y}`;
     }
-    
+
     // Tentar extrair data do início
     const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (dateMatch) {
       const [, y, m, d] = dateMatch;
       return `${d}/${m}/${y}`;
     }
-    
+
     return 'Data inválida';
   };
 
@@ -427,7 +427,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
-    
+
     // Valor dos Ilhós - campo separado para maior clareza
     if (hasPositiveNumber(item.valor_ilhos)) {
       sections.push({
@@ -456,7 +456,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         variant: 'warning',
       });
     }
-    
+
     // Valor da Cordinha - campo separado para maior clareza
     if (hasPositiveNumber(item.valor_cordinha)) {
       sections.push({
@@ -514,14 +514,14 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
       const acabamentoLonaRaw = normalizeText((item as any).acabamento_lona);
       if (acabamentoLonaRaw) {
-        const acabamentoDisplay = acabamentoLonaRaw.toLowerCase() === 'refilar' 
-          ? 'Refilar' 
+        const acabamentoDisplay = acabamentoLonaRaw.toLowerCase() === 'refilar'
+          ? 'Refilar'
           : acabamentoLonaRaw.toLowerCase() === 'nao_refilar' || acabamentoLonaRaw.toLowerCase() === 'não_refilar'
             ? 'Não Refilar'
             : acabamentoLonaRaw
-                .split(/[_-]/)
-                .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-                .join(' ');
+              .split(/[_-]/)
+              .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+              .join(' ');
         sections.push({
           label: 'Acabamento da Lona',
           value: acabamentoDisplay,
@@ -660,9 +660,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const emendaTipoRaw = normalizeText((item as any).emenda);
     const emendaTipo = emendaTipoRaw
       ? emendaTipoRaw
-          .split(/[-_]/)
-          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-          .join(' ')
+        .split(/[-_]/)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(' ')
       : '';
 
     if (emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
@@ -835,7 +835,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
     const quantidadeLona = normalizeText((item as any).quantidade_lona);
     const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
-    
+
     // Para painel, priorizar quantidade_paineis mesmo se for 1
     const isPainelType = tipoLower === 'painel' || tipoLower === 'generica';
     const quantidadeDisplay = isPainelType && painelQuantidade
@@ -930,9 +930,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             : normalized === 'nao_refilar' || normalized === 'não_refilar'
               ? 'Não'
               : acabamentoLona
-                  .split(/[_-]/)
-                  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-                  .join(' ');
+                .split(/[_-]/)
+                .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                .join(' ');
 
         infoRows.push(
           <div key="refilar" className="text-sm text-slate-700">
@@ -1019,7 +1019,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   const hasError = itemImageErrors[itemKey] || false;
                   const isLoading = !isBase64 && loadingImages.has(imagePath || '');
                   const blobUrl = itemImageUrls.get(itemKey);
-                  
+
                   // Debug log
                   if (imagePath) {
                     logger.debug('[OrderViewModal] Processando imagem:', {
@@ -1032,7 +1032,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       hasBlobUrl: !!blobUrl
                     });
                   }
-                  
+
                   // Se não for válido, mostrar placeholder
                   if (!isValid || !imagePath) {
                     return (
@@ -1041,7 +1041,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </div>
                     );
                   }
-                  
+
                   // Se houver erro, mostrar placeholder
                   if (hasError) {
                     return (
@@ -1050,7 +1050,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </div>
                     );
                   }
-                  
+
                   // Se for base64, usar diretamente
                   if (isBase64) {
                     return (
@@ -1072,7 +1072,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       />
                     );
                   }
-                  
+
                   // Se estiver carregando e não tiver blob URL, mostrar indicador
                   if (isLoading && !blobUrl) {
                     return (
@@ -1081,7 +1081,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </div>
                     );
                   }
-                  
+
                   // Se não tiver blob URL ainda, mostrar placeholder
                   if (!blobUrl) {
                     return (
@@ -1090,7 +1090,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                       </div>
                     );
                   }
-                  
+
                   // Renderizar imagem do blob URL
                   return (
                     <img
@@ -1216,6 +1216,16 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </div>
           </div>
 
+          {/* Observações do Pedido */}
+          {order.observacao && order.observacao.trim() && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2 sm:py-3">
+              <div className="text-sm">
+                <span className="font-semibold text-slate-700">Observações:</span>
+                <p className="mt-1 text-slate-600 whitespace-pre-wrap">{order.observacao}</p>
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           {/* Itens */}
@@ -1271,9 +1281,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                           <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
                             <div className="font-medium">Qtd: {item.quantity}</div>
                             <ChevronDown
-                              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
-                                isOpen ? 'rotate-180' : ''
-                              }`}
+                              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''
+                                }`}
                             />
                           </div>
                         </div>
