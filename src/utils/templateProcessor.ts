@@ -1363,7 +1363,18 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       flex: 0 0 148.5mm !important;
       height: 148.5mm !important;
       max-height: 148.5mm !important;
+      min-height: 148.5mm !important;
       overflow: hidden !important;
+    }
+    
+    /* Override específico para .item do template da API */
+    .item,
+    div.item,
+    .template-page .item,
+    .items-container .item {
+      height: 148.5mm !important;
+      max-height: 148.5mm !important;
+      min-height: 148.5mm !important;
     }
     
     /* ============================================================
@@ -1414,6 +1425,19 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       /* Apenas garantir que items-container não interfira */
       .items-container {
         display: contents;
+      }
+      
+      /* Override crítico para .item na impressão */
+      .item,
+      div.item,
+      .template-page .item,
+      .items-container .item,
+      .print-page .item {
+        height: 148.5mm !important;
+        max-height: 148.5mm !important;
+        min-height: 148.5mm !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
       }
       ` : `
         .template-page {
