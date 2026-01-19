@@ -7,6 +7,16 @@ interface OrderCardProps {
     order: ProductionOrder;
 }
 
+const formatDate = (dateString?: string) => {
+    if (!dateString) return '---';
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+        const [, y, m, d] = dateMatch;
+        return `${d}/${m}/${y}`;
+    }
+    return dateString;
+};
+
 export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     // Pegar a primeira imagem disponível ou as imagens dos produtos
     const images = order.produtos
@@ -21,11 +31,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             <View style={styles.header}>
                 <View style={[styles.headerItem, { flex: 1 }]}>
                     <Text style={styles.hLabel}>Entrada: </Text>
-                    <Text style={styles.hValue}>{order.data_entrada || '---'}</Text>
+                    <Text style={styles.hValue}>{formatDate(order.data_entrada)}</Text>
                 </View>
                 <View style={[styles.headerItem, { flex: 1 }]}>
                     <Text style={styles.hLabel}>Envio: </Text>
-                    <Text style={styles.hValue}>{order.data_envio}</Text>
+                    <Text style={styles.hValue}>{formatDate(order.data_envio)}</Text>
                 </View>
                 <View style={[styles.headerItem, { flex: 1 }]}>
                     <Text style={styles.hLabel}>Prioridade: </Text>
@@ -186,8 +196,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* FOOTER */}
             <View style={styles.footer}>
                 <View style={styles.footerItem}>
-                    <Text style={styles.footerLabel}>Vendedor / Designer</Text>
-                    <Text style={styles.footerValue}>{order.vendedor || '---'} / {order.designer || '---'}</Text>
+                    <Text style={styles.footerLabel}>Designer x Vendedor</Text>
+                    <Text style={styles.footerValue}>{order.designer || '---'} x {order.vendedor || '---'}</Text>
                 </View>
                 <View style={[styles.footerItem, { alignItems: 'flex-end', flex: 1.2 }]}>
                     <Text style={styles.footerLabel}>Controle de Produção</Text>
