@@ -6,7 +6,6 @@ import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
 import {
   baixarRelatorioResumoPDF
 } from '../utils/pdfReportAdapter';
-import { printOrderServiceForm } from '@/utils/printOrderServiceForm';
 
 interface OrderPrintManagerProps {
   isOpen: boolean;
@@ -111,17 +110,17 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         descricao: item.descricao || item.item_name || '',
         dimensoes: item.largura && item.altura ? `${item.largura} x ${item.altura}` : '',
         quantity: item.quantity || 1,
-        material: item.material || 'Não especificado',
+        material: (item as any).material || 'Não especificado',
         tipo_producao: item.tipo_producao || 'painel',
-        data_envio: order.data_envio || new Date().toISOString().split('T')[0],
+        data_envio: (order as any).data_envio || new Date().toISOString().split('T')[0],
         prioridade: order.prioridade || 'Normal',
         forma_envio: order.forma_envio || 'Não especificado',
-        imagem: item.imagem_url,
+        imagem: (item as any).imagem_url,
         observacao_pedido: order.observacao,
         observacao_item: item.observacao,
-        is_reposicao: order.is_reposicao || false,
-        designer: order.designer,
-        vendedor: order.vendedor,
+        is_reposicao: (order as any).is_reposicao || false,
+        designer: (order as any).designer,
+        vendedor: (order as any).vendedor,
       }));
 
       // Gerar PDF usando Tauri (headless Chrome)

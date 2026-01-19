@@ -1718,13 +1718,13 @@ export const generateTemplatePrintContent = async (
 
       // Usar template customizado
       const rawHtml = CUSTOM_PRINT_TEMPLATE;
-      const itemsForProcessing = items.length > 0
+      const itemsForProcessing = items && items.length > 0
         ? items
         : (order.items && order.items.length > 0 ? order.items : undefined);
       // Criar mapa de imagens base64
       const imageBase64Map = new Map<string, string>();
       const itemsToLoad = itemsForProcessing || [];
-      
+
       // Carregar imagens
       const imagePromises = itemsToLoad
         .filter(item => item.imagem && isValidImagePath(item.imagem))
