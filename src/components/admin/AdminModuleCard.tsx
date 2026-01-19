@@ -27,19 +27,17 @@ export function AdminModuleCard({ module }: AdminModuleCardProps) {
 
     return (
         <Card
-            className="group flex items-center justify-between p-3.5 transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 cursor-pointer shadow-sm"
+            className="group flex items-center justify-between p-3 transition-all duration-150 hover:bg-muted/50 border border-border cursor-pointer"
             onClick={() => navigate(module.path)}
         >
-            <div className="flex items-center gap-4">
-                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors">
-                    <Icon className={`h-5 w-5 ${module.color}`} />
-                </div>
+            <div className="flex items-center gap-3">
+                <Icon className={`h-4 w-4 ${module.color} opacity-70 group-hover:opacity-100`} />
                 <div>
-                    <h3 className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">{module.title}</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{module.title}</h3>
                     {module.stats && (
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <div className={`h-1.5 w-1.5 rounded-full ${statusColors[module.status]}`} />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <span className="text-[10px] text-muted-foreground">
                                 {module.stats}
                             </span>
                         </div>
@@ -47,10 +45,11 @@ export function AdminModuleCard({ module }: AdminModuleCardProps) {
                 </div>
             </div>
 
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         </Card>
     );
 }
+
 
 
 

@@ -1,5 +1,4 @@
 import { Package, Palette, Users, Truck, CreditCard, Settings, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { AdminStatusBanner } from '@/components/admin/AdminStatusBanner';
 import { AdminModuleSection } from '@/components/admin/AdminModuleSection';
 import { AdminModule } from '@/components/admin/AdminModuleCard';
@@ -83,38 +82,22 @@ export default function Admin() {
 
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto mb-10">
-      <div className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">Configurações</h1>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Controle Administrativo</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest gap-2">
-            <FileText className="h-3.5 w-3.5" />
-            Relatórios Avançados
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest gap-2">
-            <Settings className="h-3.5 w-3.5" />
-            Auditoria
-          </Button>
-        </div>
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      <div className="flex flex-col gap-1 border-b pb-4">
+        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
+        <p className="text-sm text-muted-foreground">Gerencie os dados e parâmetros do sistema</p>
       </div>
+
 
       <AdminStatusBanner />
 
-      <div className="space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <AdminModuleSection title="Produção" modules={productionModules} />
-          <AdminModuleSection title="Financeiro & Logística" modules={financeLogisticsModules} />
-        </div>
-
+      <div className="space-y-6">
+        <AdminModuleSection title="Produção" modules={productionModules} />
+        <AdminModuleSection title="Financeiro & Logística" modules={financeLogisticsModules} />
         <AdminModuleSection title="Equipes e Usuários" modules={peopleModules} />
-
-        <div className="pt-4 border-t">
-          <AdminModuleSection title="Sistema e Documentos" modules={systemModules} />
-        </div>
+        <AdminModuleSection title="Sistema" modules={systemModules} />
       </div>
+
     </div>
   );
 }
