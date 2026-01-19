@@ -3,6 +3,7 @@ import { imageToBase64, loadAuthenticatedImage } from './imageLoader';
 import { isValidImagePath } from './path';
 import { apiClient } from '../api/client';
 import { logger } from './logger';
+import { CUSTOM_PRINT_TEMPLATE, CUSTOM_PRINT_CSS } from './customPrintTemplate';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 import { resizeImageToBase64 } from './imageResizer';
 
@@ -1478,7 +1479,25 @@ export const generateTemplatePrintContent = async (
     })) || []
   });
 
-  // PRIMEIRO: Tentar buscar template HTML editado manualmente
+  // PRIMEIRO: Para tipo 'resumo', usar template customizado diretamente
+  // Isso garante controle total sobre o layout e altura de 148.5mm
+  if (templateType === 'resumo') {
+    logger.info(`[templateProcessor] Usando template customizado para tipo 'resumo'`); \n
+    const rawHtml = CUSTOM_PRINT_TEMPLATE;
+    const itemsForProcessing = itemsToRender.length > 0
+      ? itemsToRender
+      : (order.items && order.items.length > 0 ? order.items : undefined);
+
+    const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
+    const css = CUSTOM_PRINT_CSS;
+
+    return {
+      html: processedHTML,
+      css: css
+    };
+  }
+
+  // Para outros tipos, tentar buscar template HTML editado manualmente
   try {
     const { api } = await import('../services/api');
     const templateHTML = await api.getFichaTemplateHTML(templateType);
@@ -1597,19 +1616,22 @@ export const generateTemplatePrintContent = async (
         css: css
       };
     } else {
-      // Template HTML não encontrado ou vazio - NÃO usar fallback, lançar erro
-      const errorMessage = templateHTML.exists
-        ? `Template HTML '${templateType}' existe na API mas está vazio. Verifique o conteúdo do template.`
-        : `Template HTML '${templateType}' não encontrado na API. Certifique-se de que o template foi salvo corretamente.`;
+      // Template HTML não encontrado ou vazio - usar template customizado
+      logger.warn(`[templateProcessor] Template da API não encontrado ou vazio, usando template customizado`);
 
-      logger.error(`[templateProcessor] ❌ ${errorMessage}`, {
-        templateType,
-        exists: templateHTML.exists,
-        hasHtml: !!templateHTML.html,
-        htmlLength: templateHTML.html?.length || 0
-      });
+      // Usar template customizado
+      const rawHtml = CUSTOM_PRINT_TEMPLATE;
+      const itemsForProcessing = itemsToRender.length > 0
+        ? itemsToRender
+        : (order.items && order.items.length > 0 ? order.items : undefined);
 
-      throw new Error(errorMessage);
+      const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
+      const css = CUSTOM_PRINT_CSS;
+
+      return {
+        html: processedHTML,
+        css: css
+      };
     }
   } catch (error) {
     // Se já for um Error que lançamos, re-lançar
