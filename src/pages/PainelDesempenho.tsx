@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Loader2, Calendar, Search, Inbox } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Loader2, Calendar, Search, TrendingUp, Filter } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -21,22 +21,52 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Dashboard Components
+import { DashboardKpis } from '@/components/dashboard/DashboardKpis';
+import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
+import { DashboardInsights } from '@/components/dashboard/DashboardInsights';
+
+// Service
+import {
+  DateMode,
+  filterOrdersByPeriod,
+  calculateStats,
+  generateInsights,
+  DashboardStats
+} from '@/services/dashboardService';
+import { OrderWithItems } from '@/types';
 
 export default function PainelDesempenho() {
   const { toast } = useToast();
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [dateMode, setDateMode] = useState<string>('entrada');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [data, setData] = useState<any>(null);
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
-  // Limpar seleção quando os dados mudarem
+  // Estados de Filtro com persistência no localStorage
+  const [startDate, setStartDate] = useState<string>(() => {
+    return localStorage.getItem('dashboard_startDate') || '';
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    return localStorage.getItem('dashboard_endDate') || '';
+  });
+  const [dateMode, setDateMode] = useState<DateMode>(() => {
+    return (localStorage.getItem('dashboard_dateMode') as DateMode) || 'entrada';
+  });
+
+  const [loading, setLoading] = useState<boolean>(false);
+  const [rawData, setRawData] = useState<OrderWithItems[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [isSearched, setIsSearched] = useState<boolean>(false);
+
+  // Persistir filtros
+  useEffect(() => {
+    localStorage.setItem('dashboard_startDate', startDate);
+    localStorage.setItem('dashboard_endDate', endDate);
+    localStorage.setItem('dashboard_dateMode', dateMode);
+  }, [startDate, endDate, dateMode]);
+
   const handleSearch = async () => {
-    setSelectedRows(new Set());
     if (!startDate || !endDate) {
       toast({
         title: 'Erro de validação',
@@ -57,494 +87,286 @@ export default function PainelDesempenho() {
 
     setLoading(true);
     try {
-      const response = await api.getRelatorioSemanal({
-        start_date: startDate,
-        end_date: endDate,
-        date_mode: dateMode,
-      });
-      setData(response);
-      setSelectedRows(new Set()); // Limpar seleção ao carregar novos dados
+      // Pequeno tempo para garantir UX de loading se a API for muito rápida
+      const [response] = await Promise.all([
+        api.getOrders(), // Usando GET /pedidos conforme solicitado
+        new Promise(resolve => setTimeout(resolve, 300))
+      ]);
+
+      setRawData(response);
+      processData(response);
+      setIsSearched(true);
+
       toast({
-        title: 'Relatório carregado',
-        description: 'Dados do relatório semanal carregados com sucesso.',
+        title: 'Dashboard atualizado',
+        description: 'Dados carregados e processados com sucesso.',
         variant: 'default',
       });
     } catch (error) {
-      console.error('Erro ao buscar relatório semanal:', error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : 'Não foi possível carregar o relatório semanal.';
-        toast({
-        title: 'Falha ao carregar relatório',
-        description: message,
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-    }
-  };
-
-  // Mapeamento de colunas desejadas e seus possíveis nomes na API
-  const getColumnMapping = (row: any): Record<string, string> => {
-    const mapping: Record<string, string> = {};
-    
-    // Mapear possíveis nomes de campos para as colunas desejadas
-    const fieldMappings: Record<string, string[]> = {
-      'id': ['id', 'ID', 'Id'],
-      'data_entrada': ['data_entrada', 'dataEntrada', 'data_entrada', 'entrada', 'date_entrada'],
-      'data_entrega': ['data_entrega', 'dataEntrega', 'data_entrega', 'entrega', 'date_entrega'],
-      'valor_total': ['valor_total', 'total_value', 'valorTotal', 'total', 'totalValue'],
-      'valor_frete': ['valor_frete', 'valorFrete', 'frete', 'frete_value'],
-      'valor_itens': ['valor_itens', 'valor_servico', 'valorItens', 'valorServico', 'servico', 'itens_value'],
-      'created_at': ['created_at', 'data_criacao', 'dataCriacao', 'criacao', 'createdAt'],
-      'updated_at': ['updated_at', 'ultima_atualizacao', 'ultimaAtualizacao', 'atualizacao', 'updatedAt'],
-    };
-
-    // Para cada coluna desejada, encontrar o campo correspondente no objeto
-    Object.entries(fieldMappings).forEach(([desiredKey, possibleKeys]) => {
-      for (const key of possibleKeys) {
-        if (row.hasOwnProperty(key)) {
-          mapping[desiredKey] = key;
-          break;
-        }
-      }
-    });
-
-    return mapping;
-  };
-
-  // Colunas desejadas com labels em português
-  const columnLabels: Record<string, string> = {
-    'id': 'ID',
-    'data_entrada': 'Data de Entrada',
-    'data_entrega': 'Data de Entrega',
-    'valor_total': 'Valor Total',
-    'valor_frete': 'Valor Frete',
-    'valor_itens': 'Valor Itens',
-    'created_at': 'Data Criação',
-    'updated_at': 'Última Atualização',
-  };
-
-  // Componente para exibir resumo das linhas selecionadas
-  const SelectedRowsSummary = ({
-    tableData,
-    selectedIndices,
-    columnMapping,
-  }: {
-    tableData: any[];
-    selectedIndices: number[];
-    columnMapping: Record<string, string>;
-  }) => {
-    const summary = useMemo(() => {
-      const selectedRows = selectedIndices.map((idx) => tableData[idx]);
-      
-      let totalValorTotal = 0;
-      let totalValorFrete = 0;
-      let totalValorItens = 0;
-
-      selectedRows.forEach((row) => {
-        const valorTotalKey = columnMapping['valor_total'];
-        const valorFreteKey = columnMapping['valor_frete'];
-        const valorItensKey = columnMapping['valor_itens'];
-
-        if (valorTotalKey && row[valorTotalKey]) {
-          totalValorTotal += Number(row[valorTotalKey]) || 0;
-        }
-        if (valorFreteKey && row[valorFreteKey]) {
-          totalValorFrete += Number(row[valorFreteKey]) || 0;
-        }
-        if (valorItensKey && row[valorItensKey]) {
-          totalValorItens += Number(row[valorItensKey]) || 0;
-        }
+      console.error('Erro ao buscar pedidos:', error);
+      toast({
+        title: 'Falha ao carregar dados',
+        description: 'Não foi possível carregar os pedidos da API.',
+        variant: 'destructive',
       });
-
-      return {
-        count: selectedIndices.length,
-        totalValorTotal,
-        totalValorFrete,
-        totalValorItens,
-      };
-    }, [tableData, selectedIndices, columnMapping]);
-
-    const formatCurrency = (value: number) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(value);
-    };
-
-    return (
-      <Card className="border-blue-200 bg-blue-50/30">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-blue-900">
-            Resumo das Linhas Selecionadas ({summary.count} {summary.count === 1 ? 'linha' : 'linhas'})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {columnMapping['valor_total'] && (
-              <div className="rounded-lg border border-blue-200 bg-white p-4">
-                <p className="text-sm font-medium text-slate-600">Valor Total</p>
-                <p className="mt-1 text-2xl font-bold text-blue-700">
-                  {formatCurrency(summary.totalValorTotal)}
-                </p>
-              </div>
-            )}
-            {columnMapping['valor_frete'] && (
-              <div className="rounded-lg border border-green-200 bg-white p-4">
-                <p className="text-sm font-medium text-slate-600">Valor Frete</p>
-                <p className="mt-1 text-2xl font-bold text-green-700">
-                  {formatCurrency(summary.totalValorFrete)}
-                </p>
-              </div>
-            )}
-            {columnMapping['valor_itens'] && (
-              <div className="rounded-lg border border-purple-200 bg-white p-4">
-                <p className="text-sm font-medium text-slate-600">Valor Itens</p>
-                <p className="mt-1 text-2xl font-bold text-purple-700">
-                  {formatCurrency(summary.totalValorItens)}
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Função para renderizar dados em tabela
-  const renderTable = () => {
-    if (!data) return null;
+  // Processa os dados brutos de acordo com os filtros
+  const processData = (allOrders: OrderWithItems[]) => {
+    const filteredOrders = filterOrdersByPeriod(allOrders, startDate, endDate, dateMode);
+    const calculatedStats = calculateStats(filteredOrders);
+    const generatedInsights = generateInsights(calculatedStats);
 
-    let tableData: any[] = [];
-
-    // Se os dados são um array
-    if (Array.isArray(data)) {
-      tableData = data;
-    } else if (typeof data === 'object' && data !== null) {
-      // Se tem uma propriedade que parece ser um array de dados
-      const arrayKeys = Object.keys(data).filter((key) => Array.isArray(data[key]));
-      
-      if (arrayKeys.length > 0) {
-        // Usar o primeiro array encontrado
-        tableData = data[arrayKeys[0]] as any[];
-      } else {
-        // Se não tem array, não mostrar tabela
-        return (
-          <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
-            Nenhum dado de tabela encontrado.
-          </div>
-        );
-      }
-    } else {
-      return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
-          Formato de dados não reconhecido.
-        </div>
-      );
-    }
-
-    if (tableData.length === 0) {
-      return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
-          Nenhum dado encontrado para o período selecionado.
-        </div>
-      );
-    }
-
-    // Obter mapeamento de colunas do primeiro item
-    const columnMapping = getColumnMapping(tableData[0]);
-    const columns = Object.keys(columnLabels).filter((key) => columnMapping[key]);
-
-    if (columns.length === 0) {
-      return (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-base text-muted-foreground">
-          Nenhuma das colunas esperadas foi encontrada nos dados.
-        </div>
-      );
-    }
-
-    const toggleRowSelection = (index: number) => {
-      setSelectedRows((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(index)) {
-          newSet.delete(index);
-        } else {
-          newSet.add(index);
-        }
-        return newSet;
-      });
-    };
-
-    const toggleSelectAll = () => {
-      if (selectedRows.size === tableData.length) {
-        setSelectedRows(new Set());
-      } else {
-        setSelectedRows(new Set(tableData.map((_: any, i: number) => i)));
-      }
-    };
-
-    const allSelected = selectedRows.size === tableData.length && tableData.length > 0;
-
-    return (
-      <div className="space-y-4">
-        <Card className="flex-1 flex flex-col min-h-0 flex-grow">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-            <div className="relative flex-1 min-h-0">
-              {/* Indicador de loading sutil */}
-              {loading && tableData.length > 0 && (
-                <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
-                  <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
-                </div>
-              )}
-              {/* Container com scroll interno */}
-              <div className="h-full max-h-[70vh] overflow-y-auto overflow-x-auto border-t border-slate-200">
-                <SmoothTableWrapper>
-                  <Table className="w-full">
-                    <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
-                      <TableRow>
-                        <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-20 bg-background border-r px-1 lg:px-2">
-                          <Checkbox
-                            checked={allSelected}
-                            onCheckedChange={toggleSelectAll}
-                          />
-                        </TableHead>
-                        {columns.map((colKey) => (
-                          <TableHead
-                            key={colKey}
-                            className="min-w-[100px] lg:min-w-[120px] xl:min-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background"
-                          >
-                            <div className="flex items-center">
-                              {columnLabels[colKey]}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loading && tableData.length === 0 ? (
-                        <>
-                          {Array.from({ length: 5 }).map((_, index) => (
-                            <TableRow key={`skeleton-${index}`}>
-                              <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
-                                <Skeleton className="h-4 w-4" />
-                              </TableCell>
-                              {columns.map((colKey) => (
-                                <TableCell key={colKey} className="px-2 lg:px-3 xl:px-4">
-                                  <Skeleton className="h-4 w-24 lg:w-32" />
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </>
-                      ) : tableData.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={columns.length + 1} className="h-24 text-center">
-                            <div className="flex flex-col items-center gap-2">
-                              <Inbox className="h-10 w-10 text-muted-foreground" />
-                              <h3 className="text-lg font-semibold">Nenhum dado encontrado</h3>
-                              <p className="text-sm text-muted-foreground">Tente ajustar os filtros de busca.</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        tableData.map((row: any, index: number) => {
-                          const isSelected = selectedRows.has(index);
-                          return (
-                            <TableRow
-                              key={index}
-                              className={`
-                                hover:bg-muted/50 transition-all duration-200
-                                ${isSelected ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''}
-                              `.trim().replace(/\s+/g, ' ')}
-                            >
-                              <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleRowSelection(index)}
-                                />
-                              </TableCell>
-                              {columns.map((colKey) => {
-                                const apiKey = columnMapping[colKey];
-                                const value = apiKey ? row[apiKey] : null;
-                                return (
-                                  <TableCell
-                                    key={colKey}
-                                    className={`
-                                      px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base
-                                      ${colKey === 'id' ? 'font-mono font-medium' : ''}
-                                      ${colKey === 'valor_total' || colKey === 'valor_frete' || colKey === 'valor_itens' ? 'font-medium text-right' : ''}
-                                    `.trim().replace(/\s+/g, ' ')}
-                                  >
-                                    {formatCellValue(value, colKey)}
-                                  </TableCell>
-                                );
-                              })}
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </SmoothTableWrapper>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        {selectedRows.size > 0 && (
-          <SelectedRowsSummary
-            tableData={tableData}
-            selectedIndices={Array.from(selectedRows)}
-            columnMapping={columnMapping}
-          />
-        )}
-      </div>
-    );
+    setStats(calculatedStats);
+    setInsights(generatedInsights);
   };
 
-  // Função para formatar valores das células
-  const formatCellValue = (value: any, columnKey?: string): string => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
-    if (typeof value === 'number') {
-      // ID deve ser formatado como número inteiro, não como moeda
-      if (columnKey === 'id') {
-        return value.toString();
-      }
-      // Valores monetários (valor_total, valor_frete, valor_itens)
-      if (columnKey === 'valor_total' || columnKey === 'valor_frete' || columnKey === 'valor_itens') {
-        return new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        }).format(value);
-      }
-      // Outros números como inteiros
-      return new Intl.NumberFormat('pt-BR').format(value);
+  // Recalcular se o modo de data mudar sem precisar de nova busca completa (se já temos dados)
+  useEffect(() => {
+    if (rawData.length > 0 && isSearched) {
+      processData(rawData);
     }
-    if (typeof value === 'string') {
-      // Formatar datas sem deslocamento de fuso horário
-      if (columnKey === 'data_entrada' || columnKey === 'data_entrega' || 
-          columnKey === 'created_at' || columnKey === 'updated_at') {
-        // Se é formato YYYY-MM-DD, formatar diretamente
-        if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [y, m, d] = value.split('-');
-          return `${d}/${m}/${y}`;
-        }
-        // Se tem timestamp, extrair apenas a data
-        if (value.match(/^\d{4}-\d{2}-\d{2}T/)) {
-          const dateOnly = value.split('T')[0];
-          const [y, m, d] = dateOnly.split('-');
-          return `${d}/${m}/${y}`;
-        }
-        // Tentar extrair data do início da string
-        const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (dateMatch) {
-          const [, y, m, d] = dateMatch;
-          return `${d}/${m}/${y}`;
-        }
-      }
-      // Para outras strings que parecem datas (formato YYYY-MM-DD)
-      if (value.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const dateOnly = value.split('T')[0] || value.split(' ')[0];
-        if (dateOnly.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [y, m, d] = dateOnly.split('-');
-          return `${d}/${m}/${y}`;
-        }
-      }
-      return value;
-    }
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
-    return String(value);
+  }, [dateMode]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
+
+  const formatDateShort = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold text-slate-900">Painel de Desempenho</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          Relatório semanal de fechamentos. Selecione o período e o modo de data para visualizar os dados.
-        </p>
+    <div className="space-y-6 pb-10">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Painel de Desempenho</h1>
+          <p className="mt-1 text-base text-muted-foreground">
+            Acompanhe a performance de vendas e produção em tempo real.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isSearched && !loading && (
+            <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+              Última atualização: {new Date().toLocaleTimeString()}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Filtros
+      <Card className="border-slate-200">
+        <CardHeader className="pb-3 pt-4">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Configuração do Filtro
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
+          <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-10">
+            <div className="space-y-2 lg:col-span-3">
               <Label htmlFor="start_date">Data Inicial</Label>
-              <Input
-                id="start_date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full"
-              />
-        </div>
-            <div className="space-y-2">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 lg:col-span-3">
               <Label htmlFor="end_date">Data Final</Label>
-              <Input
-                id="end_date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full"
-              />
-          </div>
-            <div className="space-y-2">
-              <Label htmlFor="date_mode">Modo de Data</Label>
-              <Select value={dateMode} onValueChange={setDateMode}>
-                <SelectTrigger id="date_mode" className="w-full">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="end_date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="date_mode">Referência</Label>
+              <Select value={dateMode} onValueChange={(v: DateMode) => setDateMode(v)}>
+                <SelectTrigger id="date_mode">
                   <SelectValue placeholder="Selecione o modo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entrada">Entrada</SelectItem>
-                  <SelectItem value="entrega">Entrega</SelectItem>
+                  <SelectItem value="entrada">Data de Entrada</SelectItem>
+                  <SelectItem value="entrega">Data de Entrega</SelectItem>
+                  <SelectItem value="criacao">Data de Criação</SelectItem>
+                  <SelectItem value="atualizacao">Última Atualização</SelectItem>
                 </SelectContent>
               </Select>
-                </div>
-            <div className="space-y-2 flex items-end">
+            </div>
+
+            <div className="flex items-end lg:col-span-2">
               <Button
                 onClick={handleSearch}
                 disabled={loading}
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-700 transition-colors"
                 type="button"
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Carregando...
+                    Buscando...
                   </>
                 ) : (
                   <>
                     <Search className="mr-2 h-4 w-4" />
-                    Buscar
+                    Atualizar Dashboard
                   </>
                 )}
               </Button>
             </div>
-        </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Resultados */}
-      {loading && !data ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          <span className="ml-2 text-slate-600">Carregando relatório...</span>
+      {!isSearched && !loading ? (
+        <div className="flex flex-col items-center justify-center py-24 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+          < TrendingUp className="h-12 w-12 text-slate-300 mb-4" />
+          <h2 className="text-xl font-semibold text-slate-600">Pronto para analisar?</h2>
+          <p className="text-slate-500 max-w-md text-center">
+            Selecione o período desejado acima e clique em "Atualizar Dashboard" para visualizar os KPIs e gráficos de desempenho.
+          </p>
         </div>
       ) : (
-        data && renderTable()
+        <>
+          {/* Insights Section */}
+          <DashboardInsights insights={insights} loading={loading} />
+
+          {/* KPIs Section */}
+          <DashboardKpis stats={stats} loading={loading} />
+
+          {/* Charts Section */}
+          <Tabs defaultValue="charts" className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <TabsList className="bg-slate-100 p-1">
+                <TabsTrigger value="charts" className="data-[state=active]:bg-white">Gráficos</TabsTrigger>
+                <TabsTrigger value="table" className="data-[state=active]:bg-white">Tabela Resumo</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="charts" className="mt-0">
+              <DashboardCharts data={stats?.dailyData || []} loading={loading} />
+            </TabsContent>
+
+            <TabsContent value="table" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Resumo Diário</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 hover:bg-slate-50">
+                        <TableHead className="w-[120px]">Data</TableHead>
+                        <TableHead className="text-right">Total Vendido</TableHead>
+                        <TableHead className="text-right">Qtd Pedidos</TableHead>
+                        <TableHead className="text-right">Ticket Médio</TableHead>
+                        <TableHead className="text-right text-green-600 font-medium">% Prontos</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+                          </TableRow>
+                        ))
+                      ) : stats?.dailyData && stats.dailyData.length > 0 ? (
+                        stats.dailyData.map((day) => (
+                          <TableRow key={day.data}>
+                            <TableCell className="font-medium">{formatDateShort(day.data)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(day.totalVendido)}</TableCell>
+                            <TableCell className="text-right">{day.quantidadePedidos}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(day.ticketMedio)}</TableCell>
+                            <TableCell className="text-right text-green-700 font-medium">
+                              {day.quantidadePedidos > 0
+                                ? ((day.prontos / day.quantidadePedidos) * 100).toFixed(0)
+                                : 0}%
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                            Nenhum dado encontrado para o período.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          {/* Clientes e Outros Dados (Opcional se sobrar espaço) */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Top 5 Clientes (R$)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
+                  ) : stats?.topClientes && stats.topClientes.length > 0 ? (
+                    stats.topClientes.map((cliente, idx) => (
+                      <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                            {idx + 1}
+                          </div>
+                          <span className="font-medium truncate max-w-[200px]">{cliente.nome}</span>
+                        </div>
+                        <span className="font-bold text-blue-600">{formatCurrency(cliente.valor)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-center text-muted-foreground py-4">Sem dados de clientes.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Dica de Desempenho</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center text-center p-6 bg-blue-50/20 rounded-lg">
+                < TrendingUp className="h-10 w-10 text-blue-400 mb-3" />
+                <p className="text-sm text-slate-600 mb-2">
+                  Analise seu <strong>Ticket Médio</strong> para identificar oportunidades de cross-sell e up-sell.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Sua média atual de {stats ? formatCurrency(stats.ticketMedio) : '...'} indica o valor que cada cliente traz em média por pedido.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
     </div>
   );
