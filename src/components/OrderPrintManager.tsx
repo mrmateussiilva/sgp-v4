@@ -90,7 +90,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     }
   };
 
-  // Imprimir usando HTML + window.print() (abre seletor de impressora no WebView/Tauri)
+  // Imprimir usando Tauri + headless Chrome (garante 2 itens por página)
   const handlePrint = async () => {
     if (!order) return;
 
@@ -99,13 +99,44 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Uses template HTML da API e chama window.print() automaticamente
-      // 'resumo' = layout compacto (1/2 A4); altere para 'geral' se quiser A4 completo
-      await printOrderServiceForm(reorderedOrder, 'resumo', orderedItems);
+      // Importar dinamicamente o serviço de PDF
+      const { generateAndSaveProductionPdf } = await import('../services/pdfService');
+
+      // Converter itens para o formato esperado pelo backend
+      const pdfItems = orderedItems.map(item => ({
+        numero: String(order.numero || order.id),
+        cliente: order.customer_name || order.cliente || 'Não informado',
+        telefone_cliente: order.telefone_cliente,
+        cidade_estado: order.cidade_cliente ? `${order.cidade_cliente}/${order.estado_cliente || ''}` : undefined,
+        descricao: item.descricao || item.item_name || '',
+        dimensoes: item.largura && item.altura ? `${item.largura} x ${item.altura}` : '',
+        quantity: item.quantity || 1,
+        material: item.material || 'Não especificado',
+        tipo_producao: item.tipo_producao || 'painel',
+        data_envio: order.data_envio || new Date().toISOString().split('T')[0],
+        prioridade: order.prioridade || 'Normal',
+        forma_envio: order.forma_envio || 'Não especificado',
+        imagem: item.imagem_url,
+        observacao_pedido: order.observacao,
+        observacao_item: item.observacao,
+        is_reposicao: order.is_reposicao || false,
+        designer: order.designer,
+        vendedor: order.vendedor,
+      }));
+
+      // Gerar PDF usando Tauri (headless Chrome)
+      const pdfPath = await generateAndSaveProductionPdf(pdfItems);
+
+      alert(`PDF gerado com sucesso!\nSalvo em: ${pdfPath}`);
+
+      // Abrir o PDF automaticamente (opcional)
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(pdfPath);
+
     } catch (error) {
-      console.error('Erro ao imprimir:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao imprimir. Tente novamente.';
-      alert(`Erro ao imprimir: ${errorMessage}`);
+      console.error('Erro ao gerar PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao gerar PDF. Tente novamente.';
+      alert(`Erro ao gerar PDF: ${errorMessage}`);
     } finally {
       setIsGenerating(false);
     }
