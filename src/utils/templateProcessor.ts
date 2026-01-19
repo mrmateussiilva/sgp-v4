@@ -1360,10 +1360,10 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     .items-container > .template-page,
     .items-container > .item,
     .items-container > div {
-      flex: 1 1 48% !important;
-      height: 48% !important;
-      max-height: 48% !important;
-      overflow: visible !important;
+      flex: 0 0 1750px !important;
+      height: 1750px !important;
+      max-height: 1750px !important;
+      overflow: hidden !important;
     }
     
     /* ============================================================
