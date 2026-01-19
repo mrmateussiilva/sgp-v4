@@ -455,9 +455,12 @@ export const resourcesApi = {
     getFichaTemplateHTML: async (templateType: 'geral' | 'resumo'): Promise<{ html: string | null; exists: boolean }> => {
         requireSessionToken();
         try {
+            // Adicionar timestamp para evitar cache
+            const cacheBuster = `?t=${Date.now()}`;
             const response = await apiClient.get<{ html: string | null; exists: boolean }>(
-                `/fichas/templates/html/${templateType}/content`
+                `/fichas/templates/html/${templateType}/content${cacheBuster}`
             );
+            logger.debug(`[api] Template HTML carregado: ${templateType}, exists: ${response.data.exists}, length: ${response.data.html?.length || 0}`);
             return response.data;
         } catch (error: any) {
             if (error.response?.status === 404) {
