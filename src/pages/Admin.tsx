@@ -1,118 +1,108 @@
-import { useNavigate } from 'react-router-dom';
 import { Package, Palette, Users, Truck, CreditCard, Settings, FileText } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AdminStatusBanner } from '@/components/admin/AdminStatusBanner';
+import { AdminModuleSection } from '@/components/admin/AdminModuleSection';
+import { AdminModule } from '@/components/admin/AdminModuleCard';
 
 export default function Admin() {
-  const navigate = useNavigate();
-
-  const adminModules = [
+  const productionModules: AdminModule[] = [
     {
       title: 'Materiais',
-      description: 'Gerencie materiais, tecidos e lonas',
       icon: Package,
       path: '/dashboard/admin/materiais',
       color: 'text-blue-500',
-      bgColor: 'bg-blue-50 hover:bg-blue-100',
-    },
-    {
-      title: 'Designers',
-      description: 'Cadastro de designers e arte-finalistas',
-      icon: Palette,
-      path: '/dashboard/admin/designers',
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-50 hover:bg-purple-100',
-    },
-    {
-      title: 'Vendedores',
-      description: 'Gerencie vendedores e comissões',
-      icon: Users,
-      path: '/dashboard/admin/vendedores',
-      color: 'text-green-500',
-      bgColor: 'bg-green-50 hover:bg-green-100',
+      stats: '12 MATERIAIS',
+      status: 'ok',
     },
     {
       title: 'Tipos de Produção',
-      description: 'Gerencie tipos de produção disponíveis',
       icon: Package,
       path: '/dashboard/admin/tipos-producao',
       color: 'text-amber-500',
-      bgColor: 'bg-amber-50 hover:bg-amber-100',
+      stats: '8 TIPOS',
+      status: 'ok',
+    },
+  ];
+
+  const peopleModules: AdminModule[] = [
+    {
+      title: 'Designers',
+      icon: Palette,
+      path: '/dashboard/admin/designers',
+      color: 'text-purple-500',
+      stats: '5 ATIVOS',
+      status: 'ok',
     },
     {
-      title: 'Formas de Envio',
-      description: 'Configure formas e valores de envio',
-      icon: Truck,
-      path: '/dashboard/admin/formas-envio',
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-50 hover:bg-orange-100',
-    },
-    {
-      title: 'Formas de Pagamento',
-      description: 'Configure formas de pagamento e taxas',
-      icon: CreditCard,
-      path: '/dashboard/admin/formas-pagamento',
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-50 hover:bg-emerald-100',
+      title: 'Vendedores',
+      icon: Users,
+      path: '/dashboard/admin/vendedores',
+      color: 'text-green-500',
+      stats: '8 VENDEDORES',
+      status: 'ok',
     },
     {
       title: 'Usuários',
-      description: 'Gerencie usuários e permissões',
       icon: Settings,
       path: '/dashboard/admin/usuarios',
-      color: 'text-gray-500',
-      bgColor: 'bg-gray-50 hover:bg-gray-100',
+      color: 'text-slate-500',
+      stats: '15 CONTAS',
+      status: 'ok',
     },
-    // Desativado temporariamente
-    // {
-    //   title: 'Template de Ficha',
-    //   description: 'Configure o template global da ficha de serviço',
-    //   icon: FileText,
-    //   path: '/dashboard/admin/template-ficha',
-    //   color: 'text-indigo-500',
-    //   bgColor: 'bg-indigo-50 hover:bg-indigo-100',
-    // },
+  ];
+
+  const financeLogisticsModules: AdminModule[] = [
+    {
+      title: 'Formas de Envio',
+      icon: Truck,
+      path: '/dashboard/admin/formas-envio',
+      color: 'text-orange-500',
+      stats: '3 ATIVAS',
+      status: 'attention',
+    },
+    {
+      title: 'Formas de Pagamento',
+      icon: CreditCard,
+      path: '/dashboard/admin/formas-pagamento',
+      color: 'text-emerald-500',
+      stats: '5 MÉTODOS',
+      status: 'ok',
+    },
+  ];
+
+  const systemModules: AdminModule[] = [
     {
       title: 'Templates de Relatórios',
-      description: 'Configure templates de relatórios de envios e fechamentos',
       icon: FileText,
       path: '/dashboard/admin/template-relatorios',
       color: 'text-teal-500',
-      bgColor: 'bg-teal-50 hover:bg-teal-100',
+      stats: 'PADRÃO',
+      status: 'ok',
     },
   ];
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Painel Administrativo</h1>
-        <p className="text-muted-foreground">Gerencie configurações e dados do sistema</p>
+    <div className="space-y-6 p-6 max-w-6xl mx-auto mb-10">
+      <div className="flex items-end justify-between border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">ADMINISTRAÇÃO</h1>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">Painel de Controle</p>
+        </div>
+        <div className="text-right hidden md:block">
+          <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase italic">v1.2.0-stable</p>
+        </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {adminModules.map((module) => {
-          const Icon = module.icon;
-          return (
-            <Card
-              key={module.path}
-              className={`cursor-pointer transition-all hover:shadow-lg ${module.bgColor} border-2`}
-              onClick={() => navigate(module.path)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-6 w-6 ${module.color}`} />
-                  <CardTitle className="text-lg">{module.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-sm">
-                  {module.description}
-                </CardDescription>
-              </CardContent>
-            </Card>
-          );
-        })}
+
+      <AdminStatusBanner />
+
+      <div className="space-y-8">
+        <AdminModuleSection title="Fluxo de Produção" modules={productionModules} />
+        <AdminModuleSection title="Gestão de Equipe" modules={peopleModules} />
+        <AdminModuleSection title="Financeiro & Entregas" modules={financeLogisticsModules} />
+        <AdminModuleSection title="Configurações Globais" modules={systemModules} />
       </div>
     </div>
   );
 }
+
+
 
