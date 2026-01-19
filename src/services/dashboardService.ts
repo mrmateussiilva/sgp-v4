@@ -8,6 +8,7 @@ export interface DashboardOrder {
     data: string; // YYYY-MM-DD
     valor_total: number;
     status: OrderStatus;
+    prioridade: string;
     cliente: string;
 }
 
@@ -24,10 +25,11 @@ export interface DashboardStats {
     totalVendido: number;
     nPedidos: number;
     ticketMedio: number;
-    melhorDia: { data: string; total: number } | null;
-    piorDia: { data: string; total: number } | null;
+    melhorDia: { data: string; total: number; count: number } | null;
+    piorDia: { data: string; total: number; count: number } | null;
     porcentagemProntos: number;
     porcentagemPendentes: number;
+    porcentagemAltaPrioridade: number;
     dailyData: DailyAggregation[];
     topClientes: { nome: string; valor: number }[];
 }
@@ -61,8 +63,6 @@ export const normalizeOrder = (order: OrderWithItems, mode: DateMode): Dashboard
 
     if (!normalizedDate) return null;
 
-    // IMPORTANTE: Use valor_total como fonte principal, ignorando valor_total_calculado (inconsistente)
-    // No OrderWithItems mapeado, valor_total já foi processado pelo mapper.
     const valor = typeof order.valor_total === 'number' ? order.valor_total : parseDecimal(order.valor_total);
 
     return {
@@ -70,6 +70,7 @@ export const normalizeOrder = (order: OrderWithItems, mode: DateMode): Dashboard
         data: normalizedDate,
         valor_total: valor,
         status: order.status,
+        prioridade: order.prioridade || 'NORMAL',
         cliente: order.cliente || order.customer_name || 'Desconhecido',
     };
 };
@@ -113,7 +114,6 @@ export const groupByDay = (orders: DashboardOrder[]): DailyAggregation[] => {
         group.totalVendido += order.valor_total;
         group.quantidadePedidos += 1;
 
-        // Simplificação: Concluido = pronto, outros = pendente (para dashboard de desempenho básico)
         if (order.status === OrderStatus.Concluido) {
             group.prontos += 1;
         } else {
@@ -144,18 +144,27 @@ export const calculateStats = (orders: DashboardOrder[]): DashboardStats => {
 
     if (dailyData.length > 0) {
         const sortedByTotal = [...dailyData].sort((a, b) => b.totalVendido - a.totalVendido);
-        melhorDia = { data: sortedByTotal[0].data, total: sortedByTotal[0].totalVendido };
+        melhorDia = {
+            data: sortedByTotal[0].data,
+            total: sortedByTotal[0].totalVendido,
+            count: sortedByTotal[0].quantidadePedidos
+        };
 
         // Pior dia com vendas > 0
         const salesDays = dailyData.filter(d => d.totalVendido > 0);
         if (salesDays.length > 0) {
             const sortedByTotalAsc = [...salesDays].sort((a, b) => a.totalVendido - b.totalVendido);
-            piorDia = { data: sortedByTotalAsc[0].data, total: sortedByTotalAsc[0].totalVendido };
+            piorDia = {
+                data: sortedByTotalAsc[0].data,
+                total: sortedByTotalAsc[0].totalVendido,
+                count: sortedByTotalAsc[0].quantidadePedidos
+            };
         }
     }
 
     const prontos = orders.filter((o) => o.status === OrderStatus.Concluido).length;
     const pendentes = nPedidos - prontos;
+    const altaPrioridade = orders.filter(o => o.prioridade === 'ALTA').length;
 
     // Top Clientes
     const clientVendas: Record<string, number> = {};
@@ -175,6 +184,7 @@ export const calculateStats = (orders: DashboardOrder[]): DashboardStats => {
         piorDia,
         porcentagemProntos: nPedidos > 0 ? (prontos / nPedidos) * 100 : 0,
         porcentagemPendentes: nPedidos > 0 ? (pendentes / nPedidos) * 100 : 0,
+        porcentagemAltaPrioridade: nPedidos > 0 ? (altaPrioridade / nPedidos) * 100 : 0,
         dailyData,
         topClientes,
     };
@@ -185,45 +195,63 @@ export const calculateStats = (orders: DashboardOrder[]): DashboardStats => {
  */
 export const generateInsights = (stats: DashboardStats): string[] => {
     const insights: string[] = [];
-    const { totalVendido, nPedidos, dailyData, porcentagemProntos, porcentagemPendentes, melhorDia, piorDia, topClientes } = stats;
+    const {
+        totalVendido,
+        nPedidos,
+        dailyData,
+        porcentagemProntos,
+        porcentagemPendentes,
+        melhorDia,
+        piorDia,
+        topClientes
+    } = stats;
 
     if (nPedidos === 0) return [];
+
+    // Regra: Poucos dados
+    if (nPedidos < 5) {
+        return ["Poucos dados no período; amplie o intervalo para insights mais confiáveis."];
+    }
 
     // Insight: Pico de vendas
     if (melhorDia) {
         const [, m, d] = melhorDia.data.split('-');
-        insights.push(`Seu pico de vendas foi em ${d}/${m} com R$ ${melhorDia.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`);
+        insights.push(`Seu pico de vendas foi em ${d}/${m} com R$ ${melhorDia.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${melhorDia.count} ${melhorDia.count === 1 ? 'pedido' : 'pedidos'}).`);
     }
 
-    // Insight: Pior dia
+    // Insight: Pior dia (se houver variação)
     if (piorDia && piorDia.data !== melhorDia?.data) {
         const [, m, d] = piorDia.data.split('-');
         insights.push(`Seu menor dia de vendas foi em ${d}/${m} com R$ ${piorDia.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`);
     }
 
-    // Insight: Concentração (Paretto adaptado)
+    // Insight: Concentração (Actionable)
     if (dailyData.length >= 3) {
         const sorted = [...dailyData].sort((a, b) => b.totalVendido - a.totalVendido);
         const top3Sum = sorted.slice(0, 3).reduce((sum, d) => sum + d.totalVendido, 0);
         const concentration = (top3Sum / totalVendido) * 100;
-        insights.push(`Os 3 melhores dias representam ${concentration.toFixed(1)}% do total vendido no período.`);
+        if (concentration > 70) {
+            insights.push(`Alerta: 70% das suas vendas estão concentradas em apenas 3 dias. Considere ações para equilibrar a demanda.`);
+        } else {
+            insights.push(`Os 3 melhores dias representam ${concentration.toFixed(1)}% do total vendido no período.`);
+        }
     }
 
-    // Insight: Status
-    insights.push(`${porcentagemProntos.toFixed(1)}% dos pedidos estão 'pronto' e ${porcentagemPendentes.toFixed(1)}% 'pendente'.`);
+    // Insight: Status (Actionable)
+    if (porcentagemPendentes > 50) {
+        insights.push(`Atenção: Mais de 50% dos seus pedidos ainda estão pendentes. Verifique possíveis gargalos na produção.`);
+    } else if (nPedidos > 5) {
+        insights.push(`${porcentagemProntos.toFixed(1)}% dos pedidos já foram concluídos.`);
+    }
 
     // Insight: Clientes
-    if (topClientes.length > 0) {
-        insights.push(`Top cliente do período: ${topClientes[0].nome} (R$ ${topClientes[0].valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`);
+    if (topClientes.length > 0 && topClientes[0].valor > (totalVendido * 0.3)) {
+        insights.push(`Top cliente ${topClientes[0].nome} representa mais de 30% do seu faturamento no período.`);
     }
 
-    // Insight: Upsell
-    const valorItens = dailyData.map(d => d.ticketMedio).filter(v => v > 0).sort((a, b) => a - b);
-    if (valorItens.length > 5) {
-        const q1 = valorItens[Math.floor(valorItens.length * 0.25)];
-        if (q1 < 50) { // Exemplo: se o Q1 é menor que 50 reais
-            insights.push("Você tem muitos pedidos de baixo valor. Considere sugerir combos ou frete grátis acima de um valor X.");
-        }
+    // Insight: Upsell (Actionable)
+    if (stats.ticketMedio < 100 && nPedidos > 10) {
+        insights.push("Dica: Seu ticket médio está abaixo de R$ 100. Sugira produtos complementares (upsell) para aumentar a rentabilidade.");
     }
 
     return insights;
