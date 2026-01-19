@@ -1,30 +1,21 @@
-import { Circle, Clock } from 'lucide-react';
+import { Circle } from 'lucide-react';
 
 export function AdminStatusBanner() {
-    const systemStatus = {
-        state: 'healthy',
-        message: 'Sistema operacional',
-        lastUpdate: 'há 5 min',
-    };
-
-    const isHealthy = systemStatus.state === 'healthy';
+    const isHealthy = true;
 
     return (
-        <div className="flex items-center gap-4 py-2 border-b border-dashed border-border mb-4">
+        <div className="flex items-center gap-2 py-1 text-xs border-b border-border/50 mb-6 font-medium">
+            <span className="text-muted-foreground uppercase tracking-widest text-[10px] font-bold">Status:</span>
             <div className="flex items-center gap-1.5">
                 <Circle className={`h-2 w-2 fill-current ${isHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-                <span className="text-sm text-foreground font-medium">{systemStatus.message}</span>
+                <span className="text-foreground">{isHealthy ? 'Sincronizado' : 'Atenção'}</span>
             </div>
-
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span className="text-xs">Sincronizado {systemStatus.lastUpdate}</span>
-            </div>
-
-            <button className="text-xs text-primary hover:underline ml-auto">
+            <span className="text-muted-foreground">há 5 min</span>
+            <button className="ml-auto text-primary hover:underline font-semibold">
                 Ver logs
             </button>
         </div>
     );
 }
+
 

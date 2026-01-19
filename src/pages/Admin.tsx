@@ -82,25 +82,24 @@ export default function Admin() {
 
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-1 border-b pb-4">
-        <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Gerencie os dados e parâmetros do sistema</p>
+    <div className="p-6 max-w-7xl mx-auto space-y-4">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Configurações</h1>
       </div>
-
 
       <AdminStatusBanner />
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <AdminModuleSection title="Produção" modules={productionModules} />
         <AdminModuleSection title="Financeiro & Logística" modules={financeLogisticsModules} />
-        <AdminModuleSection title="Equipes e Usuários" modules={peopleModules} />
+        <AdminModuleSection title="Usuários" modules={peopleModules} />
         <AdminModuleSection title="Sistema" modules={systemModules} />
       </div>
 
     </div>
   );
 }
+
 
 
 
