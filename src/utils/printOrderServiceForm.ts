@@ -8,44 +8,6 @@ import { imageToBase64 } from '@/utils/imageLoader';
 // UTILITY FUNCTIONS
 // ============================================================================
 
-const dedupeItemsById = (items: OrderItem[]): OrderItem[] => {
-  const seen = new Set<number>();
-  const result: OrderItem[] = [];
-
-  for (const item of items) {
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    result.push(item);
-  }
-
-  return result;
-};
-
-const mergeOrdersForPrint = (orders: OrderWithItems[]): OrderWithItems[] => {
-  const merged = new Map<string, OrderWithItems>();
-
-  for (const order of orders) {
-    const key = order.numero ? `num:${order.numero}` : `id:${order.id}`;
-    const existing = merged.get(key);
-
-    if (!existing) {
-      merged.set(key, {
-        ...order,
-        items: dedupeItemsById(order.items || [])
-      });
-      continue;
-    }
-
-    const combinedItems = dedupeItemsById([...(existing.items || []), ...(order.items || [])]);
-    merged.set(key, {
-      ...existing,
-      ...order,
-      items: combinedItems
-    });
-  }
-
-  return Array.from(merged.values());
-};
 
 const hydrateOrderForPrint = async (
   order: OrderWithItems,
@@ -182,10 +144,8 @@ export const printMultipleOrdersServiceForm = async (
     })
   );
 
-  const mergedOrders = mergeOrdersForPrint(hydratedOrders);
-
   // Pre-fetch de imagens (CONVERTER PARA BASE64)
-  const ordersWithImages = await preFetchImages(mergedOrders);
+  const ordersWithImages = await preFetchImages(hydratedOrders);
 
   const grouped = groupOrders(ordersWithImages);
 

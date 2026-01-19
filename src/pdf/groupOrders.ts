@@ -55,10 +55,10 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
         };
 
         // Criar um bloco separado para cada item
-        order.items.forEach((item: OrderItem) => {
+        order.items.forEach((item: OrderItem, index: number) => {
             flattenedOrders.push({
                 ...commonInfo,
-                id: `${order.id}-${item.id}`,
+                id: `${order.id}-${item.id}-${index}-${flattenedOrders.length}`,
                 produtos: [{
                     id: item.id,
                     descricao: item.descricao || item.item_name || '',
