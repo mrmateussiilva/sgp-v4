@@ -6,6 +6,7 @@ import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { saveAndOpenPdf } from '../pdf/tauriPdfUtils';
 import { groupOrders } from '../pdf/groupOrders';
 import { imageToBase64 } from '@/utils/imageLoader';
+import { PrintPreviewModal } from './PrintPreviewModal';
 
 interface OrderPrintManagerProps {
   isOpen: boolean;
@@ -20,6 +21,9 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 }) => {
   const [orderedItems, setOrderedItems] = useState<OrderItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
+  const [pdfFilename, setPdfFilename] = useState<string>('');
 
   // Inicializar com os itens do pedido quando o modal abrir
   useEffect(() => {
@@ -63,7 +67,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   };
 
   // Gerar e Salvar/Imprimir PDF usando React-PDF
-  const generatePDF = async () => {
+  const generatePDF = async (mode: 'preview' | 'save' = 'preview') => {
     if (!order) return;
 
     setIsGenerating(true);
@@ -110,7 +114,13 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const filename = `Producao-${orderIdentifier}-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
 
       // No Tauri, salvar e abrir é o fluxo mais robusto para impressão
-      await saveAndOpenPdf(blob, filename);
+      if (mode === 'save') {
+        await saveAndOpenPdf(blob, filename);
+      } else {
+        setGeneratedBlob(blob);
+        setPdfFilename(filename);
+        setIsPreviewOpen(true);
+      }
 
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -121,11 +131,11 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     }
   };
 
-  // Salvar em PDF
-  const handleSavePDF = () => generatePDF();
+  // Salvar em PDF direto (sem preview)
+  const handleSavePDF = () => generatePDF('save');
 
-  // Imprimir
-  const handlePrint = () => generatePDF();
+  // Abrir Preview de Impressão
+  const handlePrint = () => generatePDF('preview');
 
   if (!order) return null;
 
@@ -246,6 +256,15 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Modal de Preview de Impressão */}
+      <PrintPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        pdfBlob={generatedBlob}
+        filename={pdfFilename}
+        title={`Pré-visualização - Pedido #${order.numero || order.id}`}
+      />
     </Dialog>
   );
 };
