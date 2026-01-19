@@ -1639,9 +1639,29 @@ export const generateTemplatePrintContent = async (
 
       // Usar template customizado
       const rawHtml = CUSTOM_PRINT_TEMPLATE;
-      const itemsForProcessing = itemsToRender.length > 0
-        ? itemsToRender
+      const itemsForProcessing = items.length > 0
+        ? items
         : (order.items && order.items.length > 0 ? order.items : undefined);
+      // Criar mapa de imagens base64
+      const imageBase64Map = new Map<string, string>();
+      const itemsToLoad = itemsForProcessing || [];
+      
+      // Carregar imagens
+      const imagePromises = itemsToLoad
+        .filter(item => item.imagem && isValidImagePath(item.imagem))
+        .map(async (item) => {
+          try {
+            const imagePath = item.imagem!;
+            const blobUrl = await loadAuthenticatedImage(imagePath);
+            const resizedBase64 = await resizeImageToBase64(blobUrl, 85, 115);
+            imageBase64Map.set(imagePath, resizedBase64);
+          } catch (error) {
+            logger.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);
+          }
+        });
+
+      await Promise.all(imagePromises);
+
 
       const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
       const css = CUSTOM_PRINT_CSS;
