@@ -8,10 +8,8 @@ export const styles = StyleSheet.create({
     },
     orderContainer: {
         width: '100%',
-        minHeight: '148.5mm', // Metade do A4
+        height: '148mm', // Pouco menos que a metade exata (148.5mm) para segurança
         padding: '5mm',
-        borderBottomWidth: 1,
-        borderBottomColor: '#DDDDDD',
         display: 'flex',
         flexDirection: 'column',
     },
