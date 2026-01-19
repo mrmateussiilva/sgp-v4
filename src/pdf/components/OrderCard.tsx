@@ -13,21 +13,27 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         .map(p => p.imagem)
         .filter(Boolean) as string[];
 
+    const prod = order.produtos[0]; // Como agora é um por card, pegamos o primeiro
+
     return (
         <View style={styles.orderContainer} wrap={false}>
             {/* HEADER */}
             <View style={styles.header}>
-                <View style={styles.headerItem}>
-                    <Text style={styles.hLabel}>Data Envio: </Text>
+                <View style={[styles.headerItem, { flex: 1 }]}>
+                    <Text style={styles.hLabel}>Entrada: </Text>
+                    <Text style={styles.hValue}>{order.data_entrada || '---'}</Text>
+                </View>
+                <View style={[styles.headerItem, { flex: 1 }]}>
+                    <Text style={styles.hLabel}>Envio: </Text>
                     <Text style={styles.hValue}>{order.data_envio}</Text>
                 </View>
-                <View style={styles.headerItem}>
+                <View style={[styles.headerItem, { flex: 1 }]}>
                     <Text style={styles.hLabel}>Prioridade: </Text>
                     <Text style={[styles.hValue, { color: getPriorityColor(order.prioridade) }]}>
                         {order.prioridade.toUpperCase()}
                     </Text>
                 </View>
-                <View style={styles.headerItem}>
+                <View style={[styles.headerItem, { flex: 1.5 }]}>
                     <Text style={styles.hLabel}>Transporte: </Text>
                     <Text style={styles.hValue}>{order.forma_envio}</Text>
                 </View>
@@ -55,30 +61,71 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         </View>
                     </View>
 
-                    {/* LISTA DE PRODUTOS/ITENS */}
-                    {order.produtos.map((prod) => (
-                        <View key={prod.id} style={{ marginBottom: 5 }}>
-                            <Text style={styles.prodNome}>{prod.descricao}</Text>
-                            <View style={styles.infoGrid}>
-                                <View>
-                                    <Text style={styles.hLabel}>Dimensões</Text>
-                                    <Text style={styles.hValue}>{prod.dimensoes}</Text>
-                                    <Text style={[styles.hLabel, { marginTop: 2 }]}>Material</Text>
-                                    <Text style={[styles.hValue, { fontSize: 8 }]}>{prod.material}</Text>
-                                </View>
-                                <View style={styles.qtyBox}>
-                                    <Text style={styles.qtyLabel}>QTD</Text>
-                                    <Text style={styles.qtyValue}>{prod.quantity}</Text>
-                                </View>
+                    {/* INFORMAÇÕES DO PRODUTO */}
+                    <View style={{ marginBottom: 5 }}>
+                        <Text style={styles.prodNome}>{prod.descricao}</Text>
+                        <View style={styles.infoGrid}>
+                            <View>
+                                <Text style={styles.hLabel}>Dimensões</Text>
+                                <Text style={styles.hValue}>{prod.dimensoes}</Text>
+                                <Text style={[styles.hLabel, { marginTop: 2 }]}>Material/Tecido</Text>
+                                <Text style={[styles.hValue, { fontSize: 8 }]}>{prod.material}</Text>
                             </View>
-                            {prod.observacao_item && (
-                                <View style={[styles.obsBox, { borderLeftColor: '#FF9800' }]}>
-                                    <Text style={styles.obsTitle}>⚙️ Produção</Text>
-                                    <Text style={styles.obsText}>{prod.observacao_item}</Text>
-                                </View>
-                            )}
+                            <View style={styles.qtyBox}>
+                                <Text style={styles.qtyLabel}>QTD</Text>
+                                <Text style={styles.qtyValue}>{prod.quantity}</Text>
+                                {prod.quantidade_paineis && (
+                                    <Text style={{ fontSize: 7, color: '#666' }}>({prod.quantidade_paineis} un)</Text>
+                                )}
+                            </View>
                         </View>
-                    ))}
+
+                        {/* DETALHES TÉCNICOS / ACABAMENTOS */}
+                        <View style={styles.techSection}>
+                            <View style={styles.techGrid}>
+                                {prod.tecido && <TechBadge label="Tecido" value={prod.tecido} />}
+                                {prod.overloque && <TechBadge label="✅ Overloque" />}
+                                {prod.elastico && <TechBadge label="✅ Elástico" />}
+                                {prod.ziper && <TechBadge label="✅ Zíper" />}
+                                {prod.alcinha && <TechBadge label="✅ Alcinha" />}
+                                {prod.toalha_pronta && <TechBadge label="✅ Toalha Pronta" />}
+                                {prod.terceirizado && <TechBadge label="⚠️ Terceirizado" />}
+
+                                {prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum' && (
+                                    <TechBadge label="Acabamento" value={prod.tipo_acabamento} />
+                                )}
+
+                                {prod.quantidade_ilhos && (
+                                    <TechBadge
+                                        label="Ilhós"
+                                        value={`${prod.quantidade_ilhos}un${prod.espaco_ilhos ? ` (Esp: ${prod.espaco_ilhos})` : ''}`}
+                                    />
+                                )}
+
+                                {prod.quantidade_cordinha && (
+                                    <TechBadge
+                                        label="Cordinha"
+                                        value={`${prod.quantidade_cordinha}un${prod.espaco_cordinha ? ` (Esp: ${prod.espaco_cordinha})` : ''}`}
+                                    />
+                                )}
+
+                                {prod.emenda && (
+                                    <TechBadge label="Emenda" value={`${prod.emenda} (${prod.emenda_qtd || 1}x)`} />
+                                )}
+
+                                {prod.metro_quadrado && (
+                                    <TechBadge label="M²" value={`${prod.metro_quadrado}m²`} />
+                                )}
+                            </View>
+                        </View>
+
+                        {prod.observacao_item && (
+                            <View style={[styles.obsBox, { borderLeftColor: '#FF9800', marginTop: 4 }]}>
+                                <Text style={styles.obsTitle}>⚙️ Instruções do Item</Text>
+                                <Text style={styles.obsText}>{prod.observacao_item}</Text>
+                            </View>
+                        )}
+                    </View>
 
                     {/* OBSERVAÇÃO DO PEDIDO */}
                     {order.observacao_pedido && (
@@ -97,15 +144,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <View style={styles.imgBox}>
                         {images.length > 0 ? (
                             <View style={{ width: '100%', height: '100%', padding: 2 }}>
-                                {/* Mostra até 2 previews se houver, ou apenas um grande */}
-                                {images.slice(0, 2).map((img, i) => (
+                                {images.slice(0, 1).map((img, i) => (
                                     <Image
                                         key={i}
                                         src={img}
-                                        style={[
-                                            styles.image,
-                                            images.length > 1 ? { height: '48%' } : { height: '100%' }
-                                        ]}
+                                        style={styles.image}
                                     />
                                 ))}
                             </View>
@@ -113,8 +156,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             <Text style={styles.noImg}>SEM PRÉVIA</Text>
                         )}
                     </View>
-                    {order.produtos[0]?.legenda_imagem && (
-                        <Text style={styles.imgCaption}>{order.produtos[0].legenda_imagem}</Text>
+                    {prod?.legenda_imagem && (
+                        <Text style={styles.imgCaption}>{prod.legenda_imagem}</Text>
                     )}
                 </View>
             </View>
@@ -122,14 +165,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* FOOTER */}
             <View style={styles.footer}>
                 <View style={styles.footerItem}>
-                    <Text style={styles.footerLabel}>Designer</Text>
-                    <Text style={styles.footerValue}>{order.designer || '---'}</Text>
+                    <Text style={styles.footerLabel}>Vendedor / Designer</Text>
+                    <Text style={styles.footerValue}>{order.vendedor || '---'} / {order.designer || '---'}</Text>
                 </View>
-                <View style={styles.footerItem}>
-                    <Text style={styles.footerLabel}>Vendedor</Text>
-                    <Text style={styles.footerValue}>{order.vendedor || '---'}</Text>
-                </View>
-                <View style={[styles.footerItem, { alignItems: 'flex-end', flex: 1.5 }]}>
+                <View style={[styles.footerItem, { alignItems: 'flex-end', flex: 1.2 }]}>
                     <Text style={styles.footerLabel}>Controle de Produção</Text>
                     <Text style={{ fontSize: 8 }}>RIP: _______ DATA: __/__/__</Text>
                 </View>
@@ -137,6 +176,13 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         </View>
     );
 };
+
+const TechBadge = ({ label, value }: { label: string; value?: string }) => (
+    <View style={styles.techBadge}>
+        <Text style={styles.techLabel}>{label}{value ? ': ' : ''}</Text>
+        {value && <Text style={styles.techValue}>{value}</Text>}
+    </View>
+);
 
 function getPriorityColor(priority: string): string {
     const p = priority.toLowerCase();

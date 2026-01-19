@@ -10,6 +10,23 @@ export interface ProductionProduct {
     imagem?: string;
     legenda_imagem?: string;
     tipo_producao: string;
+    tecido?: string;
+    overloque?: boolean;
+    elastico?: boolean;
+    tipo_acabamento?: string;
+    quantidade_ilhos?: string;
+    espaco_ilhos?: string;
+    quantidade_cordinha?: string;
+    espaco_cordinha?: string;
+    ziper?: boolean;
+    cordinha_extra?: boolean;
+    alcinha?: boolean;
+    toalha_pronta?: boolean;
+    emenda?: string;
+    emenda_qtd?: string;
+    metro_quadrado?: string;
+    quantidade_paineis?: string;
+    terceirizado?: boolean;
 }
 
 export interface ProductionOrder {
@@ -25,6 +42,10 @@ export interface ProductionOrder {
     designer?: string;
     vendedor?: string;
     observacao_pedido?: string;
+    data_entrada?: string;
+    valor_frete?: string | number;
+    valor_total?: string | number;
+    status?: string;
     produtos: ProductionProduct[];
 }
 
@@ -52,6 +73,10 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
             designer: (order as any).designer,
             vendedor: (order as any).vendedor,
             observacao_pedido: order.observacao,
+            data_entrada: order.data_entrada,
+            valor_frete: order.valor_frete,
+            valor_total: order.valor_total || order.total_value,
+            status: order.status,
         };
 
         // Criar um bloco separado para cada item
@@ -69,6 +94,23 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     imagem: item.imagem,
                     legenda_imagem: item.legenda_imagem,
                     tipo_producao: item.tipo_producao || 'painel',
+                    tecido: item.tecido,
+                    overloque: item.overloque,
+                    elastico: item.elastico,
+                    tipo_acabamento: item.tipo_acabamento,
+                    quantidade_ilhos: item.quantidade_ilhos,
+                    espaco_ilhos: item.espaco_ilhos,
+                    quantidade_cordinha: item.quantidade_cordinha,
+                    espaco_cordinha: item.espaco_cordinha,
+                    ziper: item.ziper,
+                    cordinha_extra: item.cordinha_extra,
+                    alcinha: item.alcinha,
+                    toalha_pronta: item.toalha_pronta,
+                    emenda: item.emenda,
+                    emenda_qtd: item.emenda_qtd || (item as any).emendaQtd,
+                    metro_quadrado: item.metro_quadrado,
+                    quantidade_paineis: item.quantidade_paineis,
+                    terceirizado: item.terceirizado,
                 }],
             });
         });
