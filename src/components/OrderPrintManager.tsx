@@ -98,11 +98,13 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
 
-      // Importar dinamicamente o serviço de PDF
-      const { generateAndSaveProductionPdf } = await import('../services/pdfService');
+      // Importar dinamicamente React PDF
+      const { pdf } = await import('@react-pdf/renderer');
+      const { ProductionSheetPDF } = await import('./pdf/ProductionSheetPDF');
+      type ProductionItem = import('./pdf/ProductionSheetPDF').ProductionItem;
 
-      // Converter itens para o formato esperado pelo backend
-      const pdfItems = orderedItems.map(item => ({
+      // Converter itens para o formato esperado pelo componente PDF
+      const pdfItems: ProductionItem[] = orderedItems.map(item => ({
         numero: String(order.numero || order.id),
         cliente: order.customer_name || order.cliente || 'Não informado',
         telefone_cliente: order.telefone_cliente,
@@ -123,14 +125,16 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         vendedor: (order as any).vendedor,
       }));
 
-      // Gerar PDF usando Tauri (headless Chrome)
-      const pdfPath = await generateAndSaveProductionPdf(pdfItems);
+      // Gerar PDF usando React (instantâneo!)
+      const blob = await pdf(<ProductionSheetPDF items={pdfItems} />).toBlob();
 
-      alert(`PDF gerado com sucesso!\nSalvo em: ${pdfPath}`);
-
-      // Abrir o PDF automaticamente (opcional)
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(pdfPath);
+      // Download do PDF
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `producao_${order.numero || order.id}_${new Date().toISOString().split('T')[0]}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
 
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
