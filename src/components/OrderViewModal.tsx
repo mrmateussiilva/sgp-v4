@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Printer } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { printOrderServiceForm } from '../utils/printOrderServiceForm';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -200,6 +202,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       setSelectedImage(null);
       setSelectedImageCaption('');
       setImageError(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!order) return;
+    setIsPrinting(true);
+    try {
+      await printOrderServiceForm(order, 'resumo');
+    } catch (error) {
+      logger.error("Erro ao imprimir pedido:", error);
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -1168,6 +1182,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
+              <Button
+                onClick={handlePrint}
+                variant="outline"
+                size="sm"
+                disabled={isPrinting}
+              >
+                <Printer className={`h-4 w-4 mr-2 ${isPrinting ? 'animate-pulse' : ''}`} />
+                {isPrinting ? 'Gerando...' : 'Imprimir Ficha'}
+              </Button>
             </div>
           </DialogTitle>
         </DialogHeader>

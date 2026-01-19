@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { OrderItem, OrderWithItems } from '../types';
 import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
-import {
-  baixarRelatorioResumoPDF
-} from '../utils/pdfReportAdapter';
+import { saveAndOpenPdf } from '../pdf/tauriPdfUtils';
+import { groupOrders } from '../pdf/groupOrders';
+import { imageToBase64 } from '@/utils/imageLoader';
 
 interface OrderPrintManagerProps {
   isOpen: boolean;
@@ -62,79 +62,48 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
     return Number.isNaN(parsed) ? 0 : parsed;
   };
 
-  // Salvar em PDF usando PDFMake
-  const handleSavePDF = async () => {
+  // Gerar e Salvar/Imprimir PDF usando React-PDF
+  const generatePDF = async (action: 'save' | 'print') => {
     if (!order) return;
 
     setIsGenerating(true);
     try {
       const reorderedOrder = getReorderedOrder();
       if (!reorderedOrder) return;
+
+      // Importar dinamicamente para reduzir o bundle inicial
+      const { pdf } = await import('@react-pdf/renderer');
+      const { ProductionReportPDF } = await import('../pdf/ProductionReportPDF');
+
+      // Pre-fetch de imagens (CONVERTER PARA BASE64)
+      const itemsWithBase64 = await Promise.all(
+        reorderedOrder.items.map(async (item) => {
+          if (item.imagem && (item.imagem.startsWith('http') || !item.imagem.startsWith('data:'))) {
+            try {
+              const base64 = await imageToBase64(item.imagem);
+              return { ...item, imagem: base64 };
+            } catch (err) {
+              console.warn(`[OrderPrintManager] Falha ao converter imagem para item ${item.id}:`, err);
+            }
+          }
+          return item;
+        })
+      );
+
+      const orderWithImages = { ...reorderedOrder, items: itemsWithBase64 };
+
+      // Agrupar itens de forma correta (respeitando reordenação)
+      const grouped = groupOrders([orderWithImages]);
+
+      // Gerar PDF usando React (instantâneo!)
+      const blob = await pdf(<ProductionReportPDF pedidos={grouped} />).toBlob();
 
       // Gerar nome do arquivo
       const orderIdentifier = String(order.numero || order.id || 'pedido').trim();
-      const sanitizedIdentifier = orderIdentifier
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9-_]+/g, '-');
-      const filename = `Pedido-${sanitizedIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = `Producao-${orderIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
 
-      // Usar PDFMake para gerar PDF (2 itens por página, layout profissional)
-      await baixarRelatorioResumoPDF(reorderedOrder, orderedItems, filename);
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar PDF. Tente novamente.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Imprimir usando Tauri + headless Chrome (garante 2 itens por página)
-  const handlePrint = async () => {
-    if (!order) return;
-
-    setIsGenerating(true);
-    try {
-      const reorderedOrder = getReorderedOrder();
-      if (!reorderedOrder) return;
-
-      // Importar dinamicamente React PDF
-      const { pdf } = await import('@react-pdf/renderer');
-      const { ProductionSheetPDF } = await import('./pdf/ProductionSheetPDF');
-      type ProductionItem = import('./pdf/ProductionSheetPDF').ProductionItem;
-
-      // Converter itens para o formato esperado pelo componente PDF
-      const pdfItems: ProductionItem[] = orderedItems.map(item => ({
-        numero: String(order.numero || order.id),
-        cliente: order.customer_name || order.cliente || 'Não informado',
-        telefone_cliente: order.telefone_cliente,
-        cidade_estado: order.cidade_cliente ? `${order.cidade_cliente}/${order.estado_cliente || ''}` : undefined,
-        descricao: item.descricao || item.item_name || '',
-        dimensoes: item.largura && item.altura ? `${item.largura} x ${item.altura}` : '',
-        quantity: item.quantity || 1,
-        material: (item as any).material || 'Não especificado',
-        tipo_producao: item.tipo_producao || 'painel',
-        data_envio: (order as any).data_envio || new Date().toISOString().split('T')[0],
-        prioridade: order.prioridade || 'Normal',
-        forma_envio: order.forma_envio || 'Não especificado',
-        imagem: (item as any).imagem_url,
-        observacao_pedido: order.observacao,
-        observacao_item: item.observacao,
-        is_reposicao: (order as any).is_reposicao || false,
-        designer: (order as any).designer,
-        vendedor: (order as any).vendedor,
-      }));
-
-      // Gerar PDF usando React (instantâneo!)
-      const blob = await pdf(<ProductionSheetPDF items={pdfItems} />).toBlob();
-
-      // Download do PDF
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `producao_${order.numero || order.id}_${new Date().toISOString().split('T')[0]}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // No Tauri, salvar e abrir é o fluxo mais robusto para impressão
+      await saveAndOpenPdf(blob, filename);
 
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -144,6 +113,12 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       setIsGenerating(false);
     }
   };
+
+  // Salvar em PDF
+  const handleSavePDF = () => generatePDF('save');
+
+  // Imprimir
+  const handlePrint = () => generatePDF('print');
 
   if (!order) return null;
 
