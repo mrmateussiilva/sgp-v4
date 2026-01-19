@@ -1200,6 +1200,20 @@ export default function OrderList() {
         if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
         return 0;
       });
+    } else if (isAdmin) {
+      // Ordenação padrão para admin: Pedidos não financeiros primeiro, depois Prioridade ALTA, depois ID desc
+      filtered = [...filtered].sort((a, b) => {
+        // 1. Financeiro (false primeiro)
+        if (a.financeiro !== b.financeiro) {
+          return a.financeiro ? 1 : -1;
+        }
+        // 2. Prioridade (ALTA primeiro)
+        if (a.prioridade !== b.prioridade) {
+          return a.prioridade === 'ALTA' ? -1 : 1;
+        }
+        // 3. ID (descendente)
+        return (b.id || 0) - (a.id || 0);
+      });
     }
 
     logger.debug('[OrderList] filteredOrders - resultado final length:', filtered.length);
@@ -1278,6 +1292,25 @@ export default function OrderList() {
         logger.debug('[OrderList] paginatedOrders - resultado (backend com sort):', result.length);
         return result;
       }
+
+      if (isAdmin) {
+        // Ordenação padrão para admin na página atual do backend
+        const result = [...orders].sort((a, b) => {
+          // 1. Financeiro (false primeiro)
+          if (a.financeiro !== b.financeiro) {
+            return a.financeiro ? 1 : -1;
+          }
+          // 2. Prioridade (ALTA primeiro)
+          if (a.prioridade !== b.prioridade) {
+            return a.prioridade === 'ALTA' ? -1 : 1;
+          }
+          // 3. ID (descendente)
+          return (b.id || 0) - (a.id || 0);
+        });
+        logger.debug('[OrderList] paginatedOrders - resultado (backend com priority sort):', result.length);
+        return result;
+      }
+
       const result = orders; // orders já vem paginado do backend
       logger.debug('[OrderList] paginatedOrders - resultado (backend):', result.length);
       return result;
