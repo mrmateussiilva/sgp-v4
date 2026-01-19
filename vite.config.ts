@@ -16,7 +16,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      buffer: 'buffer/',
     },
+  },
+  optimizeDeps: {
+    include: ['buffer'],
   },
   build: {
     target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
