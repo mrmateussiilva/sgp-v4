@@ -624,6 +624,10 @@ function isTauriEnvironment(): boolean {
   return isTauri();
 }
 
+function getByteLength(data: ArrayBuffer | ArrayBufferView): number {
+  return data instanceof ArrayBuffer ? data.byteLength : data.byteLength;
+}
+
 /**
  * Salva PDF usando API do Tauri
  * @returns Caminho do arquivo salvo ou null se cancelado
@@ -634,8 +638,8 @@ async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAp
 
     // Tentar usar getBuffer primeiro
     if (typeof pdfDocGenerator.getBuffer === 'function') {
-      pdfDocGenerator.getBuffer(async (buffer: Buffer | ArrayBuffer | Uint8Array) => {
-        console.log('[pdfGenerator] 📦 Buffer recebido via getBuffer, tamanho:', buffer ? (buffer as any).length || buffer.byteLength || 'desconhecido' : 'null');
+      pdfDocGenerator.getBuffer(async (buffer: ArrayBuffer | ArrayBufferView) => {
+        console.log('[pdfGenerator] 📦 Buffer recebido via getBuffer, tamanho:', buffer ? getByteLength(buffer) : 'null');
         await processarESalvarPDF(buffer, nomeArquivo, abrirAposSalvar, resolve, reject);
       });
     } else {
@@ -657,7 +661,7 @@ async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAp
 }
 
 async function processarESalvarPDF(
-  buffer: Buffer | ArrayBuffer | Uint8Array,
+  buffer: ArrayBuffer | ArrayBufferView,
   nomeArquivo: string,
   abrirAposSalvar: boolean,
   resolve: (value: string | null) => void,
@@ -688,15 +692,14 @@ async function processarESalvarPDF(
     }
 
     console.log('[pdfGenerator] 🔄 Convertendo buffer para Uint8Array...');
-    // Converter buffer para Uint8Array (compatível com Buffer, ArrayBuffer e Uint8Array)
+    // Converter buffer para Uint8Array (compatível com ArrayBuffer e views)
     let uint8Array: Uint8Array;
-    if (buffer instanceof Uint8Array) {
+    if (buffer instanceof ArrayBuffer) {
+      uint8Array = new Uint8Array(buffer);
+    } else if (buffer instanceof Uint8Array) {
       uint8Array = buffer;
-    } else if (buffer instanceof ArrayBuffer) {
-      uint8Array = new Uint8Array(buffer);
     } else {
-      // Buffer do Node.js ou similar
-      uint8Array = new Uint8Array(buffer);
+      uint8Array = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     }
 
     console.log('[pdfGenerator] 💾 Salvando arquivo em:', filePath, 'tamanho:', uint8Array.length, 'bytes');
@@ -1320,4 +1323,3 @@ export async function printPdf(
     throw error;
   }
 }
-

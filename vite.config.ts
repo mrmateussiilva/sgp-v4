@@ -1,9 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 export default defineConfig({
   plugins: [react()],
@@ -19,11 +16,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      buffer: require.resolve('buffer'),
     },
-  },
-  optimizeDeps: {
-    include: ['buffer'],
   },
   build: {
     target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
