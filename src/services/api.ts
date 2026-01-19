@@ -22,9 +22,9 @@ export const api = {
     const orders = await ordersApi.getOrders();
     return orders.filter(o => o.pronto === false || o.pronto == null);
   },
-  getPendingOrdersPaginated: async (page?: number, pageSize?: number) => 
+  getPendingOrdersPaginated: async (page?: number, pageSize?: number) =>
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
-  getReadyOrdersPaginated: async (page?: number, pageSize?: number) => 
+  getReadyOrdersPaginated: async (page?: number, pageSize?: number) =>
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Concluido),
   getReadyOrdersLight: async () => {
     const orders = await ordersApi.getOrders();
@@ -33,6 +33,7 @@ export const api = {
   getOrderById: ordersApi.getOrderById,
   createOrder: ordersApi.createOrder,
   duplicateOrder: ordersApi.duplicateOrder,
+  createReplacementOrder: ordersApi.createReplacementOrder,
   updateOrder: ordersApi.updateOrder,
   updateOrderMetadata: ordersApi.updateOrderMetadata,
   updateOrderStatus: ordersApi.updateOrderStatus,

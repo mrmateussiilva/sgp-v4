@@ -130,7 +130,7 @@ const fetchOrdersPaginated = async (
     logger.debug('[fetchOrdersPaginated] Response data is array:', Array.isArray(response.data));
     logger.debug('[fetchOrdersPaginated] Response data length:', Array.isArray(response.data) ? response.data.length : 'not array');
     logger.debug('[fetchOrdersPaginated] Response data sample:', Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : 'empty');
-    
+
     const allData = (response.data ?? []).map(mapPedidoFromApi);
     logger.debug('[fetchOrdersPaginated] Mapped data length:', allData.length);
     logger.debug('[fetchOrdersPaginated] Mapped data sample:', allData.length > 0 ? allData[0] : 'empty');
@@ -330,8 +330,8 @@ export const ordersApi = {
      */
     duplicateOrder: async (
         orderId: number,
-        options?: { 
-            resetStatus?: boolean; 
+        options?: {
+            resetStatus?: boolean;
             newDataEntrada?: string;
             data_entrada?: string;
             data_entrega?: string;
@@ -412,6 +412,93 @@ export const ordersApi = {
 
         const newOrder = await ordersApi.createOrder(createRequest);
         logger.info(`[duplicateOrder] Pedido ${orderId} duplicado como ${newOrder.id}`);
+
+        return newOrder;
+    },
+
+    /**
+     * Cria uma ficha de reposição baseada em um pedido existente
+     * Reseta o status para Pendente e usa a data atual como data de entrada
+     */
+    createReplacementOrder: async (
+        orderId: number,
+        data_entrega?: string
+    ): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        // Busca o pedido original
+        const original = await ordersApi.getOrderById(orderId);
+
+        // Prepara os itens para o novo pedido (remove IDs)
+        const newItems = original.items.map((item) => ({
+            item_name: item.item_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            tipo_producao: item.tipo_producao,
+            descricao: item.descricao,
+            largura: item.largura,
+            altura: item.altura,
+            metro_quadrado: item.metro_quadrado,
+            vendedor: item.vendedor,
+            designer: item.designer,
+            tecido: item.tecido,
+            overloque: item.overloque,
+            elastico: item.elastico,
+            tipo_acabamento: item.tipo_acabamento,
+            quantidade_ilhos: item.quantidade_ilhos,
+            espaco_ilhos: item.espaco_ilhos,
+            valor_ilhos: item.valor_ilhos,
+            quantidade_cordinha: item.quantidade_cordinha,
+            espaco_cordinha: item.espaco_cordinha,
+            valor_cordinha: item.valor_cordinha,
+            observacao: item.observacao,
+            imagem: item.imagem,
+            legenda_imagem: item.legenda_imagem,
+            quantidade_paineis: item.quantidade_paineis,
+            valor_painel: item.valor_painel,
+            valores_adicionais: item.valores_adicionais,
+            valor_unitario: item.valor_unitario,
+            emenda: item.emenda,
+            emenda_qtd: item.emenda_qtd,
+            terceirizado: item.terceirizado,
+            acabamento_lona: item.acabamento_lona,
+            valor_lona: item.valor_lona,
+            quantidade_lona: item.quantidade_lona,
+            outros_valores_lona: item.outros_valores_lona,
+            tipo_adesivo: item.tipo_adesivo,
+            valor_adesivo: item.valor_adesivo,
+            quantidade_adesivo: item.quantidade_adesivo,
+            outros_valores_adesivo: item.outros_valores_adesivo,
+            ziper: item.ziper,
+            cordinha_extra: item.cordinha_extra,
+            alcinha: item.alcinha,
+            toalha_pronta: item.toalha_pronta,
+            acabamento_totem: item.acabamento_totem,
+            acabamento_totem_outro: item.acabamento_totem_outro,
+            valor_totem: item.valor_totem,
+            quantidade_totem: item.quantidade_totem,
+            outros_valores_totem: item.outros_valores_totem,
+        }));
+
+        // Cria o novo pedido de reposição
+        const createRequest: CreateOrderRequest = {
+            cliente: original.cliente || original.customer_name,
+            cidade_cliente: original.cidade_cliente || original.address,
+            estado_cliente: original.estado_cliente,
+            telefone_cliente: original.telefone_cliente,
+            data_entrada: new Date().toISOString().split('T')[0], // Data atual
+            data_entrega: data_entrega || original.data_entrega,
+            forma_envio: original.forma_envio,
+            forma_pagamento_id: original.forma_pagamento_id,
+            prioridade: original.prioridade,
+            observacao: `[REPOSIÇÃO] Baseado no pedido #${original.numero || original.id}${original.observacao ? ' - ' + original.observacao : ''}`,
+            status: OrderStatus.Pendente, // Sempre resetado para Pendente
+            valor_frete: typeof original.valor_frete === 'string' ? parseFloat(original.valor_frete) : original.valor_frete,
+            items: newItems,
+        };
+
+        const newOrder = await ordersApi.createOrder(createRequest);
+        logger.info(`[createReplacementOrder] Ficha de reposição criada para pedido ${orderId} como ${newOrder.id}`);
 
         return newOrder;
     },

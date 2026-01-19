@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2 } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2, RefreshCw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { logger } from '@/utils/logger';
@@ -591,6 +591,33 @@ export default function OrderList() {
     }
   };
 
+  const handleCreateReplacementClick = async (order: OrderWithItems) => {
+    try {
+      toast({
+        title: 'Criando ficha de reposição...',
+        description: 'Aguarde enquanto a ficha está sendo criada.',
+      });
+
+      // Criar o pedido de reposição
+      const newOrder = await api.createReplacementOrder(order.id);
+
+      toast({
+        title: 'Ficha de reposição criada',
+        description: `Pedido #${newOrder.numero || newOrder.id} criado. Abrindo para edição...`,
+      });
+
+      // Navegar para a página de edição do novo pedido
+      navigate(`/dashboard/pedido/editar/${newOrder.id}`);
+    } catch (error) {
+      logger.error('Erro ao criar ficha de reposição:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao criar ficha de reposição',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (orderToDelete) {
       try {
@@ -899,6 +926,11 @@ export default function OrderList() {
     if (!date) return '';
     const [year, month, day] = date.split('-');
     return `${day}/${month}/${year}`;
+  };
+
+  // Verificar se um pedido é de reposição
+  const isReplacementOrder = (order: OrderWithItems): boolean => {
+    return order.observacao?.includes('[REPOSIÇÃO]') || order.observacao?.includes('[REPOSICAO]') || false;
   };
 
   // Remover zeros à esquerda do número do pedido
@@ -2327,9 +2359,16 @@ export default function OrderList() {
                                   />
                                 </TableCell>
                                 <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                                  <div className="flex items-center gap-1 lg:gap-2">
-                                    #{formatOrderNumber(order.numero, order.id)}
-                                    <EditingIndicator orderId={order.id} />
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1 lg:gap-2">
+                                      #{formatOrderNumber(order.numero, order.id)}
+                                      <EditingIndicator orderId={order.id} />
+                                    </div>
+                                    {isReplacementOrder(order) && (
+                                      <Badge variant="outline" className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-orange-50 text-orange-700 border-orange-300 w-fit">
+                                        REPOSIÇÃO
+                                      </Badge>
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className={`
@@ -2538,6 +2577,27 @@ export default function OrderList() {
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleCreateReplacementClick(order);
+                                            }}
+                                            className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                            title="Criar ficha de reposição"
+                                          >
+                                            <RefreshCw className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Criar ficha de reposição</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                     {isAdmin && (
                                       <Button
                                         size="icon"
@@ -2710,6 +2770,7 @@ export default function OrderList() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
 
         <Dialog open={statusConfirmModal.show} onOpenChange={(open) => {
           if (!open) {
