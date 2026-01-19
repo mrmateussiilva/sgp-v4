@@ -51,6 +51,7 @@ export interface ItemRelatorio {
 
   // Opcionais gerais
   observacao_item?: string;
+  observacao_pedido?: string;
   designer?: string;
   vendedor?: string;
   imagem?: string;
@@ -243,7 +244,7 @@ function gerarBulletsPorTipo(item: ItemRelatorio): Content[] {
 /**
  * Gera seção de observação destacada
  */
-function gerarObservacao(observacao?: string): Content | null {
+function gerarObservacao(observacao?: string, label: string = 'Observação'): Content | null {
   if (!isValid(observacao)) return null;
 
   return {
@@ -252,7 +253,7 @@ function gerarObservacao(observacao?: string): Content | null {
       body: [[
         {
           text: [
-            { text: '⚠ Observação: ', bold: true },
+            { text: `⚠ ${label}: `, bold: true },
             { text: observacao || '' },
           ],
           style: 'observacao',
@@ -388,10 +389,15 @@ function gerarColunaEsquerda(item: ItemRelatorio): Content {
     });
   }
 
-  // Observação
-  const obs = gerarObservacao(item.observacao_item);
-  if (obs) {
-    conteudo.push(obs);
+  // Observações
+  const obsPedido = gerarObservacao(item.observacao_pedido, 'OBSERVAÇÃO PEDIDO');
+  if (obsPedido) {
+    conteudo.push(obsPedido);
+  }
+
+  const obsItem = gerarObservacao(item.observacao_item, 'OBSERVAÇÃO ITEM');
+  if (obsItem) {
+    conteudo.push(obsItem);
   }
 
   // Designer/Vendedor

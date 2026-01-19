@@ -907,6 +907,8 @@ const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): str
   const formaEnvio = escapeHtml(dataMap.forma_envio);
   const maquinaRip = escapeHtml(dataMap.sublimacao_maquina);
   const dataImpressao = escapeHtml(dataMap.sublimacao_data_impressao);
+  const observacaoPedido = escapeHtml(dataMap.observacao);
+  const observacaoItem = escapeHtml(dataMap.observacao_item);
 
   const header = `
     <div class="__sgp_header_meta__">
@@ -918,7 +920,19 @@ const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): str
     </div>
   `;
 
+  // Seção de observações (Pedido e Item)
+  let obsHtml = '';
+  if (observacaoPedido || observacaoItem) {
+    obsHtml = `
+      <div class="__sgp_observations_section__" style="margin-top: 1.5mm; padding-top: 1mm; border-top: 1px dashed #c7c7c7; font-size: 11px;">
+        ${observacaoPedido ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 700;">OBSERVAÇÃO PEDIDO:</span> <span class="__sgp_value__">${observacaoPedido}</span></div>` : ''}
+        ${observacaoItem ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 700;">OBSERVAÇÃO ITEM:</span> <span class="__sgp_value__">${observacaoItem}</span></div>` : ''}
+      </div>
+    `;
+  }
+
   const footer = `
+    ${obsHtml}
     <div class="__sgp_footer_fields__">
       <div class="__sgp_row__">
         <div class="__sgp_field__"><span class="__sgp_label__">MAQUINA RIP:</span><span class="__sgp_value__">${maquinaRip || '<span class="__sgp_fill__">&nbsp;</span>'}</span></div>
@@ -1496,7 +1510,7 @@ export const generateTemplatePrintContent = async (
             const blobUrl = await loadAuthenticatedImage(imagePath);
 
             // SEMPRE redimensionar imagem para impressão considerando altura E largura máximas
-            // Altura: 70mm, Largura: 110mm (63% de ~187mm da coluna direita com margem de segurança)
+            // Altura: 85mm (aumentado para fotos maiores), Largura: 115mm
             // Isso garante que a imagem sempre caiba sem ser cortada
             // Mesmo se já for base64, vamos redimensionar para garantir o tamanho correto
             try {
