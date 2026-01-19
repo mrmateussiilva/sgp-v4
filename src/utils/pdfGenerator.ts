@@ -253,25 +253,26 @@ function gerarObservacao(observacao?: string, label: string = 'Observação'): C
       body: [[
         {
           text: [
-            { text: `⚠ ${label}: `, bold: true },
+            { text: `⚠ ${label}: `, bold: true, decoration: 'underline' },
             { text: observacao || '' },
           ],
           style: 'observacao',
-          margin: [8, 5, 8, 5],
+          margin: [8, 8, 8, 8],
         }
       ]],
     },
     layout: {
-      fillColor: () => CORES.observacaoFundo,
-      hLineWidth: () => 0,
-      vLineWidth: (i: number) => i === 0 ? 3 : 0,
-      vLineColor: () => CORES.bordaObservacao,
+      fillColor: () => '#F0FDF4', // Verde bem claro para destacar
+      hLineWidth: () => 1,
+      vLineWidth: (i: number) => i === 0 ? 4 : 1,
+      hLineColor: () => '#22c55e',
+      vLineColor: () => '#22c55e',
       paddingLeft: () => 0,
       paddingRight: () => 0,
       paddingTop: () => 0,
       paddingBottom: () => 0,
     },
-    margin: [0, 5, 0, 5],
+    margin: [0, 8, 0, 8],
   };
 }
 
@@ -434,8 +435,8 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
   // Imagem
   conteudo.push({
     image: imagemBase64,
-    width: 160,
-    height: 160,
+    width: 180,
+    height: 180,
     alignment: 'center',
     margin: [0, 0, 0, 5],
   });
@@ -534,7 +535,7 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
     columns: [
       Object.assign({}, colunaEsquerda, { width: '*' }),
       { width: 10, text: '' }, // Espaçador
-      Object.assign({}, colunaDireita, { width: 195 }),
+      Object.assign({}, colunaDireita, { width: 210 }),
     ],
   } as Content) : colunaEsquerda;
 
@@ -610,7 +611,7 @@ async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefi
     styles: ESTILOS,
     defaultStyle: {
       font: 'Roboto',
-      fontSize: 11,
+      fontSize: 12,
       lineHeight: 1.3,
     },
   };

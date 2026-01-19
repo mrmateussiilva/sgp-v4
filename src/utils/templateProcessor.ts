@@ -924,9 +924,9 @@ const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): str
   let obsHtml = '';
   if (observacaoPedido || observacaoItem) {
     obsHtml = `
-      <div class="__sgp_observations_section__" style="margin-top: 2mm; padding-top: 1.5mm; border-top: 1.5px solid #666; font-size: 13px;">
-        ${observacaoPedido ? `<div class="__sgp_field__" style="margin-bottom: 0.5mm;"><span class="__sgp_label__" style="font-weight: 800; color: #000;">OBSERVAÇÃO PEDIDO:</span> <span class="__sgp_value__" style="color: #000;">${observacaoPedido}</span></div>` : ''}
-        ${observacaoItem ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 800; color: #000;">OBSERVAÇÃO ITEM:</span> <span class="__sgp_value__" style="color: #000;">${observacaoItem}</span></div>` : ''}
+      <div class="__sgp_observations_section__" style="margin-top: 3mm; padding-top: 2mm; border-top: 3px solid #22c55e; font-size: 14px; background-color: #f0fdf4;">
+        ${observacaoPedido ? `<div class="__sgp_field__" style="margin-bottom: 1mm;"><span class="__sgp_label__" style="font-weight: 900; color: #000; text-decoration: underline;">OBSERVAÇÃO PEDIDO:</span> <span class="__sgp_value__" style="color: #000; font-weight: 500;">${observacaoPedido}</span></div>` : ''}
+        ${observacaoItem ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 900; color: #000; text-decoration: underline;">OBSERVAÇÃO ITEM:</span> <span class="__sgp_value__" style="color: #000; font-weight: 500;">${observacaoItem}</span></div>` : ''}
       </div>
     `;
   }
@@ -1363,7 +1363,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       flex: 1 1 48% !important;
       height: 48% !important;
       max-height: 48% !important;
-      overflow: hidden !important;
+      overflow: visible !important;
     }
     
     /* ============================================================
@@ -1399,9 +1399,10 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       }
       
       body {
-        font-size: 13px !important;
+        font-size: 14px !important;
         margin: 0;
         padding: 0;
+        color: #000 !important;
       }
       
       ${isResumo ? `
