@@ -924,9 +924,9 @@ const injectExtraFieldsIntoItem = (itemHtml: string, dataMap: OrderDataMap): str
   let obsHtml = '';
   if (observacaoPedido || observacaoItem) {
     obsHtml = `
-      <div class="__sgp_observations_section__" style="margin-top: 1.5mm; padding-top: 1mm; border-top: 1px dashed #c7c7c7; font-size: 11px;">
-        ${observacaoPedido ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 700;">OBSERVAÇÃO PEDIDO:</span> <span class="__sgp_value__">${observacaoPedido}</span></div>` : ''}
-        ${observacaoItem ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 700;">OBSERVAÇÃO ITEM:</span> <span class="__sgp_value__">${observacaoItem}</span></div>` : ''}
+      <div class="__sgp_observations_section__" style="margin-top: 2mm; padding-top: 1.5mm; border-top: 1.5px solid #666; font-size: 13px;">
+        ${observacaoPedido ? `<div class="__sgp_field__" style="margin-bottom: 0.5mm;"><span class="__sgp_label__" style="font-weight: 800; color: #000;">OBSERVAÇÃO PEDIDO:</span> <span class="__sgp_value__" style="color: #000;">${observacaoPedido}</span></div>` : ''}
+        ${observacaoItem ? `<div class="__sgp_field__"><span class="__sgp_label__" style="font-weight: 800; color: #000;">OBSERVAÇÃO ITEM:</span> <span class="__sgp_value__" style="color: #000;">${observacaoItem}</span></div>` : ''}
       </div>
     `;
   }
@@ -1288,20 +1288,20 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
 
     /* Campos extras padronizados (injetados no header e rodapé de cada item) */
     .__sgp_header_meta__ {
-      margin: 0 0 1mm 0;
-      padding: 0 0 0.8mm 0;
-      border-bottom: 1px dashed #c7c7c7;
-      font-size: 11px;
-      line-height: 1.15;
-      color: #111;
+      margin: 0 0 1.5mm 0;
+      padding: 0 0 1.2mm 0;
+      border-bottom: 1.5px solid #444;
+      font-size: 13px;
+      line-height: 1.2;
+      color: #000;
     }
     .__sgp_footer_fields__ {
-      margin-top: 1.5mm;
-      padding-top: 1mm;
-      border-top: 1px dashed #c7c7c7;
-      font-size: 11px;
-      line-height: 1.15;
-      color: #111;
+      margin-top: 2mm;
+      padding-top: 1.5mm;
+      border-top: 1.5px solid #444;
+      font-size: 13px;
+      line-height: 1.2;
+      color: #000;
     }
     .__sgp_header_meta__ .__sgp_row__,
     .__sgp_footer_fields__ .__sgp_row__ {
@@ -1320,14 +1320,15 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
     }
     .__sgp_header_meta__ .__sgp_label__,
     .__sgp_footer_fields__ .__sgp_label__ {
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: 0.2px;
+      color: #000;
     }
     .__sgp_header_meta__ .__sgp_fill__,
     .__sgp_footer_fields__ .__sgp_fill__ {
       display: inline-block;
       min-width: 22mm;
-      border-bottom: 1px solid #222;
+      border-bottom: 1.5px solid #000;
       line-height: 1;
       transform: translateY(-0.5px);
     }
@@ -1398,7 +1399,7 @@ const generateBasicTemplateCSS = (templateType?: TemplateType): string => {
       }
       
       body {
-        font-size: 11px !important;
+        font-size: 13px !important;
         margin: 0;
         padding: 0;
       }
@@ -1514,9 +1515,9 @@ export const generateTemplatePrintContent = async (
             // Isso garante que a imagem sempre caiba sem ser cortada
             // Mesmo se já for base64, vamos redimensionar para garantir o tamanho correto
             try {
-              const resizedBase64 = await resizeImageToBase64(blobUrl, 70, 110);
+              const resizedBase64 = await resizeImageToBase64(blobUrl, 85, 115);
               imageBase64Map.set(imagePath, resizedBase64);
-              logger.debug('[templateProcessor] ✅ Imagem redimensionada para 70mm:', imagePath);
+              logger.debug('[templateProcessor] ✅ Imagem redimensionada para 85mm:', imagePath);
             } catch (resizeError) {
               logger.warn('[templateProcessor] ⚠️ Erro ao redimensionar, usando original:', resizeError);
               // Fallback: usar imagem original se redimensionamento falhar

@@ -87,30 +87,30 @@ const ESTILOS: StyleDictionary = {
     color: CORES.textoEscuro,
   },
   contato: {
-    fontSize: 10,
+    fontSize: 11,
     color: CORES.textoCinza,
   },
   tituloSecao: {
-    fontSize: 10,
+    fontSize: 11,
     bold: true,
     color: CORES.tituloSecao,
   },
   descricaoProduto: {
-    fontSize: 10,
+    fontSize: 12,
     bold: true,
     color: CORES.textoNormal,
   },
   textoNormal: {
-    fontSize: 10,
+    fontSize: 11,
     color: CORES.textoNormal,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     bold: true,
     color: CORES.textoEscuro,
   },
   observacao: {
-    fontSize: 9,
+    fontSize: 10,
     color: CORES.observacaoTexto,
   },
   legenda: {
@@ -434,8 +434,8 @@ async function gerarColunaDireita(item: ItemRelatorio): Promise<Content | null> 
   // Imagem
   conteudo.push({
     image: imagemBase64,
-    width: 130,
-    height: 130,
+    width: 160,
+    height: 160,
     alignment: 'center',
     margin: [0, 0, 0, 5],
   });
@@ -534,7 +534,7 @@ async function gerarItem(item: ItemRelatorio, isLast: boolean): Promise<Content>
     columns: [
       Object.assign({}, colunaEsquerda, { width: '*' }),
       { width: 10, text: '' }, // Espaçador
-      Object.assign({}, colunaDireita, { width: 180 }),
+      Object.assign({}, colunaDireita, { width: 195 }),
     ],
   } as Content) : colunaEsquerda;
 
@@ -610,7 +610,7 @@ async function gerarDocDefinition(itens: ItemRelatorio[]): Promise<TDocumentDefi
     styles: ESTILOS,
     defaultStyle: {
       font: 'Roboto',
-      fontSize: 10,
+      fontSize: 11,
       lineHeight: 1.3,
     },
   };
