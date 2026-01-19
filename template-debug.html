@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>DEBUG - Dados do Backend</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .item {
+            background: white;
+            border: 2px solid #333;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .item-header {
+            background: #333;
+            color: white;
+            padding: 10px;
+            margin: -15px -15px 15px -15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .field {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .field-name {
+            font-weight: bold;
+            color: #0066cc;
+            display: inline-block;
+            width: 200px;
+        }
+
+        .field-value {
+            color: #333;
+        }
+
+        .empty {
+            color: #cc0000;
+            font-style: italic;
+        }
+
+        .has-value {
+            color: #00aa00;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 DEBUG - Dados Recebidos do Backend</h1>
+    <p><strong>Total de items:</strong> {{items.length}}</p>
+
+    {{#each items}}
+    <div class="item">
+        <div class="item-header">ITEM #{{@index}} (índice do array)</div>
+
+        <div class="field">
+            <span class="field-name">numero:</span>
+            <span class="field-value {{#if numero}}has-value{{else}}empty{{/if}}">
+                {{#if numero}}{{numero}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">cliente:</span>
+            <span class="field-value {{#if cliente}}has-value{{else}}empty{{/if}}">
+                {{#if cliente}}{{cliente}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">descricao:</span>
+            <span class="field-value {{#if descricao}}has-value{{else}}empty{{/if}}">
+                {{#if descricao}}{{descricao}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">imagem:</span>
+            <span class="field-value {{#if imagem}}has-value{{else}}empty{{/if}}">
+                {{#if imagem}}{{imagem}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">quantity:</span>
+            <span class="field-value {{#if quantity}}has-value{{else}}empty{{/if}}">
+                {{#if quantity}}{{quantity}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">dimensoes:</span>
+            <span class="field-value {{#if dimensoes}}has-value{{else}}empty{{/if}}">
+                {{#if dimensoes}}{{dimensoes}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">material:</span>
+            <span class="field-value {{#if material}}has-value{{else}}empty{{/if}}">
+                {{#if material}}{{material}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">tipo_producao:</span>
+            <span class="field-value {{#if tipo_producao}}has-value{{else}}empty{{/if}}">
+                {{#if tipo_producao}}{{tipo_producao}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">data_envio:</span>
+            <span class="field-value {{#if data_envio}}has-value{{else}}empty{{/if}}">
+                {{#if data_envio}}{{data_envio}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">prioridade:</span>
+            <span class="field-value {{#if prioridade}}has-value{{else}}empty{{/if}}">
+                {{#if prioridade}}{{prioridade}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        <div class="field">
+            <span class="field-name">forma_envio:</span>
+            <span class="field-value {{#if forma_envio}}has-value{{else}}empty{{/if}}">
+                {{#if forma_envio}}{{forma_envio}}{{else}}[VAZIO]{{/if}}
+            </span>
+        </div>
+
+        {{#if imagem}}
+        <div class="field">
+            <span class="field-name">Prévia da Imagem:</span><br>
+            <img src="{{imagem}}"
+                style="max-width: 300px; max-height: 200px; border: 1px solid #ccc; margin-top: 10px;">
+        </div>
+        {{/if}}
+    </div>
+    {{/each}}
+
+    {{#unless items}}
+    <div style="background: #ffcccc; padding: 20px; border-radius: 5px;">
+        <h2>⚠️ ERRO: Nenhum item recebido!</h2>
+        <p>O array 'items' está vazio ou não foi enviado pelo backend.</p>
+    </div>
+    {{/unless}}
+</body>
+
+</html>

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod pdf_generator;
 
 use tauri::Manager;
 use tracing::{info, warn};
@@ -21,6 +22,7 @@ use commands::images::{
     cache_image_from_url,
     process_and_save_image,
 };
+use commands::pdf::generate_production_pdf;
 
 fn main() {
     setup_tracing();
@@ -52,6 +54,8 @@ fn main() {
             read_image_file,
             cache_image_from_url,
             process_and_save_image,
+            // Comando de geração de PDF
+            generate_production_pdf,
         ])
         .setup(|app| {
             // Atualizar título da janela com a versão

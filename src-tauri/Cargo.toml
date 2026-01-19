@@ -29,6 +29,9 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 image = { version = "0.24", features = ["jpeg", "png"] }
 base64 = "0.21"
 infer = "0.13"
+headless_chrome = "1.0"
+handlebars = "5.1"
+urlencoding = "2.1"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

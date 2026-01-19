@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Fichas de Produção</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            color: #1a1a1a;
+            background: #fff;
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* PÁGINA - Exatamente 297mm (A4 height) */
+        .page {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            page-break-after: always;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        /* FICHA - 148.5mm cada (2 × 148.5 = 297mm) */
+        .ficha {
+            width: 100%;
+            height: 148.5mm;
+            position: relative;
+            padding: 5mm;
+            overflow: hidden;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        /* Resto do CSS do template original */
+            {
+                {
+                TEMPLATE_STYLES
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {{#each pages}}
+    <div class="page">
+        {{#each items}}
+        {{FICHA_CONTENT}}
+        {{/each}}
+    </div>
+    {{/each}}
+</body>
+
+</html>
