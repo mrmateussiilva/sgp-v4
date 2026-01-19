@@ -1,6 +1,5 @@
 import type { AxiosAdapter, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AxiosError } from 'axios';
-import { fetch } from '@tauri-apps/plugin-http';
 import { isTauri } from '@/utils/isTauri';
 
 let fallbackBaseUrl = '';
@@ -76,34 +75,39 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
   }
 
   try {
-    // Verificar se há conteúdo antes de tentar parsear
-    // Note: Clonamos para poder ler como texto se falhar como JSON
-    const clonedResponse = response.clone();
-    const text = await clonedResponse.text();
+    if (responseType === 'arraybuffer') {
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength === 0) return null;
+      return buffer;
+    }
+
+    if (responseType === 'blob') {
+      const blob = await response.blob();
+      if (blob.size === 0) return null;
+      return blob;
+    }
+
+    // Para text e json, lemos como texto
+    const text = await response.text();
 
     if (!text || text.trim().length === 0) {
       return null;
     }
 
-    switch (responseType) {
-      case 'arraybuffer':
-        return await response.arrayBuffer();
-      case 'blob':
-        return await response.blob();
-      case 'text':
+    if (responseType === 'text') {
+      return text;
+    }
+
+    // Default ou json
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // Se falhou o parse JSON mas o responseType era padrão, retorna como texto
+      if (!responseType || responseType === 'json') {
+        console.warn('[tauriAxiosAdapter] ⚠️ Falha ao parsear JSON, retornando texto puro:', e);
         return text;
-      case 'json':
-      default:
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          // Se falhou o parse JSON mas o responseType era padrão, retorna como texto
-          if (!responseType || responseType === 'json') {
-            console.warn('[tauriAxiosAdapter] ⚠️ Falha ao parsear JSON, retornando texto puro:', e);
-            return text;
-          }
-          throw e;
-        }
+      }
+      throw e;
     }
   } catch (error) {
     console.error('[tauriAxiosAdapter] ❌ Erro ao processar corpo da resposta:', error);
@@ -166,10 +170,7 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     }
   }
 
-  const response = await fetch(url, {
-    ...fetchOptions,
-    connectTimeout: config.timeout,
-  });
+  const response = await fetch(url, fetchOptions);
 
   const requestInfo = { url, method, headers: Object.fromEntries(headers.entries()) };
 
