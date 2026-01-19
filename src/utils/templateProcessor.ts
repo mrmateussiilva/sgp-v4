@@ -1572,8 +1572,25 @@ export const generateTemplatePrintContent = async (
       logger.debug(`[templateProcessor] HTML processado, tamanho:`, processedHTML.length);
 
       // Combinar CSS: estilos do template original + CSS básico complementar
+      // CRÍTICO: Remover regras de altura do template que conflitam com nosso layout
+      let cleanedTemplateStyles = templateStyles.replace(
+        /([^\{\}]*\.item[^\{]*)\{([^\}]*)\}/gi,
+        (_match, selector, rules) => {
+          // Remover height, min-height, max-height
+          const cleanedRules = rules
+            .replace(/\s*height\s*:\s*[^;]+;?/gi, '')
+            .replace(/\s*min-height\s*:\s*[^;]+;?/gi, '')
+            .replace(/\s*max-height\s*:\s*[^;]+;?/gi, '');
+
+          if (cleanedRules.trim()) {
+            return `${selector}{${cleanedRules}}`;
+          }
+          return '';
+        }
+      );
+
       const basicCss = generateBasicTemplateCSS(templateType);
-      const css = `${templateStyles}\n${basicCss}`;
+      const css = `${cleanedTemplateStyles}\n${basicCss}`;
 
       return {
         html: processedHTML,
