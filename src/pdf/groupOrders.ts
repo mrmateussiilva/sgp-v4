@@ -89,6 +89,8 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
             flattenedOrders.push({
                 ...commonInfo,
                 id: `${order.id}-${item.id}-${index}-${flattenedOrders.length}`,
+                designer: item.designer || commonInfo.designer,
+                vendedor: item.vendedor || commonInfo.vendedor,
                 produtos: [{
                     id: item.id,
                     descricao: item.descricao || item.item_name || '',

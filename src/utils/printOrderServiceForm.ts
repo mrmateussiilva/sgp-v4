@@ -117,7 +117,9 @@ export const printOrderServiceForm = async (
 
   // Nome do arquivo
   const orderIdentifier = String(orderForPrint.numero || orderForPrint.id || 'pedido').trim();
-  const filename = `Ficha-${orderIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
+  // Nome do arquivo com timestamp para evitar cache
+  const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
+  const filename = `Ficha-${orderIdentifier}-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
 
   // Salvar e abrir via Tauri
   await saveAndOpenPdf(blob, filename);
@@ -159,7 +161,9 @@ export const printMultipleOrdersServiceForm = async (
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
   // Nome do arquivo
-  const filename = `Fichas-Multiplas-${new Date().toISOString().split('T')[0]}.pdf`;
+  // Nome do arquivo com timestamp para evitar cache
+  const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
+  const filename = `Fichas-Multiplas-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
 
   // Salvar e abrir via Tauri
   await saveAndOpenPdf(blob, filename);

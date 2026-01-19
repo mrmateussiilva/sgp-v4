@@ -9,9 +9,16 @@ interface OrderCardProps {
 
 const formatDate = (dateString?: string) => {
     if (!dateString) return '---';
-    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (dateMatch) {
-        const [, y, m, d] = dateMatch;
+    // Tenta capturar YYYY-MM-DD
+    const isoMatch = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        const [, y, m, d] = isoMatch;
+        return `${d}/${m}/${y}`;
+    }
+    // Tenta capturar DD/MM/YYYY se já vier formatado mas talvez com lixo
+    const brMatch = dateString.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (brMatch) {
+        const [, d, m, y] = brMatch;
         return `${d}/${m}/${y}`;
     }
     return dateString;

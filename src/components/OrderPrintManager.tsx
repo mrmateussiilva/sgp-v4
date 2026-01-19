@@ -93,14 +93,21 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       const orderWithImages = { ...reorderedOrder, items: itemsWithBase64 };
 
       // Agrupar itens de forma correta (respeitando reordenação)
-      const grouped = groupOrders([orderWithImages]);
+      // Garantir que designer/vendedor sejam propagados se estiverem nos itens mas não no pedido
+      const orderWithResponsibles = {
+        ...orderWithImages,
+        designer: (orderWithImages as any).designer || orderWithImages.items?.[0]?.designer,
+        vendedor: (orderWithImages as any).vendedor || orderWithImages.items?.[0]?.vendedor,
+      };
+      const grouped = groupOrders([orderWithResponsibles as any]);
 
       // Gerar PDF usando React (instantâneo!)
       const blob = await pdf(<ProductionReportPDF pedidos={grouped} />).toBlob();
 
-      // Gerar nome do arquivo
+      // Gerar nome do arquivo com timestamp para evitar cache
       const orderIdentifier = String(order.numero || order.id || 'pedido').trim();
-      const filename = `Producao-${orderIdentifier}-${new Date().toISOString().split('T')[0]}.pdf`;
+      const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
+      const filename = `Producao-${orderIdentifier}-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
 
       // No Tauri, salvar e abrir é o fluxo mais robusto para impressão
       await saveAndOpenPdf(blob, filename);

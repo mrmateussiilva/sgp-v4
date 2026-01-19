@@ -209,7 +209,13 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     if (!order) return;
     setIsPrinting(true);
     try {
-      await printOrderServiceForm(order, 'resumo');
+      // Pedido pode não ter desiger/vendedor no nível superior, pegar do primeiro item se necessário
+      const hydratedOrder = {
+        ...order,
+        designer: (order as any).designer || order.items?.[0]?.designer,
+        vendedor: (order as any).vendedor || order.items?.[0]?.vendedor,
+      };
+      await printOrderServiceForm(hydratedOrder as any, 'resumo');
     } catch (error) {
       logger.error("Erro ao imprimir pedido:", error);
     } finally {
@@ -1220,6 +1226,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
               <Badge className={getStatusColor(order.status)}>
                 {order.status}
               </Badge>
+            </div>
+            <div>
+              <span className="font-semibold">Designer x Vendedor:</span><br />
+              <span className="text-blue-700 font-medium">
+                {(order as any).designer || '---'} x {(order as any).vendedor || '---'}
+              </span>
             </div>
           </div>
 
