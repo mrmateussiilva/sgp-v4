@@ -9,16 +9,16 @@ export default function Admin() {
       title: 'Materiais',
       icon: Package,
       path: '/dashboard/admin/materiais',
-      color: 'text-blue-500',
-      stats: '12 MATERIAIS',
+      color: 'text-blue-600',
+      stats: '12 ativos',
       status: 'ok',
     },
     {
       title: 'Tipos de Produção',
       icon: Package,
       path: '/dashboard/admin/tipos-producao',
-      color: 'text-amber-500',
-      stats: '8 TIPOS',
+      color: 'text-amber-600',
+      stats: '8 ativos',
       status: 'ok',
     },
   ];
@@ -28,24 +28,24 @@ export default function Admin() {
       title: 'Designers',
       icon: Palette,
       path: '/dashboard/admin/designers',
-      color: 'text-purple-500',
-      stats: '5 ATIVOS',
+      color: 'text-purple-600',
+      stats: '5 ativos',
       status: 'ok',
     },
     {
       title: 'Vendedores',
       icon: Users,
       path: '/dashboard/admin/vendedores',
-      color: 'text-green-500',
-      stats: '8 VENDEDORES',
+      color: 'text-green-600',
+      stats: '8 ativos',
       status: 'ok',
     },
     {
       title: 'Usuários',
       icon: Settings,
       path: '/dashboard/admin/usuarios',
-      color: 'text-slate-500',
-      stats: '15 CONTAS',
+      color: 'text-slate-600',
+      stats: '15 ativos',
       status: 'ok',
     },
   ];
@@ -55,54 +55,51 @@ export default function Admin() {
       title: 'Formas de Envio',
       icon: Truck,
       path: '/dashboard/admin/formas-envio',
-      color: 'text-orange-500',
-      stats: '3 ATIVAS',
+      color: 'text-orange-600',
+      stats: '3 ativos',
       status: 'attention',
     },
     {
       title: 'Formas de Pagamento',
       icon: CreditCard,
       path: '/dashboard/admin/formas-pagamento',
-      color: 'text-emerald-500',
-      stats: '5 MÉTODOS',
+      color: 'text-emerald-600',
+      stats: '5 ativos',
       status: 'ok',
     },
   ];
 
   const systemModules: AdminModule[] = [
     {
-      title: 'Templates de Relatórios',
+      title: 'Modelos de Relatórios',
       icon: FileText,
       path: '/dashboard/admin/template-relatorios',
-      color: 'text-teal-500',
-      stats: 'PADRÃO',
+      color: 'text-teal-600',
+      stats: 'padrão',
       status: 'ok',
     },
   ];
 
+
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto mb-10">
-      <div className="flex items-end justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">ADMINISTRAÇÃO</h1>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">Painel de Controle</p>
-        </div>
-        <div className="text-right hidden md:block">
-          <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase italic">v1.2.0-stable</p>
-        </div>
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      <div className="border-b pb-4">
+        <h1 className="text-xl font-bold tracking-tight">Painel Administrativo</h1>
+        <p className="text-sm text-muted-foreground">Configurações e dados do sistema</p>
       </div>
 
       <AdminStatusBanner />
 
-      <div className="space-y-8">
-        <AdminModuleSection title="Fluxo de Produção" modules={productionModules} />
-        <AdminModuleSection title="Gestão de Equipe" modules={peopleModules} />
-        <AdminModuleSection title="Financeiro & Entregas" modules={financeLogisticsModules} />
-        <AdminModuleSection title="Configurações Globais" modules={systemModules} />
+      <div className="space-y-6">
+        <AdminModuleSection title="Produção" modules={productionModules} />
+        <AdminModuleSection title="Equipes" modules={peopleModules} />
+        <AdminModuleSection title="Financeiro & Logística" modules={financeLogisticsModules} />
+        <AdminModuleSection title="Outros" modules={systemModules} />
       </div>
     </div>
   );
 }
+
 
 
 

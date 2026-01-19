@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 export interface AdminModule {
     title: string;
@@ -28,37 +27,27 @@ export function AdminModuleCard({ module }: AdminModuleCardProps) {
 
     return (
         <Card
-            className="group relative flex items-center justify-between p-4 transition-all duration-200 hover:border-primary cursor-pointer border-2"
+            className="group flex items-center justify-between p-3 transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-900 border cursor-pointer"
             onClick={() => navigate(module.path)}
         >
-            <div className="flex items-center gap-4">
-                <div className={`p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-900 group-hover:scale-110 transition-transform`}>
-                    <Icon className={`h-5 w-5 ${module.color}`} />
-                </div>
+            <div className="flex items-center gap-3">
+                <Icon className={`h-4 w-4 ${module.color}`} />
                 <div>
-                    <h3 className="font-bold text-sm tracking-tight">{module.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        <div className={`h-2 w-2 rounded-full ${statusColors[module.status]}`} />
-                        {module.stats && (
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <h3 className="text-sm font-semibold">{module.title}</h3>
+                    {module.stats && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className={`h-1.5 w-1.5 rounded-full ${statusColors[module.status]}`} />
+                            <span className="text-[10px] font-bold text-muted-foreground">
                                 {module.stats}
                             </span>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="flex items-center gap-3">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                    GERENCIAR
-                </Button>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         </Card>
     );
 }
+
 
