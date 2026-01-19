@@ -1482,7 +1482,7 @@ export const generateTemplatePrintContent = async (
   // PRIMEIRO: Para tipo 'resumo', usar template customizado diretamente
   // Isso garante controle total sobre o layout e altura de 148.5mm
   if (templateType === 'resumo') {
-    logger.info(`[templateProcessor] Usando template customizado para tipo 'resumo'`); \n
+    logger.info(`[templateProcessor] Usando template customizado para tipo 'resumo'`);
     const rawHtml = CUSTOM_PRINT_TEMPLATE;
     const itemsForProcessing = itemsToRender.length > 0
       ? itemsToRender
