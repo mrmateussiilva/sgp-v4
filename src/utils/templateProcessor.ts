@@ -1479,41 +1479,6 @@ export const generateTemplatePrintContent = async (
     })) || []
   });
 
-  // PRIMEIRO: Para tipo 'resumo', usar template customizado diretamente
-  // Isso garante controle total sobre o layout e altura de 148.5mm
-  if (templateType === 'resumo') {
-    logger.info(`[templateProcessor] Usando template customizado para tipo 'resumo'`);
-    const rawHtml = CUSTOM_PRINT_TEMPLATE;
-    const itemsForProcessing = items && items.length > 0 ? items : order.items;
-
-    // Criar mapa de imagens base64
-    const imageBase64Map = new Map<string, string>();
-    const itemsToLoad = itemsForProcessing || [];
-
-    // Carregar imagens
-    const imagePromises = itemsToLoad
-      .filter(item => item.imagem && isValidImagePath(item.imagem))
-      .map(async (item) => {
-        try {
-          const imagePath = item.imagem!;
-          const blobUrl = await loadAuthenticatedImage(imagePath);
-          const resizedBase64 = await resizeImageToBase64(blobUrl, 85, 115);
-          imageBase64Map.set(imagePath, resizedBase64);
-        } catch (error) {
-          logger.error('[templateProcessor] Erro ao carregar imagem:', item.imagem, error);
-        }
-      });
-
-    await Promise.all(imagePromises);
-
-    const processedHTML = processTemplateHTML(rawHtml, order, itemsForProcessing, imageBase64Map);
-    const css = CUSTOM_PRINT_CSS;
-
-    return {
-      html: processedHTML,
-      css: css
-    };
-  }
 
   // Para outros tipos, tentar buscar template HTML editado manualmente
   try {
