@@ -8,9 +8,9 @@ interface AdminModuleSectionProps {
 
 export function AdminModuleSection({ title, modules }: AdminModuleSectionProps) {
     return (
-        <div className="space-y-2">
-            <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] pl-0.5">{title}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="space-y-2.5">
+            <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-0.5 opacity-80">{title}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
                 {modules.map((module) => (
                     <AdminModuleCard key={module.path} module={module} />
                 ))}
@@ -18,6 +18,7 @@ export function AdminModuleSection({ title, modules }: AdminModuleSectionProps) 
         </div>
     );
 }
+
 
 
 
