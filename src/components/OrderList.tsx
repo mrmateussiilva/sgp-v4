@@ -918,7 +918,18 @@ export default function OrderList() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const deliveryDate = new Date(dataEntrega);
+    // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
+    // Se for YYYY-MM-DD, extrair os componentes e criar data local
+    let deliveryDate: Date;
+    const dateMatch = dataEntrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch.map(Number);
+      deliveryDate = new Date(y, m - 1, d);
+    } else {
+      deliveryDate = new Date(dataEntrega);
+    }
+
     deliveryDate.setHours(0, 0, 0, 0);
 
     const diffTime = deliveryDate.getTime() - today.getTime();

@@ -32,7 +32,17 @@ export function CriticalOrdersCard({
       if (!order.data_entrega) return;
       if (order.pronto) return; // Ignorar pedidos já prontos
 
-      const deliveryDate = new Date(order.data_entrega);
+      // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
+      let deliveryDate: Date;
+      const dateMatch = order.data_entrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+      if (dateMatch) {
+        const [, y, m, d] = dateMatch.map(Number);
+        deliveryDate = new Date(y, m - 1, d);
+      } else {
+        deliveryDate = new Date(order.data_entrega);
+      }
+
       deliveryDate.setHours(0, 0, 0, 0);
       const daysUntilDelivery = Math.ceil(
         (deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)

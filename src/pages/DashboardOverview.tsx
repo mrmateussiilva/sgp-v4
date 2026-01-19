@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ShoppingCart, 
-  CheckCircle, 
-  Clock, 
+import {
+  ShoppingCart,
+  CheckCircle,
+  Clock,
   AlertTriangle,
   Timer,
   Users,
@@ -65,14 +65,14 @@ export default function DashboardOverview() {
     try {
       setIsRefreshing(true);
       setError(null);
-      
+
       // Carregar pedidos paginados com limite alto para ter dados suficientes para estatísticas
       // Usar múltiplas páginas se necessário, mas começar com uma página grande
       const pageSize = 100; // Limite alto para dashboard
       let allOrders: OrderWithItems[] = [];
       let currentPage = 1;
       let hasMore = true;
-      
+
       // Carregar pedidos em lotes até ter dados suficientes ou não houver mais
       while (hasMore && currentPage <= 5) { // Limitar a 5 páginas (500 pedidos) para não sobrecarregar
         const result = await api.getOrdersPaginated(
@@ -83,9 +83,9 @@ export default function DashboardOverview() {
           undefined, // data_inicio
           undefined  // data_fim
         );
-        
+
         allOrders = [...allOrders, ...result.orders];
-        
+
         // Se retornou menos que o pageSize, não há mais páginas
         if (result.orders.length < pageSize || currentPage >= result.total_pages) {
           hasMore = false;
@@ -93,11 +93,11 @@ export default function DashboardOverview() {
           currentPage++;
         }
       }
-      
+
       // Atualizar o store com os pedidos carregados
       setOrders(allOrders);
       setLastUpdate(new Date());
-      
+
       if (showToast) {
         toast({
           title: 'Atualizado',
@@ -108,11 +108,11 @@ export default function DashboardOverview() {
       console.error('Erro ao carregar pedidos:', error);
       const errorMessage = error?.response?.data?.detail || error?.message || 'Erro desconhecido';
       setError(errorMessage);
-      
+
       // Verificar se é erro de sessão
-      if (errorMessage.toLowerCase().includes('sessão') || 
-          errorMessage.toLowerCase().includes('token') ||
-          error?.response?.status === 401) {
+      if (errorMessage.toLowerCase().includes('sessão') ||
+        errorMessage.toLowerCase().includes('token') ||
+        error?.response?.status === 401) {
         toast({
           title: 'Sessão expirada',
           description: 'Faça login novamente para continuar.',
@@ -122,7 +122,7 @@ export default function DashboardOverview() {
         navigate('/login', { replace: true });
         return;
       }
-      
+
       toast({
         title: 'Erro ao carregar dados',
         description: errorMessage,
@@ -154,7 +154,7 @@ export default function DashboardOverview() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
-      
+
       if (validOrders.length === 0) {
         return {
           totalOrders: 0,
@@ -169,27 +169,37 @@ export default function DashboardOverview() {
           shippingMethods: [],
         };
       }
-      
+
       const totalOrders = validOrders.length;
       const pendingOrders = validOrders.filter(order => !order.pronto).length;
       const completedOrders = validOrders.filter(order => order.pronto).length;
       const urgentOrders = validOrders.filter(order => order.prioridade === 'ALTA').length;
-      
+
       // Calcular pedidos atrasados
       const overdueOrders = validOrders.filter(order => {
         if (order.pronto) return false;
-        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-        if (!deliveryDate) return false;
+        if (!order.data_entrega) return false;
+
+        // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
+        let deliveryDate: Date;
+        const dateMatch = order.data_entrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          const [, y, m, d] = dateMatch.map(Number);
+          deliveryDate = new Date(y, m - 1, d);
+        } else {
+          deliveryDate = new Date(order.data_entrega);
+        }
+
         deliveryDate.setHours(0, 0, 0, 0);
         return deliveryDate < today;
       }).length;
-      
+
       // Calcular tempo médio de produção (apenas pedidos concluídos)
       // CORRIGIDO: Usar updated_at ou data de conclusão real ao invés de new Date()
       const completedOrdersWithDates = validOrders.filter(order => {
         return order.pronto && order.data_entrada && (order.created_at || order.updated_at);
       });
-      
+
       let totalProductionTime = 0;
       completedOrdersWithDates.forEach(order => {
         const startDate = new Date(order.data_entrada || order.created_at || '');
@@ -200,34 +210,55 @@ export default function DashboardOverview() {
           totalProductionTime += productionDays;
         }
       });
-      
-      const avgProductionTime = completedOrdersWithDates.length > 0 
-        ? Math.round(totalProductionTime / completedOrdersWithDates.length) 
+
+      const avgProductionTime = completedOrdersWithDates.length > 0
+        ? Math.round(totalProductionTime / completedOrdersWithDates.length)
         : 0;
-      
+
       // Calcular tempo médio de atraso
       const overdueOrdersWithDates = validOrders.filter(order => {
         if (order.pronto) return false;
-        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-        if (!deliveryDate) return false;
+        if (!order.data_entrega) return false;
+
+        // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
+        let deliveryDate: Date;
+        const dateMatch = order.data_entrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          const [, y, m, d] = dateMatch.map(Number);
+          deliveryDate = new Date(y, m - 1, d);
+        } else {
+          deliveryDate = new Date(order.data_entrega);
+        }
+
         deliveryDate.setHours(0, 0, 0, 0);
         return deliveryDate < today;
       });
-      
+
       let totalDelayTime = 0;
       overdueOrdersWithDates.forEach(order => {
-        const deliveryDate = new Date(order.data_entrega || '');
+        if (!order.data_entrega) return;
+
+        // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
+        let deliveryDate: Date;
+        const dateMatch = order.data_entrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          const [, y, m, d] = dateMatch.map(Number);
+          deliveryDate = new Date(y, m - 1, d);
+        } else {
+          deliveryDate = new Date(order.data_entrega);
+        }
+
         deliveryDate.setHours(0, 0, 0, 0);
         const delayDays = Math.ceil((today.getTime() - deliveryDate.getTime()) / (1000 * 60 * 60 * 24));
         if (delayDays > 0) {
           totalDelayTime += delayDays;
         }
       });
-      
-      const avgDelayTime = overdueOrdersWithDates.length > 0 
-        ? Math.round(totalDelayTime / overdueOrdersWithDates.length) 
+
+      const avgDelayTime = overdueOrdersWithDates.length > 0
+        ? Math.round(totalDelayTime / overdueOrdersWithDates.length)
         : 0;
-      
+
       const todayOrders = validOrders.filter(order => {
         const orderDate = order.data_entrada || order.created_at;
         return orderDate && orderDate.startsWith(todayStr);
@@ -242,9 +273,9 @@ export default function DashboardOverview() {
         deliveryDate.setHours(23, 59, 59, 999);
         return completedDate <= deliveryDate;
       }).length;
-      
-      const efficiencyRate = completedOrders > 0 
-        ? Math.round((onTimeOrders / completedOrders) * 100) 
+
+      const efficiencyRate = completedOrders > 0
+        ? Math.round((onTimeOrders / completedOrders) * 100)
         : 0;
 
       // Calcular distribuição por forma de envio
@@ -353,14 +384,23 @@ export default function DashboardOverview() {
       })
       .slice(0, 5)
       .map(order => {
-        const deliveryDate = order.data_entrega ? new Date(order.data_entrega) : null;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (deliveryDate) {
+        let deliveryDate: Date | null = null;
+        if (order.data_entrega) {
+          const dateMatch = order.data_entrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (dateMatch) {
+            const [, y, m, d] = dateMatch.map(Number);
+            deliveryDate = new Date(y, m - 1, d);
+          } else {
+            deliveryDate = new Date(order.data_entrega);
+          }
           deliveryDate.setHours(0, 0, 0, 0);
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const isOverdue = deliveryDate && deliveryDate < today && !order.pronto;
-        const daysUntilDelivery = deliveryDate 
+        const daysUntilDelivery = deliveryDate
           ? Math.ceil((deliveryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
           : undefined;
 
@@ -488,7 +528,7 @@ export default function DashboardOverview() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button 
+          <Button
             onClick={handleRefresh}
             variant="outline"
             size="sm"
@@ -498,15 +538,15 @@ export default function DashboardOverview() {
             <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
             Atualizar
           </Button>
-          <Button 
+          <Button
             onClick={() => navigate('/dashboard/orders/new')}
             aria-label="Criar novo pedido"
           >
             <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
             Novo Pedido
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate('/dashboard/orders')}
             aria-label="Ver todos os pedidos"
           >
@@ -555,7 +595,7 @@ export default function DashboardOverview() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card 
+        <Card
           className="cursor-pointer hover:bg-accent transition-colors"
           onClick={() => handleCardClick('all')}
         >
@@ -571,7 +611,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:bg-accent transition-colors"
           onClick={() => handleCardClick('pending')}
         >
@@ -587,7 +627,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:bg-accent transition-colors"
           onClick={() => handleCardClick('completed')}
         >
@@ -603,7 +643,7 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="cursor-pointer hover:bg-accent transition-colors"
           onClick={() => handleCardClick('overdue')}
         >
@@ -643,8 +683,8 @@ export default function DashboardOverview() {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" 
+                    <div
+                      className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all"
                       style={{ width: `${method.percentage}%` }}
                       role="progressbar"
                       aria-valuenow={method.percentage}
@@ -718,8 +758,8 @@ export default function DashboardOverview() {
               <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{productionEfficiency.financeiro}%</div>
               <div className="text-sm text-muted-foreground">Financeiro</div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-gray-600 dark:bg-gray-500 h-2 rounded-full transition-all" 
+                <div
+                  className="bg-gray-600 dark:bg-gray-500 h-2 rounded-full transition-all"
                   style={{ width: `${productionEfficiency.financeiro}%` }}
                   role="progressbar"
                   aria-valuenow={productionEfficiency.financeiro}
@@ -728,13 +768,13 @@ export default function DashboardOverview() {
                 ></div>
               </div>
             </div>
-            
+
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{productionEfficiency.conferencia}%</div>
               <div className="text-sm text-muted-foreground">Conferência</div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-yellow-600 dark:bg-yellow-500 h-2 rounded-full transition-all" 
+                <div
+                  className="bg-yellow-600 dark:bg-yellow-500 h-2 rounded-full transition-all"
                   style={{ width: `${productionEfficiency.conferencia}%` }}
                   role="progressbar"
                   aria-valuenow={productionEfficiency.conferencia}
@@ -743,13 +783,13 @@ export default function DashboardOverview() {
                 ></div>
               </div>
             </div>
-            
+
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-500">{productionEfficiency.sublimacao}%</div>
               <div className="text-sm text-muted-foreground">Sublimação</div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-orange-600 dark:bg-orange-500 h-2 rounded-full transition-all" 
+                <div
+                  className="bg-orange-600 dark:bg-orange-500 h-2 rounded-full transition-all"
                   style={{ width: `${productionEfficiency.sublimacao}%` }}
                   role="progressbar"
                   aria-valuenow={productionEfficiency.sublimacao}
@@ -758,13 +798,13 @@ export default function DashboardOverview() {
                 ></div>
               </div>
             </div>
-            
+
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-500">{productionEfficiency.costura}%</div>
               <div className="text-sm text-muted-foreground">Costura</div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full transition-all" 
+                <div
+                  className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full transition-all"
                   style={{ width: `${productionEfficiency.costura}%` }}
                   role="progressbar"
                   aria-valuenow={productionEfficiency.costura}
@@ -773,13 +813,13 @@ export default function DashboardOverview() {
                 ></div>
               </div>
             </div>
-            
+
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">{productionEfficiency.expedicao}%</div>
               <div className="text-sm text-muted-foreground">Expedição</div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all" 
+                <div
+                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all"
                   style={{ width: `${productionEfficiency.expedicao}%` }}
                   role="progressbar"
                   aria-valuenow={productionEfficiency.expedicao}
@@ -864,8 +904,8 @@ export default function DashboardOverview() {
                     </div>
                   </div>
                 ))}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full mt-4"
                   onClick={() => navigate('/dashboard/orders')}
                   aria-label="Ver todos os pedidos urgentes"
@@ -954,8 +994,8 @@ export default function DashboardOverview() {
                     </div>
                   </div>
                 ))}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full mt-4"
                   onClick={() => navigate('/dashboard/orders')}
                   aria-label="Ver todos os pedidos urgentes"
@@ -981,35 +1021,35 @@ export default function DashboardOverview() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex flex-col gap-2"
               onClick={() => navigate('/dashboard/orders/new')}
             >
               <Plus className="h-6 w-6" />
               <span>Novo Pedido</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col gap-2"
               onClick={() => navigate('/dashboard/orders')}
             >
               <ShoppingCart className="h-6 w-6" />
               <span>Gerenciar Pedidos</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col gap-2"
               onClick={() => navigate('/dashboard/clientes')}
             >
               <Users className="h-6 w-6" />
               <span>Clientes</span>
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="h-20 flex flex-col gap-2"
               onClick={() => navigate('/dashboard/relatorios-envios')}
             >
