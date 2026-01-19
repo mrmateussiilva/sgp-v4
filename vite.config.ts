@@ -19,7 +19,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      buffer: require.resolve('buffer/'),
+      buffer: require.resolve('buffer'),
     },
   },
   optimizeDeps: {
