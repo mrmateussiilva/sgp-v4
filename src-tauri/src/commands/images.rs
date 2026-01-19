@@ -6,7 +6,6 @@ use std::path::Path;
 use tauri::{command, AppHandle, Manager};
 use tracing::{debug, error, info};
 use uuid::Uuid;
-use image::GenericImageView;
 use base64::{Engine as _, engine::general_purpose};
 
 // Estrutura para armazenar metadados de imagem
