@@ -217,12 +217,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     );
 };
 
-const TechBadge = ({ label, value }: { label: string; value?: string }) => (
-    <View style={styles.techBadge}>
-        <Text style={styles.techLabel}>{label}{value ? ': ' : ''}</Text>
-        {value && <Text style={styles.techValue}>{value}</Text>}
-    </View>
-);
+const TechBadge = ({ label, value }: { label: string; value?: string }) => {
+    const hasValue = value !== undefined && value !== null && value !== '';
+    return (
+        <View style={styles.techBadge}>
+            <Text style={styles.techLabel}>{label}{hasValue ? ': ' : ''}</Text>
+            {hasValue ? <Text style={styles.techValue}>{value}</Text> : null}
+        </View>
+    );
+};
 
 function getPriorityColor(priority: string): string {
     const p = priority.toLowerCase();

@@ -1,7 +1,7 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "SGP - Sistema de Gerenciamento de Pedidos",
-    "version": "1.0.13",
+    "version": "1.0.14",
     "identifier": "com.sgp.desktop",
     "build": {
         "beforeDevCommand": "pnpm run dev",
@@ -12,7 +12,7 @@
     "app": {
         "withGlobalTauri": false,
         "security": {
-            "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://*:* https://*:*; img-src 'self' data: blob: tauri://localhost asset: https://asset.localhost http://*:* https://*:*; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' blob: tauri://localhost ipc://localhost http://*:* https://*:* ws://*:* wss://*:*;",
+            "csp": "default-src 'self' blob: data: filesystem: ws: wss: http://*:* https://*:*; img-src 'self' data: blob: tauri://localhost asset: https://asset.localhost http://*:* https://*:*; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; connect-src 'self' blob: tauri://localhost ipc://localhost http://*:* https://*:* ws://*:* wss://*:*;",
             "capabilities": [
                 "default"
             ]

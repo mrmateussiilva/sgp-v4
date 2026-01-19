@@ -126,17 +126,13 @@ export const printOrderServiceForm = async (
 };
 
 /**
- * Imprime múltiplos pedidos usando React-PDF (Substituindo Templates Legados do Backend)
- * 
- * @param orders - Array de pedidos a serem impressos
- * @param _templateType - Tipo de template (Mantido por compatibilidade)
+ * Gera o Blob do PDF para múltiplos pedidos
  */
-export const printMultipleOrdersServiceForm = async (
-  orders: OrderWithItems[],
-  _templateType: 'geral' | 'resumo' = 'resumo'
-): Promise<void> => {
+export const generateMultipleOrdersPdfBlob = async (
+  orders: OrderWithItems[]
+): Promise<{ blob: Blob; filename: string }> => {
   if (orders.length === 0) {
-    throw new Error('Nenhum pedido fornecido para impressão');
+    throw new Error('Nenhum pedido fornecido para geração de PDF');
   }
 
   const hydratedOrders = await Promise.all(
@@ -160,10 +156,24 @@ export const printMultipleOrdersServiceForm = async (
   // @ts-ignore - JSX element
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
-  // Nome do arquivo
   // Nome do arquivo com timestamp para evitar cache
   const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
   const filename = `Fichas-Multiplas-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
+
+  return { blob, filename };
+};
+
+/**
+ * Imprime múltiplos pedidos usando React-PDF (Substituindo Templates Legados do Backend)
+ * 
+ * @param orders - Array de pedidos a serem impressos
+ * @param _templateType - Tipo de template (Mantido por compatibilidade)
+ */
+export const printMultipleOrdersServiceForm = async (
+  orders: OrderWithItems[],
+  _templateType: 'geral' | 'resumo' = 'resumo'
+): Promise<void> => {
+  const { blob, filename } = await generateMultipleOrdersPdfBlob(orders);
 
   // Salvar e abrir via Tauri
   await saveAndOpenPdf(blob, filename);

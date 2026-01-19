@@ -55,10 +55,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { printMultipleOrdersServiceForm } from '@/utils/printOrderServiceForm';
+import { isTauri } from '@/utils/isTauri';
+import { PrintPreviewModal } from './PrintPreviewModal';
+import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
-import { isTauri } from '@/utils/isTauri';
+
 // import { cn } from '@/lib/utils'; // Não usado mais (painel lateral desabilitado)
 
 export default function OrderList() {
@@ -124,6 +126,10 @@ export default function OrderList() {
   });
 
   // Estados para navegação por teclado (painel lateral desabilitado)
+  const [isBulkPreviewOpen, setIsBulkPreviewOpen] = useState(false);
+  const [bulkPdfBlob, setBulkPdfBlob] = useState<Blob | null>(null);
+  const [bulkPdfFilename, setBulkPdfFilename] = useState('');
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   // const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
@@ -1431,30 +1437,34 @@ export default function OrderList() {
     await printSelectedOrders(ordersToPrint);
   };
 
-  const printSelectedOrders = async (orders: OrderWithItems[]) => {
+  const printSelectedOrders = async (ordersToPrint: OrderWithItems[]) => {
     try {
-      // Mostrar loading enquanto processa
+      logger.info(`[OrderList] Iniciando impressão em lote para ${ordersToPrint.length} pedidos`);
+      setIsBulkGenerating(true);
       toast({
         title: "Preparando impressão",
-        description: "Abrindo janela de impressão...",
+        description: "Gerando preview dos pedidos selecionados...",
       });
 
-      // Usar HTML + window.print() (abre seletor de impressora no WebView/Tauri)
-      // Template 'resumo' mantém layout compacto (até 3 itens por página)
-      await printMultipleOrdersServiceForm(orders, 'resumo');
+      const { blob, filename } = await generateMultipleOrdersPdfBlob(ordersToPrint);
+
+      setBulkPdfBlob(blob);
+      setBulkPdfFilename(filename);
+      setIsBulkPreviewOpen(true);
 
       toast({
-        title: "Impressão aberta",
-        description: "A janela de impressão foi aberta. Selecione a impressora e confirme.",
+        title: "Preview gerado",
+        description: "A pré-visualização está pronta.",
       });
     } catch (error) {
-      logger.error('Erro ao imprimir múltiplos pedidos:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao preparar impressão.';
+      logger.error('Erro ao gerar preview em lote:', error);
       toast({
-        title: "Erro ao imprimir",
-        description: errorMessage,
+        title: "Erro",
+        description: "Não foi possível gerar a pré-visualização.",
         variant: "destructive",
       });
+    } finally {
+      setIsBulkGenerating(false);
     }
   };
 
@@ -2171,9 +2181,10 @@ export default function OrderList() {
                     variant="default"
                     size="sm"
                     onClick={handlePrintSelected}
+                    disabled={isBulkGenerating}
                   >
-                    <Printer className="h-4 w-4 mr-1" />
-                    Imprimir Selecionados
+                    <Printer className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`} />
+                    {isBulkGenerating ? 'Gerando...' : 'Imprimir Selecionados'}
                   </Button>
                 </div>
               </div>
@@ -2819,6 +2830,14 @@ export default function OrderList() {
           isOpen={viewModalOpen}
           onClose={() => setViewModalOpen(false)}
           order={selectedOrderForView}
+        />
+
+        <PrintPreviewModal
+          isOpen={isBulkPreviewOpen}
+          onClose={() => setIsBulkPreviewOpen(false)}
+          pdfBlob={bulkPdfBlob}
+          filename={bulkPdfFilename}
+          title="Pré-visualização - Impressão em Lote"
         />
 
         <OrderQuickEditDialog

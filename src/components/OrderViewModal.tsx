@@ -10,7 +10,7 @@ import { getItemDisplayEntries } from '@/utils/order-item-display';
 import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
-import { printOrderServiceForm } from '../utils/printOrderServiceForm';
+import { OrderPrintManager } from './OrderPrintManager';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -206,21 +206,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   const handlePrint = async () => {
-    if (!order) return;
-    setIsPrinting(true);
-    try {
-      // Pedido pode não ter desiger/vendedor no nível superior, pegar do primeiro item se necessário
-      const hydratedOrder = {
-        ...order,
-        designer: (order as any).designer || order.items?.[0]?.designer,
-        vendedor: (order as any).vendedor || order.items?.[0]?.vendedor,
-      };
-      await printOrderServiceForm(hydratedOrder as any, 'resumo');
-    } catch (error) {
-      logger.error("Erro ao imprimir pedido:", error);
-    } finally {
-      setIsPrinting(false);
-    }
+    setIsPrintManagerOpen(true);
   };
 
 
@@ -1182,253 +1168,259 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
-        <DialogHeader className="flex-shrink-0 border-b px-4 sm:px-6 pt-4 sm:pt-6 pb-4">
-          <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
-            <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
-              <Button
-                onClick={handlePrint}
-                variant="outline"
-                size="sm"
-                disabled={isPrinting}
-              >
-                <Printer className={`h-4 w-4 mr-2 ${isPrinting ? 'animate-pulse' : ''}`} />
-                {isPrinting ? 'Gerando...' : 'Imprimir Ficha'}
-              </Button>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
+          <DialogHeader className="flex-shrink-0 border-b px-4 sm:px-6 pt-4 sm:pt-6 pb-4">
+            <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>
+              <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
+                <Button
+                  onClick={handlePrint}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir Ficha
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6 pb-6">
-          {/* Cabeçalho do Pedido */}
-          <div className="text-center border-b pb-3">
-            <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
-          </div>
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6 pb-6">
+            {/* Cabeçalho do Pedido */}
+            <div className="text-center border-b pb-3">
+              <h2 className="text-xl sm:text-2xl font-bold">Pedido #{order.numero || order.id}</h2>
+            </div>
 
-          {/* Informações Principais */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-            <div>
-              <span className="font-semibold">Nome do Cliente:</span><br />
-              {order.customer_name || order.cliente || 'Não informado'}
-            </div>
-            <div>
-              <span className="font-semibold">Telefone:</span><br />
-              {order.telefone_cliente || 'Não informado'}
-            </div>
-            <div>
-              <span className="font-semibold">Cidade:</span><br />
-              {order.cidade_cliente || 'Não informado'}
-            </div>
-            <div>
-              <span className="font-semibold">Status:</span><br />
-              <Badge className={getStatusColor(order.status)}>
-                {order.status}
-              </Badge>
-            </div>
-            <div>
-              <span className="font-semibold">Designer x Vendedor:</span><br />
-              <span className="text-blue-700 font-medium">
-                {(order as any).designer || '---'} x {(order as any).vendedor || '---'}
-              </span>
-            </div>
-          </div>
-
-          {/* Datas e Forma de Envio */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-            <div>
-              <span className="font-semibold">Data de Entrada:</span><br />
-              {formatDate(order.data_entrada)}
-            </div>
-            <div>
-              <span className="font-semibold">Data de Entrega:</span><br />
-              {formatDate(order.data_entrega)}
-            </div>
-            <div>
-              <span className="font-semibold">Forma de Envio:</span><br />
-              {order.forma_envio || 'Não informado'}
-            </div>
-          </div>
-
-          {/* Observações do Pedido */}
-          {order.observacao && order.observacao.trim() && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2 sm:py-3">
-              <div className="text-sm">
-                <span className="font-semibold text-slate-700">Observações:</span>
-                <p className="mt-1 text-slate-600 whitespace-pre-wrap">{order.observacao}</p>
+            {/* Informações Principais */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+              <div>
+                <span className="font-semibold">Nome do Cliente:</span><br />
+                {order.customer_name || order.cliente || 'Não informado'}
+              </div>
+              <div>
+                <span className="font-semibold">Telefone:</span><br />
+                {order.telefone_cliente || 'Não informado'}
+              </div>
+              <div>
+                <span className="font-semibold">Cidade:</span><br />
+                {order.cidade_cliente || 'Não informado'}
+              </div>
+              <div>
+                <span className="font-semibold">Status:</span><br />
+                <Badge className={getStatusColor(order.status)}>
+                  {order.status}
+                </Badge>
+              </div>
+              <div>
+                <span className="font-semibold">Designer x Vendedor:</span><br />
+                <span className="text-blue-700 font-medium">
+                  {(order as any).designer || '---'} x {(order as any).vendedor || '---'}
+                </span>
               </div>
             </div>
-          )}
 
-          <Separator />
-
-          {/* Itens */}
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold mb-3">Itens do Pedido</h3>
-
-            {order.items && order.items.length > 0 ? (
-              <div className="space-y-3">
-                {order.items.map((item, index) => {
-                  const key = String(item.id ?? `order-${index}`);
-                  const isOpen = openItemKey === key;
-                  const toggleOpen = () => {
-                    const willOpen = openItemKey !== key;
-                    setOpenItemKey((current) => (current === key ? null : key));
-                    // Resetar erro de imagem quando o item é expandido para tentar carregar novamente
-                    if (willOpen && item.imagem) {
-                      const itemKey = String(item.id ?? item.item_name);
-                      setItemImageErrors(prev => {
-                        const updated = { ...prev };
-                        delete updated[itemKey];
-                        return updated;
-                      });
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={key}
-                      className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden"
-                    >
-                      <button
-                        type="button"
-                        onClick={toggleOpen}
-                        className="w-full bg-slate-50/60 px-3 sm:px-4 py-2 sm:py-3 text-left transition hover:bg-slate-100/80"
-                      >
-                        <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-start gap-2 sm:gap-3">
-                            <span className="text-xs sm:text-sm font-semibold text-slate-500">#{index + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-sm sm:text-base text-slate-900 truncate">{item.item_name}</div>
-                              {hasDetailedData(item) ? (
-                                <div className="text-xs text-emerald-600">
-                                  Clique para ver os detalhes completos
-                                </div>
-                              ) : (
-                                <div className="text-xs text-slate-500">
-                                  Nenhum detalhe adicional informado
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
-                            <div className="font-medium">Qtd: {item.quantity}</div>
-                            <ChevronDown
-                              className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''
-                                }`}
-                            />
-                          </div>
-                        </div>
-                      </button>
-
-                      {isOpen && (
-                        <div className="space-y-3 sm:space-y-4 border-t border-slate-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
-                          {renderItemDetailsContent(item)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            {/* Datas e Forma de Envio */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              <div>
+                <span className="font-semibold">Data de Entrada:</span><br />
+                {formatDate(order.data_entrada)}
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>Nenhum item encontrado para este pedido.</p>
+              <div>
+                <span className="font-semibold">Data de Entrega:</span><br />
+                {formatDate(order.data_entrega)}
+              </div>
+              <div>
+                <span className="font-semibold">Forma de Envio:</span><br />
+                {order.forma_envio || 'Não informado'}
+              </div>
+            </div>
+
+            {/* Observações do Pedido */}
+            {order.observacao && order.observacao.trim() && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2 sm:py-3">
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-700">Observações:</span>
+                  <p className="mt-1 text-slate-600 whitespace-pre-wrap">{order.observacao}</p>
+                </div>
               </div>
             )}
-          </div>
 
-          <Separator />
+            <Separator />
 
-          {/* Forma de Pagamento e Valores */}
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold mb-3">Forma de Pagamento - Valores</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-semibold">Forma de Pagamento:</span><br />
-                {getFormaPagamentoNome(order.forma_pagamento_id)}
-              </div>
-              <div className="text-left sm:text-right space-y-1">
-                <div>
-                  <span className="font-semibold">Itens:</span>
-                  <span className="ml-2 text-base font-medium text-slate-700">
-                    {formatCurrency(orderTotalFromItems)}
-                  </span>
+            {/* Itens */}
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold mb-3">Itens do Pedido</h3>
+
+              {order.items && order.items.length > 0 ? (
+                <div className="space-y-3">
+                  {order.items.map((item, index) => {
+                    const key = String(item.id ?? `order-${index}`);
+                    const isOpen = openItemKey === key;
+                    const toggleOpen = () => {
+                      const willOpen = openItemKey !== key;
+                      setOpenItemKey((current) => (current === key ? null : key));
+                      // Resetar erro de imagem quando o item é expandido para tentar carregar novamente
+                      if (willOpen && item.imagem) {
+                        const itemKey = String(item.id ?? item.item_name);
+                        setItemImageErrors(prev => {
+                          const updated = { ...prev };
+                          delete updated[itemKey];
+                          return updated;
+                        });
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          onClick={toggleOpen}
+                          className="w-full bg-slate-50/60 px-3 sm:px-4 py-2 sm:py-3 text-left transition hover:bg-slate-100/80"
+                        >
+                          <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-2 sm:gap-3">
+                              <span className="text-xs sm:text-sm font-semibold text-slate-500">#{index + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm sm:text-base text-slate-900 truncate">{item.item_name}</div>
+                                {hasDetailedData(item) ? (
+                                  <div className="text-xs text-emerald-600">
+                                    Clique para ver os detalhes completos
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-slate-500">
+                                    Nenhum detalhe adicional informado
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
+                              <div className="font-medium">Qtd: {item.quantity}</div>
+                              <ChevronDown
+                                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''
+                                  }`}
+                              />
+                            </div>
+                          </div>
+                        </button>
+
+                        {isOpen && (
+                          <div className="space-y-3 sm:space-y-4 border-t border-slate-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
+                            {renderItemDetailsContent(item)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                {showFreight && (
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Nenhum item encontrado para este pedido.</p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Forma de Pagamento e Valores */}
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold mb-3">Forma de Pagamento - Valores</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-semibold">Forma de Pagamento:</span><br />
+                  {getFormaPagamentoNome(order.forma_pagamento_id)}
+                </div>
+                <div className="text-left sm:text-right space-y-1">
                   <div>
-                    <span className="font-semibold">Frete:</span>
+                    <span className="font-semibold">Itens:</span>
                     <span className="ml-2 text-base font-medium text-slate-700">
-                      {formatCurrency(freightValue)}
+                      {formatCurrency(orderTotalFromItems)}
                     </span>
                   </div>
-                )}
-                <div className="pt-1">
-                  <span className="font-semibold">Valor Total:</span><br />
-                  <span className="text-xl font-bold text-green-600">
-                    {formatCurrency(orderTotalValue)}
-                  </span>
+                  {showFreight && (
+                    <div>
+                      <span className="font-semibold">Frete:</span>
+                      <span className="ml-2 text-base font-medium text-slate-700">
+                        {formatCurrency(freightValue)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="pt-1">
+                    <span className="font-semibold">Valor Total:</span><br />
+                    <span className="text-xl font-bold text-green-600">
+                      {formatCurrency(orderTotalValue)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
+        </DialogContent>
 
-      {/* Modal de Imagem */}
-      {selectedImage && (
-        <Dialog open={!!selectedImage} onOpenChange={(open) => closeImageModal(open)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0" size="lg" onInteractOutside={(e) => e.preventDefault()}>
-            <DialogHeader className="p-6 pb-0 flex-shrink-0">
-              <DialogTitle className="flex items-center justify-between">
-                <span>Visualização da Imagem</span>
-              </DialogTitle>
-            </DialogHeader>
-            <div className="p-6 pt-4 overflow-y-auto">
-              <div className="flex flex-col items-center gap-4">
-                {!imageError && selectedImage ? (
-                  <img
-                    src={selectedImage}
-                    alt="Imagem do item"
-                    className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                    onLoad={() => {
-                      logger.debug('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
-                      setImageError(false);
-                    }}
-                    onError={(e) => {
-                      logger.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
-                        src: selectedImage,
-                        error: e
-                      });
-                      setImageError(true);
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-[70vh] w-full items-center justify-center rounded-lg bg-slate-100">
-                    <div className="text-center">
-                      <p className="text-slate-500 mb-2">Imagem não encontrada</p>
-                      <p className="text-sm text-slate-400">O arquivo pode ter sido movido ou excluído</p>
-                      {selectedImage && (
-                        <p className="text-xs text-slate-400 mt-2">URL: {selectedImage.substring(0, 50)}...</p>
-                      )}
+        {/* Modal de Imagem */}
+        {selectedImage && (
+          <Dialog open={!!selectedImage} onOpenChange={(open) => closeImageModal(open)}>
+            <DialogContent className="max-w-4xl max-h-[90vh] p-0" size="lg" onInteractOutside={(e) => e.preventDefault()}>
+              <DialogHeader className="p-6 pb-0 flex-shrink-0">
+                <DialogTitle className="flex items-center justify-between">
+                  <span>Visualização da Imagem</span>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="p-6 pt-4 overflow-y-auto">
+                <div className="flex flex-col items-center gap-4">
+                  {!imageError && selectedImage ? (
+                    <img
+                      src={selectedImage}
+                      alt="Imagem do item"
+                      className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                      onLoad={() => {
+                        logger.debug('[OrderViewModal] ✅ Imagem do modal carregada com sucesso:', selectedImage);
+                        setImageError(false);
+                      }}
+                      onError={(e) => {
+                        logger.error('[OrderViewModal] ❌ Erro ao carregar imagem no modal:', {
+                          src: selectedImage,
+                          error: e
+                        });
+                        setImageError(true);
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-[70vh] w-full items-center justify-center rounded-lg bg-slate-100">
+                      <div className="text-center">
+                        <p className="text-slate-500 mb-2">Imagem não encontrada</p>
+                        <p className="text-sm text-slate-400">O arquivo pode ter sido movido ou excluído</p>
+                        {selectedImage && (
+                          <p className="text-xs text-slate-400 mt-2">URL: {selectedImage.substring(0, 50)}...</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-                {selectedImageCaption && !imageError && selectedImage && (
-                  <p
-                    className="max-w-3xl text-center text-slate-600"
-                    style={{ fontSize: '14pt', lineHeight: 1.2 }}
-                  >
-                    {selectedImageCaption}
-                  </p>
-                )}
+                  )}
+                  {selectedImageCaption && !imageError && selectedImage && (
+                    <p
+                      className="max-w-3xl text-center text-slate-600"
+                      style={{ fontSize: '14pt', lineHeight: 1.2 }}
+                    >
+                      {selectedImageCaption}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )}
 
-    </Dialog>
+      </Dialog>
+      <OrderPrintManager
+        isOpen={isPrintManagerOpen}
+        onClose={() => setIsPrintManagerOpen(false)}
+        order={order}
+      />
+    </>
   );
 };

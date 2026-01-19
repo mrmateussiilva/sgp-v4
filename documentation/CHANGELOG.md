@@ -1,6 +1,6 @@
 # Changelog - SGP v4
 
-## [1.0.13] - 2026-01-18
+## [1.0.14] - 2026-01-18
 
 ### ✨ Adicionado
 - **Pipeline de Produção**: Nova visualização linear e sequencial para gestão do fluxo de trabalho.
