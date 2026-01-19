@@ -51,6 +51,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                                     <Text style={{ fontSize: 7, color: 'white' }}>REPOSIÇÃO</Text>
                                 </View>
                             )}
+                            {(order as any).costura && (
+                                <View style={[styles.badgeReposicao, { backgroundColor: '#9C27B0' }]}>
+                                    <Text style={{ fontSize: 7, color: 'white' }}>COSTURA🧵</Text>
+                                </View>
+                            )}
                         </View>
                         <View style={styles.clienteInfo}>
                             <Text style={styles.clienteNome}>{order.cliente}</Text>
@@ -63,13 +68,23 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
                     {/* INFORMAÇÕES DO PRODUTO */}
                     <View style={{ marginBottom: 5 }}>
-                        <Text style={styles.prodNome}>{prod.descricao}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                            <View style={[styles.tipoBadge, { borderColor: '#1976D2', color: '#1976D2' }]}>
+                                <Text style={{ fontSize: 7 }}>{prod.tipo_producao.toUpperCase()}</Text>
+                            </View>
+                            <Text style={[styles.prodNome, { marginBottom: 0, borderLeftWidth: 0, paddingLeft: 4 }]}>
+                                {prod.descricao}
+                            </Text>
+                        </View>
+
                         <View style={styles.infoGrid}>
                             <View>
                                 <Text style={styles.hLabel}>Dimensões</Text>
                                 <Text style={styles.hValue}>{prod.dimensoes}</Text>
                                 <Text style={[styles.hLabel, { marginTop: 2 }]}>Material/Tecido</Text>
-                                <Text style={[styles.hValue, { fontSize: 8 }]}>{prod.material}</Text>
+                                <Text style={[styles.hValue, { fontSize: 8 }]}>
+                                    {prod.tecido || prod.tipo_adesivo || prod.material || 'Não especificado'}
+                                </Text>
                             </View>
                             <View style={styles.qtyBox}>
                                 <Text style={styles.qtyLabel}>QTD</Text>
@@ -83,6 +98,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         {/* DETALHES TÉCNICOS / ACABAMENTOS */}
                         <View style={styles.techSection}>
                             <View style={styles.techGrid}>
+                                {prod.tipo_producao.toLowerCase() === 'costura' && <TechBadge label="Produção" value="COSTURA 🧵" />}
                                 {prod.tecido && <TechBadge label="Tecido" value={prod.tecido} />}
                                 {prod.overloque && <TechBadge label="✅ Overloque" />}
                                 {prod.elastico && <TechBadge label="✅ Elástico" />}
@@ -90,6 +106,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                                 {prod.alcinha && <TechBadge label="✅ Alcinha" />}
                                 {prod.toalha_pronta && <TechBadge label="✅ Toalha Pronta" />}
                                 {prod.terceirizado && <TechBadge label="⚠️ Terceirizado" />}
+
+                                {prod.acabamento_lona && <TechBadge label="Acab. Lona" value={prod.acabamento_lona} />}
+                                {prod.tipo_adesivo && <TechBadge label="Material" value={prod.tipo_adesivo} />}
+                                {prod.acabamento_totem && <TechBadge label="Acab. Totem" value={prod.acabamento_totem} />}
+                                {prod.acabamento_totem_outro && <TechBadge label="Extra" value={prod.acabamento_totem_outro} />}
 
                                 {prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum' && (
                                     <TechBadge label="Acabamento" value={prod.tipo_acabamento} />

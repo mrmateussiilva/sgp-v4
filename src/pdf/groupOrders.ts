@@ -27,6 +27,11 @@ export interface ProductionProduct {
     metro_quadrado?: string;
     quantidade_paineis?: string;
     terceirizado?: boolean;
+    // Novos campos adicionados para cobrir Lona, Totem e Adesivo
+    acabamento_lona?: string;
+    tipo_adesivo?: string;
+    acabamento_totem?: string;
+    acabamento_totem_outro?: string;
 }
 
 export interface ProductionOrder {
@@ -111,6 +116,10 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     metro_quadrado: item.metro_quadrado,
                     quantidade_paineis: item.quantidade_paineis,
                     terceirizado: item.terceirizado,
+                    acabamento_lona: item.acabamento_lona,
+                    tipo_adesivo: item.tipo_adesivo,
+                    acabamento_totem: item.acabamento_totem,
+                    acabamento_totem_outro: item.acabamento_totem_outro,
                 }],
             });
         });
