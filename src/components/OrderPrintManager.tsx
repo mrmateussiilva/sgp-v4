@@ -63,7 +63,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   };
 
   // Gerar e Salvar/Imprimir PDF usando React-PDF
-  const generatePDF = async (action: 'save' | 'print') => {
+  const generatePDF = async () => {
     if (!order) return;
 
     setIsGenerating(true);
@@ -122,10 +122,10 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   };
 
   // Salvar em PDF
-  const handleSavePDF = () => generatePDF('save');
+  const handleSavePDF = () => generatePDF();
 
   // Imprimir
-  const handlePrint = () => generatePDF('print');
+  const handlePrint = () => generatePDF();
 
   if (!order) return null;
 
