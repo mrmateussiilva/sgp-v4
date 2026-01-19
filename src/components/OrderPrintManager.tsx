@@ -76,8 +76,17 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       if (!reorderedOrder) return;
 
       // Importar dinamicamente para reduzir o bundle inicial
-      const { pdf } = await import('@react-pdf/renderer');
-      const { ProductionReportPDF } = await import('../pdf/ProductionReportPDF');
+      let pdf;
+      let ProductionReportPDF;
+      try {
+        const pdfModule = await import('@react-pdf/renderer');
+        const reportModule = await import('../pdf/ProductionReportPDF');
+        pdf = pdfModule.pdf;
+        ProductionReportPDF = reportModule.ProductionReportPDF;
+      } catch (importErr) {
+        console.error('[OrderPrintManager] Erro ao carregar módulos de PDF:', importErr);
+        throw new Error('Falha ao carregar motor de PDF. Verifique sua conexão ou tente reiniciar o app.');
+      }
 
       // Pre-fetch de imagens (CONVERTER PARA BASE64)
       const itemsWithBase64 = await Promise.all(
@@ -140,132 +149,135 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   if (!order) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Gerenciar Impressão - Pedido #{order.numero || order.id}</span>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="w-[90vw] max-w-4xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Gerenciar Impressão - Pedido #{order.numero || order.id}</span>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4">
-          {/* Informações do Pedido */}
-          <div className="bg-slate-50 p-4 rounded-lg border">
-            <h3 className="font-semibold mb-2">Informações do Pedido</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="font-medium">Cliente:</span> {order.customer_name || order.cliente || 'Não informado'}
-              </div>
-              <div>
-                <span className="font-medium">Telefone:</span> {order.telefone_cliente || 'Não informado'}
-              </div>
-              <div>
-                <span className="font-medium">Cidade:</span> {order.cidade_cliente || 'Não informado'}
-              </div>
-              <div>
-                <span className="font-medium">Total:</span> R$ {
-                  parseCurrencyValue(order.total_value || order.valor_total || 0).toFixed(2)
-                }
+          <div className="flex-1 overflow-y-auto space-y-4">
+            {/* Informações do Pedido */}
+            <div className="bg-slate-50 p-4 rounded-lg border">
+              <h3 className="font-semibold mb-2">Informações do Pedido</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="font-medium">Cliente:</span> {order.customer_name || order.cliente || 'Não informado'}
+                </div>
+                <div>
+                  <span className="font-medium">Telefone:</span> {order.telefone_cliente || 'Não informado'}
+                </div>
+                <div>
+                  <span className="font-medium">Cidade:</span> {order.cidade_cliente || 'Não informado'}
+                </div>
+                <div>
+                  <span className="font-medium">Total:</span> R$ {
+                    parseCurrencyValue(order.total_value || order.valor_total || 0).toFixed(2)
+                  }
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Lista de Itens Ordenáveis */}
-          <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Itens do Pedido (Reordenar)</h3>
+            {/* Lista de Itens Ordenáveis */}
             <div className="space-y-2">
-              {orderedItems.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  Nenhum item encontrado
-                </div>
-              ) : (
-                orderedItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    {/* Número do item */}
-                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded-full font-semibold">
-                      {index + 1}
-                    </div>
+              <h3 className="font-semibold text-lg">Itens do Pedido (Reordenar)</h3>
+              <div className="space-y-2">
+                {orderedItems.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhum item encontrado
+                  </div>
+                ) : (
+                  orderedItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      {/* Número do item */}
+                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded-full font-semibold">
+                        {index + 1}
+                      </div>
 
-                    {/* Informações do item */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{item.item_name}</div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {item.descricao && <span>Descrição: {item.descricao} • </span>}
-                        {item.largura && item.altura && (
-                          <span>Dimensões: {item.largura} x {item.altura} • </span>
-                        )}
-                        <span>Quantidade: {item.quantity}</span>
+                      {/* Informações do item */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm">{item.item_name}</div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {item.descricao && <span>Descrição: {item.descricao} • </span>}
+                          {item.largura && item.altura && (
+                            <span>Dimensões: {item.largura} x {item.altura} • </span>
+                          )}
+                          <span>Quantidade: {item.quantity}</span>
+                        </div>
+                      </div>
+
+                      {/* Botões de ordenação */}
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => moveItemUp(index)}
+                          disabled={index === 0}
+                          className="h-8 w-8 p-0"
+                          title="Mover para cima"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => moveItemDown(index)}
+                          disabled={index === orderedItems.length - 1}
+                          className="h-8 w-8 p-0"
+                          title="Mover para baixo"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Botões de ordenação */}
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => moveItemUp(index)}
-                        disabled={index === 0}
-                        className="h-8 w-8 p-0"
-                        title="Mover para cima"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => moveItemDown(index)}
-                        disabled={index === orderedItems.length - 1}
-                        className="h-8 w-8 p-0"
-                        title="Mover para baixo"
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Botões de ação */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={isGenerating}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSavePDF}
-            disabled={isGenerating || orderedItems.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
-          </Button>
-          <Button
-            onClick={handlePrint}
-            disabled={isGenerating || orderedItems.length === 0}
-          >
-            <Printer className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Imprimindo...' : 'Imprimir'}
-          </Button>
-        </div>
-      </DialogContent>
+          {/* Botões de ação */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={onClose} disabled={isGenerating}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSavePDF}
+              disabled={isGenerating || orderedItems.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {isGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
+            </Button>
+            <Button
+              onClick={handlePrint}
+              disabled={isGenerating || orderedItems.length === 0}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              {isGenerating ? 'Imprimindo...' : 'Imprimir'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de Preview de Impressão */}
-      <PrintPreviewModal
-        isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
-        pdfBlob={generatedBlob}
-        filename={pdfFilename}
-        title={`Pré-visualização - Pedido #${order.numero || order.id}`}
-      />
-    </Dialog>
+      {order && (
+        <PrintPreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          pdfBlob={generatedBlob}
+          filename={pdfFilename}
+          title={`Pré-visualização - Pedido #${order.numero || order.id}`}
+        />
+      )}
+    </>
   );
 };
-

@@ -8,14 +8,14 @@ interface OrderCardProps {
 }
 
 const formatDate = (dateString?: string) => {
-    if (!dateString) return '---';
+    if (!dateString || dateString === '---') return '---';
     // Tenta capturar YYYY-MM-DD
     const isoMatch = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
     if (isoMatch) {
         const [, y, m, d] = isoMatch;
         return `${d}/${m}/${y}`;
     }
-    // Tenta capturar DD/MM/YYYY se já vier formatado mas talvez com lixo
+    // Tenta capturar DD/MM/YYYY
     const brMatch = dateString.match(/(\d{2})\/(\d{2})\/(\d{4})/);
     if (brMatch) {
         const [, d, m, y] = brMatch;
@@ -63,22 +63,24 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <View style={styles.pedidoBox}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={styles.pedidoNumero}>#{order.numero}</Text>
-                            {order.is_reposicao && (
+                            {order.is_reposicao ? (
                                 <View style={styles.badgeReposicao}>
                                     <Text style={{ fontSize: 7, color: 'white' }}>REPOSIÇÃO</Text>
                                 </View>
-                            )}
-                            {(order as any).costura && (
+                            ) : null}
+                            {(order as any).costura ? (
                                 <View style={[styles.badgeReposicao, { backgroundColor: '#9C27B0' }]}>
                                     <Text style={{ fontSize: 7, color: 'white' }}>COSTURA🧵</Text>
                                 </View>
-                            )}
+                            ) : null}
                         </View>
                         <View style={styles.clienteInfo}>
                             <Text style={styles.clienteNome}>{order.cliente}</Text>
                             <Text style={styles.clienteTags}>
-                                {order.telefone_cliente && `${order.telefone_cliente} `}
-                                {order.cidade_estado && `| ${order.cidade_estado}`}
+                                {[
+                                    order.telefone_cliente,
+                                    order.cidade_estado
+                                ].filter(Boolean).join(' | ')}
                             </Text>
                         </View>
                     </View>
@@ -106,9 +108,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             <View style={styles.qtyBox}>
                                 <Text style={styles.qtyLabel}>QTD</Text>
                                 <Text style={styles.qtyValue}>{prod.quantity}</Text>
-                                {prod.quantidade_paineis && (
-                                    <Text style={{ fontSize: 7, color: '#666' }}>({prod.quantidade_paineis} un)</Text>
-                                )}
+                                {prod.quantidade_paineis ? (
+                                    <Text style={{ fontSize: 7, color: '#666' }}>{`(${prod.quantidade_paineis} un)`}</Text>
+                                ) : null}
                             </View>
                         </View>
 
@@ -194,9 +196,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             <Text style={styles.noImg}>SEM PRÉVIA</Text>
                         )}
                     </View>
-                    {prod?.legenda_imagem && (
+                    {prod?.legenda_imagem ? (
                         <Text style={styles.imgCaption}>{prod.legenda_imagem}</Text>
-                    )}
+                    ) : null}
                 </View>
             </View>
 
