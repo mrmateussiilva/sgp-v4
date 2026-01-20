@@ -27,17 +27,17 @@ export function AdminModuleCard({ module }: AdminModuleCardProps) {
 
     return (
         <Card
-            className="group flex items-center justify-between px-3.5 py-3 transition-all duration-75 hover:bg-muted/50 border border-border shadow-none rounded-md cursor-pointer"
+            className="group flex items-center justify-between px-3 py-2 transition-all duration-75 hover:bg-muted/50 border border-border shadow-none rounded-sm cursor-pointer select-none"
             onClick={() => navigate(module.path)}
         >
-            <div className="flex items-center gap-4">
-                <Icon className={`h-3.5 w-3.5 ${module.color} flex-shrink-0 opacity-80`} />
-                <div className="flex flex-col gap-0.5">
-                    <h3 className="text-sm font-bold text-foreground leading-snug tracking-tight uppercase">{module.title}</h3>
+            <div className="flex items-center gap-3">
+                <Icon className={`h-4 w-4 ${module.color} flex-shrink-0 opacity-70`} />
+                <div className="flex items-center gap-3">
+                    <h3 className="text-[13px] font-bold text-foreground leading-none tracking-tight uppercase whitespace-nowrap">{module.title}</h3>
                     {module.stats && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 opacity-60">
                             <div className={`h-1 w-1 rounded-full ${statusColors[module.status]}`} />
-                            <span className="text-[11px] text-muted-foreground font-black uppercase tracking-wider">
+                            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">
                                 {module.stats}
                             </span>
                         </div>
@@ -45,7 +45,7 @@ export function AdminModuleCard({ module }: AdminModuleCardProps) {
                 </div>
             </div>
 
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
         </Card>
     );
 }
