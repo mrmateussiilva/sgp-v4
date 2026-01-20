@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Calendar, Search, TrendingUp, Filter, Lightbulb, DollarSign, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { Loader2, Calendar, Search, TrendingUp, Filter, Lightbulb } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
