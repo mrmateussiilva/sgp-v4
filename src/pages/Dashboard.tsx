@@ -122,14 +122,14 @@ export default function Dashboard() {
     },
     {
       icon: Truck,
-      label: 'Relatório de Envios',
+      label: 'Envios',
       path: '/dashboard/relatorios-envios',
       adminOnly: false,
       section: 'OPERACIONAL'
     },
     {
       icon: BarChart,
-      label: 'Painel de Desempenho',
+      label: 'Desempenho',
       path: '/dashboard/painel-desempenho',
       adminOnly: true,
       section: 'GESTÃO'
@@ -150,7 +150,7 @@ export default function Dashboard() {
     },
     {
       icon: RefreshCw,
-      label: 'Verificar Atualização',
+      label: 'Atualizações',
       path: '/update-status',
       adminOnly: false,
       section: 'SISTEMA'
@@ -182,7 +182,6 @@ export default function Dashboard() {
             {sidebarExpanded ? (
               <div>
                 <h1 className="text-4xl font-bold text-primary">SGP</h1>
-                <p className="text-sm text-muted-foreground mt-1">Sistema de Gerenciamento</p>
               </div>
             ) : (
               <h1 className="text-2xl font-bold text-primary">S</h1>
