@@ -2,10 +2,10 @@ import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import {
-  LayoutDashboard, 
+  LayoutDashboard,
   ShoppingCart,
-  Plus, 
-  LogOut, 
+  Plus,
+  LogOut,
   ChevronLeft,
   ChevronRight,
   Users,
@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useUpdaterStore } from '../store/updaterStore';
 import { api } from '../services/api';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { username, isAdmin } = useAuthStore();
+  const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
 
   // Obter versão do app
   useEffect(() => {
@@ -89,34 +91,34 @@ export default function Dashboard() {
   }, [navigate]);
 
   const allMenuItems = [
-    { 
-      icon: LayoutDashboard, 
-      label: 'Início', 
+    {
+      icon: LayoutDashboard,
+      label: 'Início',
       path: '/dashboard',
       exact: true,
       adminOnly: false
     },
-    { 
-      icon: ShoppingCart, 
-      label: 'Pedidos', 
+    {
+      icon: ShoppingCart,
+      label: 'Pedidos',
       path: '/dashboard/orders',
       adminOnly: false
     },
-    { 
-      icon: Plus, 
-      label: 'Novo Pedido', 
+    {
+      icon: Plus,
+      label: 'Novo Pedido',
       path: '/dashboard/orders/new',
       adminOnly: false
     },
-    { 
-      icon: Users, 
-      label: 'Clientes', 
+    {
+      icon: Users,
+      label: 'Clientes',
       path: '/dashboard/clientes',
       adminOnly: false
     },
-    { 
-      icon: Truck, 
-      label: 'Relatório de Envios', 
+    {
+      icon: Truck,
+      label: 'Relatório de Envios',
       path: '/dashboard/relatorios-envios',
       adminOnly: false
     },
@@ -126,28 +128,28 @@ export default function Dashboard() {
       path: '/dashboard/painel-desempenho',
       adminOnly: true,
     },
-    { 
-      icon: FileText, 
-      label: 'Fechamentos', 
+    {
+      icon: FileText,
+      label: 'Fechamentos',
       path: '/dashboard/fechamentos',
       adminOnly: true
     },
-    { 
-      icon: Settings, 
-      label: 'Admin', 
+    {
+      icon: Settings,
+      label: 'Admin',
       path: '/dashboard/admin',
       adminOnly: true
     },
-    { 
-      icon: RefreshCw, 
-      label: 'Verificar Atualização', 
+    {
+      icon: RefreshCw,
+      label: 'Verificar Atualização',
       path: '/update-status',
       adminOnly: false
     },
   ];
 
   // Filtrar menu baseado em permissões (memoizado)
-  const menuItems = useMemo(() => 
+  const menuItems = useMemo(() =>
     allMenuItems.filter(item => !item.adminOnly || isAdmin),
     [isAdmin]
   );
@@ -167,225 +169,226 @@ export default function Dashboard() {
           "hidden md:flex md:flex-col border-r bg-card transition-all duration-300",
           sidebarExpanded ? "md:w-64" : "md:w-20"
         )}>
-        <div className={cn("p-6 flex items-center", !sidebarExpanded && "justify-center p-4")}>
-          {sidebarExpanded ? (
-    <div>
-              <h1 className="text-4xl font-bold text-primary">SGP</h1>
-              <p className="text-sm text-muted-foreground mt-1">Sistema de Gerenciamento</p>
-            </div>
-          ) : (
-            <h1 className="text-2xl font-bold text-primary">S</h1>
-          )}
-        </div>
-        
-        <Separator />
-        
-        {/* Botão de Toggle */}
-        <div className="px-4 py-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarExpanded(!sidebarExpanded)}
-            className={cn("w-full", !sidebarExpanded && "justify-center px-0")}
-            aria-label={sidebarExpanded ? "Recolher menu" : "Expandir menu"}
-            aria-expanded={sidebarExpanded}
-          >
+          <div className={cn("p-6 flex items-center", !sidebarExpanded && "justify-center p-4")}>
             {sidebarExpanded ? (
-              <>
-                <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
-                Recolher
-              </>
-            ) : (
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            )}
-          </Button>
-    </div>
-
-        <Separator />
-        
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
-          {menuItems.map((item, index) => {
-            const active = isActive(item.path, item.exact);
-            const previousItem = menuItems[index - 1];
-            const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
-            
-            return (
-              <DashboardMenuItem
-                key={item.path}
-                icon={item.icon}
-                label={item.label}
-                path={item.path}
-                active={active}
-                expanded={sidebarExpanded}
-                needsSeparator={needsSeparator}
-                separatorLabel={needsSeparator ? "Admin" : undefined}
-              />
-            );
-          })}
-        </nav>
-
-        <Separator />
-
-        {/* Versão do App */}
-        {appVersion && (
-          <div className={cn("px-4 py-2", !sidebarExpanded && "flex justify-center")}>
-            {sidebarExpanded ? (
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Versão</p>
-                <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+              <div>
+                <h1 className="text-4xl font-bold text-primary">SGP</h1>
+                <p className="text-sm text-muted-foreground mt-1">Sistema de Gerenciamento</p>
               </div>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="text-center">
-                    <p className="text-xs font-semibold text-primary">v{appVersion}</p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  Versão {appVersion}
-                </TooltipContent>
-              </Tooltip>
+              <h1 className="text-2xl font-bold text-primary">S</h1>
             )}
           </div>
-        )}
 
-        <Separator />
+          <Separator />
 
-        <div className="p-4">
-          {sidebarExpanded && (
-            <div className="mb-3 px-3">
-              <p className="text-sm font-medium">Usuário</p>
-              <p className="text-sm text-muted-foreground truncate">{username}</p>
+          {/* Botão de Toggle */}
+          <div className="px-4 py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className={cn("w-full", !sidebarExpanded && "justify-center px-0")}
+              aria-label={sidebarExpanded ? "Recolher menu" : "Expandir menu"}
+              aria-expanded={sidebarExpanded}
+            >
+              {sidebarExpanded ? (
+                <>
+                  <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Recolher
+                </>
+              ) : (
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
+            {menuItems.map((item, index) => {
+              const active = isActive(item.path, item.exact);
+              const previousItem = menuItems[index - 1];
+              const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
+
+              return (
+                <DashboardMenuItem
+                  key={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  path={item.path}
+                  active={active}
+                  expanded={sidebarExpanded}
+                  needsSeparator={needsSeparator}
+                  separatorLabel={needsSeparator ? "Admin" : undefined}
+                  showBadge={item.path === '/update-status' && isUpdateAvailable}
+                />
+              );
+            })}
+          </nav>
+
+          <Separator />
+
+          {/* Versão do App */}
+          {appVersion && (
+            <div className={cn("px-4 py-2", !sidebarExpanded && "flex justify-center")}>
+              {sidebarExpanded ? (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Versão</p>
+                  <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                </div>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Versão {appVersion}
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           )}
-          {!sidebarExpanded ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
-                  onClick={handleLogout}
-                  aria-label={`Sair (${username})`}
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                Sair ({username})
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-start"
-              onClick={handleLogout}
-              aria-label={`Sair (${username})`}
-            >
-              <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              <span>Sair</span>
-            </Button>
-          )}
-        </div>
-      </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+          <Separator />
 
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-6" role="main">
-          <Suspense fallback={<RouteLoadingFallback />}>
-            <Routes>
-              <Route path="/" element={<DashboardOverview />} />
-              <Route path="orders" element={<OrderList />} />
-              <Route path="orders/new" element={<PedidoCreateView />} />
-              <Route path="orders/edit/:id" element={<PedidoEditView />} />
-              {/* Novas rotas conforme solicitado */}
-              <Route path="pedido/novo" element={<PedidoCreateView />} />
-              <Route path="pedido/editar/:id" element={<PedidoEditView />} />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
-              <Route
-                path="painel-desempenho"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <PainelDesempenho />
-                  </ProtectedRoute>
-                }
-              />
-              <Route 
-                path="/fechamentos" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <Fechamentos />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <Admin />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/materiais" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoMateriais />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/designers" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoDesigners />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/vendedores" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoVendedores />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/tipos-producao" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoTiposProducao />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/formas-envio" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoFormasEnvio />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/formas-pagamento" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoFormasPagamento />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/usuarios" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoUsuarios />
-                  </ProtectedRoute>
-                } 
-              />
-              {/* Desativado temporariamente */}
-              {/* <Route 
+          <div className="p-4">
+            {sidebarExpanded && (
+              <div className="mb-3 px-3">
+                <p className="text-sm font-medium">Usuário</p>
+                <p className="text-sm text-muted-foreground truncate">{username}</p>
+              </div>
+            )}
+            {!sidebarExpanded ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
+                    onClick={handleLogout}
+                    aria-label={`Sair (${username})`}
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Sair ({username})
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-start"
+                onClick={handleLogout}
+                aria-label={`Sair (${username})`}
+              >
+                <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
+                <span>Sair</span>
+              </Button>
+            )}
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Content Area */}
+          <main className="flex-1 overflow-y-auto p-6" role="main">
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<DashboardOverview />} />
+                <Route path="orders" element={<OrderList />} />
+                <Route path="orders/new" element={<PedidoCreateView />} />
+                <Route path="orders/edit/:id" element={<PedidoEditView />} />
+                {/* Novas rotas conforme solicitado */}
+                <Route path="pedido/novo" element={<PedidoCreateView />} />
+                <Route path="pedido/editar/:id" element={<PedidoEditView />} />
+                <Route path="clientes" element={<Clientes />} />
+                <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+                <Route
+                  path="painel-desempenho"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <PainelDesempenho />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/fechamentos"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <Fechamentos />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <Admin />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/materiais"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoMateriais />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/designers"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoDesigners />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/vendedores"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoVendedores />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/tipos-producao"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoTiposProducao />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/formas-envio"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoFormasEnvio />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/formas-pagamento"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoFormasPagamento />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/usuarios"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoUsuarios />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Desativado temporariamente */}
+                {/* <Route 
                 path="/admin/template-ficha" 
                 element={
                   <ProtectedRoute requireAdmin={true}>
@@ -393,19 +396,19 @@ export default function Dashboard() {
                   </ProtectedRoute>
                 } 
               /> */}
-              <Route 
-                path="/admin/template-relatorios" 
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <GestaoTemplateRelatorios />
-                  </ProtectedRoute>
-                } 
-              />
-            </Routes>
-          </Suspense>
-        </main>
+                <Route
+                  path="/admin/template-relatorios"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoTemplateRelatorios />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
       </div>
-    </div>
     </TooltipProvider>
   );
 }

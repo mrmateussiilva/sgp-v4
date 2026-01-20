@@ -121,13 +121,10 @@ export default function UpdateStatus() {
             console.info('[UpdateStatus] Download iniciado');
             break;
           case 'Progress':
-            if (event.data.contentLength) {
-              const percent = Math.round((event.data.chunkLength / event.data.contentLength) * 100);
-              // Como recebemos chunks e não o total acumulado diretamente no v2 'Progress' data
-              // Precisamos somar ou se o 'chunkLength' for o total até agora...
-              // Na verdade no Tauri v2 o evento Progress tem 'chunkLength' e 'contentLength' (opcional)
-              // Documentação diz que chunkLength é o tamanho do chunk atual.
-              // Então precisamos manter um acumulador.
+            const data = event.data as any;
+            if (data.contentLength) {
+              const percent = Math.round((data.chunkLength / data.contentLength) * 100);
+              setInstallProgress(percent);
             }
             break;
           case 'Finished':

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { check } from '@tauri-apps/plugin-updater';
+import { useUpdaterStore } from '@/store/updaterStore';
 
 /**
  * Hook que verifica automaticamente atualizações usando o updater oficial do Tauri
@@ -7,6 +8,7 @@ import { check } from '@tauri-apps/plugin-updater';
  */
 export function useTauriUpdater() {
   const hasCheckedRef = useRef(false);
+  const setUpdateAvailable = useUpdaterStore((state) => state.setUpdateAvailable);
 
   useEffect(() => {
     // Verificar apenas uma vez quando o componente monta
@@ -17,26 +19,26 @@ export function useTauriUpdater() {
     const checkForUpdates = async () => {
       try {
         console.info('[Updater] Verificando atualizações...');
-        
+
         const update = await check({
           target: undefined, // Deixa o Tauri escolher automaticamente
         });
 
         if (!update) {
           console.info('[Updater] Aplicação está atualizada');
+          setUpdateAvailable(false);
           hasCheckedRef.current = true;
           return;
         }
 
         console.info(`[Updater] Nova versão disponível: ${update.version}`);
         console.info(`[Updater] Versão atual: ${update.currentVersion}`);
-        console.info(`[Updater] Notas: ${update.body || 'Sem notas disponíveis'}`);
-        
-        // O diálogo do Tauri será exibido automaticamente se dialog: true no tauri.conf.json
-        // Se o usuário aceitar, o download e instalação acontecem automaticamente
-        
+
+        // Atualizar store global para mostrar notificação no menu
+        setUpdateAvailable(true, update.version);
+
         hasCheckedRef.current = true;
-        
+
       } catch (error) {
         // Erros são silenciosos na inicialização para não perturbar o usuário
         console.error('[Updater] Erro ao verificar atualizações:', error);
@@ -52,5 +54,5 @@ export function useTauriUpdater() {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [setUpdateAvailable]);
 }
