@@ -90,7 +90,16 @@ export default function Dashboard() {
     }
   }, [navigate]);
 
-  const allMenuItems = [
+  interface MenuItem {
+    icon: any;
+    label: string;
+    path: string;
+    exact?: boolean;
+    adminOnly: boolean;
+    section: string;
+  }
+
+  const allMenuItems: MenuItem[] = useMemo(() => [
     {
       icon: LayoutDashboard,
       label: 'Início',
@@ -155,12 +164,12 @@ export default function Dashboard() {
       adminOnly: false,
       section: 'SISTEMA'
     },
-  ];
+  ], []);
 
   // Filtrar menu baseado em permissões (memoizado)
   const menuItems = useMemo(() =>
     allMenuItems.filter(item => !item.adminOnly || isAdmin),
-    [isAdmin]
+    [isAdmin, allMenuItems]
   );
 
   const isActive = useCallback((path: string, exact?: boolean) => {
@@ -216,7 +225,7 @@ export default function Dashboard() {
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
             {menuItems.map((item, index) => {
               const active = isActive(item.path, item.exact);
-              const previousItem = menuItems[index - 1] as any;
+              const previousItem = menuItems[index - 1];
               const isFirstInSection = !previousItem || previousItem.section !== item.section;
 
               return (
