@@ -1,5 +1,23 @@
 # Changelog - SGP v4
 
+## [1.0.15] - 2026-01-20
+
+### 🎨 UI/UX
+- **Refinamento Admin & Sidebar**: Reestruturação completa seguindo estilo ERP funcional.
+  - Sidebar organizada em blocos lógicos: **OPERACIONAL**, **GESTÃO** e **SISTEMA**.
+  - Admin redesenhado como índice de atalhos compactos e horizontais.
+  - Otimização de densidade, alinhamento de ícones e largura de layout (max-w-5xl).
+- **Linguagem Operacional**: Revisão de labels para um tom mais direto e objetivo.
+
+### 🔄 Updater (Sistema de Atualização)
+- **Robustez na Busca**: Adição de `User-Agent` e sistema de fallback automático.
+  - Fallback automático para `CHANGELOG.md` bruto caso a Release do GitHub esteja vazia ou inacessível.
+- **Extração Inteligente**: Melhoria na resiliência do processamento de markdown no frontend.
+
+### 🐛 Corrigido
+- **Build Errors**: Removidos imports não utilizados em `PainelDesempenho.tsx` que bloqueavam o build.
+- **Rust Backend**: Corrigido erro de escopo de macro (`warn!`) no gerenciador de atualizações.
+
 ## [1.0.14] - 2026-01-18
 
 ### ✨ Adicionado
