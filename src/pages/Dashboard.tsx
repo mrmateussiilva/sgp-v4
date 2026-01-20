@@ -214,7 +214,7 @@ export default function Dashboard() {
 
           <Separator />
 
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
             {menuItems.map((item, index) => {
               const active = isActive(item.path, item.exact);
               const previousItem = menuItems[index - 1] as any;
