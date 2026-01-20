@@ -89,10 +89,13 @@ export default function Admin() {
 
       <AdminStatusBanner />
 
-      <div className="space-y-4">
+      <div className="space-y-10">
         <AdminModuleSection title="Produção" modules={productionModules} />
+        <div className="border-t border-muted/30" />
         <AdminModuleSection title="Financeiro & Logística" modules={financeLogisticsModules} />
+        <div className="border-t border-muted/30" />
         <AdminModuleSection title="Usuários" modules={peopleModules} />
+        <div className="border-t border-muted/30" />
         <AdminModuleSection title="Sistema" modules={systemModules} />
       </div>
 
