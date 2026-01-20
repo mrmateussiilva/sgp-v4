@@ -68,9 +68,9 @@ export function DashboardMenuItem({
           {expanded && <span className="text-sm truncate">{label}</span>}
           {showBadge && (
             <span className={cn(
-              "absolute h-1.5 w-1.5 rounded-full bg-blue-600 border border-white",
-              expanded ? "top-1 left-7" : "top-2 right-4"
-            )} />
+              "absolute h-2 w-2 rounded-full bg-blue-500 border-2 border-background",
+              expanded ? "-top-1 -right-1" : "top-0 right-0"
+            )} title="Atualização disponível" />
           )}
         </div>
       </Button>
