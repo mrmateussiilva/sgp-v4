@@ -82,7 +82,7 @@ export default function Admin() {
 
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-4">
+    <div className="p-6 max-w-5xl mx-auto space-y-4">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-bold tracking-tight text-foreground uppercase">Configurações</h1>
       </div>
