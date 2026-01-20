@@ -31,10 +31,10 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
   const loadChangelog = async () => {
     setIsLoading(true);
     setError('');
-    
+
     try {
       const content = await invoke<string>('fetch_changelog', { version });
-      
+
       // Extrair apenas a seção da versão atual
       const versionSection = extractVersionSection(content, version);
       setChangelog(versionSection || content);
@@ -50,29 +50,33 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
 
   // Extrai a seção do changelog para a versão específica
   const extractVersionSection = (content: string, targetVersion: string): string | null => {
-    // Remove o prefixo "v" se existir para comparação
-    const normalizedVersion = targetVersion.replace(/^v/, '');
-    
-    // Procura pela seção da versão no formato [X.Y.Z] ou ## [X.Y.Z]
-    const versionPattern = new RegExp(
-      `##?\\s*\\[?${normalizedVersion.replace(/\./g, '\\.')}\\]?[^#]*`,
-      'i'
-    );
-    
-    const match = content.match(versionPattern);
-    if (match) {
-      // Pega até a próxima versão ou fim do arquivo
-      const startIndex = content.indexOf(match[0]);
-      const nextVersionMatch = content.slice(startIndex + match[0].length).match(/##?\s*\[?\d+\.\d+\.\d+\]?/);
-      
-      if (nextVersionMatch && nextVersionMatch.index !== undefined) {
-        return content.slice(startIndex, startIndex + match[0].length + nextVersionMatch.index);
-      }
-      
-      return content.slice(startIndex);
+    // Normalizar versão alvo (remove v inicial se existir)
+    const normalizedTarget = targetVersion.replace(/^v/, '');
+
+    // Procura por um título que contenha a versão
+    // Aceita: ## 1.0.0, ## [1.0.0], ## v1.0.0, # 1.0.0, etc.
+    const escapedVersion = normalizedTarget.replace(/\./g, '\\.');
+    const versionRegex = new RegExp(`##?\\s*(\\[?v?${escapedVersion}\\]?)`, 'i');
+
+    const match = content.match(versionRegex);
+    if (!match) {
+      console.warn(`[ChangelogModal] Versão ${targetVersion} não encontrada no conteúdo.`);
+      return null;
     }
-    
-    return null;
+
+    const startIndex = match.index!;
+    const remainingContent = content.slice(startIndex + match[0].length);
+
+    // Procura o início da próxima versão (qualquer outra versão ## [X.Y.Z])
+    // Note: Usamos apenas ## para evitar que # Changelog apareça aqui
+    const nextVersionRegex = /##\s*(\[?v?\d+\.\d+\.\d+\]?)/;
+    const nextMatch = remainingContent.match(nextVersionRegex);
+
+    if (nextMatch) {
+      return content.slice(startIndex, startIndex + match[0].length + nextMatch.index!);
+    }
+
+    return content.slice(startIndex);
   };
 
   return (
@@ -113,8 +117,8 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
         </div>
 
         <div className="flex justify-end pt-4 mt-4 border-t">
-          <Button 
-            onClick={onClose} 
+          <Button
+            onClick={onClose}
             className="bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]"
             size="lg"
           >
