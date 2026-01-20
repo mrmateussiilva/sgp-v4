@@ -4,7 +4,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { invoke } from '@tauri-apps/api/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -189,7 +189,7 @@ export default function UpdateStatus() {
             </div>
           )}
 
-          {/* Estado: Atualização disponível (Simplificado para este commit, será evoluído no próximo) */}
+          {/* Estado: Atualização disponível */}
           {!isChecking && updateAvailable && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded">
@@ -198,26 +198,55 @@ export default function UpdateStatus() {
                   <h3 className="font-bold text-sm text-blue-800">
                     Nova versão disponível
                   </h3>
-                  <p className="text-xs text-blue-700">
-                    Uma nova versão (v{updateVersion}) está pronta para instalação.
-                  </p>
+                  <div className="mt-1 flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px] text-blue-700/70 uppercase font-semibold">
+                      <span>Instalada</span>
+                      <span>Disponível</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white/50 px-2 py-1 rounded border border-blue-100">
+                      <span className="text-xs font-medium text-slate-600">v{currentVersion}</span>
+                      <ChevronRight className="h-3 w-3 text-blue-300" />
+                      <span className="text-xs font-bold text-blue-700">v{updateVersion}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <Button
-                onClick={handleDownloadAndInstall}
-                disabled={isInstalling}
-                className="w-full bg-blue-700 hover:bg-blue-800 text-white shadow-none"
-              >
-                {isInstalling ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Instalando...
-                  </>
-                ) : (
-                  "Atualizar agora"
+              {updateNotes && (
+                <div className="bg-slate-50 border border-slate-200 rounded p-3">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-1">Notas da versão:</h4>
+                  <div className="text-xs text-slate-600 max-h-32 overflow-y-auto pr-1 custom-scrollbar whitespace-pre-wrap">
+                    {updateNotes}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={handleDownloadAndInstall}
+                  disabled={isInstalling}
+                  className="w-full bg-blue-700 hover:bg-blue-800 text-white shadow-none"
+                >
+                  {isInstalling ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Instalando...
+                    </>
+                  ) : (
+                    "Atualizar agora"
+                  )}
+                </Button>
+
+                {!isInstalling && (
+                  <Button
+                    onClick={() => navigate('/dashboard')}
+                    variant="link"
+                    className="text-xs text-slate-400 hover:text-slate-600 h-auto py-1"
+                  >
+                    Lembrar mais tarde
+                  </Button>
                 )}
-              </Button>
+              </div>
             </div>
           )}
 
