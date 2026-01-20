@@ -16,6 +16,7 @@ import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { ChangelogModal } from './components/ChangelogModal';
 import { logger } from './utils/logger';
+import { useUpdaterStore } from './store/updaterStore';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -195,7 +196,8 @@ function App() {
 
     const setupListener = async () => {
       try {
-        unsubscribe = await listen("novo_pedido", () => {
+        unsubscribe = await listen("novo_pedido", (event) => {
+          console.log("[App] Novo pedido recebido:", event);
           toast({
             title: "Novo pedido criado!",
             description: "Um novo pedido foi criado no sistema.",
@@ -214,6 +216,20 @@ function App() {
       }
     };
   }, [apiUrl, isAuthenticated]);
+
+  // Notificação discreta de nova versão disponível
+  const isUpdateAvailable = useUpdaterStore(state => state.isUpdateAvailable);
+  const updateStoreVersion = useUpdaterStore(state => state.updateVersion);
+
+  useEffect(() => {
+    if (isUpdateAvailable && updateStoreVersion) {
+      toast({
+        title: "Atualização Disponível",
+        description: `Uma nova versão (v${updateStoreVersion}) está pronta.`,
+        variant: "info",
+      });
+    }
+  }, [isUpdateAvailable, updateStoreVersion]);
 
   if (isCheckingConnection) {
     return (
