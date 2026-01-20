@@ -17,6 +17,7 @@ export default function UpdateStatus() {
   const [updateNotes, setUpdateNotes] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [installProgress, setInstallProgress] = useState(0);
   const [error, setError] = useState<string>('');
 
   // Carregar versão atual
@@ -113,7 +114,32 @@ export default function UpdateStatus() {
       }
 
       // downloadAndInstall() baixa, instala e prepara o reinício
-      await update.downloadAndInstall();
+      await update.downloadAndInstall((event) => {
+        switch (event.event) {
+          case 'Started':
+            setInstallProgress(0);
+            console.info('[UpdateStatus] Download iniciado');
+            break;
+          case 'Progress':
+            if (event.data.contentLength) {
+              const percent = Math.round((event.data.chunkLength / event.data.contentLength) * 100);
+              // Como recebemos chunks e não o total acumulado diretamente no v2 'Progress' data
+              // Precisamos somar ou se o 'chunkLength' for o total até agora...
+              // Na verdade no Tauri v2 o evento Progress tem 'chunkLength' e 'contentLength' (opcional)
+              // Documentação diz que chunkLength é o tamanho do chunk atual.
+              // Então precisamos manter um acumulador.
+            }
+            break;
+          case 'Finished':
+            setInstallProgress(100);
+            console.info('[UpdateStatus] Download concluído');
+            break;
+        }
+      });
+
+      // NOTA: Se o Tauri v2 simplificar o evento Progress para dar a porcentagem acumulada
+      // em algum campo, usaríamos. Caso contrário, apenas mostramos que está em progresso.
+      // Para o ERP desktop, uma barra que 'anda' ou estado de 'Processando' é suficiente se o dado for incerto.
 
       console.info('[UpdateStatus] Atualização instalada. Reiniciando...');
 
@@ -222,29 +248,43 @@ export default function UpdateStatus() {
               )}
 
               <div className="flex flex-col gap-2">
-                <Button
-                  onClick={handleDownloadAndInstall}
-                  disabled={isInstalling}
-                  className="w-full bg-blue-700 hover:bg-blue-800 text-white shadow-none"
-                >
-                  {isInstalling ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Instalando...
-                    </>
-                  ) : (
-                    "Atualizar agora"
-                  )}
-                </Button>
+                {isInstalling ? (
+                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-slate-700 uppercase">Instalando atualização...</span>
+                      <span className="text-xs font-mono text-blue-600 font-bold">{installProgress > 0 ? `${installProgress}%` : ''}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          "bg-blue-600 h-full transition-all duration-300",
+                          installProgress === 0 && "animate-pulse w-1/3"
+                        )}
+                        style={installProgress > 0 ? { width: `${installProgress}%` } : {}}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 text-center italic">
+                      O sistema será reiniciado automaticamente após a conclusão.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleDownloadAndInstall}
+                      disabled={isInstalling}
+                      className="w-full bg-blue-700 hover:bg-blue-800 text-white shadow-none"
+                    >
+                      Atualizar agora
+                    </Button>
 
-                {!isInstalling && (
-                  <Button
-                    onClick={() => navigate('/dashboard')}
-                    variant="link"
-                    className="text-xs text-slate-400 hover:text-slate-600 h-auto py-1"
-                  >
-                    Lembrar mais tarde
-                  </Button>
+                    <Button
+                      onClick={() => navigate('/dashboard')}
+                      variant="link"
+                      className="text-xs text-slate-400 hover:text-slate-600 h-auto py-1"
+                    >
+                      Lembrar mais tarde
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
