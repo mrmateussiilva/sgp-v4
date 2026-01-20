@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use tracing::info;
+use tracing::{info, warn};
 
 /// Obtém a versão atual da aplicação
 #[tauri::command]
