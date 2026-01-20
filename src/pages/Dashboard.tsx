@@ -96,55 +96,64 @@ export default function Dashboard() {
       label: 'Início',
       path: '/dashboard',
       exact: true,
-      adminOnly: false
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: ShoppingCart,
       label: 'Pedidos',
       path: '/dashboard/orders',
-      adminOnly: false
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: Plus,
       label: 'Novo Pedido',
       path: '/dashboard/orders/new',
-      adminOnly: false
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: Users,
       label: 'Clientes',
       path: '/dashboard/clientes',
-      adminOnly: false
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: Truck,
       label: 'Relatório de Envios',
       path: '/dashboard/relatorios-envios',
-      adminOnly: false
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: BarChart,
       label: 'Painel de Desempenho',
       path: '/dashboard/painel-desempenho',
       adminOnly: true,
+      section: 'GESTÃO'
     },
     {
       icon: FileText,
       label: 'Fechamentos',
       path: '/dashboard/fechamentos',
-      adminOnly: true
+      adminOnly: true,
+      section: 'GESTÃO'
     },
     {
       icon: Settings,
       label: 'Admin',
       path: '/dashboard/admin',
-      adminOnly: true
+      adminOnly: true,
+      section: 'SISTEMA'
     },
     {
       icon: RefreshCw,
       label: 'Verificar Atualização',
       path: '/update-status',
-      adminOnly: false
+      adminOnly: false,
+      section: 'SISTEMA'
     },
   ];
 
@@ -208,8 +217,8 @@ export default function Dashboard() {
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto" role="navigation" aria-label="Menu principal">
             {menuItems.map((item, index) => {
               const active = isActive(item.path, item.exact);
-              const previousItem = menuItems[index - 1];
-              const needsSeparator = !previousItem?.adminOnly && item.adminOnly;
+              const previousItem = menuItems[index - 1] as any;
+              const isFirstInSection = !previousItem || previousItem.section !== item.section;
 
               return (
                 <DashboardMenuItem
@@ -219,9 +228,10 @@ export default function Dashboard() {
                   path={item.path}
                   active={active}
                   expanded={sidebarExpanded}
-                  needsSeparator={needsSeparator}
-                  separatorLabel={needsSeparator ? "Admin" : undefined}
+                  needsSeparator={isFirstInSection}
+                  separatorLabel={isFirstInSection ? item.section : undefined}
                   showBadge={item.path === '/update-status' && isUpdateAvailable}
+                  isFirst={index === 0}
                 />
               );
             })}

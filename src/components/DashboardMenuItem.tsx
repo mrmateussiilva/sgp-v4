@@ -14,6 +14,7 @@ interface DashboardMenuItemProps {
   needsSeparator?: boolean;
   separatorLabel?: string;
   showBadge?: boolean;
+  isFirst?: boolean;
 }
 
 export function DashboardMenuItem({
@@ -26,6 +27,7 @@ export function DashboardMenuItem({
   needsSeparator = false,
   separatorLabel,
   showBadge = false,
+  isFirst = false,
 }: DashboardMenuItemProps) {
   const navigate = useNavigate();
 
@@ -39,13 +41,13 @@ export function DashboardMenuItem({
   return (
     <div>
       {needsSeparator && (
-        <div className="py-2" role="separator">
-          <Separator />
+        <div className={cn("py-2", !isFirst && "mt-4")} role="separator">
           {expanded && separatorLabel && (
-            <p className="text-xs text-muted-foreground px-3 mt-2" role="heading" aria-level={2}>
+            <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest px-3 mb-2" role="heading" aria-level={2}>
               {separatorLabel}
             </p>
           )}
+          {!isFirst && <Separator className="opacity-50" />}
         </div>
       )}
       <Button
