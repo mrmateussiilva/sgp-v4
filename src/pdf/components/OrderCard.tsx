@@ -209,8 +209,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <Text style={styles.footerValue}>{order.designer || '---'} x {order.vendedor || '---'}</Text>
                 </View>
                 <View style={[styles.footerItem, { alignItems: 'flex-end', flex: 1.2 }]}>
-                    <Text style={styles.footerLabel}>Controle de Produção</Text>
-                    <Text style={{ fontSize: 8 }}>RIP: _______ DATA: __/__/__</Text>
+                    {/* <Text style={styles.footerLabel}>Controle de Produção</Text> */}
+                    <Text style={{ fontSize: 18 }}>RIP: _______ DATA: ______</Text>
                 </View>
             </View>
         </View>

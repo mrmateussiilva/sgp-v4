@@ -66,7 +66,7 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     pedidoNumero: {
-        fontSize: 22,
+        fontSize: 12,
         fontWeight: 'bold',
         color: '#000000',
     },
@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
         marginTop: 2,
     },
     clienteNome: {
-        fontSize: 11,
+        fontSize: 16,
         fontWeight: 'bold',
         textTransform: 'uppercase',
     },
