@@ -1,5 +1,10 @@
 # Changelog - SGP v4
 
+## [1.0.16] - 2026-01-21
+
+### 🎨 UI/UX
+- **Layout PDF**: Ajustes e melhorias na estrutura de visualização e impressão de pedidos.
+
 ## [1.0.15] - 2026-01-20
 
 ### 🎨 UI/UX
