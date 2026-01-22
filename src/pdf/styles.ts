@@ -1,34 +1,37 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - ABSOLUTE PROOF ARTE
+// DESIGN CONSTANTS - Header-Tech-Preview
 // ============================================
 
-export const PREVIEW_HEIGHT = '105mm'; // ~70% of 148mm
-export const LEGEND_HEIGHT = '33mm';  // ~22% of 148mm (leaving space for padding)
+export const LEFT_COL_WIDTH = '35%';
+export const RIGHT_COL_WIDTH = '65%';
 
 export const SPACING = {
-    xs: 2,
-    sm: 4,
+    xs: 3,
+    sm: 5,
     md: 8,
+    lg: 12,
+    xl: 18,
 };
 
 export const FONT_SIZES = {
     label: 7,
-    meta: 9,
-    value: 10,
-    title: 12, // Minimalist title
+    meta: 8.5,
+    value: 9.5,
+    title: 16,
 };
 
 export const COLORS = {
     text: '#000000',
     textMuted: '#666666',
     border: '#DDDDDD',
-    bgPreview: '#F9F9F9',
+    borderLight: '#EEEEEE',
+    previewBg: '#FAFAFA',
 };
 
 // ============================================
-// STYLES - Vertical Proof Sheet
+// STYLES - Industrial Production Sheet
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -40,121 +43,171 @@ export const styles = StyleSheet.create({
     container: {
         width: '100%',
         height: '148mm',
-        padding: '5mm',
+        padding: '6mm',
         flexDirection: 'column',
     },
 
     // ============================================
-    // 1. PROTAGONIST PREVIEW (TOP - 75%)
+    // HEADER (Full Width)
     // ============================================
-    previewArea: {
-        width: '100%',
-        height: PREVIEW_HEIGHT,
-        borderWidth: 0.5,
-        borderColor: COLORS.border,
-        backgroundColor: COLORS.bgPreview,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: SPACING.md,
-    },
-    previewImage: {
-        maxWidth: '98%',
-        maxHeight: '98%',
-        objectFit: 'contain',
-    },
-    previewCaption: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        marginTop: 2,
-        textAlign: 'center',
-    },
-
-    // ============================================
-    // 2. TECHNICAL LEGEND (BOTTOM - 25%)
-    // ============================================
-    legendArea: {
-        width: '100%',
-        height: LEGEND_HEIGHT,
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-    },
-
-    // Identification Line
-    idRow: {
+    header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.text,
+        marginBottom: SPACING.md,
+    },
+    headerItem: {
+        flexDirection: 'row',
         alignItems: 'baseline',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
-        paddingBottom: 2,
-        marginBottom: 4,
+        gap: 4,
     },
-    orderId: {
+    headerLabel: {
         fontSize: FONT_SIZES.label,
-        fontWeight: 'bold',
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
     },
-    clientName: {
+    headerValue: {
+        fontSize: FONT_SIZES.meta,
+        fontWeight: 'bold',
+        color: COLORS.text,
+    },
+
+    // ============================================
+    // MAIN CONTENT (Two Columns)
+    // ============================================
+    mainContent: {
+        flex: 1,
+        flexDirection: 'row',
+        gap: SPACING.lg,
+    },
+    colLeft: {
+        width: LEFT_COL_WIDTH,
+        flexDirection: 'column',
+    },
+    colRight: {
+        width: RIGHT_COL_WIDTH,
+        flexDirection: 'column',
+    },
+
+    // ============================================
+    // TECHNICAL COLUMN (Left)
+    // ============================================
+    clientTitle: {
         fontSize: FONT_SIZES.title,
         fontWeight: 'bold',
         textTransform: 'uppercase',
+        marginBottom: 2,
+        lineHeight: 1.1,
     },
-    dates: {
+    clientSub: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
+        marginBottom: SPACING.md,
     },
 
-    // Specs Grid (Single row of items)
-    specsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 15,
-        marginBottom: 4,
+    specList: {
+        flexDirection: 'column',
+        gap: 4,
     },
-    specItem: {
+    specRow: {
         flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 3,
+        justifyContent: 'space-between',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderLight,
+        paddingVertical: 2,
     },
-    label: {
+    specLabel: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
         textTransform: 'uppercase',
     },
-    value: {
+    specValue: {
         fontSize: FONT_SIZES.meta,
         fontWeight: 'bold',
     },
 
-    // Tech details line
-    techLine: {
+    techItems: {
+        marginTop: SPACING.md,
+        flexDirection: 'column',
+        gap: 2,
+    },
+    techItem: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
-        lineHeight: 1.2,
     },
 
     // ============================================
-    // 3. OPERATIONAL FOOTER (RIP / DATA)
+    // PREVIEW COLUMN (Right - Protagonist)
+    // ============================================
+    previewWrapper: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: COLORS.borderLight,
+        backgroundColor: COLORS.previewBg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: SPACING.md,
+    },
+    previewImage: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+    },
+    previewPlaceholder: {
+        fontSize: FONT_SIZES.label,
+        color: '#D0D0D0',
+        fontWeight: 'bold',
+    },
+    previewCaption: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        textAlign: 'center',
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
+
+    // ============================================
+    // FOOTER (Data / RIP)
     // ============================================
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 'auto',
-        gap: 20,
+        marginTop: SPACING.md,
+        gap: SPACING.xl,
+        paddingTop: SPACING.sm,
     },
     footerField: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'baseline',
         gap: 5,
+        flex: 1,
     },
     footerLabel: {
         fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
+        textTransform: 'uppercase',
     },
     footerLine: {
         flex: 1,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.text,
         minHeight: 10,
+    },
+
+    badgesRow: {
+        flexDirection: 'row',
+        gap: 4,
+        marginTop: 4,
+    },
+    badge: {
+        backgroundColor: '#000000',
+        color: '#FFFFFF',
+        padding: '1px 3px',
+        fontSize: 6,
+        fontWeight: 'bold',
+        borderRadius: 1,
     },
 });
