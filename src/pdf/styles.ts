@@ -4,8 +4,8 @@ import { StyleSheet } from '@react-pdf/renderer';
 // DESIGN CONSTANTS - 3-Section Industrial
 // ============================================
 
-export const COL_LEFT_WIDTH = '34%';
-export const COL_RIGHT_WIDTH = '66%';
+export const COL_LEFT_WIDTH = '45%';
+export const COL_RIGHT_WIDTH = '55%';
 
 export const SPACING = {
     xs: 4,
