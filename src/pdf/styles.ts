@@ -88,8 +88,8 @@ export const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     clienteTags: {
-        fontSize: 11,
-        color: '#666666',
+        fontSize: 13,
+        color: '#333333',
         marginTop: 1,
     },
     tipoBadge: {
