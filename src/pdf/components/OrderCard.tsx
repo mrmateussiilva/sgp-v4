@@ -11,29 +11,36 @@ interface OrderCardProps {
 // HELPER COMPONENTS
 // ============================================
 
-const Field: React.FC<{ label: string; value: string | number | undefined; style?: any }> = ({ label, value, style }) => (
-    <View style={[styles.topField, style]}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <Text style={styles.fieldValue}>{value || ''}</Text>
+const FieldInline: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => (
+    <View style={styles.inlineField}>
+        <Text style={styles.labelSmall}>{label}</Text>
+        <Text style={styles.valueSemibold}>{value || '---'}</Text>
     </View>
 );
 
-const UnderlineField: React.FC<{ label: string }> = ({ label }) => (
-    <View style={styles.footerField}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <View style={styles.underlineField} />
+const FieldBlock: React.FC<{ label: string; value: string | number | undefined; style?: any }> = ({ label, value, style }) => (
+    <View style={[styles.blockField, style]}>
+        <Text style={styles.blockLabel}>{label}</Text>
+        <Text style={styles.blockValue}>{value || '---'}</Text>
     </View>
 );
 
-const TechFieldRow: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => {
+const KVRow: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => {
     if (!value || value === '---') return null;
     return (
-        <View style={styles.techFieldRow}>
-            <Text style={styles.techLabel}>{label}:</Text>
-            <Text style={styles.techValue}>{value}</Text>
+        <View style={styles.kvRow}>
+            <Text style={styles.kvLabel}>{label}</Text>
+            <Text style={styles.kvValue}>{value}</Text>
         </View>
     );
 };
+
+const LineField: React.FC<{ label: string }> = ({ label }) => (
+    <View style={styles.lineField}>
+        <Text style={styles.lineLabel}>{label}</Text>
+        <View style={styles.lineUnder} />
+    </View>
+);
 
 // ============================================
 // UTILITIES
@@ -70,8 +77,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     if (prod.alcinha) techSpecs.push('Alcinha');
     if (prod.toalha_pronta) techSpecs.push('Toalha Pronta');
     if (prod.terceirizado) techSpecs.push('Terceirizado');
-    if (prod.acabamento_lona) techSpecs.push(`Acabamento Lona: ${prod.acabamento_lona}`);
-    if (prod.acabamento_totem) techSpecs.push(`Acabamento Totem: ${prod.acabamento_totem}`);
+    if (prod.acabamento_lona) techSpecs.push(`Acab. Lona: ${prod.acabamento_lona}`);
+    if (prod.acabamento_totem) techSpecs.push(`Acab. Totem: ${prod.acabamento_totem}`);
     if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum')
         techSpecs.push(`Acabamento: ${prod.tipo_acabamento}`);
     if (prod.quantidade_ilhos)
@@ -82,120 +89,88 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         techSpecs.push(`Emenda: ${prod.emenda} (${prod.emenda_qtd || 1}x)`);
 
     return (
-        <View style={styles.frameContainer} wrap={false}>
-            <View style={styles.frame}>
+        <View style={styles.container} wrap={false}>
 
-                {/* TOP FIELDS ROW (4 fields) */}
-                <View style={styles.topFieldsRow}>
-                    <Field label="ID Pedido" value={`#${order.numero}`} />
-                    <Field label="Data Entrada" value={formatDate(order.data_entrada)} />
-                    <Field label="Data Entrega" value={formatDate(order.data_envio)} />
-                    <Field label="Transporte" value={order.forma_envio} />
+            {/* TOP ROW - Distribution */}
+            <View style={styles.topRow}>
+                <FieldInline label="id pedido:" value={`#${order.numero}`} />
+                <FieldInline label="Data entrada:" value={formatDate(order.data_entrada)} />
+                <FieldInline label="Data entrega:" value={formatDate(order.data_envio)} />
+                <FieldInline label="Transporte:" value={order.forma_envio} />
+            </View>
+
+            {/* CLIENT HEADER */}
+            <View style={styles.clientHeader}>
+                <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
+
+                <View style={styles.clientSubRow}>
+                    <View style={styles.metaItem}>
+                        <Text style={styles.metaLabel}>telefone:</Text>
+                        <Text style={styles.metaValue}>{order.telefone_cliente || '---'}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                        <Text style={styles.metaLabel}>cidade:</Text>
+                        <Text style={styles.metaValue}>{order.cidade_estado || '---'}</Text>
+                    </View>
                 </View>
 
-                {/* CLIENT HEADER */}
-                <View style={styles.clientSection}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.clientName}>{order.cliente}</Text>
-                        {order.is_reposicao && (
-                            <View style={styles.badge}>
-                                <Text>REPOS</Text>
-                            </View>
-                        )}
-                        {(order as any).costura && (
-                            <View style={styles.badge}>
-                                <Text>COST</Text>
-                            </View>
-                        )}
-                    </View>
+                <Text style={styles.vendorDesigner}>
+                    vendedor: {order.vendedor || '---'} • designer: {order.designer || '---'}
+                </Text>
+            </View>
 
-                    <View style={styles.clientMetaRow}>
-                        {order.telefone_cliente && (
-                            <View style={styles.clientMeta}>
-                                <Text style={styles.metaLabel}>Tel:</Text>
-                                <Text style={styles.metaValue}>{order.telefone_cliente}</Text>
-                            </View>
-                        )}
-                        {order.cidade_estado && (
-                            <View style={styles.clientMeta}>
-                                <Text style={styles.metaLabel}>Cidade:</Text>
-                                <Text style={styles.metaValue}>{order.cidade_estado}</Text>
-                            </View>
-                        )}
-                    </View>
-
-                    <Text style={styles.vendorDesigner}>
-                        Vendedor: {order.vendedor || '---'} • Designer: {order.designer || '---'}
-                    </Text>
-                </View>
-
-                {/* DESCRIPTION & TYPE ROW */}
+            {/* DESCRIPTION & TYPE AREA */}
+            <View style={styles.descTypeArea}>
                 <View style={styles.descTypeRow}>
-                    <View style={styles.descField}>
-                        <Text style={styles.fieldLabel}>Descrição</Text>
-                        <Text style={styles.fieldValue}>{prod.descricao}</Text>
-                    </View>
-                    <View style={styles.typeField}>
-                        <Text style={styles.fieldLabel}>Tipo</Text>
-                        <Text style={styles.fieldValue}>{prod.tipo_producao.toUpperCase()}</Text>
-                    </View>
+                    <FieldBlock label="Descrição:" value={prod.descricao} style={{ flex: 2 }} />
+                    <FieldBlock label="Tipo:" value={prod.tipo_producao.toUpperCase()} style={{ flex: 1 }} />
+                </View>
+                <View style={styles.hairline} />
+            </View>
+
+            {/* MAIN GRID (58/42) */}
+            <View style={styles.mainGrid}>
+
+                {/* LEFT COLUMN - Technical */}
+                <View style={styles.colLeft}>
+                    <Text style={styles.sectionTitle}>Informações técnicas</Text>
+
+                    <KVRow label="Dimensões" value={prod.dimensoes} />
+                    <KVRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
+                    <KVRow label="Quantidade" value={`${prod.quantity}${prod.quantidade_paineis ? ` (${prod.quantidade_paineis} un)` : ''}`} />
+
+                    {techSpecs.length > 0 && (
+                        <View style={styles.techList}>
+                            <Text style={styles.blockLabel}>Acabamentos e detalhes</Text>
+                            {techSpecs.map((spec, i) => (
+                                <Text key={i} style={styles.techItem}>• {spec}</Text>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Observations Row */}
+                    {(prod.observacao_item || order.observacao_pedido) && (
+                        <View style={styles.obsArea}>
+                            <Text style={styles.obsLabel}>Observações</Text>
+                            {prod.observacao_item && (
+                                <Text style={styles.obsText}>• {prod.observacao_item}</Text>
+                            )}
+                            {order.observacao_pedido && (
+                                <Text style={styles.obsText}>• {order.observacao_pedido}</Text>
+                            )}
+                        </View>
+                    )}
                 </View>
 
-                {/* MAIN GRID (55/45) */}
-                <View style={styles.mainGrid}>
-
-                    {/* LEFT COLUMN - Technical Info */}
-                    <View style={styles.leftColumn}>
-                        <Text style={styles.sectionTitle}>Informações Técnicas</Text>
-
-                        <TechFieldRow label="Dimensões" value={prod.dimensoes} />
-                        <TechFieldRow
-                            label="Material"
-                            value={prod.tecido || prod.tipo_adesivo || prod.material}
-                        />
-                        <TechFieldRow
-                            label="Quantidade"
-                            value={`${prod.quantity}${prod.quantidade_paineis ? ` (${prod.quantidade_paineis} un)` : ''}`}
-                        />
-
-                        {techSpecs.length > 0 && (
-                            <>
-                                <Text style={[styles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>
-                                    Acabamentos e Detalhes
-                                </Text>
-                                <View style={styles.techList}>
-                                    {techSpecs.map((spec, i) => (
-                                        <Text key={i} style={styles.techItem}>• {spec}</Text>
-                                    ))}
-                                </View>
-                            </>
-                        )}
-
-                        {/* Observations */}
-                        {(prod.observacao_item || order.observacao_pedido) && (
-                            <>
-                                <Text style={[styles.fieldLabel, { marginTop: 10, marginBottom: 4 }]}>
-                                    Observações
-                                </Text>
-                                <View style={styles.techList}>
-                                    {prod.observacao_item && (
-                                        <Text style={styles.techItem}>• {prod.observacao_item}</Text>
-                                    )}
-                                    {order.observacao_pedido && (
-                                        <Text style={styles.techItem}>• {order.observacao_pedido}</Text>
-                                    )}
-                                </View>
-                            </>
-                        )}
-                    </View>
-
-                    {/* RIGHT COLUMN - Preview */}
-                    <View style={styles.rightColumn}>
+                {/* RIGHT COLUMN - Preview */}
+                <View style={styles.colRight}>
+                    <View style={styles.previewWrapper}>
+                        <Text style={styles.previewLabel}>preview do modelo</Text>
                         <View style={styles.previewBox}>
                             {images.length > 0 ? (
                                 <Image src={images[0]} style={styles.previewImage} />
                             ) : (
-                                <Text style={styles.previewPlaceholder}>SEM PREVIEW</Text>
+                                <Text style={styles.previewPlaceholder}>SEM IMAGEM</Text>
                             )}
                         </View>
                         {prod.legenda_imagem && (
@@ -205,13 +180,14 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         )}
                     </View>
                 </View>
-
-                {/* FOOTER (RIP/DATA) */}
-                <View style={styles.footer}>
-                    <UnderlineField label="Data" />
-                    <UnderlineField label="RIP" />
-                </View>
             </View>
+
+            {/* FOOTER (Underline Fields) */}
+            <View style={styles.footer}>
+                <LineField label="Data:" />
+                <LineField label="RIP:" />
+            </View>
+
         </View>
     );
 };
