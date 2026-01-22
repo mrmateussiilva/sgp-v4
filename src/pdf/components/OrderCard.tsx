@@ -97,6 +97,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <SpecRow label="Tipo" value={prod.tipo_producao} />
                     <SpecRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
                     <SpecRow label="Medidas" value={prod.dimensoes} />
+                    <SpecRow label="Vendedor" value={order.vendedor} />
+                    <SpecRow label="Designer" value={order.designer} />
                     <SpecRow label="Quantidade" value={prod.quantity} />
 
                     {techItems.length > 0 && (
@@ -119,10 +121,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         </>
                     )}
 
-                    <View style={{ marginTop: 'auto', paddingTop: 10, borderTopWidth: 0.5, borderTopColor: '#DDD' }}>
-                        <Text style={styles.techItem}>Vendedor: {order.vendedor}</Text>
-                        <Text style={styles.techItem}>Designer: {order.designer}</Text>
-                    </View>
+
                 </View>
 
                 {/* Coluna Direita: Preview (66%) */}
