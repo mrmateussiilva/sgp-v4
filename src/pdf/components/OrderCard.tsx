@@ -221,7 +221,7 @@ const TechBadge = ({ label, value }: { label: string; value?: string }) => {
     const hasValue = value !== undefined && value !== null && value !== '';
     return (
         <View style={styles.techBadge}>
-            <Text style={styles.techLabel}>{label}{hasValue ? ': ' : ''}</Text>
+            <Text style={styles.techLabel}>• {label}{hasValue ? ': ' : ''}</Text>
             {hasValue ? <Text style={styles.techValue}>{value}</Text> : null}
         </View>
     );
