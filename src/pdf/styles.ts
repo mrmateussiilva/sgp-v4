@@ -34,7 +34,7 @@ export const COLORS = {
 };
 
 export const CARD_HEIGHT = {
-    preview: '50mm',
+    preview: '70mm', // Increased from 50mm for image priority
 };
 
 // ============================================
