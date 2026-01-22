@@ -155,16 +155,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     )}
                 </View>
 
-                {/* RIGHT COLUMN - 40% */}
+                {/* RIGHT COLUMN - 40% - IMAGE PRIORITY */}
                 <View style={styles.col40}>
 
-                    {/* Preview */}
-                    <Text style={styles.sectionTitle}>Preview</Text>
+                    {/* Preview - No label, full prominence */}
                     <View style={styles.previewContainer}>
                         {images.length > 0 ? (
                             <Image src={images[0]} style={styles.previewImage} />
                         ) : (
-                            <Text style={{ fontSize: 9, color: '#CCC' }}>SEM IMAGEM</Text>
+                            <Text style={{ fontSize: 11, color: '#CCC', fontWeight: 'bold' }}>SEM IMAGEM</Text>
                         )}
                     </View>
                     {prod.legenda_imagem && (
