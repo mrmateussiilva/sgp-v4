@@ -1,44 +1,33 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - V5 (Industrial ERP Final)
+// DESIGN CONSTANTS - Industrial Form
 // ============================================
 
 export const SPACING = {
     xs: 2,
-    sm: 4,
-    md: 8,
-    lg: 12,
-    xl: 16,
+    sm: 3,
+    md: 6,
+    lg: 10,
 };
 
 export const FONT_SIZES = {
     xs: 7,
     sm: 8,
     md: 9,
-    lg: 10,
-    xl: 12,
-    huge: 18,
+    lg: 11,
+    xl: 14,
 };
 
 export const COLORS = {
-    primary: '#1565C0',
     text: '#000000',
-    textSecondary: '#424242',
-    textMuted: '#757575',
-    border: '#E0E0E0',
-    cardBg: '#FAFAFA',
-    warning: '#FFF9C4',
-    warningBorder: '#FBC02D',
-};
-
-// Card heights for consistent layout
-export const CARD_HEIGHT = {
-    preview: 180, // ~160-180pt as requested
+    textLight: '#666666',
+    line: '#000000',
+    lineThin: '#CCCCCC',
 };
 
 // ============================================
-// STYLES
+// STYLES - Industrial Production Order
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -47,215 +36,215 @@ export const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         fontFamily: 'Helvetica',
     },
-    orderContainer: {
+    container: {
         width: '100%',
         height: '148mm',
-        padding: '6mm',
+        padding: '8mm',
         flexDirection: 'column',
     },
 
     // ============================================
-    // HEADER - Minimal metadata bar
+    // HEADER - Company/Document Title
     // ============================================
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingBottom: SPACING.sm,
+    docTitle: {
+        fontSize: FONT_SIZES.xl,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: SPACING.sm,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+
+    // ============================================
+    // SECTION DIVIDERS
+    // ============================================
+    divider: {
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.line,
+        marginVertical: SPACING.md,
+    },
+    dividerThin: {
         borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
-        marginBottom: SPACING.lg,
+        borderBottomColor: COLORS.lineThin,
+        marginVertical: SPACING.sm,
     },
-    headerItem: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 4,
-    },
-    hLabel: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-    },
-    hValue: {
+
+    // ============================================
+    // SECTION HEADERS
+    // ============================================
+    sectionHeader: {
         fontSize: FONT_SIZES.sm,
         fontWeight: 'bold',
-        color: COLORS.text,
-    },
-
-    // ============================================
-    // LAYOUT GRID
-    // ============================================
-    row: {
-        flexDirection: 'row',
-        gap: SPACING.lg,
-        marginBottom: SPACING.lg,
-    },
-    col55: {
-        width: '55%',
-    },
-    col45: {
-        width: '45%',
-    },
-
-    // ============================================
-    // CARD SYSTEM - Consistent containers
-    // ============================================
-    card: {
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        backgroundColor: COLORS.cardBg,
-        padding: SPACING.md,
-        marginBottom: SPACING.lg,
-    },
-    cardTitle: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-        marginBottom: SPACING.md,
-        paddingBottom: SPACING.xs,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
+        marginBottom: SPACING.sm,
+        marginTop: SPACING.sm,
     },
 
     // ============================================
-    // IDENTIFICATION CARD
+    // METADATA ROW (Horizontal info)
+    // ============================================
+    metaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.xs,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    metaLabel: {
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textLight,
+        marginRight: 4,
+    },
+    metaValue: {
+        fontSize: FONT_SIZES.sm,
+        fontWeight: 'bold',
+    },
+
+    // ============================================
+    // CLIENT SECTION
     // ============================================
     orderNumber: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.primary,
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
         marginBottom: SPACING.xs,
     },
     clientName: {
-        fontSize: FONT_SIZES.huge,
+        fontSize: FONT_SIZES.xl,
         fontWeight: 'bold',
-        lineHeight: 1.2,
         marginBottom: SPACING.xs,
     },
-    clientMeta: {
+    clientInfo: {
         fontSize: FONT_SIZES.sm,
-        color: COLORS.textSecondary,
-    },
-    badge: {
-        backgroundColor: '#FF6B35',
-        color: '#FFFFFF',
-        padding: '2px 6px',
-        fontSize: FONT_SIZES.xs,
-        fontWeight: 'bold',
-        marginLeft: 6,
-        borderRadius: 2,
+        color: COLORS.textLight,
+        marginBottom: SPACING.xs,
     },
 
     // ============================================
-    // SPECIFICATIONS CARD
+    // PRODUCT SPECS (Inline)
+    // ============================================
+    specsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.lg,
+        marginBottom: SPACING.sm,
+    },
+    specItem: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    specLabel: {
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textLight,
+        textTransform: 'uppercase',
+        marginRight: 4,
+    },
+    specValue: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+    },
+
+    // ============================================
+    // PRODUCT NAME
     // ============================================
     productName: {
         fontSize: FONT_SIZES.lg,
         fontWeight: 'bold',
         marginBottom: SPACING.md,
-        lineHeight: 1.3,
-    },
-    specRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: SPACING.xs,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
-    },
-    specLabel: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textMuted,
-    },
-    specValue: {
-        fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
-        color: COLORS.text,
+        lineHeight: 1.2,
     },
 
     // ============================================
-    // PREVIEW CARD - Controlled size
-    // ============================================
-    previewCard: {
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        backgroundColor: COLORS.cardBg,
-        height: CARD_HEIGHT.preview,
-        marginBottom: SPACING.lg,
-    },
-    previewTitle: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        padding: SPACING.sm,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
-    },
-    previewImageContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: SPACING.sm,
-    },
-    previewImage: {
-        maxWidth: '100%',
-        maxHeight: '100%',
-        objectFit: 'contain',
-    },
-    previewCaption: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        textAlign: 'center',
-        padding: SPACING.xs,
-        fontStyle: 'italic',
-    },
-
-    // ============================================
-    // TECHNICAL DETAILS CARD
+    // TECHNICAL LIST
     // ============================================
     techList: {
         marginTop: SPACING.sm,
+        marginBottom: SPACING.sm,
     },
     techItem: {
         fontSize: FONT_SIZES.sm,
-        color: COLORS.textSecondary,
-        marginBottom: SPACING.xs,
-        lineHeight: 1.4,
+        marginBottom: 2,
+        lineHeight: 1.3,
     },
 
     // ============================================
-    // OBSERVATIONS CARD
+    // TWO COLUMN LAYOUT (for preview + details)
     // ============================================
-    obsCard: {
-        backgroundColor: COLORS.warning,
+    twoCol: {
+        flexDirection: 'row',
+        gap: SPACING.lg,
+        marginTop: SPACING.md,
+    },
+    col70: {
+        width: '70%',
+    },
+    col30: {
+        width: '30%',
+    },
+
+    // ============================================
+    // PREVIEW (Small, reference only)
+    // ============================================
+    previewBox: {
         borderWidth: 1,
-        borderColor: COLORS.warningBorder,
-        borderLeftWidth: 3,
-        padding: SPACING.md,
-        marginBottom: SPACING.lg,
+        borderColor: COLORS.lineThin,
+        height: 120,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: SPACING.sm,
+    },
+    previewImage: {
+        maxWidth: '95%',
+        maxHeight: '95%',
+        objectFit: 'contain',
+    },
+    previewLabel: {
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textLight,
+        textAlign: 'center',
+        marginTop: SPACING.xs,
+    },
+
+    // ============================================
+    // OBSERVATIONS
+    // ============================================
+    obsBox: {
+        borderWidth: 1,
+        borderColor: COLORS.line,
+        padding: SPACING.sm,
+        marginTop: SPACING.md,
+        marginBottom: SPACING.md,
+    },
+    obsLabel: {
+        fontSize: FONT_SIZES.xs,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        marginBottom: SPACING.xs,
     },
     obsText: {
         fontSize: FONT_SIZES.sm,
         lineHeight: 1.3,
-        color: COLORS.text,
     },
 
     // ============================================
-    // PRODUCTION CONTROL CARD
+    // PRODUCTION CONTROL (Footer)
     // ============================================
-    controlCard: {
-        borderWidth: 1.5,
-        borderColor: COLORS.text,
-        padding: SPACING.md,
+    controlSection: {
+        marginTop: 'auto',
+        borderTopWidth: 2,
+        borderTopColor: COLORS.line,
+        paddingTop: SPACING.md,
     },
-    controlTitle: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: SPACING.md,
+    controlRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.sm,
     },
     controlField: {
         fontSize: FONT_SIZES.md,
-        marginBottom: SPACING.sm,
+        fontWeight: 'bold',
     },
 
     // ============================================
@@ -264,13 +253,23 @@ export const styles = StyleSheet.create({
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingTop: SPACING.md,
+        marginTop: SPACING.sm,
+        paddingTop: SPACING.sm,
         borderTopWidth: 0.5,
-        borderTopColor: COLORS.border,
-        marginTop: 'auto',
+        borderTopColor: COLORS.lineThin,
     },
     footerText: {
         fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
+        color: COLORS.textLight,
+    },
+
+    // Badge
+    badge: {
+        backgroundColor: '#000000',
+        color: '#FFFFFF',
+        padding: '2px 4px',
+        fontSize: FONT_SIZES.xs,
+        fontWeight: 'bold',
+        marginLeft: 6,
     },
 });
