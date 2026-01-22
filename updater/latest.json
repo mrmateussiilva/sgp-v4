@@ -1,11 +1,11 @@
 {
-  "version": "1.0.16",
+  "version": "1.0.17",
   "notes": "Correções adicionais, melhorias de desempenho e ajustes de estabilidade.",
-  "pub_date": "2026-01-21T15:00:00Z",
+  "pub_date": "2026-01-22T12:56:43-03:00",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.16/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.16_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3V1SGdYQ2hHY0x4MjRUdzlxL0FtZVQvQ0RDWDRIb0JnSlpJR2NqMitlZzhnV0lSTVBkcDZ5eFJmdk01N3A0SzNnUDNmSUZTVkJoNlB5bXhEQWRNelF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY5MDAyMjk5CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjE2X3g2NF9lbi1VUy5tc2kKbk9jMGFYR0FXNEVDd3llT3RDMjJORnZkU1pxcGxXeEFyMTN1K0c0MFdaU2NSVjV5VHFxZ1M0R3RNaUN1WE5pWEJsT0VrUGRHanQwRVBOUHdXY01vQmc9PQo="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.17/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.17_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2tPUVA0SzArVHFNQXN5M2h4OFcySTlySFQ0SzFhY01TR2k4SkhYQ2F2UmoreFdoVHhiYkxTcnpHbHFEZ2xNNUtBQzYweU1qUVkvUEZUalpqd1pXbWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY5MDg1OTM2CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjE3X3g2NF9lbi1VUy5tc2kKOWhyb2Q2WklqclQ2WFNVYkM2L250VWVrMkg3OVRpUitIbm5XOXduVDZBUWx4dXRJWVJzUHZoS0tXTXljU2t5UWVRYkVKdG04WWovNC9Hbno4RnFMQ3c9PQo="
     }
   }
 }
