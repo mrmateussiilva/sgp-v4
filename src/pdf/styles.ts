@@ -1,37 +1,37 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - Header-Tech-Preview
+// DESIGN CONSTANTS - 3-Section Industrial
 // ============================================
 
-export const LEFT_COL_WIDTH = '35%';
-export const RIGHT_COL_WIDTH = '65%';
+export const COL_LEFT_WIDTH = '34%';
+export const COL_RIGHT_WIDTH = '66%';
 
 export const SPACING = {
-    xs: 3,
-    sm: 5,
-    md: 8,
-    lg: 12,
-    xl: 18,
+    xs: 4,
+    sm: 6,
+    md: 10,
+    lg: 14,
+    xl: 20,
 };
 
 export const FONT_SIZES = {
     label: 7,
-    meta: 8.5,
-    value: 9.5,
-    title: 16,
+    meta: 9,
+    value: 10,
+    title: 14,
 };
 
 export const COLORS = {
     text: '#000000',
     textMuted: '#666666',
-    border: '#DDDDDD',
+    border: '#CCCCCC',
     borderLight: '#EEEEEE',
     previewBg: '#FAFAFA',
 };
 
 // ============================================
-// STYLES - Industrial Production Sheet
+// STYLES - 3-Section Vertical Layout
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -48,104 +48,102 @@ export const styles = StyleSheet.create({
     },
 
     // ============================================
-    // HEADER (Full Width)
+    // SEÇÃO 1: CABEÇALHO (Full Width)
     // ============================================
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: SPACING.sm,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.text,
+        paddingBottom: SPACING.md,
         marginBottom: SPACING.md,
+    },
+    headerTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.sm,
+    },
+    headerBottomRow: {
+        flexDirection: 'row',
+        gap: SPACING.xl,
     },
     headerItem: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        gap: 4,
+        gap: 3,
     },
-    headerLabel: {
+    hLabel: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
         textTransform: 'uppercase',
     },
-    headerValue: {
+    hValue: {
         fontSize: FONT_SIZES.meta,
         fontWeight: 'bold',
         color: COLORS.text,
     },
+    clientName: {
+        fontSize: FONT_SIZES.title,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
 
     // ============================================
-    // MAIN CONTENT (Two Columns)
+    // SEÇÃO 2: CORPO (Duas Colunas)
     // ============================================
-    mainContent: {
+    body: {
         flex: 1,
         flexDirection: 'row',
         gap: SPACING.lg,
     },
     colLeft: {
-        width: LEFT_COL_WIDTH,
+        width: COL_LEFT_WIDTH,
         flexDirection: 'column',
     },
     colRight: {
-        width: RIGHT_COL_WIDTH,
+        width: COL_RIGHT_WIDTH,
         flexDirection: 'column',
     },
 
-    // ============================================
-    // TECHNICAL COLUMN (Left)
-    // ============================================
-    clientTitle: {
-        fontSize: FONT_SIZES.title,
+    // Coluna Esquerda: Técnica
+    techTitle: {
+        fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginBottom: 2,
-        lineHeight: 1.1,
+        marginBottom: 4,
+        marginTop: SPACING.md,
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.border,
+        paddingBottom: 2,
     },
-    clientSub: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        marginBottom: SPACING.md,
-    },
-
-    specList: {
-        flexDirection: 'column',
-        gap: 4,
-    },
-    specRow: {
+    kvRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        paddingVertical: 2,
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderLight,
-        paddingVertical: 2,
     },
-    specLabel: {
+    kvLabel: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
-        textTransform: 'uppercase',
     },
-    specValue: {
+    kvValue: {
         fontSize: FONT_SIZES.meta,
         fontWeight: 'bold',
     },
-
-    techItems: {
-        marginTop: SPACING.md,
-        flexDirection: 'column',
-        gap: 2,
+    techList: {
+        marginTop: SPACING.sm,
     },
     techItem: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
+        marginBottom: 2,
     },
 
-    // ============================================
-    // PREVIEW COLUMN (Right - Protagonist)
-    // ============================================
+    // Coluna Direita: Preview Protagonista
     previewWrapper: {
         flex: 1,
-        borderWidth: 1,
-        borderColor: COLORS.borderLight,
+        borderWidth: 0.5,
+        borderColor: COLORS.border,
+        borderRadius: 14,
         backgroundColor: COLORS.previewBg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -157,7 +155,7 @@ export const styles = StyleSheet.create({
         objectFit: 'contain',
     },
     previewPlaceholder: {
-        fontSize: FONT_SIZES.label,
+        fontSize: 8,
         color: '#D0D0D0',
         fontWeight: 'bold',
     },
@@ -170,20 +168,20 @@ export const styles = StyleSheet.create({
     },
 
     // ============================================
-    // FOOTER (Data / RIP)
+    // SEÇÃO 3: RODAPÉ (Full Width)
     // ============================================
     footer: {
+        marginTop: SPACING.md,
+        paddingTop: SPACING.sm,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: SPACING.md,
         gap: SPACING.xl,
-        paddingTop: SPACING.sm,
     },
     footerField: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'baseline',
         gap: 5,
-        flex: 1,
     },
     footerLabel: {
         fontSize: FONT_SIZES.label,
@@ -196,18 +194,14 @@ export const styles = StyleSheet.create({
         borderBottomColor: COLORS.text,
         minHeight: 10,
     },
-
-    badgesRow: {
-        flexDirection: 'row',
-        gap: 4,
-        marginTop: 4,
-    },
     badge: {
         backgroundColor: '#000000',
         color: '#FFFFFF',
-        padding: '1px 3px',
+        paddingHorizontal: 3,
+        paddingVertical: 1,
         fontSize: 6,
         fontWeight: 'bold',
         borderRadius: 1,
+        marginLeft: 4,
     },
 });

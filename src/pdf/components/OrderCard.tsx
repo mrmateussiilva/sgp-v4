@@ -11,12 +11,19 @@ interface OrderCardProps {
 // HELPER COMPONENTS
 // ============================================
 
+const HeaderItem: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => (
+    <View style={styles.headerItem}>
+        <Text style={styles.hLabel}>{label}:</Text>
+        <Text style={styles.hValue}>{value || '---'}</Text>
+    </View>
+);
+
 const SpecRow: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => {
     if (value === undefined || value === null || value === '' || value === '---') return null;
     return (
-        <View style={styles.specRow}>
-            <Text style={styles.specLabel}>{label}</Text>
-            <Text style={styles.specValue}>{value}</Text>
+        <View style={styles.kvRow}>
+            <Text style={styles.kvLabel}>{label}:</Text>
+            <Text style={styles.kvValue}>{value}</Text>
         </View>
     );
 };
@@ -37,7 +44,7 @@ const formatDate = (dateString?: string) => {
 };
 
 // ============================================
-// MAIN COMPONENT
+// MAIN COMPONENT: 3-SECTION INDUSTRIAL
 // ============================================
 
 export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
@@ -50,105 +57,90 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     if (prod.elastico) techItems.push('Elástico');
     if (prod.ziper) techItems.push('Zíper');
     if (prod.alcinha) techItems.push('Alcinha');
-    if (prod.toalha_pronta) techItems.push('Toalha Pronta');
     if (prod.terceirizado) techItems.push('Terceirizado');
     if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum') techItems.push(prod.tipo_acabamento);
-    if (prod.quantidade_ilhos) techItems.push(`Ilhós: ${prod.quantidade_ilhos}un`);
-    if (prod.quantidade_cordinha) techItems.push(`Cordinha: ${prod.quantidade_cordinha}un`);
+    if (prod.quantidade_ilhos) techItems.push(`Ilhós: ${prod.quantidade_ilhos}`);
+    if (prod.quantidade_cordinha) techItems.push(`Cord.: ${prod.quantidade_cordinha}`);
     if (prod.emenda) techItems.push(`Emenda: ${prod.emenda}`);
 
     return (
         <View style={styles.container} wrap={false}>
 
-            {/* 1. HEADER (Full Width Metadata) */}
+            {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
-                <View style={styles.headerItem}>
-                    <Text style={styles.headerLabel}>ID:</Text>
-                    <Text style={styles.headerValue}>#{order.numero}</Text>
+                <View style={styles.headerTopRow}>
+                    <HeaderItem label="ORDEM" value={`#${order.numero}`} />
+                    <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
+                    <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
+                    <HeaderItem label="TRANSPORTE" value={order.forma_envio} />
                 </View>
-                <View style={styles.headerItem}>
-                    <Text style={styles.headerLabel}>Entrada:</Text>
-                    <Text style={styles.headerValue}>{formatDate(order.data_entrada)}</Text>
-                </View>
-                <View style={styles.headerItem}>
-                    <Text style={styles.headerLabel}>Entrega:</Text>
-                    <Text style={styles.headerValue}>{formatDate(order.data_envio)}</Text>
-                </View>
-                <View style={styles.headerItem}>
-                    <Text style={styles.headerLabel}>Transporte:</Text>
-                    <Text style={styles.headerValue}>{order.forma_envio}</Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                        <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
+                        {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
+                        <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
+                    </View>
                 </View>
             </View>
 
-            {/* 2. MAIN SECTION (Two Columns) */}
-            <View style={styles.mainContent}>
+            {/* SEÇÃO 2: CORPO (Tech & Preview) */}
+            <View style={styles.body}>
 
-                {/* LEFT COLUMN: Technical (35%) */}
+                {/* Coluna Esquerda: Técnica (34%) */}
                 <View style={styles.colLeft}>
-                    <View>
-                        <Text style={styles.clientTitle}>{order.cliente.toUpperCase()}</Text>
-                        <Text style={styles.clientSub}>
-                            {order.telefone_cliente} • {order.cidade_estado}
-                        </Text>
+                    <Text style={styles.techTitle}>Especificações Técnicas</Text>
+                    <SpecRow label="Produto" value={prod.descricao} />
+                    <SpecRow label="Tipo" value={prod.tipo_producao} />
+                    <SpecRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
+                    <SpecRow label="Medidas" value={prod.dimensoes} />
+                    <SpecRow label="Quantidade" value={prod.quantity} />
 
-                        <View style={styles.badgesRow}>
-                            {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
-                            {(order as any).costura && <View style={[styles.badge, { backgroundColor: '#6A1B9A' }]}><Text>COSTURA</Text></View>}
-                            <View style={[styles.badge, { backgroundColor: '#333' }]}><Text>{order.prioridade.toUpperCase()}</Text></View>
-                        </View>
-                    </View>
-
-                    <View style={{ marginTop: 12 }}>
-                        <View style={styles.specList}>
-                            <SpecRow label="Produto" value={prod.descricao} />
-                            <SpecRow label="Tipo" value={prod.tipo_producao} />
-                            <SpecRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
-                            <SpecRow label="Medidas" value={prod.dimensoes} />
-                            <SpecRow label="Quant." value={prod.quantity} />
-                        </View>
-
-                        {techItems.length > 0 && (
-                            <View style={styles.techItems}>
+                    {techItems.length > 0 && (
+                        <>
+                            <Text style={styles.techTitle}>Acabamentos / Costura</Text>
+                            <View style={styles.techList}>
                                 {techItems.map((item, i) => (
                                     <Text key={i} style={styles.techItem}>• {item}</Text>
                                 ))}
                             </View>
-                        )}
+                        </>
+                    )}
 
-                        {(prod.observacao_item || order.observacao_pedido) && (
-                            <View style={{ marginTop: 10 }}>
-                                <Text style={[styles.specLabel, { marginBottom: 2 }]}>Observações:</Text>
-                                <Text style={styles.techItem}>
-                                    {prod.observacao_item || order.observacao_pedido}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
+                    {(prod.observacao_item || order.observacao_pedido) && (
+                        <>
+                            <Text style={styles.techTitle}>Observações</Text>
+                            <Text style={styles.techItem}>
+                                {prod.observacao_item || order.observacao_pedido}
+                            </Text>
+                        </>
+                    )}
 
-                    {/* Vendedor / Designer Info (Compact) */}
-                    <View style={{ marginTop: 'auto', paddingTop: 8 }}>
-                        <Text style={styles.techItem}>VENDEDOR: {order.vendedor}</Text>
-                        <Text style={styles.techItem}>DESIGNER: {order.designer}</Text>
+                    <View style={{ marginTop: 'auto', paddingTop: 10, borderTopWidth: 0.5, borderTopColor: '#DDD' }}>
+                        <Text style={styles.techItem}>Vendedor: {order.vendedor}</Text>
+                        <Text style={styles.techItem}>Designer: {order.designer}</Text>
                     </View>
                 </View>
 
-                {/* RIGHT COLUMN: Preview Protagonist (65%) */}
+                {/* Coluna Direita: Preview (66%) */}
                 <View style={styles.colRight}>
                     <View style={styles.previewWrapper}>
                         {images.length > 0 ? (
                             <Image src={images[0]} style={styles.previewImage} />
                         ) : (
-                            <Text style={styles.previewPlaceholder}>SEM IMAGEM / PREVIEW</Text>
+                            <Text style={styles.previewPlaceholder}>ESTE ITEM NÃO POSSUI PREVIEW</Text>
                         )}
                     </View>
                     {prod.legenda_imagem && (
                         <Text style={styles.previewCaption}>{prod.legenda_imagem}</Text>
                     )}
                 </View>
-
             </View>
 
-            {/* 3. FOOTER (Operational Fields) */}
+            {/* SEÇÃO 3: RODAPÉ (Operational) */}
             <View style={styles.footer}>
                 <View style={styles.footerField}>
                     <Text style={styles.footerLabel}>Data:</Text>
