@@ -1,40 +1,34 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - Proof Sheet (V2 Refined)
+// DESIGN CONSTANTS - ABSOLUTE PROOF ARTE
 // ============================================
 
-export const META_COL_WIDTH = '34%';
-export const PREVIEW_COL_WIDTH = '66%';
+export const PREVIEW_HEIGHT = '105mm'; // ~70% of 148mm
+export const LEGEND_HEIGHT = '33mm';  // ~22% of 148mm (leaving space for padding)
 
 export const SPACING = {
-    xs: 3,
-    sm: 5,
+    xs: 2,
+    sm: 4,
     md: 8,
-    lg: 12,
-    xl: 18,
 };
 
 export const FONT_SIZES = {
     label: 7,
-    meta: 8.5,
-    value: 9.5,
-    title: 20, // Right in the 18-22pt range
+    meta: 9,
+    value: 10,
+    title: 12, // Minimalist title
 };
 
 export const COLORS = {
     text: '#000000',
     textMuted: '#666666',
-    borderLight: '#EEEEEE',
-    previewBg: '#FAFAFA',
-};
-
-export const RADIUS = {
-    preview: 14, // 14-18 range
+    border: '#DDDDDD',
+    bgPreview: '#F9F9F9',
 };
 
 // ============================================
-// STYLES - Proof Sheet Aesthetic
+// STYLES - Vertical Proof Sheet
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -46,172 +40,121 @@ export const styles = StyleSheet.create({
     container: {
         width: '100%',
         height: '148mm',
-        padding: '6mm',
-        flexDirection: 'row',
-        gap: SPACING.xl,
-    },
-
-    // ============================================
-    // LEFT COLUMN: COMPACT LEGEND (34%)
-    // ============================================
-    colMeta: {
-        width: META_COL_WIDTH,
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        paddingVertical: 2,
-    },
-
-    // Client Info
-    clientArea: {
-        marginBottom: SPACING.lg,
-    },
-    orderIdText: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 2,
-    },
-    clientName: {
-        fontSize: FONT_SIZES.title,
-        fontWeight: 'bold',
-        marginBottom: 3,
-        lineHeight: 1.1,
-        color: COLORS.text,
-    },
-    clientSubText: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        lineHeight: 1.2,
-    },
-
-    // Technical Specs (Legend style)
-    techSection: {
-        marginTop: SPACING.md,
-        flex: 1,
-    },
-    legendTitle: {
-        fontSize: FONT_SIZES.label,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        color: COLORS.text,
-        marginBottom: SPACING.sm,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-        paddingBottom: 2,
-    },
-    kvRow: {
-        flexDirection: 'row',
-        marginBottom: 3,
-    },
-    kvLabel: {
-        fontSize: FONT_SIZES.meta,
-        color: COLORS.textMuted,
-        width: '35%',
-    },
-    kvValue: {
-        fontSize: FONT_SIZES.value,
-        fontWeight: 'bold',
-        width: '65%',
-    },
-
-    // Technical Details Sub-columns (Rule 6)
-    techColumnsRow: {
-        flexDirection: 'row',
-        marginTop: SPACING.sm,
-        gap: 8,
-    },
-    techColumn: {
-        flex: 1,
+        padding: '5mm',
         flexDirection: 'column',
     },
-    techItem: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        marginBottom: 2,
-    },
-
-    // Logistics Legend (Ancorado no final da coluna esquerda)
-    metaFooter: {
-        marginTop: SPACING.lg,
-        paddingTop: SPACING.sm,
-        borderTopWidth: 0.5,
-        borderTopColor: COLORS.borderLight,
-    },
-    footerMetaText: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        marginBottom: 2,
-        textTransform: 'uppercase',
-    },
 
     // ============================================
-    // RIGHT COLUMN: PROTAGONIST PREVIEW (66%)
+    // 1. PROTAGONIST PREVIEW (TOP - 75%)
     // ============================================
-    colPreview: {
-        width: PREVIEW_COL_WIDTH,
-        flexDirection: 'column',
-    },
-    previewContainer: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: COLORS.borderLight,
-        borderRadius: RADIUS.preview,
-        backgroundColor: COLORS.previewBg,
+    previewArea: {
+        width: '100%',
+        height: PREVIEW_HEIGHT,
+        borderWidth: 0.5,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.bgPreview,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: SPACING.xl, // Breathing space for image
+        marginBottom: SPACING.md,
     },
     previewImage: {
-        maxWidth: '100%',
-        maxHeight: '100%',
+        maxWidth: '98%',
+        maxHeight: '98%',
         objectFit: 'contain',
     },
     previewCaption: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
+        marginTop: 2,
         textAlign: 'center',
-        marginTop: SPACING.sm,
-        fontStyle: 'italic',
     },
 
     // ============================================
-    // FOOTER FIELDS (RIP/DATA)
+    // 2. TECHNICAL LEGEND (BOTTOM - 25%)
     // ============================================
-    footerFieldsRow: {
+    legendArea: {
+        width: '100%',
+        height: LEGEND_HEIGHT,
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+    },
+
+    // Identification Line
+    idRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: SPACING.md,
-        gap: SPACING.xl,
+        alignItems: 'baseline',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.border,
+        paddingBottom: 2,
+        marginBottom: 4,
     },
-    lineField: {
+    orderId: {
+        fontSize: FONT_SIZES.label,
+        fontWeight: 'bold',
+    },
+    clientName: {
+        fontSize: FONT_SIZES.title,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    dates: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+    },
+
+    // Specs Grid (Single row of items)
+    specsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 15,
+        marginBottom: 4,
+    },
+    specItem: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 3,
+    },
+    label: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+    },
+    value: {
+        fontSize: FONT_SIZES.meta,
+        fontWeight: 'bold',
+    },
+
+    // Tech details line
+    techLine: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        lineHeight: 1.2,
+    },
+
+    // ============================================
+    // 3. OPERATIONAL FOOTER (RIP / DATA)
+    // ============================================
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 'auto',
+        gap: 20,
+    },
+    footerField: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'baseline',
         gap: 5,
-        flex: 1,
     },
-    fieldLabel: {
+    footerLabel: {
         fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
-        textTransform: 'uppercase',
-        color: COLORS.text,
     },
-    fieldLine: {
+    footerLine: {
         flex: 1,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.text,
-        minHeight: 12,
-    },
-
-    // Minimal Badge
-    badgeSmall: {
-        backgroundColor: '#000000',
-        color: '#FFFFFF',
-        padding: '1px 4px',
-        fontSize: 6, // Very small
-        fontWeight: 'bold',
-        borderRadius: 1,
-        marginLeft: 4,
-        alignSelf: 'center',
+        minHeight: 10,
     },
 });
