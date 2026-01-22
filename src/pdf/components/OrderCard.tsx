@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image } from '@react-pdf/renderer';
 import { ProductionOrder } from '../groupOrders';
-import { styles, SPACING } from '../styles';
+import { styles } from '../styles';
 
 interface OrderCardProps {
     order: ProductionOrder;
@@ -56,7 +56,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     return (
         <View style={styles.orderContainer} wrap={false}>
 
-            {/* HEADER - Minimal metadata */}
+            {/* HEADER - Logistics metadata */}
             <View style={styles.header}>
                 <View style={styles.headerItem}>
                     <Text style={styles.hLabel}>Entrada:</Text>
@@ -78,103 +78,105 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                 </View>
             </View>
 
-            {/* MAIN CONTENT */}
+            {/* MAIN GRID */}
             <View style={styles.row}>
 
-                {/* LEFT COLUMN - 60% */}
-                <View style={styles.col60}>
+                {/* LEFT COLUMN - 55% */}
+                <View style={styles.col55}>
 
-                    {/* Order & Client - Hero */}
-                    <Text style={styles.orderNumber}>Ordem #{order.numero}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
-                        <Text style={styles.clientName}>{order.cliente}</Text>
-                        {order.is_reposicao && (
-                            <View style={styles.badge}>
-                                <Text>REPOSIÇÃO</Text>
-                            </View>
-                        )}
-                        {(order as any).costura && (
-                            <View style={[styles.badge, { backgroundColor: '#9C27B0' }]}>
-                                <Text>COSTURA</Text>
-                            </View>
-                        )}
-                    </View>
-                    <Text style={styles.clientMeta}>
-                        {[order.telefone_cliente, order.cidade_estado].filter(Boolean).join(' • ')}
-                    </Text>
-
-                    <View style={styles.divider} />
-
-                    {/* Product Specs */}
-                    <Text style={styles.sectionTitle}>Produto</Text>
-                    <Text style={styles.productName}>{prod.descricao}</Text>
-
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Tipo</Text>
-                        <Text style={styles.infoValue}>{prod.tipo_producao.toUpperCase()}</Text>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Dimensões</Text>
-                        <Text style={styles.infoValue}>{prod.dimensoes}</Text>
-                    </View>
-                    <View style={{ ...styles.infoRow, borderBottomWidth: 0 }}>
-                        <Text style={styles.infoLabel}>Material</Text>
-                        <Text style={styles.infoValue}>
-                            {prod.tecido || prod.tipo_adesivo || prod.material || '---'}
+                    {/* CARD: Identification */}
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Identificação do Pedido</Text>
+                        <Text style={styles.orderNumber}>Ordem #{order.numero}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <Text style={styles.clientName}>{order.cliente}</Text>
+                            {order.is_reposicao && (
+                                <View style={styles.badge}>
+                                    <Text>REPOS</Text>
+                                </View>
+                            )}
+                            {(order as any).costura && (
+                                <View style={[styles.badge, { backgroundColor: '#9C27B0' }]}>
+                                    <Text>COST</Text>
+                                </View>
+                            )}
+                        </View>
+                        <Text style={styles.clientMeta}>
+                            {[order.telefone_cliente, order.cidade_estado].filter(Boolean).join(' • ')}
                         </Text>
                     </View>
 
-                    <View style={styles.qtyBox}>
-                        <Text style={styles.qtyLabel}>Quantidade Total</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                            <Text style={styles.qtyValue}>{prod.quantity}</Text>
-                            {prod.quantidade_paineis && (
-                                <Text style={{ fontSize: 8, color: '#666' }}>({prod.quantidade_paineis} un)</Text>
-                            )}
+                    {/* CARD: Product Specifications */}
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Especificações do Produto</Text>
+                        <Text style={styles.productName}>{prod.descricao}</Text>
+
+                        <View style={styles.specRow}>
+                            <Text style={styles.specLabel}>Tipo</Text>
+                            <Text style={styles.specValue}>{prod.tipo_producao.toUpperCase()}</Text>
+                        </View>
+                        <View style={styles.specRow}>
+                            <Text style={styles.specLabel}>Dimensões</Text>
+                            <Text style={styles.specValue}>{prod.dimensoes}</Text>
+                        </View>
+                        <View style={styles.specRow}>
+                            <Text style={styles.specLabel}>Material</Text>
+                            <Text style={styles.specValue}>
+                                {prod.tecido || prod.tipo_adesivo || prod.material || '---'}
+                            </Text>
+                        </View>
+                        <View style={{ ...styles.specRow, borderBottomWidth: 0 }}>
+                            <Text style={styles.specLabel}>Quantidade</Text>
+                            <Text style={styles.specValue}>
+                                {prod.quantity}{prod.quantidade_paineis ? ` (${prod.quantidade_paineis} un)` : ''}
+                            </Text>
                         </View>
                     </View>
 
-                    {/* Technical Specs - Only if exist */}
+                    {/* CARD: Technical Details (if exist) */}
                     {techSpecs.length > 0 && (
-                        <>
-                            <Text style={styles.sectionTitle}>Acabamentos & Detalhes</Text>
+                        <View style={styles.card}>
+                            <Text style={styles.cardTitle}>Acabamentos & Detalhes Técnicos</Text>
                             <View style={styles.techList}>
                                 {techSpecs.map((spec, i) => (
                                     <Text key={i} style={styles.techItem}>• {spec}</Text>
                                 ))}
                             </View>
-                        </>
+                        </View>
                     )}
 
-                    {/* Observations */}
+                    {/* CARD: Observations (if exist) */}
                     {(prod.observacao_item || order.observacao_pedido) && (
-                        <View style={styles.obsBox}>
+                        <View style={styles.obsCard}>
                             {prod.observacao_item && <Text style={styles.obsText}>• {prod.observacao_item}</Text>}
                             {order.observacao_pedido && <Text style={styles.obsText}>• {order.observacao_pedido}</Text>}
                         </View>
                     )}
                 </View>
 
-                {/* RIGHT COLUMN - 40% - IMAGE PRIORITY */}
-                <View style={styles.col40}>
+                {/* RIGHT COLUMN - 45% */}
+                <View style={styles.col45}>
 
-                    {/* Preview - No label, full prominence */}
-                    <View style={styles.previewContainer}>
-                        {images.length > 0 ? (
-                            <Image src={images[0]} style={styles.previewImage} />
-                        ) : (
-                            <Text style={{ fontSize: 11, color: '#CCC', fontWeight: 'bold' }}>SEM IMAGEM</Text>
+                    {/* CARD: Preview (controlled height) */}
+                    <View style={styles.previewCard}>
+                        <Text style={styles.previewTitle}>Preview do Modelo</Text>
+                        <View style={styles.previewImageContainer}>
+                            {images.length > 0 ? (
+                                <Image src={images[0]} style={styles.previewImage} />
+                            ) : (
+                                <Text style={{ fontSize: 10, color: '#CCC' }}>SEM IMAGEM</Text>
+                            )}
+                        </View>
+                        {prod.legenda_imagem && (
+                            <Text style={styles.previewCaption}>{prod.legenda_imagem}</Text>
                         )}
                     </View>
-                    {prod.legenda_imagem && (
-                        <Text style={styles.previewCaption}>{prod.legenda_imagem}</Text>
-                    )}
 
-                    {/* RIP/DATA */}
-                    <View style={styles.ripDataBox}>
-                        <Text style={styles.sectionTitle}>Controle de Produção</Text>
-                        <Text style={styles.ripDataField}>RIP: _________________</Text>
-                        <Text style={styles.ripDataField}>DATA: ____/____/______</Text>
+                    {/* CARD: Production Control */}
+                    <View style={styles.controlCard}>
+                        <Text style={styles.controlTitle}>Controle de Produção</Text>
+                        <Text style={styles.controlField}>RIP: _________________</Text>
+                        <Text style={styles.controlField}>DATA: ____/____/______</Text>
                         <Text style={{ fontSize: 7, color: '#999' }}>Assinatura do Operador</Text>
                     </View>
                 </View>
