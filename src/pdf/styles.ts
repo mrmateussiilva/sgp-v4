@@ -1,41 +1,40 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - Wireframe Clean
+// DESIGN CONSTANTS - Preview Protagonist
 // ============================================
 
+export const META_COL_WIDTH = '34%';
+export const PREVIEW_COL_WIDTH = '66%';
+
 export const SPACING = {
-    xs: 4,
-    sm: 6,
-    md: 10,
-    lg: 14,
-    xl: 20,
+    xs: 3,
+    sm: 5,
+    md: 8,
+    lg: 12,
+    xl: 18,
 };
 
 export const FONT_SIZES = {
-    xs: 7,
-    sm: 8,
-    md: 10,
-    lg: 12,
-    xl: 14,
-    huge: 22,
+    label: 7,
+    meta: 9,
+    value: 10,
+    title: 18, // Reduced from previous versions to not compete with image
 };
 
 export const COLORS = {
     text: '#000000',
-    textLight: '#444444',
-    textMuted: '#777777',
-    borderLight: '#DDDDDD',
-    borderMuted: '#EEEEEE',
-    previewBg: '#F9F9F9',
+    textMuted: '#666666',
+    borderLight: '#E5E5E5',
+    previewBg: '#FDFDFD',
 };
 
 export const RADIUS = {
-    preview: 14,
+    preview: 16,
 };
 
 // ============================================
-// STYLES - Clean Wireframe Layout
+// STYLES - Proof Sheet Aesthetic
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -47,189 +46,106 @@ export const styles = StyleSheet.create({
     container: {
         width: '100%',
         height: '148mm',
-        padding: '8mm',
-        flexDirection: 'column',
-    },
-
-    // ============================================
-    // TOP FIELDS ROW (Inline, no boxes)
-    // ============================================
-    topRow: {
+        padding: '6mm',
         flexDirection: 'row',
-        justifyContent: 'flex-start',
-        marginBottom: SPACING.lg,
         gap: SPACING.xl,
     },
-    inlineField: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 3,
-    },
-    labelSmall: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        textTransform: 'lowercase',
-    },
-    valueSemibold: {
-        fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
-        color: COLORS.text,
-    },
 
     // ============================================
-    // CLIENT HEADER
+    // LEFT COLUMN: COMPACT METADATA (34%)
     // ============================================
-    clientHeader: {
+    colMeta: {
+        width: META_COL_WIDTH,
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+    },
+
+    // Client Info
+    clientArea: {
         marginBottom: SPACING.lg,
+    },
+    orderId: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 2,
     },
     clientName: {
-        fontSize: FONT_SIZES.huge,
+        fontSize: FONT_SIZES.title,
         fontWeight: 'bold',
-        marginBottom: SPACING.xs,
-    },
-    clientSubRow: {
-        flexDirection: 'row',
-        gap: SPACING.lg,
         marginBottom: 2,
+        lineHeight: 1.1,
     },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 4,
-    },
-    metaLabel: {
-        fontSize: FONT_SIZES.xs,
+    clientDetails: {
+        fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
-    },
-    metaValue: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textLight,
-    },
-    vendorDesigner: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        fontStyle: 'italic',
     },
 
-    // ============================================
-    // DESCRIPTION & TYPE
-    // ============================================
-    descTypeArea: {
-        marginBottom: SPACING.md,
-    },
-    descTypeRow: {
-        flexDirection: 'row',
-        gap: SPACING.xl,
-        marginBottom: SPACING.sm,
-    },
-    blockField: {
-        flexDirection: 'column',
-    },
-    blockLabel: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        marginBottom: 2,
-    },
-    blockValue: {
-        fontSize: FONT_SIZES.md,
-        fontWeight: 'bold',
-    },
-    hairline: {
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-        marginTop: SPACING.sm,
-    },
-
-    // ============================================
-    // MAIN GRID (58/42)
-    // ============================================
-    mainGrid: {
-        flexDirection: 'row',
-        gap: SPACING.xl,
+    // Technical Specs (Compact legend block)
+    techBlock: {
+        marginTop: SPACING.md,
         flex: 1,
     },
-    colLeft: {
-        width: '58%',
-    },
-    colRight: {
-        width: '42%',
-    },
-
-    // ============================================
-    // TECHNICAL INFO
-    // ============================================
     sectionTitle: {
-        fontSize: FONT_SIZES.xl,
+        fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginTop: SPACING.xl,
-        marginBottom: SPACING.md,
+        color: COLORS.text,
+        marginBottom: SPACING.sm,
     },
     kvRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 3,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderMuted,
+        marginBottom: 3,
+        fontSize: FONT_SIZES.meta,
     },
     kvLabel: {
-        fontSize: FONT_SIZES.sm,
         color: COLORS.textMuted,
+        width: '40%',
     },
     kvValue: {
-        fontSize: FONT_SIZES.sm,
         fontWeight: 'bold',
+        width: '60%',
     },
 
-    // Technical List
+    // Technical Items (Short list)
     techList: {
-        marginTop: SPACING.md,
+        marginTop: SPACING.sm,
     },
     techItem: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textLight,
-        marginBottom: 3,
-    },
-
-    // Observations
-    obsArea: {
-        marginTop: SPACING.lg,
-    },
-    obsLabel: {
-        fontSize: FONT_SIZES.xs,
+        fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        marginBottom: 4,
+        marginBottom: 1,
     },
-    obsText: {
-        fontSize: FONT_SIZES.sm,
-        lineHeight: 1.4,
-        color: COLORS.text,
+
+    // Logistics Footer (Within Meta Column)
+    metaFooter: {
+        borderTopWidth: 0.5,
+        borderTopColor: COLORS.borderLight,
+        paddingTop: SPACING.sm,
+    },
+    logisticItem: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        marginBottom: 2,
     },
 
     // ============================================
-    // PREVIEW BOX (Right Column)
+    // RIGHT COLUMN: PROTAGONIST PREVIEW (66%)
     // ============================================
-    previewWrapper: {
+    colPreview: {
+        width: PREVIEW_COL_WIDTH,
         flexDirection: 'column',
-        height: '100%',
     },
-    previewLabel: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textMuted,
-        marginBottom: 4,
-        textAlign: 'right',
-    },
-    previewBox: {
-        flex: 1,
-        maxHeight: '85%',
-        borderWidth: 1,
+    previewContainer: {
+        flex: 1, // Occupies most vertical space
+        borderWidth: 0.5,
         borderColor: COLORS.borderLight,
         borderRadius: RADIUS.preview,
         backgroundColor: COLORS.previewBg,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: SPACING.md,
+        padding: SPACING.lg,
     },
     previewImage: {
         maxWidth: '100%',
@@ -237,35 +153,53 @@ export const styles = StyleSheet.create({
         objectFit: 'contain',
     },
     previewPlaceholder: {
-        fontSize: FONT_SIZES.xs,
-        color: '#BBBBBB',
+        fontSize: FONT_SIZES.meta,
+        color: '#D0D0D0',
+        letterSpacing: 1,
+    },
+    previewLabel: {
+        fontSize: FONT_SIZES.label,
+        color: COLORS.textMuted,
+        textAlign: 'center',
+        marginTop: SPACING.sm,
+        fontStyle: 'italic',
     },
 
     // ============================================
-    // FOOTER (Line Fields)
+    // RODAPE OPERACIONAL (Bottom Anchor)
     // ============================================
-    footer: {
+    footerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 'auto',
+        marginTop: SPACING.md,
         gap: SPACING.xl,
-        paddingTop: SPACING.lg,
     },
     lineField: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'baseline',
         gap: 5,
+        flex: 1,
     },
-    lineLabel: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.text,
+    fieldLabel: {
+        fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
+        textTransform: 'uppercase',
     },
-    lineUnder: {
+    fieldLine: {
         flex: 1,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.text,
         minHeight: 12,
+    },
+
+    // Badges (Short)
+    badge: {
+        backgroundColor: '#000000',
+        color: '#FFFFFF',
+        padding: '1px 4px',
+        fontSize: FONT_SIZES.label,
+        fontWeight: 'bold',
+        borderRadius: 1,
+        marginLeft: 4,
     },
 });
