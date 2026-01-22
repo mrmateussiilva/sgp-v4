@@ -105,13 +105,13 @@ export const styles = StyleSheet.create({
 
     // Coluna Esquerda: Técnica
     techTitle: {
-        fontSize: FONT_SIZES.label,
+        fontSize: 11, // Increased from FONT_SIZES.label (9)
         fontWeight: 'bold',
         textTransform: 'uppercase',
         marginBottom: 4,
         marginTop: SPACING.md,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.border,
+        borderBottomWidth: 1, // Thicker line
+        borderBottomColor: COLORS.text, // Darker color
         paddingBottom: 2,
     },
     kvRow: {
@@ -133,9 +133,10 @@ export const styles = StyleSheet.create({
         marginTop: SPACING.sm,
     },
     techItem: {
-        fontSize: FONT_SIZES.label,
-        color: COLORS.textMuted,
-        marginBottom: 2,
+        fontSize: 11, // Increased from FONT_SIZES.label (9)
+        color: COLORS.text, // Removed Muted for vital info
+        fontWeight: 'bold', // Added bold for visibility
+        marginBottom: 3,
     },
 
     // Coluna Direita: Preview Protagonista
