@@ -1,7 +1,7 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - Preview Protagonist
+// DESIGN CONSTANTS - Proof Sheet (V2 Refined)
 // ============================================
 
 export const META_COL_WIDTH = '34%';
@@ -17,20 +17,20 @@ export const SPACING = {
 
 export const FONT_SIZES = {
     label: 7,
-    meta: 9,
-    value: 10,
-    title: 18, // Reduced from previous versions to not compete with image
+    meta: 8.5,
+    value: 9.5,
+    title: 20, // Right in the 18-22pt range
 };
 
 export const COLORS = {
     text: '#000000',
     textMuted: '#666666',
-    borderLight: '#E5E5E5',
-    previewBg: '#FDFDFD',
+    borderLight: '#EEEEEE',
+    previewBg: '#FAFAFA',
 };
 
 export const RADIUS = {
-    preview: 16,
+    preview: 14, // 14-18 range
 };
 
 // ============================================
@@ -52,19 +52,20 @@ export const styles = StyleSheet.create({
     },
 
     // ============================================
-    // LEFT COLUMN: COMPACT METADATA (34%)
+    // LEFT COLUMN: COMPACT LEGEND (34%)
     // ============================================
     colMeta: {
         width: META_COL_WIDTH,
         flexDirection: 'column',
         justifyContent: 'space-between',
+        paddingVertical: 2,
     },
 
     // Client Info
     clientArea: {
         marginBottom: SPACING.lg,
     },
-    orderId: {
+    orderIdText: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
         textTransform: 'uppercase',
@@ -74,60 +75,74 @@ export const styles = StyleSheet.create({
     clientName: {
         fontSize: FONT_SIZES.title,
         fontWeight: 'bold',
-        marginBottom: 2,
+        marginBottom: 3,
         lineHeight: 1.1,
+        color: COLORS.text,
     },
-    clientDetails: {
+    clientSubText: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
+        lineHeight: 1.2,
     },
 
-    // Technical Specs (Compact legend block)
-    techBlock: {
+    // Technical Specs (Legend style)
+    techSection: {
         marginTop: SPACING.md,
         flex: 1,
     },
-    sectionTitle: {
+    legendTitle: {
         fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
         textTransform: 'uppercase',
         color: COLORS.text,
         marginBottom: SPACING.sm,
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderLight,
+        paddingBottom: 2,
     },
     kvRow: {
         flexDirection: 'row',
         marginBottom: 3,
-        fontSize: FONT_SIZES.meta,
     },
     kvLabel: {
+        fontSize: FONT_SIZES.meta,
         color: COLORS.textMuted,
-        width: '40%',
+        width: '35%',
     },
     kvValue: {
+        fontSize: FONT_SIZES.value,
         fontWeight: 'bold',
-        width: '60%',
+        width: '65%',
     },
 
-    // Technical Items (Short list)
-    techList: {
+    // Technical Details Sub-columns (Rule 6)
+    techColumnsRow: {
+        flexDirection: 'row',
         marginTop: SPACING.sm,
+        gap: 8,
+    },
+    techColumn: {
+        flex: 1,
+        flexDirection: 'column',
     },
     techItem: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
-        marginBottom: 1,
+        marginBottom: 2,
     },
 
-    // Logistics Footer (Within Meta Column)
+    // Logistics Legend (Ancorado no final da coluna esquerda)
     metaFooter: {
+        marginTop: SPACING.lg,
+        paddingTop: SPACING.sm,
         borderTopWidth: 0.5,
         borderTopColor: COLORS.borderLight,
-        paddingTop: SPACING.sm,
     },
-    logisticItem: {
+    footerMetaText: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
         marginBottom: 2,
+        textTransform: 'uppercase',
     },
 
     // ============================================
@@ -138,26 +153,21 @@ export const styles = StyleSheet.create({
         flexDirection: 'column',
     },
     previewContainer: {
-        flex: 1, // Occupies most vertical space
-        borderWidth: 0.5,
+        flex: 1,
+        borderWidth: 1,
         borderColor: COLORS.borderLight,
         borderRadius: RADIUS.preview,
         backgroundColor: COLORS.previewBg,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: SPACING.lg,
+        padding: SPACING.xl, // Breathing space for image
     },
     previewImage: {
         maxWidth: '100%',
         maxHeight: '100%',
         objectFit: 'contain',
     },
-    previewPlaceholder: {
-        fontSize: FONT_SIZES.meta,
-        color: '#D0D0D0',
-        letterSpacing: 1,
-    },
-    previewLabel: {
+    previewCaption: {
         fontSize: FONT_SIZES.label,
         color: COLORS.textMuted,
         textAlign: 'center',
@@ -166,9 +176,9 @@ export const styles = StyleSheet.create({
     },
 
     // ============================================
-    // RODAPE OPERACIONAL (Bottom Anchor)
+    // FOOTER FIELDS (RIP/DATA)
     // ============================================
-    footerRow: {
+    footerFieldsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: SPACING.md,
@@ -184,6 +194,7 @@ export const styles = StyleSheet.create({
         fontSize: FONT_SIZES.label,
         fontWeight: 'bold',
         textTransform: 'uppercase',
+        color: COLORS.text,
     },
     fieldLine: {
         flex: 1,
@@ -192,14 +203,15 @@ export const styles = StyleSheet.create({
         minHeight: 12,
     },
 
-    // Badges (Short)
-    badge: {
+    // Minimal Badge
+    badgeSmall: {
         backgroundColor: '#000000',
         color: '#FFFFFF',
         padding: '1px 4px',
-        fontSize: FONT_SIZES.label,
+        fontSize: 6, // Very small
         fontWeight: 'bold',
         borderRadius: 1,
         marginLeft: 4,
+        alignSelf: 'center',
     },
 });

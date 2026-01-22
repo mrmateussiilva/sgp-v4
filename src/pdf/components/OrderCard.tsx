@@ -8,7 +8,7 @@ interface OrderCardProps {
 }
 
 // ============================================
-// HELPER COMPONENTS (Minimized)
+// HELPER COMPONENTS
 // ============================================
 
 const KVRow: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => {
@@ -44,66 +44,85 @@ const formatDate = (dateString?: string) => {
 };
 
 // ============================================
-// MAIN COMPONENT: PROOF SHEET
+// MAIN COMPONENT: PROOF SHEET (V2 Refined)
 // ============================================
 
 export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     const images = order.produtos.map(p => p.imagem).filter(Boolean) as string[];
     const prod = order.produtos[0];
 
-    // Collect technical items
+    // Collect technical details
     const techItems: string[] = [];
     if (prod.overloque) techItems.push('Overloque');
     if (prod.elastico) techItems.push('Elástico');
     if (prod.ziper) techItems.push('Zíper');
     if (prod.alcinha) techItems.push('Alcinha');
+    if (prod.toalha_pronta) techItems.push('Toalha Pronta');
     if (prod.terceirizado) techItems.push('Terceirizado');
 
-    // Add finishing if exists
     if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum')
-        techItems.push(prod.tipo_acabamento);
+        techItems.push(`Acab: ${prod.tipo_acabamento}`);
+
+    if (prod.quantidade_ilhos) techItems.push(`Ilhós: ${prod.quantidade_ilhos}un`);
+    if (prod.quantidade_cordinha) techItems.push(`Cord.: ${prod.quantidade_cordinha}un`);
+    if (prod.emenda) techItems.push(`Emenda: ${prod.emenda}`);
+
+    // Split tech items into two columns (Rule 6)
+    const midPoint = Math.ceil(techItems.length / 2);
+    const techCol1 = techItems.slice(0, midPoint);
+    const techCol2 = techItems.slice(midPoint);
 
     return (
         <View style={styles.container} wrap={false}>
 
-            {/* LEFT COLUMN: MINIMAL METADATA (34%) */}
+            {/* LEFT COLUMN: MINIMALIST LEGEND (34%) */}
             <View style={styles.colMeta}>
 
                 <View>
                     {/* Identification */}
                     <View style={styles.clientArea}>
-                        <Text style={styles.orderId}>PEDIDO #{order.numero}</Text>
+                        <Text style={styles.orderIdText}>FICHA DE PRODUÇÃO #{order.numero}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                             <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
-                            {order.is_reposicao && <View style={styles.badge}><Text>REPOS</Text></View>}
+                            {order.is_reposicao && <View style={styles.badgeSmall}><Text>REPOS</Text></View>}
+                            {(order as any).costura && <View style={[styles.badgeSmall, { backgroundColor: '#6A1B9A' }]}><Text>COST</Text></View>}
                         </View>
-                        <Text style={styles.clientDetails}>
+                        <Text style={styles.clientSubText}>
                             {order.telefone_cliente} • {order.cidade_estado}
                         </Text>
                     </View>
 
                     {/* Technical Legend */}
-                    <View style={styles.techBlock}>
-                        <Text style={styles.sectionTitle}>Especificações</Text>
-                        <KVRow label="Produtos" value={prod.descricao} />
+                    <View style={styles.techSection}>
+                        <Text style={styles.legendTitle}>Especificações Técnicas</Text>
+                        <KVRow label="Produto" value={prod.descricao} />
                         <KVRow label="Tipo" value={prod.tipo_producao} />
                         <KVRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
                         <KVRow label="Medidas" value={prod.dimensoes} />
                         <KVRow label="Quant." value={prod.quantity} />
 
                         {techItems.length > 0 && (
-                            <View style={styles.techList}>
-                                {techItems.map((item, i) => (
-                                    <Text key={i} style={styles.techItem}>• {item}</Text>
-                                ))}
+                            <View style={styles.techColumnsRow}>
+                                <View style={styles.techColumn}>
+                                    {techCol1.map((item, i) => (
+                                        <Text key={i} style={styles.techItem}>• {item}</Text>
+                                    ))}
+                                </View>
+                                {techCol2.length > 0 && (
+                                    <View style={styles.techColumn}>
+                                        {techCol2.map((item, i) => (
+                                            <Text key={i} style={styles.techItem}>• {item}</Text>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
                         )}
 
-                        {/* Observations (Shortened) */}
+                        {/* Observations Legend */}
                         {(prod.observacao_item || order.observacao_pedido) && (
-                            <View style={{ marginTop: 10 }}>
-                                <Text style={styles.sectionTitle}>Vendedor/Obs</Text>
-                                <Text style={styles.techItem} numberOfLines={3}>
+                            <View style={{ marginTop: 12 }}>
+                                <Text style={styles.legendTitle}>Observações</Text>
+                                <Text style={styles.techItem} numberOfLines={4}>
                                     {prod.observacao_item || order.observacao_pedido}
                                 </Text>
                             </View>
@@ -111,12 +130,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     </View>
                 </View>
 
-                {/* Logistics Legend */}
+                {/* Logistics Legend (Anchored bottom left) */}
                 <View style={styles.metaFooter}>
-                    <Text style={styles.logisticItem}>VENDEDOR: {order.vendedor}</Text>
-                    <Text style={styles.logisticItem}>DESIGNER: {order.designer}</Text>
-                    <Text style={styles.logisticItem}>ENTRADA: {formatDate(order.data_entrada)}</Text>
-                    <Text style={styles.logisticItem}>PREVISÃO: {formatDate(order.data_envio)}</Text>
+                    <Text style={styles.footerMetaText}>Vendedor: {order.vendedor}</Text>
+                    <Text style={styles.footerMetaText}>Designer: {order.designer}</Text>
+                    <Text style={styles.footerMetaText}>Entrada: {formatDate(order.data_entrada)}</Text>
+                    <Text style={styles.footerMetaText}>Previsão: {formatDate(order.data_envio)}</Text>
+                    <Text style={[styles.footerMetaText, { marginTop: 4, fontWeight: 'bold' }]}>
+                        Transp: {order.forma_envio}
+                    </Text>
                 </View>
             </View>
 
@@ -126,16 +148,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     {images.length > 0 ? (
                         <Image src={images[0]} style={styles.previewImage} />
                     ) : (
-                        <Text style={styles.previewPlaceholder}>REVISAR ARTE / SEM IMAGEM</Text>
+                        <Text style={styles.previewPlaceholder}>ESTE ITEM NÃO POSSUI PREVIEW</Text>
                     )}
                 </View>
 
                 {prod.legenda_imagem && (
-                    <Text style={styles.previewLabel}>{prod.legenda_imagem}</Text>
+                    <Text style={styles.previewCaption}>{prod.legenda_imagem}</Text>
                 )}
 
-                {/* OPERATIONAL RODAPE (Integrated into preview column base) */}
-                <View style={styles.footerRow}>
+                {/* OPERATIONAL FOOTER (RIP/DATA) */}
+                <View style={styles.footerFieldsRow}>
                     <LineField label="DATA:" />
                     <LineField label="RIP:" />
                 </View>
