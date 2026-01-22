@@ -152,10 +152,6 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                                 {prod.emenda && (
                                     <TechBadge label="Emenda" value={`${prod.emenda} (${prod.emenda_qtd || 1}x)`} />
                                 )}
-
-                                {prod.metro_quadrado && (
-                                    <TechBadge label="M²" value={`${prod.metro_quadrado}m²`} />
-                                )}
                             </View>
                         </View>
 

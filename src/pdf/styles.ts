@@ -88,7 +88,7 @@ export const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     clienteTags: {
-        fontSize: 8,
+        fontSize: 11,
         color: '#666666',
         marginTop: 1,
     },
