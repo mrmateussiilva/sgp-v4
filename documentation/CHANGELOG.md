@@ -1,5 +1,14 @@
 # Changelog - SGP v4
 
+## [1.0.17] - 2026-01-22
+
+### 🎨 UI/UX
+- **Refinamento PDF**: Melhorias na visibilidade da ficha de produção.
+  - Aumento da fonte de detalhes técnicos para 16pt com maior espaçamento.
+  - Adição de marcadores (bullet points) na lista de acabamentos.
+  - Remoção da informação de M² por redundância.
+  - Aumento e destaque das informações de contato e localização do cliente.
+
 ## [1.0.16] - 2026-01-21
 
 ### 🎨 UI/UX
