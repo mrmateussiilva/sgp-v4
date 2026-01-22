@@ -1,33 +1,47 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
 // ============================================
-// DESIGN CONSTANTS - Industrial Form
+// DESIGN CONSTANTS - Wireframe Industrial Form
 // ============================================
 
 export const SPACING = {
-    xs: 2,
-    sm: 3,
-    md: 6,
-    lg: 10,
+    xs: 4,
+    sm: 6,
+    md: 10,
+    lg: 14,
+    xl: 18,
 };
 
 export const FONT_SIZES = {
     xs: 7,
     sm: 8,
     md: 9,
-    lg: 11,
-    xl: 14,
+    lg: 10,
+    xl: 12,
+    huge: 20,
+};
+
+export const BORDER = {
+    frame: 2,
+    field: 1,
+    thin: 0.5,
+};
+
+export const RADIUS = {
+    frame: 16,
+    field: 4,
 };
 
 export const COLORS = {
+    frameBorder: '#1a1a1a',
+    fieldBorder: '#666666',
     text: '#000000',
     textLight: '#666666',
-    line: '#000000',
-    lineThin: '#CCCCCC',
+    previewBg: '#f5f5f5',
 };
 
 // ============================================
-// STYLES - Industrial Production Order
+// STYLES - Industrial Form with Frame
 // ============================================
 
 export const styles = StyleSheet.create({
@@ -36,60 +50,70 @@ export const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         fontFamily: 'Helvetica',
     },
-    container: {
+
+    // Outer frame container
+    frameContainer: {
         width: '100%',
         height: '148mm',
-        padding: '8mm',
+        padding: '6mm',
+    },
+
+    // Inner bordered frame
+    frame: {
+        width: '100%',
+        height: '100%',
+        borderWidth: BORDER.frame,
+        borderColor: COLORS.frameBorder,
+        borderRadius: RADIUS.frame,
+        padding: SPACING.xl,
         flexDirection: 'column',
     },
 
     // ============================================
-    // HEADER - Company/Document Title
+    // TOP FIELDS ROW (4 fields)
     // ============================================
-    docTitle: {
-        fontSize: FONT_SIZES.xl,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: SPACING.sm,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-
-    // ============================================
-    // SECTION DIVIDERS
-    // ============================================
-    divider: {
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.line,
-        marginVertical: SPACING.md,
-    },
-    dividerThin: {
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.lineThin,
-        marginVertical: SPACING.sm,
-    },
-
-    // ============================================
-    // SECTION HEADERS
-    // ============================================
-    sectionHeader: {
-        fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: SPACING.sm,
-        marginTop: SPACING.sm,
-    },
-
-    // ============================================
-    // METADATA ROW (Horizontal info)
-    // ============================================
-    metaRow: {
+    topFieldsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginBottom: SPACING.lg,
+        gap: SPACING.md,
+    },
+    topField: {
+        flex: 1,
+    },
+    fieldLabel: {
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textLight,
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    fieldValue: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+        borderBottomWidth: BORDER.thin,
+        borderBottomColor: COLORS.fieldBorder,
+        paddingBottom: 2,
+        minHeight: 14,
+    },
+
+    // ============================================
+    // CLIENT HEADER
+    // ============================================
+    clientSection: {
+        marginBottom: SPACING.lg,
+    },
+    clientName: {
+        fontSize: FONT_SIZES.huge,
+        fontWeight: 'bold',
+        marginBottom: SPACING.xs,
+        lineHeight: 1.2,
+    },
+    clientMetaRow: {
+        flexDirection: 'row',
+        gap: SPACING.lg,
         marginBottom: SPACING.xs,
     },
-    metaItem: {
+    clientMeta: {
         flexDirection: 'row',
         alignItems: 'baseline',
     },
@@ -100,176 +124,132 @@ export const styles = StyleSheet.create({
     },
     metaValue: {
         fontSize: FONT_SIZES.sm,
-        fontWeight: 'bold',
+    },
+    vendorDesigner: {
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textLight,
     },
 
     // ============================================
-    // CLIENT SECTION
+    // DESCRIPTION & TYPE ROW
     // ============================================
-    orderNumber: {
-        fontSize: FONT_SIZES.md,
-        fontWeight: 'bold',
-        marginBottom: SPACING.xs,
+    descTypeRow: {
+        flexDirection: 'row',
+        gap: SPACING.md,
+        marginBottom: SPACING.lg,
     },
-    clientName: {
+    descField: {
+        flex: 2,
+    },
+    typeField: {
+        flex: 1,
+    },
+
+    // ============================================
+    // MAIN GRID (55/45)
+    // ============================================
+    mainGrid: {
+        flexDirection: 'row',
+        gap: SPACING.xl,
+        flex: 1,
+    },
+    leftColumn: {
+        width: '55%',
+        flexDirection: 'column',
+    },
+    rightColumn: {
+        width: '45%',
+        flexDirection: 'column',
+    },
+
+    // ============================================
+    // TECHNICAL INFO SECTION
+    // ============================================
+    sectionTitle: {
         fontSize: FONT_SIZES.xl,
         fontWeight: 'bold',
-        marginBottom: SPACING.xs,
-    },
-    clientInfo: {
-        fontSize: FONT_SIZES.sm,
-        color: COLORS.textLight,
-        marginBottom: SPACING.xs,
-    },
-
-    // ============================================
-    // PRODUCT SPECS (Inline)
-    // ============================================
-    specsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.lg,
-        marginBottom: SPACING.sm,
-    },
-    specItem: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-    },
-    specLabel: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textLight,
-        textTransform: 'uppercase',
-        marginRight: 4,
-    },
-    specValue: {
-        fontSize: FONT_SIZES.md,
-        fontWeight: 'bold',
-    },
-
-    // ============================================
-    // PRODUCT NAME
-    // ============================================
-    productName: {
-        fontSize: FONT_SIZES.lg,
-        fontWeight: 'bold',
         marginBottom: SPACING.md,
-        lineHeight: 1.2,
-    },
-
-    // ============================================
-    // TECHNICAL LIST
-    // ============================================
-    techList: {
-        marginTop: SPACING.sm,
-        marginBottom: SPACING.sm,
-    },
-    techItem: {
-        fontSize: FONT_SIZES.sm,
-        marginBottom: 2,
-        lineHeight: 1.3,
-    },
-
-    // ============================================
-    // TWO COLUMN LAYOUT (for preview + details)
-    // ============================================
-    twoCol: {
-        flexDirection: 'row',
-        gap: SPACING.lg,
-        marginTop: SPACING.md,
-    },
-    col70: {
-        width: '70%',
-    },
-    col30: {
-        width: '30%',
-    },
-
-    // ============================================
-    // PREVIEW (Small, reference only)
-    // ============================================
-    previewBox: {
-        borderWidth: 1,
-        borderColor: COLORS.lineThin,
-        height: 120,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: SPACING.sm,
-    },
-    previewImage: {
-        maxWidth: '95%',
-        maxHeight: '95%',
-        objectFit: 'contain',
-    },
-    previewLabel: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textLight,
-        textAlign: 'center',
-        marginTop: SPACING.xs,
-    },
-
-    // ============================================
-    // OBSERVATIONS
-    // ============================================
-    obsBox: {
-        borderWidth: 1,
-        borderColor: COLORS.line,
-        padding: SPACING.sm,
-        marginTop: SPACING.md,
-        marginBottom: SPACING.md,
-    },
-    obsLabel: {
-        fontSize: FONT_SIZES.xs,
-        fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginBottom: SPACING.xs,
     },
-    obsText: {
-        fontSize: FONT_SIZES.sm,
-        lineHeight: 1.3,
+    techField: {
+        marginBottom: SPACING.sm,
     },
-
-    // ============================================
-    // PRODUCTION CONTROL (Footer)
-    // ============================================
-    controlSection: {
-        marginTop: 'auto',
-        borderTopWidth: 2,
-        borderTopColor: COLORS.line,
-        paddingTop: SPACING.md,
-    },
-    controlRow: {
+    techFieldRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: SPACING.sm,
     },
-    controlField: {
+    techLabel: {
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textLight,
+    },
+    techValue: {
         fontSize: FONT_SIZES.md,
         fontWeight: 'bold',
     },
 
+    // List items
+    techList: {
+        marginTop: SPACING.sm,
+    },
+    techItem: {
+        fontSize: FONT_SIZES.sm,
+        marginBottom: 3,
+        lineHeight: 1.3,
+    },
+
     // ============================================
-    // FOOTER
+    // PREVIEW BOX (Large, right column)
+    // ============================================
+    previewBox: {
+        borderWidth: BORDER.field,
+        borderColor: COLORS.fieldBorder,
+        borderRadius: RADIUS.field,
+        backgroundColor: COLORS.previewBg,
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: SPACING.md,
+    },
+    previewImage: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+    },
+    previewPlaceholder: {
+        fontSize: FONT_SIZES.md,
+        color: '#CCCCCC',
+    },
+
+    // ============================================
+    // FOOTER (RIP/DATA)
     // ============================================
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: SPACING.sm,
-        paddingTop: SPACING.sm,
-        borderTopWidth: 0.5,
-        borderTopColor: COLORS.lineThin,
+        marginTop: SPACING.lg,
+        gap: SPACING.xl,
     },
-    footerText: {
-        fontSize: FONT_SIZES.xs,
-        color: COLORS.textLight,
+    footerField: {
+        flex: 1,
+    },
+    underlineField: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.text,
+        paddingBottom: 4,
+        minHeight: 18,
     },
 
-    // Badge
+    // Badges
     badge: {
         backgroundColor: '#000000',
         color: '#FFFFFF',
-        padding: '2px 4px',
+        padding: '2px 6px',
         fontSize: FONT_SIZES.xs,
         fontWeight: 'bold',
-        marginLeft: 6,
+        marginLeft: 8,
+        borderRadius: 2,
     },
 });
