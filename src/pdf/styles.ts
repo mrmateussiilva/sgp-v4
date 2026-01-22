@@ -16,10 +16,10 @@ export const SPACING = {
 };
 
 export const FONT_SIZES = {
-    label: 7,
-    meta: 9,
-    value: 10,
-    title: 14,
+    label: 9,
+    meta: 11,
+    value: 12,
+    title: 16,
 };
 
 export const COLORS = {
