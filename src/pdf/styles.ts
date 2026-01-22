@@ -1,6 +1,52 @@
 import { StyleSheet } from '@react-pdf/renderer';
 
+// ============================================
+// DESIGN CONSTANTS - V3 (Row-Based Card Layout)
+// ============================================
+
+export const SPACING = {
+    xs: 2,
+    sm: 4,
+    md: 6,
+    lg: 8,
+    xl: 12,
+};
+
+export const FONT_SIZES = {
+    xs: 7,
+    sm: 8,
+    md: 9,
+    lg: 10,
+    xl: 12,
+    title: 16,
+};
+
+export const COLORS = {
+    primary: '#1565C0',
+    secondary: '#C62828',
+    border: '#DDDDDD',
+    borderDark: '#999999',
+    text: '#000000',
+    textSecondary: '#444444',
+    textMuted: '#666666',
+    bgCard: '#FAFAFA',
+    bgHeader: '#F5F5F5',
+    warning: '#FFF9C4',
+    warningBorder: '#FBC02D',
+    reposicao: '#FF6B35',
+};
+
+export const CARD_HEIGHT = {
+    preview: '55mm',
+    ripData: '35mm',
+};
+
+// ============================================
+// STYLES
+// ============================================
+
 export const styles = StyleSheet.create({
+    // Container
     page: {
         padding: 0,
         backgroundColor: '#FFFFFF',
@@ -8,238 +54,304 @@ export const styles = StyleSheet.create({
     },
     orderContainer: {
         width: '100%',
-        height: '148mm', // Pouco menos que a metade exata (148.5mm) para segurança
+        height: '148mm',
         padding: '5mm',
-        display: 'flex',
         flexDirection: 'column',
     },
-    // Sub-blocos para garantir que não quebrem
-    noBreak: {
-        // Note: react-pdf doesn't support wrap: false in StyleSheet, 
-        // it's a prop on the View component.
-    },
+
+    // ============================================
+    // ROW 1: HEADER (Full Width)
+    // ============================================
     header: {
-        display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '7mm',
-        borderBottomWidth: 1,
-        borderBottomColor: '#DDDDDD',
-        marginBottom: '2mm',
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: 1.5,
+        borderBottomColor: COLORS.text,
+        marginBottom: SPACING.lg,
     },
     headerItem: {
-        display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
     },
     hLabel: {
-        fontSize: 8,
-        fontWeight: 'bold',
-        color: '#666666',
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textMuted,
         textTransform: 'uppercase',
     },
     hValue: {
-        fontSize: 9,
+        fontSize: FONT_SIZES.md,
         fontWeight: 'bold',
-        color: '#000000',
+        color: COLORS.text,
     },
-    mainSection: {
-        display: 'flex',
+
+    // ============================================
+    // LAYOUT STRUCTURE
+    // ============================================
+    row: {
         flexDirection: 'row',
-        gap: '3mm',
-        flex: 1,
+        gap: SPACING.lg,
+        marginBottom: SPACING.lg,
     },
-    colLeft: {
-        width: '90mm',
-        display: 'flex',
+    col55: {
+        width: '55%',
         flexDirection: 'column',
     },
-    pedidoBox: {
-        height: '22mm',
+    col45: {
+        width: '45%',
+        flexDirection: 'column',
+    },
+
+    // ============================================
+    // CARD COMPONENT
+    // ============================================
+    card: {
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.bgCard,
+        padding: SPACING.md,
+        height: '100%',
+    },
+    cardTitle: {
+        fontSize: FONT_SIZES.sm,
+        fontWeight: 'bold',
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+        marginBottom: SPACING.sm,
+        paddingBottom: SPACING.xs,
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        marginBottom: '2mm',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
+        borderBottomColor: COLORS.border,
     },
+
+    // ============================================
+    // ROW 2: PEDIDO/CLIENTE + LOGÍSTICA
+    // ============================================
     pedidoNumero: {
-        fontSize: 12,
+        fontSize: FONT_SIZES.xl,
         fontWeight: 'bold',
-        color: '#000000',
-    },
-    badgeReposicao: {
-        backgroundColor: '#FF6B35',
-        color: '#FFFFFF',
-        padding: '1px 4px',
-        fontSize: 7,
-        fontWeight: 'bold',
-        marginLeft: 4,
-        borderRadius: 2,
-    },
-    clienteInfo: {
-        marginTop: 2,
+        color: COLORS.primary,
+        marginBottom: SPACING.xs,
     },
     clienteNome: {
-        fontSize: 16,
+        fontSize: FONT_SIZES.title,
         fontWeight: 'bold',
         textTransform: 'uppercase',
+        marginBottom: SPACING.xs,
     },
     clienteTags: {
-        fontSize: 13,
-        color: '#333333',
-        marginTop: 1,
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textSecondary,
     },
-    tipoBadge: {
-        marginTop: 2,
-        padding: '1px 4px',
-        fontSize: 7,
+    badgeReposicao: {
+        backgroundColor: COLORS.reposicao,
+        color: '#FFFFFF',
+        padding: '2px 6px',
+        fontSize: FONT_SIZES.xs,
         fontWeight: 'bold',
-        borderWidth: 1,
+        marginLeft: 6,
         borderRadius: 2,
-        alignSelf: 'flex-start',
     },
-    prodNome: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        borderLeftWidth: 2,
-        borderLeftColor: '#1976D2',
-        paddingLeft: '2mm',
-        marginBottom: '2mm',
-    },
-    infoGrid: {
-        display: 'flex',
+
+    // Logistics card (right side row 2)
+    logisticRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: '2mm',
+        marginBottom: SPACING.sm,
+        paddingBottom: SPACING.xs,
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.border,
     },
-    qtyBox: {
-        alignItems: 'flex-end',
+    logisticLabel: {
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textMuted,
+    },
+    logisticValue: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+    },
+
+    // ============================================
+    // ROW 3: ESPECIFICAÇÕES + PREVIEW
+    // ============================================
+    prodNome: {
+        fontSize: FONT_SIZES.lg,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        backgroundColor: COLORS.primary,
+        color: '#FFFFFF',
+        padding: '3 6',
+        marginBottom: SPACING.md,
+    },
+
+    // Label-Value pairs
+    labelValueRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: SPACING.xs,
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.border,
+    },
+    lvLabel: {
+        fontSize: FONT_SIZES.sm,
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+    },
+    lvValue: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+        color: COLORS.text,
+    },
+
+    // Quantity highlight
+    qtyRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        borderWidth: 1,
+        borderColor: COLORS.secondary,
+        padding: SPACING.sm,
+        marginTop: SPACING.sm,
     },
     qtyLabel: {
-        fontSize: 7,
-        color: '#999999',
+        fontSize: FONT_SIZES.sm,
+        fontWeight: 'bold',
+        color: COLORS.secondary,
+        textTransform: 'uppercase',
     },
     qtyValue: {
-        fontSize: 20,
+        fontSize: FONT_SIZES.xl,
         fontWeight: 'bold',
-        color: '#D32F2F',
+        color: COLORS.secondary,
     },
-    techSection: {
-        borderTopWidth: 1,
-        borderTopColor: '#EEEEEE',
-        paddingTop: '2mm',
-        marginTop: '2mm',
-    },
-    techGrid: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1mm',
-    },
-    techBadge: {
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
-    },
-    techLabel: {
-        fontSize: 16,
-        color: '#333333',
-        fontWeight: 'bold',
-    },
-    techValue: {
-        fontSize: 16,
-        color: '#000000',
-        fontWeight: 'bold',
-    },
-    techItem: {
-        fontSize: 8,
-        marginBottom: 2,
-    },
-    obsContainer: {
-        marginTop: 'auto',
-        paddingTop: '2mm',
-    },
-    obsBox: {
-        borderLeftWidth: 3,
-        paddingLeft: '2mm',
-        marginBottom: 4,
-    },
-    obsTitle: {
-        fontSize: 7,
-        fontWeight: 'bold',
-        color: '#666666',
-        textTransform: 'uppercase',
-        marginBottom: 1,
-    },
-    obsText: {
-        fontSize: 7,
-        lineHeight: 1.2,
-    },
-    colRight: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-    },
-    imgTitle: {
-        fontSize: 7,
-        fontWeight: 'bold',
-        color: '#999999',
-        textAlign: 'center',
-        marginBottom: '1mm',
-    },
-    imgBox: {
-        flex: 1,
+
+    // Preview card (fixed height)
+    previewCard: {
         borderWidth: 1,
-        borderColor: '#DDDDDD',
-        borderRadius: 3,
-        backgroundColor: '#FAFAFA',
-        display: 'flex',
+        borderColor: COLORS.border,
+        backgroundColor: '#FFFFFF',
+        height: CARD_HEIGHT.preview,
+        flexDirection: 'column',
+    },
+    previewTitle: {
+        fontSize: FONT_SIZES.sm,
+        fontWeight: 'bold',
+        color: COLORS.text,
+        backgroundColor: COLORS.bgHeader,
+        textAlign: 'center',
+        paddingVertical: SPACING.xs,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        textTransform: 'uppercase',
+    },
+    previewImageContainer: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
+        padding: SPACING.sm,
     },
-    image: {
-        width: '100%',
-        height: '100%',
+    previewImage: {
+        maxWidth: '100%',
+        maxHeight: '100%',
         objectFit: 'contain',
     },
-    noImg: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: '#CCCCCC',
-    },
-    imgCaption: {
-        fontSize: 8,
-        color: '#666666',
+    previewCaption: {
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textMuted,
         textAlign: 'center',
-        marginTop: '1mm',
+        padding: SPACING.xs,
         fontStyle: 'italic',
+        borderTopWidth: 0.5,
+        borderTopColor: COLORS.border,
     },
+
+    // ============================================
+    // ROW 4: ACABAMENTOS + RIP/DATA
+    // ============================================
+    techGrid: {
+        flexDirection: 'column',
+        gap: 2,
+    },
+    techItem: {
+        fontSize: FONT_SIZES.sm,
+        marginBottom: 2,
+    },
+    techLabel: {
+        fontWeight: 'bold',
+        color: COLORS.textSecondary,
+    },
+
+    // Observations
+    obsBox: {
+        marginTop: SPACING.md,
+        padding: SPACING.sm,
+        backgroundColor: COLORS.warning,
+        borderWidth: 1,
+        borderColor: COLORS.warningBorder,
+        borderLeftWidth: 3,
+    },
+    obsTitle: {
+        fontSize: FONT_SIZES.xs,
+        fontWeight: 'bold',
+        color: '#E65100',
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    obsText: {
+        fontSize: FONT_SIZES.sm,
+        lineHeight: 1.2,
+        color: COLORS.text,
+    },
+
+    // RIP/DATA card (fixed height, structured)
+    ripDataCard: {
+        borderWidth: 1.5,
+        borderColor: COLORS.borderDark,
+        backgroundColor: '#FFFFFF',
+        padding: SPACING.md,
+        height: CARD_HEIGHT.ripData,
+        justifyContent: 'space-between',
+    },
+    ripDataTitle: {
+        fontSize: FONT_SIZES.sm,
+        fontWeight: 'bold',
+        color: COLORS.text,
+        textTransform: 'uppercase',
+        marginBottom: SPACING.sm,
+    },
+    ripDataField: {
+        fontSize: FONT_SIZES.md,
+        fontWeight: 'bold',
+        marginBottom: SPACING.xs,
+    },
+
+    // ============================================
+    // ROW 5: FOOTER (Full Width)
+    // ============================================
     footer: {
-        height: '8mm',
-        borderTopWidth: 1,
-        borderTopColor: '#DDDDDD',
-        marginTop: '2mm',
-        display: 'flex',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        fontSize: 7,
-    },
-    footerItem: {
-        flex: 1,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        paddingTop: SPACING.sm,
+        marginTop: 'auto',
     },
     footerLabel: {
-        fontSize: 7,
-        color: '#999999',
+        fontSize: FONT_SIZES.xs,
+        color: COLORS.textMuted,
     },
     footerValue: {
-        fontSize: 8,
+        fontSize: FONT_SIZES.sm,
         fontWeight: 'bold',
-    }
+    },
+
+    // Debug mode
+    debug: {
+        borderWidth: 1,
+        borderColor: 'magenta',
+        borderStyle: 'dashed',
+    },
 });
