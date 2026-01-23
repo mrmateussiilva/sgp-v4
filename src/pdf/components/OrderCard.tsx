@@ -8,7 +8,7 @@ interface OrderCardProps {
 }
 
 // ============================================
-// HELPER COMPONENTS
+// HELPER COMPONENTS (V2 Adjusted)
 // ============================================
 
 const HeaderItem: React.FC<{ label: string; value: string | number | undefined }> = ({ label, value }) => (
@@ -22,7 +22,7 @@ const SpecRow: React.FC<{ label: string; value: string | number | undefined }> =
     if (value === undefined || value === null || value === '' || value === '---') return null;
     return (
         <View style={styles.kvRow}>
-            <Text style={styles.kvLabel}>{label}:</Text>
+            <Text style={styles.kvLabel}>{label}</Text>
             <Text style={styles.kvValue}>{value}</Text>
         </View>
     );
@@ -44,24 +44,25 @@ const formatDate = (dateString?: string) => {
 };
 
 // ============================================
-// MAIN COMPONENT: 3-SECTION INDUSTRIAL
+// MAIN COMPONENT: 3-SECTION INDUSTRIAL V2
 // ============================================
 
 export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     const images = order.produtos.map(p => p.imagem).filter(Boolean) as string[];
     const prod = order.produtos[0];
 
-    // Collect technical tags
+    // Collect technical tags (Vital Info)
     const techItems: string[] = [];
-    if (prod.overloque) techItems.push('Overloque');
-    if (prod.elastico) techItems.push('Elástico');
-    if (prod.ziper) techItems.push('Zíper');
-    if (prod.alcinha) techItems.push('Alcinha');
-    if (prod.terceirizado) techItems.push('Terceirizado');
-    if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum') techItems.push(prod.tipo_acabamento);
-    if (prod.quantidade_ilhos) techItems.push(`Ilhós: ${prod.quantidade_ilhos}`);
-    if (prod.quantidade_cordinha) techItems.push(`Cord.: ${prod.quantidade_cordinha}`);
-    if (prod.emenda) techItems.push(`Emenda: ${prod.emenda}`);
+    if (prod.overloque) techItems.push('OVERLOQUE');
+    if (prod.elastico) techItems.push('ELÁSTICO');
+    if (prod.ziper) techItems.push('ZÍPER');
+    if (prod.alcinha) techItems.push('ALCINHA');
+    if (prod.terceirizado) techItems.push('TERCEIRIZADO');
+    if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum')
+        techItems.push(prod.tipo_acabamento.toUpperCase());
+    if (prod.quantidade_ilhos) techItems.push(`ILHÓS: ${prod.quantidade_ilhos} UN`);
+    if (prod.quantidade_cordinha) techItems.push(`CORDINHA: ${prod.quantidade_cordinha} UN`);
+    if (prod.emenda) techItems.push(`EMENDA: ${prod.emenda.toUpperCase()}`);
 
     return (
         <View style={styles.container} wrap={false}>
@@ -69,18 +70,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
                 <View style={styles.headerTopRow}>
-                    <HeaderItem label="ORDEM" value={`#${order.numero}`} />
-                    <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
-                    <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
-                    <HeaderItem label="TRANSPORTE" value={order.forma_envio} />
+                    <HeaderItem label="PEDIDO" value={`#${order.numero}`} />
+                    <HeaderItem label="DATA ENTRADA" value={formatDate(order.data_entrada)} />
+                    <HeaderItem label="DATA ENTREGA" value={formatDate(order.data_envio)} />
+                    <HeaderItem label="TRANSPORTE" value={order.forma_envio.toUpperCase()} />
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 4 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                <View style={styles.headerBottomRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
                         {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
                         <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
                         <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
                     </View>
@@ -90,23 +91,23 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 2: CORPO (Tech & Preview) */}
             <View style={styles.body}>
 
-                {/* Coluna Esquerda: Técnica (34%) */}
+                {/* Coluna Esquerda: Técnica (45%) */}
                 <View style={styles.colLeft}>
-                    <Text style={styles.techTitle}>Especificações Técnicas</Text>
+                    <Text style={styles.techTitle}>Especificações Gerais</Text>
                     <SpecRow label="Produto" value={prod.descricao} />
-                    <SpecRow label="Tipo" value={prod.tipo_producao} />
-                    <SpecRow label="Material" value={prod.tecido || prod.tipo_adesivo || prod.material} />
-                    <SpecRow label="Medidas" value={prod.dimensoes} />
+                    <SpecRow label="Tipo Produção" value={prod.tipo_producao} />
+                    <SpecRow label="Material / Tecido" value={prod.tecido || prod.tipo_adesivo || prod.material} />
+                    <SpecRow label="Dimensões" value={prod.dimensoes} />
                     <SpecRow label="Vendedor" value={order.vendedor} />
                     <SpecRow label="Designer" value={order.designer} />
-                    <SpecRow label="Quantidade" value={prod.quantity} />
+                    <SpecRow label="Quantidade Total" value={prod.quantity} />
 
                     {techItems.length > 0 && (
                         <>
-                            <Text style={styles.techTitle}>Acabamentos / Costura</Text>
+                            <Text style={styles.techTitle}>Acabamento e Costura (VITAL)</Text>
                             <View style={styles.techList}>
                                 {techItems.map((item, i) => (
-                                    <Text key={i} style={styles.techItem}>• {item}</Text>
+                                    <Text key={i} style={styles.techItem}>▶ {item}</Text>
                                 ))}
                             </View>
                         </>
@@ -114,23 +115,21 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
                     {(prod.observacao_item || order.observacao_pedido) && (
                         <>
-                            <Text style={styles.techTitle}>Observações</Text>
-                            <Text style={styles.techItem}>
+                            <Text style={styles.techTitle}>Observações de Produção</Text>
+                            <Text style={[styles.techItem, { fontWeight: 'normal', fontStyle: 'italic', fontSize: 10 }]}>
                                 {prod.observacao_item || order.observacao_pedido}
                             </Text>
                         </>
                     )}
-
-
                 </View>
 
-                {/* Coluna Direita: Preview (66%) */}
+                {/* Coluna Direita: Preview (55%) */}
                 <View style={styles.colRight}>
                     <View style={styles.previewWrapper}>
                         {images.length > 0 ? (
                             <Image src={images[0]} style={styles.previewImage} />
                         ) : (
-                            <Text style={styles.previewPlaceholder}>ESTE ITEM NÃO POSSUI PREVIEW</Text>
+                            <Text style={styles.previewPlaceholder}>ESTE ITEM NÃO POSSUI PREVIEW TÉCNICO</Text>
                         )}
                     </View>
                     {prod.legenda_imagem && (
@@ -142,15 +141,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 3: RODAPÉ (Operational) */}
             <View style={styles.footer}>
                 <View style={styles.footerField}>
-                    <Text style={styles.footerLabel}>Data:</Text>
+                    <Text style={styles.footerLabel}>Data de Partida:</Text>
                     <View style={styles.footerLine} />
                 </View>
                 <View style={styles.footerField}>
-                    <Text style={styles.footerLabel}>RIP:</Text>
+                    <Text style={styles.footerLabel}>RIP / Lote:</Text>
                     <View style={styles.footerLine} />
                 </View>
-                <View style={{ flex: 1, alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 6, color: '#999' }}>Gerado: {new Date().toLocaleDateString('pt-BR')}</Text>
+                <View style={{ flex: 0.5, alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 7, color: COLORS.textMuted }}>SGP-V4 | {new Date().toLocaleDateString('pt-BR')}</Text>
                 </View>
             </View>
 
