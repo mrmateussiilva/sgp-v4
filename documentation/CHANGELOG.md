@@ -1,5 +1,19 @@
 # Changelog - SGP v4
 
+## [1.0.18] - 2026-01-23
+
+### 🎨 UI/UX
+- **Refinamento PDF (V2)**: Melhoria completa na hierarquia e legibilidade da ficha industrial.
+  - Adição de cabeçalhos de seção destacados com cores neutras.
+  - Alinhamento tabular de itens técnicos com larguras fixas.
+  - Reorganização do cabeçalho com badges de "REPOSIÇÃO" mais visíveis.
+  - Padronização de rótulos operacionais (ENTRADA, ENTREGA, FRETE).
+
+### 📊 Relatórios
+- **Relatório de Envios**: Otimização do filtro por data de entrega no frontend.
+  - Janela de busca ampliada para capturar pedidos antigos com entregas futuras.
+  - Remoção do limite de 20 pedidos por página para relatórios.
+
 ## [1.0.17] - 2026-01-22
 
 ### 🎨 UI/UX

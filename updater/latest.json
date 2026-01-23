@@ -1,10 +1,10 @@
 {
-  "version": "1.0.17",
-  "notes": "Correções adicionais, melhorias de desempenho e ajustes de estabilidade.",
-  "pub_date": "2026-01-22T13:20:00Z",
+  "version": "1.0.18",
+  "notes": "Refinamentos no layout industrial do PDF e correção no filtro do relatório de envios.",
+  "pub_date": "2026-01-23T15:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.17/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.17_x64_en-US.msi",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.18/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.18_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2tPUVA0SzArVHFNQXN5M2h4OFcySTlySFQ0SzFhY01TR2k4SkhYQ2F2UmoreFdoVHhiYkxTcnpHbHFEZ2xNNUtBQzYweU1qUVkvUEZUalpqd1pXbWdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY5MDg1OTM2CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjE3X3g2NF9lbi1VUy5tc2kKOWhyb2Q2WklqclQ2WFNVYkM2L250VWVrMkg3OVRpUitIbm5XOXduVDZBUWx4dXRJWVJzUHZoS0tXTXljU2t5UWVRYkVKdG04WWovNC9Hbno4RnFMQ3c9PQo="
     }
   }
