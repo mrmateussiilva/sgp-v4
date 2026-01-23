@@ -43,11 +43,30 @@ export default function RelatoriosEnvios() {
     setError(null);
 
     try {
-      const dataInicialSelecionada = dataInicio;
-      const pedidos = await api.getRelatorioEnviosPedidos(
-        dataInicialSelecionada,
-        dataFim || undefined,
+      // Como a API filtra por data de criação e queremos filtrar por data de entrega,
+      // precisamos buscar um intervalo maior de pedidos criados e filtrar no frontend.
+      // Buscamos pedidos criados até 90 dias antes para garantir que pegamos pedidos antigos com entrega futura.
+      const dataCriacaoInicio = new Date(dataInicio);
+      dataCriacaoInicio.setDate(dataCriacaoInicio.getDate() - 90);
+      const dataCriacaoInicioStr = dataCriacaoInicio.toISOString().split('T')[0];
+
+      // A API também tem um limite padrão de 20 itens. Vamos aumentar para 1000.
+      const pedidosResponse = await api.getRelatorioEnviosPedidos(
+        dataCriacaoInicioStr,
+        undefined, // Sem limite final de criação para não perder nada
+        { pageSize: 1000 }
       );
+
+      // Filtro Rigoroso no Frontend: Apenas pedidos onde a data_entrega está no intervalo solicitado
+      const pedidos = pedidosResponse.filter((pedido) => {
+        if (!pedido.data_entrega) return false;
+
+        // Normalizar para YYYY-MM-DD para comparação de string
+        const entrega = pedido.data_entrega.split('T')[0].split(' ')[0];
+        const fim = dataFim || dataInicio;
+
+        return entrega >= dataInicio && entrega <= fim;
+      });
 
       // Agrupar pedidos por forma de envio
       const gruposMap = new Map<string, OrderWithItems[]>();
@@ -172,7 +191,7 @@ export default function RelatoriosEnvios() {
           </Button>
         )}
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Filtros do Relatório</CardTitle>
@@ -201,10 +220,10 @@ export default function RelatoriosEnvios() {
               </div>
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-3">
-            <Button 
-              onClick={gerarRelatorio} 
+            <Button
+              onClick={gerarRelatorio}
               disabled={loading}
             >
               {loading ? 'Gerando...' : 'Gerar Relatório'}
@@ -249,7 +268,7 @@ export default function RelatoriosEnvios() {
                   <h3 className="text-lg font-semibold text-primary">
                     {grupo.forma_envio.toUpperCase()}:
                   </h3>
-                  
+
                   <div className="ml-4 space-y-1">
                     {grupo.pedidos.map((pedido) => (
                       <div key={pedido.id} className="text-sm">
@@ -275,13 +294,13 @@ export default function RelatoriosEnvios() {
                       </div>
                     ))}
                   </div>
-                  
+
                   {index < relatorio.length - 1 && (
                     <div className="border-t border-gray-200 my-4"></div>
                   )}
                 </div>
               ))}
-      </div>
+            </div>
           </CardContent>
         </Card>
       )}
