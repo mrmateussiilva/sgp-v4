@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image } from '@react-pdf/renderer';
 import { ProductionOrder } from '../groupOrders';
-import { styles } from '../styles';
+import { styles, COLORS } from '../styles';
 
 interface OrderCardProps {
     order: ProductionOrder;
@@ -70,17 +70,17 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
                 <View style={styles.headerTopRow}>
-                    <HeaderItem label="PEDIDO" value={`#${order.numero}`} />
-                    <HeaderItem label="DATA ENTRADA" value={formatDate(order.data_entrada)} />
-                    <HeaderItem label="DATA ENTREGA" value={formatDate(order.data_envio)} />
-                    <HeaderItem label="TRANSPORTE" value={order.forma_envio.toUpperCase()} />
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <HeaderItem label="PEDIDO" value={`#${order.numero}`} />
+                        {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
+                    </View>
+                    <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
+                    <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
+                    <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
                 </View>
 
                 <View style={styles.headerBottomRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
-                        {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
-                    </View>
+                    <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
                     <View style={{ flexDirection: 'row', gap: 15 }}>
                         <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
                         <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
@@ -96,18 +96,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <Text style={styles.techTitle}>Especificações Gerais</Text>
                     <SpecRow label="Produto" value={prod.descricao} />
                     <SpecRow label="Tipo Produção" value={prod.tipo_producao} />
-                    <SpecRow label="Material / Tecido" value={prod.tecido || prod.tipo_adesivo || prod.material} />
+                    <SpecRow label="Tecido" value={prod.tecido || prod.tipo_adesivo || prod.material} />
                     <SpecRow label="Dimensões" value={prod.dimensoes} />
                     <SpecRow label="Vendedor" value={order.vendedor} />
                     <SpecRow label="Designer" value={order.designer} />
-                    <SpecRow label="Quantidade Total" value={prod.quantity} />
+                    <SpecRow label="Quantidade" value={prod.quantity} />
 
                     {techItems.length > 0 && (
                         <>
-                            <Text style={styles.techTitle}>Acabamento e Costura (VITAL)</Text>
+                            <Text style={styles.techTitle}>Acabamento / Costura</Text>
                             <View style={styles.techList}>
                                 {techItems.map((item, i) => (
-                                    <Text key={i} style={styles.techItem}>▶ {item}</Text>
+                                    <Text key={i} style={styles.techItem}>✓ {item}</Text>
                                 ))}
                             </View>
                         </>
@@ -115,8 +115,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
                     {(prod.observacao_item || order.observacao_pedido) && (
                         <>
-                            <Text style={styles.techTitle}>Observações de Produção</Text>
-                            <Text style={[styles.techItem, { fontWeight: 'normal', fontStyle: 'italic', fontSize: 10 }]}>
+                            <Text style={[styles.techTitle, { marginTop: 12 }]}>Observações</Text>
+                            <Text style={[styles.techItem, { fontWeight: 'normal', color: COLORS.textMuted, fontSize: 10, marginTop: 4, paddingLeft: 6 }]}>
                                 {prod.observacao_item || order.observacao_pedido}
                             </Text>
                         </>
@@ -141,11 +141,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 3: RODAPÉ (Operational) */}
             <View style={styles.footer}>
                 <View style={styles.footerField}>
-                    <Text style={styles.footerLabel}>Data de Partida:</Text>
+                    <Text style={styles.footerLabel}>Data de Impressão:</Text>
                     <View style={styles.footerLine} />
                 </View>
                 <View style={styles.footerField}>
-                    <Text style={styles.footerLabel}>RIP / Lote:</Text>
+                    <Text style={styles.footerLabel}>RIP:</Text>
                     <View style={styles.footerLine} />
                 </View>
                 <View style={{ flex: 0.5, alignItems: 'flex-end', justifyContent: 'center' }}>

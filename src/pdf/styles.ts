@@ -29,6 +29,8 @@ export const COLORS = {
     border: '#999999',        // Darker border for clear separation
     borderLight: '#DDDDDD',
     previewBg: '#F8F8F8',
+    sectionHeaderBg: '#F0F0F0', // NEW for V3
+    calloutBg: '#FAFAFA',       // NEW for V3
 };
 
 // ============================================
@@ -110,43 +112,49 @@ export const styles = StyleSheet.create({
 
     // Coluna Esquerda: Técnica
     techTitle: {
-        fontSize: 12, // Standardized for V2
+        fontSize: 10,
         fontWeight: 'bold',
         textTransform: 'uppercase',
-        marginBottom: 6,
-        marginTop: SPACING.lg, // More breathing room
-        borderBottomWidth: 1.2,
-        borderBottomColor: COLORS.text,
-        paddingBottom: 3,
+        marginBottom: 8,
+        marginTop: SPACING.md,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        backgroundColor: COLORS.sectionHeaderBg,
+        borderLeftWidth: 3,
+        borderLeftColor: COLORS.text,
         letterSpacing: 0.5,
     },
     kvRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 3, // More vertical space
+        alignItems: 'center',
+        paddingVertical: 3,
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderLight,
     },
     kvLabel: {
+        width: 85, // Fixed width for tabular alignment (V3)
         fontSize: FONT_SIZES.label,
-        color: COLORS.textSecondary, // Higher contrast
+        color: COLORS.textMuted,
         fontWeight: 'normal',
+        textTransform: 'uppercase',
     },
     kvValue: {
+        flex: 1,
         fontSize: FONT_SIZES.meta,
         fontWeight: 'bold',
         color: COLORS.text,
-        textAlign: 'right',
+        textAlign: 'left', // Changed to left for better tabular flow
+        paddingLeft: 4,
     },
     techList: {
         marginTop: SPACING.sm,
+        paddingLeft: 4,
     },
     techItem: {
-        fontSize: 12, // Vital info, same as title size for clarity
+        fontSize: 11,
         color: COLORS.text,
         fontWeight: 'bold',
-        marginBottom: 4,
-        paddingLeft: 4,
+        marginBottom: 2,
     },
 
     // Coluna Direita: Preview Protagonista
