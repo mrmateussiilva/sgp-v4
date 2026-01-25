@@ -2861,24 +2861,24 @@ export default function OrderList() {
               <div className="grid grid-cols-1 gap-4 py-2">
                 <Button
                   variant="outline"
-                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 rounded-2xl border-2 border-muted overflow-hidden"
+                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 rounded-2xl border-2 border-muted overflow-hidden whitespace-normal"
                   onClick={() => handleReplacementConfirm(false)}
                 >
-                  <div className="bg-muted group-hover:bg-primary/10 p-3 rounded-2xl transition-colors duration-300">
+                  <div className="bg-muted group-hover:bg-primary/10 p-3 rounded-2xl transition-colors duration-300 flex-shrink-0">
                     <History className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   </div>
                   <div className="flex-1 flex flex-col gap-1 pr-2">
                     <span className="font-bold text-base leading-tight">Valores Originais</span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed">
+                    <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
                       Copia integralmente os preços e frete do pedido original. Usar quando o cliente pagará pela nova peça.
                     </span>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary/50 group-hover:translate-x-1 transition-all duration-300" />
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary/50 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
                 </Button>
 
                 <Button
                   variant="outline"
-                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left border-2 border-orange-100 hover:border-orange-400 hover:bg-orange-50/50 dark:border-orange-900/20 dark:hover:bg-orange-950/20 transition-all duration-300 rounded-2xl overflow-hidden"
+                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left border-2 border-orange-100 hover:border-orange-400 hover:bg-orange-50/50 dark:border-orange-900/20 dark:hover:bg-orange-950/20 transition-all duration-300 rounded-2xl overflow-hidden whitespace-normal"
                   onClick={() => handleReplacementConfirm(true)}
                 >
                   <div className="absolute top-0 right-0">
@@ -2887,16 +2887,16 @@ export default function OrderList() {
                       RECOMENDADO
                     </div>
                   </div>
-                  <div className="bg-orange-100 dark:bg-orange-900/30 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 p-3 rounded-2xl transition-colors duration-300">
+                  <div className="bg-orange-100 dark:bg-orange-900/30 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 p-3 rounded-2xl transition-colors duration-300 flex-shrink-0">
                     <Zap className="h-6 w-6 text-orange-600 dark:text-orange-400 transition-colors duration-300 fill-current" />
                   </div>
                   <div className="flex-1 flex flex-col gap-1 mt-1 pr-2">
                     <span className="font-bold text-base text-orange-700 dark:text-orange-400 leading-tight">Cortesia (Zero Vinte)</span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed">
+                    <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
                       Zera todos os preços unitários e o frete. Ideal para casos de erro interno, garantia ou cortesia.
                     </span>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300" />
+                  <ChevronRight className="h-5 w-5 text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
                 </Button>
               </div>
 
