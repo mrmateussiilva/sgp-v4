@@ -16,7 +16,8 @@ import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { ChangelogModal } from './components/ChangelogModal';
 import { logger } from './utils/logger';
-import { useUpdaterStore } from './store/updaterStore';
+import { UpdateBanner } from './components/UpdateBanner';
+
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -217,19 +218,8 @@ function App() {
     };
   }, [apiUrl, isAuthenticated]);
 
-  // Notificação discreta de nova versão disponível
-  const isUpdateAvailable = useUpdaterStore(state => state.isUpdateAvailable);
-  const updateStoreVersion = useUpdaterStore(state => state.updateVersion);
-
-  useEffect(() => {
-    if (isUpdateAvailable && updateStoreVersion) {
-      toast({
-        title: "Atualização Disponível",
-        description: `Uma nova versão (v${updateStoreVersion}) está pronta.`,
-        variant: "info",
-      });
-    }
-  }, [isUpdateAvailable, updateStoreVersion]);
+  // Notificação de nova versão agora é gerenciada pelo componente UpdateBanner
+  // para ser mais persistente e visível em todo o sistema.
 
   if (isCheckingConnection) {
     return (
@@ -261,26 +251,31 @@ function App() {
               </div>
             ) : (
               <HashRouter>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route
-                    path="/dashboard/*"
-                    element={
-                      <PrivateRoute>
-                        <Dashboard />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/update-status"
-                    element={
-                      <PrivateRoute>
-                        <UpdateStatus />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route path="/" element={<Navigate to="/dashboard" />} />
-                </Routes>
+                <div className="flex flex-col min-h-screen">
+                  <UpdateBanner />
+                  <div className="flex-1 flex flex-col relative">
+                    <Routes>
+                      <Route path="/login" element={<Login />} />
+                      <Route
+                        path="/dashboard/*"
+                        element={
+                          <PrivateRoute>
+                            <Dashboard />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route
+                        path="/update-status"
+                        element={
+                          <PrivateRoute>
+                            <UpdateStatus />
+                          </PrivateRoute>
+                        }
+                      />
+                      <Route path="/" element={<Navigate to="/dashboard" />} />
+                    </Routes>
+                  </div>
+                </div>
                 <Toaster />
               </HashRouter>
             )}
