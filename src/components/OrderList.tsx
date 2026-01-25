@@ -2851,7 +2851,7 @@ export default function OrderList() {
                   </div>
                   <div>
                     <DialogTitle className="text-xl font-bold">Gerar Reposição</DialogTitle>
-                    <DialogDescription className="text-sm font-medium mt-1">
+                    <DialogDescription className="text-sm font-medium mt-1 break-words">
                       Pedido #{orderToReplace?.numero || orderToReplace?.id} • {orderToReplace?.cliente || orderToReplace?.customer_name}
                     </DialogDescription>
                   </div>
@@ -2867,10 +2867,10 @@ export default function OrderList() {
                   <div className="bg-muted group-hover:bg-primary/10 p-3 rounded-2xl transition-colors duration-300">
                     <History className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   </div>
-                  <div className="flex-1 flex flex-col gap-0.5">
-                    <span className="font-bold text-base">Valores Originais</span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed max-w-[240px]">
-                      Copia integralmente os preços e frete. Usar quando o cliente pagará pela nova peça.
+                  <div className="flex-1 flex flex-col gap-1 pr-2">
+                    <span className="font-bold text-base leading-tight">Valores Originais</span>
+                    <span className="text-xs text-muted-foreground font-normal leading-relaxed">
+                      Copia integralmente os preços e frete do pedido original. Usar quando o cliente pagará pela nova peça.
                     </span>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary/50 group-hover:translate-x-1 transition-all duration-300" />
@@ -2890,10 +2890,10 @@ export default function OrderList() {
                   <div className="bg-orange-100 dark:bg-orange-900/30 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 p-3 rounded-2xl transition-colors duration-300">
                     <Zap className="h-6 w-6 text-orange-600 dark:text-orange-400 transition-colors duration-300 fill-current" />
                   </div>
-                  <div className="flex-1 flex flex-col gap-0.5 mt-1">
-                    <span className="font-bold text-base text-orange-700 dark:text-orange-400">Cortesia (Zero Vinte)</span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed max-w-[240px]">
-                      Zera todos os valores. Ideal para erros internos ou garantias.
+                  <div className="flex-1 flex flex-col gap-1 mt-1 pr-2">
+                    <span className="font-bold text-base text-orange-700 dark:text-orange-400 leading-tight">Cortesia (Zero Vinte)</span>
+                    <span className="text-xs text-muted-foreground font-normal leading-relaxed">
+                      Zera todos os preços unitários e o frete. Ideal para casos de erro interno, garantia ou cortesia.
                     </span>
                   </div>
                   <ChevronRight className="h-5 w-5 text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300" />
