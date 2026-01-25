@@ -994,6 +994,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
 
     // Validar cada item preenchido
+    const isReplacement = formData.observacao?.includes('[REPOSIÇÃO]');
+
     tabs.forEach(tabId => {
       const item = tabsData[tabId];
       if (item && item.tipo_producao && item.descricao) {
@@ -1025,11 +1027,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
 
-          if (valorPainel <= 0 && valoresAdicionais <= 0) {
+          if (!isReplacement && valorPainel <= 0 && valoresAdicionais <= 0) {
             errors[`item_${tabId}_valor`] = 'Preencha pelo menos o valor do painel ou valores adicionais';
           }
         } else if (item.tipo_producao === 'totem') {
-          if (valorUnitario <= 0) {
+          if (!isReplacement && valorUnitario <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor do totem deve ser maior que zero';
           }
           const quantidadeTotem = parseInt(item.quantidade_totem || '0');
@@ -1040,7 +1042,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             errors[`item_${tabId}_acabamento_outro`] = 'Descreva o acabamento do totem';
           }
         } else if (item.tipo_producao === 'lona') {
-          if (valorUnitario <= 0) {
+          if (!isReplacement && valorUnitario <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor da lona deve ser maior que zero';
           }
           const quantidadeLona = parseInt(item.quantidade_lona || '0');
@@ -1057,7 +1059,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           if (!item.tipo_adesivo || item.tipo_adesivo.trim().length === 0) {
             errors[`item_${tabId}_tipo_adesivo`] = 'Tipo de adesivo é obrigatório';
           }
-          if (valorUnitario <= 0) {
+          if (!isReplacement && valorUnitario <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor do adesivo deve ser maior que zero';
           }
           const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0');
@@ -1068,7 +1070,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const valorCanga = parseLocaleNumber(item.valor_canga || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
           const valorUnitarioCanga = valorCanga + valoresAdicionais;
-          if (valorUnitarioCanga <= 0) {
+          if (!isReplacement && valorUnitarioCanga <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor da canga deve ser maior que zero';
           }
           const quantidadeCanga = parseInt(item.quantidade_canga || '0');
@@ -1079,7 +1081,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
           const valorUnitarioImpressao3D = valorImpressao3D + valoresAdicionais;
-          if (valorUnitarioImpressao3D <= 0) {
+          if (!isReplacement && valorUnitarioImpressao3D <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor da impressão 3D deve ser maior que zero';
           }
           const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0');
@@ -1088,7 +1090,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           }
         } else {
           // Para outros tipos, validar valor unitário diretamente
-          if (valorUnitario <= 0) {
+          if (!isReplacement && valorUnitario <= 0) {
             errors[`item_${tabId}_valor`] = 'Valor unitário deve ser maior que zero';
           }
         }
@@ -1122,16 +1124,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const validateTotals = () => {
     const errors: { [key: string]: string } = {};
+    const isReplacement = formData.observacao?.includes('[REPOSIÇÃO]');
 
     // Calcular valor total dos itens
     const valorItens = calcularValorItens();
-    if (valorItens <= 0) {
+    if (!isReplacement && valorItens <= 0) {
       errors.valor_itens = 'Valor total dos itens deve ser maior que zero';
     }
 
     // Calcular valor total do pedido
     const valorTotal = calcularTotal();
-    if (valorTotal <= 0) {
+    if (!isReplacement && valorTotal <= 0) {
       errors.valor_total = 'Valor total do pedido deve ser maior que zero';
     }
 
