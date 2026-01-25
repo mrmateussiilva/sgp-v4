@@ -427,7 +427,10 @@ export const ordersApi = {
      */
     createReplacementOrder: async (
         orderId: number,
-        data_entrega?: string
+        options?: {
+            data_entrega?: string;
+            zeroValues?: boolean;
+        }
     ): Promise<OrderWithItems> => {
         requireSessionToken();
 
@@ -438,7 +441,7 @@ export const ordersApi = {
         const newItems = original.items.map((item) => ({
             item_name: item.item_name,
             quantity: item.quantity,
-            unit_price: item.unit_price,
+            unit_price: options?.zeroValues ? 0 : item.unit_price,
             tipo_producao: item.tipo_producao,
             descricao: item.descricao,
             largura: item.largura,
@@ -452,37 +455,37 @@ export const ordersApi = {
             tipo_acabamento: item.tipo_acabamento,
             quantidade_ilhos: item.quantidade_ilhos,
             espaco_ilhos: item.espaco_ilhos,
-            valor_ilhos: item.valor_ilhos,
+            valor_ilhos: options?.zeroValues ? "0" : item.valor_ilhos,
             quantidade_cordinha: item.quantidade_cordinha,
             espaco_cordinha: item.espaco_cordinha,
-            valor_cordinha: item.valor_cordinha,
+            valor_cordinha: options?.zeroValues ? "0" : item.valor_cordinha,
             observacao: item.observacao,
             imagem: item.imagem,
             legenda_imagem: item.legenda_imagem,
             quantidade_paineis: item.quantidade_paineis,
-            valor_painel: item.valor_painel,
-            valores_adicionais: item.valores_adicionais,
-            valor_unitario: item.valor_unitario,
+            valor_painel: options?.zeroValues ? "0" : item.valor_painel,
+            valores_adicionais: options?.zeroValues ? "0" : item.valores_adicionais,
+            valor_unitario: options?.zeroValues ? "0" : item.valor_unitario,
             emenda: item.emenda,
             emenda_qtd: item.emenda_qtd,
             terceirizado: item.terceirizado,
             acabamento_lona: item.acabamento_lona,
-            valor_lona: item.valor_lona,
+            valor_lona: options?.zeroValues ? "0" : item.valor_lona,
             quantidade_lona: item.quantidade_lona,
-            outros_valores_lona: item.outros_valores_lona,
+            outros_valores_lona: options?.zeroValues ? "0" : item.outros_valores_lona,
             tipo_adesivo: item.tipo_adesivo,
-            valor_adesivo: item.valor_adesivo,
+            valor_adesivo: options?.zeroValues ? "0" : item.valor_adesivo,
             quantidade_adesivo: item.quantidade_adesivo,
-            outros_valores_adesivo: item.outros_valores_adesivo,
+            outros_valores_adesivo: options?.zeroValues ? "0" : item.outros_valores_adesivo,
             ziper: item.ziper,
             cordinha_extra: item.cordinha_extra,
             alcinha: item.alcinha,
             toalha_pronta: item.toalha_pronta,
             acabamento_totem: item.acabamento_totem,
             acabamento_totem_outro: item.acabamento_totem_outro,
-            valor_totem: item.valor_totem,
+            valor_totem: options?.zeroValues ? "0" : item.valor_totem,
             quantidade_totem: item.quantidade_totem,
-            outros_valores_totem: item.outros_valores_totem,
+            outros_valores_totem: options?.zeroValues ? "0" : item.outros_valores_totem,
         }));
 
         // Cria o novo pedido de reposição
@@ -492,13 +495,13 @@ export const ordersApi = {
             estado_cliente: original.estado_cliente,
             telefone_cliente: original.telefone_cliente,
             data_entrada: new Date().toISOString().split('T')[0], // Data atual
-            data_entrega: data_entrega || original.data_entrega,
+            data_entrega: options?.data_entrega || original.data_entrega,
             forma_envio: original.forma_envio,
             forma_pagamento_id: original.forma_pagamento_id,
             prioridade: original.prioridade,
-            observacao: `[REPOSIÇÃO] Baseado no pedido #${original.numero || original.id}${original.observacao ? ' - ' + original.observacao : ''}`,
+            observacao: `[REPOSIÇÃO${options?.zeroValues ? ' CORTESIA' : ''}] Baseado no pedido #${original.numero || original.id}${original.observacao ? ' - ' + original.observacao : ''}`,
             status: OrderStatus.Pendente, // Sempre resetado para Pendente
-            valor_frete: typeof original.valor_frete === 'string' ? parseFloat(original.valor_frete) : original.valor_frete,
+            valor_frete: options?.zeroValues ? 0 : (typeof original.valor_frete === 'string' ? parseFloat(original.valor_frete) : original.valor_frete),
             items: newItems,
         };
 

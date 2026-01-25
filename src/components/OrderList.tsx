@@ -109,6 +109,9 @@ export default function OrderList() {
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
+  // Estados para reposição
+  const [replacementDialogOpen, setReplacementDialogOpen] = useState(false);
+  const [orderToReplace, setOrderToReplace] = useState<OrderWithItems | null>(null);
   // Alternância entre tabela e pipeline de produção
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
   const [statusConfirmModal, setStatusConfirmModal] = useState<{
@@ -597,23 +600,34 @@ export default function OrderList() {
     }
   };
 
-  const handleCreateReplacementClick = async (order: OrderWithItems) => {
+  const handleCreateReplacementClick = (order: OrderWithItems) => {
+    setOrderToReplace(order);
+    setReplacementDialogOpen(true);
+  };
+
+  const handleReplacementConfirm = async (zeroValues: boolean) => {
+    if (!orderToReplace) return;
+
     try {
+      setReplacementDialogOpen(false);
       toast({
         title: 'Criando ficha de reposição...',
-        description: 'Aguarde enquanto a ficha está sendo criada.',
+        description: zeroValues
+          ? 'Gerando reposição com valores zerados (Cortesia).'
+          : 'Gerando reposição com valores originais.',
       });
 
-      // Criar o pedido de reposição
-      const newOrder = await api.createReplacementOrder(order.id);
+      // Criar o pedido de reposição com a opção escolhida
+      const newOrder = await api.createReplacementOrder(orderToReplace.id, { zeroValues });
 
       toast({
         title: 'Ficha de reposição criada',
-        description: `Pedido #${newOrder.numero || newOrder.id} criado. Abrindo para edição...`,
+        description: `Pedido #${newOrder.numero || newOrder.id} criado com sucesso.`,
       });
 
       // Navegar para a página de edição do novo pedido
       navigate(`/dashboard/pedido/editar/${newOrder.id}`);
+      setOrderToReplace(null);
     } catch (error) {
       logger.error('Erro ao criar ficha de reposição:', error);
       toast({
@@ -2821,6 +2835,49 @@ export default function OrderList() {
               </Button>
               <Button onClick={handleConfirmStatusChange}>
                 Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Opções de Reposição */}
+        <Dialog open={replacementDialogOpen} onOpenChange={setReplacementDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Opções de Reposição</DialogTitle>
+              <DialogDescription>
+                Selecione como deseja gerar a ficha de reposição para o pedido #{orderToReplace?.numero || orderToReplace?.id}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 gap-4 py-4">
+              <Button
+                variant="outline"
+                className="flex flex-col items-start h-auto p-4 gap-1 text-left hover:bg-muted"
+                onClick={() => handleReplacementConfirm(false)}
+              >
+                <span className="font-semibold">Com Valores Originais</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Copia todos os preços dos itens e o valor do frete do pedido original.
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="flex flex-col items-start h-auto p-4 gap-1 text-left border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-900/30 dark:hover:bg-orange-950/20"
+                onClick={() => handleReplacementConfirm(true)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-orange-700 dark:text-orange-400">Zerar Valores (Cortesia)</span>
+                  <Badge variant="outline" className="text-[10px] h-4 bg-orange-100/50 text-orange-700 border-orange-200">RECOMENDADO</Badge>
+                </div>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Zera todos os preços unitários e o frete. Ideal para casos de erro na produção ou garantia.
+                </span>
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setReplacementDialogOpen(false)}>
+                Cancelar
               </Button>
             </DialogFooter>
           </DialogContent>
