@@ -1,4 +1,19 @@
 # Changelog - SGP v4
+ 
+## [1.0.19] - 2026-01-25
+
+### ✨ Adicionado
+- **Regra de Negócio de Reposição**: Implementada a funcionalidade de escolha entre manter valores originais ou zerar valores (Cortesia).
+  - Novo fluxo de criação de ficha de reposição com diálogo de confirmação.
+  - Opção "Cortesia (Zero Vinte)" que zera preços unitários e frete.
+  - Adição automática de tag "[REPOSIÇÃO CORTESIA]" nas observações.
+
+### 🎨 UI/UX
+- **Redesenho do Modal de Reposição**: Novo layout premium e intuitivo com ícones dinâmicos e destaque para a opção recomendada.
+- **Melhoria de Legibilidade**: Ajustes no layout de texto para evitar cortes em descrições longas.
+
+### 🐛 Corrigido
+- **Validação de Fichas Zeradas**: Corrigido impedimento que bloqueava o salvamento de pedidos com valor total igual a zero em casos de reposição.
 
 ## [1.0.18] - 2026-01-23
 
