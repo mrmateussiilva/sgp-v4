@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import {
   Table,
@@ -107,8 +107,8 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
       setDataEntrega(pedido.data_entrega || '');
 
       // Valor do frete
-      const freteValue = typeof pedido.valor_frete === 'number' 
-        ? pedido.valor_frete 
+      const freteValue = typeof pedido.valor_frete === 'number'
+        ? pedido.valor_frete
         : parseCurrencyValue(String(pedido.valor_frete || '0'));
       setValorFrete(formatCurrencyValue(freteValue));
 
@@ -127,11 +127,11 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
         id: item.id,
         item_name: item.item_name || item.descricao || '',
         quantity: item.quantity || 1,
-        unit_price: typeof item.unit_price === 'number' 
-          ? item.unit_price 
+        unit_price: typeof item.unit_price === 'number'
+          ? item.unit_price
           : parseCurrencyValue(String(item.unit_price || '0')),
-        subtotal: (item.quantity || 1) * (typeof item.unit_price === 'number' 
-          ? item.unit_price 
+        subtotal: (item.quantity || 1) * (typeof item.unit_price === 'number'
+          ? item.unit_price
           : parseCurrencyValue(String(item.unit_price || '0'))),
       }));
 
@@ -212,6 +212,10 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
   const validateForm = (): string | null => {
     if (!cliente || cliente.trim() === '') {
       return 'O nome do cliente é obrigatório.';
+    }
+
+    if (!vendedor || vendedor.trim() === '') {
+      return 'O vendedor é obrigatório.';
     }
 
     if (items.length === 0) {
@@ -343,8 +347,8 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
       console.error('Erro ao salvar pedido:', error);
       toast({
         title: 'Erro',
-        description: mode === 'create' 
-          ? 'Não foi possível criar o pedido.' 
+        description: mode === 'create'
+          ? 'Não foi possível criar o pedido.'
           : 'Não foi possível salvar as alterações do pedido.',
         variant: 'destructive',
       });
@@ -370,8 +374,8 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
               {mode === 'create' ? 'Novo Pedido' : `Editar Pedido #${pedido?.id || ''}`}
             </h1>
             <p className="text-muted-foreground">
-              {mode === 'create' 
-                ? 'Preencha os dados do novo pedido' 
+              {mode === 'create'
+                ? 'Preencha os dados do novo pedido'
                 : 'Atualize as informações do pedido'}
             </p>
           </div>
@@ -441,7 +445,7 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vendedor">Vendedor</Label>
+                <Label htmlFor="vendedor">Vendedor *</Label>
                 <Input
                   id="vendedor"
                   value={vendedor}
@@ -675,10 +679,10 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
             className="gap-2"
           >
             <Save className="h-4 w-4" />
-            {saving 
-              ? 'Salvando...' 
-              : mode === 'create' 
-                ? 'Criar Pedido' 
+            {saving
+              ? 'Salvando...'
+              : mode === 'create'
+                ? 'Criar Pedido'
                 : 'Salvar Alterações'}
           </Button>
         </div>

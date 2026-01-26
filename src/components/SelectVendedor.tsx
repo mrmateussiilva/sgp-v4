@@ -18,7 +18,7 @@ export default function SelectVendedor({
 }: SelectVendedorProps) {
   return (
     <div className="space-y-2">
-      <Label className="text-base font-medium">{label}</Label>
+      <Label className="text-base font-medium">{label} *</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="bg-white h-12 text-base">
           <SelectValue placeholder={placeholder} />

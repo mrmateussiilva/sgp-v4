@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import {
   Table,
@@ -118,8 +118,8 @@ export default function PedidoEditor() {
         setDataEntrega(order.data_entrega || '');
 
         // Valor do frete
-        const freteValue = typeof order.valor_frete === 'number' 
-          ? order.valor_frete 
+        const freteValue = typeof order.valor_frete === 'number'
+          ? order.valor_frete
           : parseCurrencyValue(String(order.valor_frete || '0'));
         setValorFrete(formatCurrencyValue(freteValue));
 
@@ -138,11 +138,11 @@ export default function PedidoEditor() {
           id: item.id,
           item_name: item.item_name || item.descricao || '',
           quantity: item.quantity || 1,
-          unit_price: typeof item.unit_price === 'number' 
-            ? item.unit_price 
+          unit_price: typeof item.unit_price === 'number'
+            ? item.unit_price
             : parseCurrencyValue(String(item.unit_price || '0')),
-          subtotal: (item.quantity || 1) * (typeof item.unit_price === 'number' 
-            ? item.unit_price 
+          subtotal: (item.quantity || 1) * (typeof item.unit_price === 'number'
+            ? item.unit_price
             : parseCurrencyValue(String(item.unit_price || '0'))),
         }));
 
@@ -246,6 +246,10 @@ export default function PedidoEditor() {
   const validateForm = (): string | null => {
     if (!cliente || cliente.trim() === '') {
       return 'O nome do cliente é obrigatório.';
+    }
+
+    if (!vendedor || vendedor.trim() === '') {
+      return 'O vendedor é obrigatório.';
     }
 
     if (items.length === 0) {
@@ -445,7 +449,7 @@ export default function PedidoEditor() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="vendedor">Vendedor</Label>
+                <Label htmlFor="vendedor">Vendedor *</Label>
                 <Input
                   id="vendedor"
                   value={vendedor}

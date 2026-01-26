@@ -1009,6 +1009,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           errors[`item_${tabId}_tipo`] = 'Tipo de produção é obrigatório';
         }
 
+        // Validar vendedor
+        if (!item.vendedor || item.vendedor.trim().length === 0) {
+          errors[`item_${tabId}_vendedor`] = 'Vendedor é obrigatório';
+        }
+
         // Validar medidas para tipos que precisam
         if (item.tipo_producao !== 'painel') {
           if (!item.largura || parseLocaleNumber(item.largura) <= 0) {
@@ -2870,7 +2875,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     {/* Vendedor, Designer, Tecido */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-base font-medium">Vendedor</Label>
+                        <Label className="text-base font-medium">Vendedor *</Label>
                         <Select
                           value={tabsData[tabId]?.vendedor || ''}
                           onValueChange={(value) => handleTabDataChange(tabId, 'vendedor', value)}

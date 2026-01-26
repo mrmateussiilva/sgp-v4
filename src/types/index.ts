@@ -12,14 +12,14 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
-  
+
   // Campos detalhados do painel
   tipo_producao?: string;
   descricao?: string;
   largura?: string;
   altura?: string;
   metro_quadrado?: string;
-  vendedor?: string;
+  vendedor: string;
   designer?: string;
   tecido?: string;
   overloque?: boolean;
@@ -84,7 +84,7 @@ export interface OrderWithItems {
   forma_envio?: string;
   forma_pagamento_id?: number;
   observacao?: string;
-  
+
   // Status de produção (checkboxes)
   financeiro?: boolean;
   conferencia?: boolean;
@@ -94,7 +94,7 @@ export interface OrderWithItems {
   pronto?: boolean;
   sublimacao_maquina?: string | null;
   sublimacao_data_impressao?: string | null;
-  
+
   items: OrderItem[];
 }
 
@@ -122,14 +122,14 @@ export interface CreateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
-  
+
   // Campos detalhados do painel
   tipo_producao?: string;
   descricao?: string;
   largura?: string;
   altura?: string;
   metro_quadrado?: string;
-  vendedor?: string;
+  vendedor: string;
   designer?: string;
   tecido?: string;
   overloque?: boolean;
@@ -534,7 +534,7 @@ export interface OrderItemFicha {
   quantity: number;
   unit_price: number;
   subtotal: number;
-  
+
   // Campos detalhados
   tipo_producao?: string;
   descricao?: string;
