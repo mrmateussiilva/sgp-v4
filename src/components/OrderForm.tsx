@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import {
   Table,
@@ -65,8 +65,8 @@ export default function OrderForm() {
           id: item.id,
           item_name: item.item_name,
           quantity: item.quantity,
-          unit_price: typeof item.unit_price === 'number' 
-            ? item.unit_price 
+          unit_price: typeof item.unit_price === 'number'
+            ? item.unit_price
             : parseFloat(String(item.unit_price)),
         }))
       );
@@ -157,6 +157,7 @@ export default function OrderForm() {
           item_name: item.item_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
+          vendedor: '',
         }));
 
         const newOrder = await api.createOrder({

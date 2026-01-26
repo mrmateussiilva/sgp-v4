@@ -269,7 +269,7 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
           item_name: item.item_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          vendedor: vendedor || undefined,
+          vendedor: vendedor || '',
           designer: designer || undefined,
         }));
 

@@ -103,7 +103,7 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         largura: item.largura ?? undefined,
         altura: item.altura ?? undefined,
         metro_quadrado: item.metro_quadrado ?? undefined,
-        vendedor: item.vendedor ?? undefined,
+        vendedor: item.vendedor || '',
         designer: item.designer ?? undefined,
         tecido: item.tecido ?? undefined,
         overloque: Boolean(acabamentoAny?.overloque ?? anyItem.overloque),
