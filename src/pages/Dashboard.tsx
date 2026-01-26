@@ -181,7 +181,7 @@ export default function Dashboard() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full bg-background">
+      <div className="flex h-screen bg-background overflow-hidden">
         {/* Sidebar Desktop */}
         <aside className={cn(
           "hidden md:flex md:flex-col border-r bg-card transition-all duration-300",

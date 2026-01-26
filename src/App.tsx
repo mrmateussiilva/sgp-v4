@@ -251,7 +251,7 @@ function App() {
               </div>
             ) : (
               <HashRouter>
-                <div className="flex flex-col min-h-screen">
+                <div className="flex flex-col h-screen overflow-hidden">
                   <UpdateBanner />
                   <div className="flex-1 flex flex-col relative">
                     <Routes>
