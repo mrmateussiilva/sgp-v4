@@ -34,6 +34,7 @@ import { FormTotemProducao } from '@/components/FormTotemProducao';
 import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { FormCangaProducao } from '@/components/FormCangaProducao';
 import { FormImpressao3D } from '@/components/FormImpressao3D';
+import { FormMochilinhaProducao } from '@/components/FormMochilinhaProducao';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
@@ -65,7 +66,7 @@ interface TabItem {
   tecido: string;
   overloque: boolean;
   elastico: boolean;
-  tipo_acabamento: 'ilhos' | 'cordinha' | 'nenhum';
+  tipo_acabamento: string;
   // Campos para ilhós
   quantidade_ilhos: string;
   espaco_ilhos: string;
@@ -111,6 +112,10 @@ interface TabItem {
   material_gasto: string;
   valor_impressao_3d: string;
   quantidade_impressao_3d: string;
+  // Campos específicos da mochilinha/bolsinha
+  tipo_alcinha: 'nenhum' | 'alca' | 'cordinha' | 'alca_cordinha';
+  valor_mochilinha: string;
+  quantidade_mochilinha: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -209,6 +214,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       material_gasto: '',
       valor_impressao_3d: '0,00',
       quantidade_impressao_3d: '1',
+      tipo_alcinha: 'nenhum',
+      valor_mochilinha: '0,00',
+      quantidade_mochilinha: '1',
     };
   }
 
@@ -296,6 +304,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return Number.isNaN(parsed) ? 0 : parsed;
   }
 
+  // Função auxiliar para verificar se é tipo mochilinha/bolsinha
+  // Aceita variações: "mochilinha", "bolsinha", "Mochilinha/Bolsinha", etc.
+  function isMochilinhaType(tipoProducao?: string): boolean {
+    if (!tipoProducao) return false;
+    const normalized = tipoProducao.toLowerCase().trim();
+    return normalized === 'mochilinha' ||
+      normalized === 'bolsinha' ||
+      normalized.includes('mochilinha') ||
+      normalized.includes('bolsinha');
+  }
+
   function toDateInputValue(value?: string | null): string {
     if (!value) {
       return '';
@@ -322,7 +341,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const anyItem = item as Record<string, any>;
     // Fallback seguro: pedidos antigos podem não ter tipo_acabamento salvo.
     // Inferir a partir de quantidade_ilhos/quantidade_cordinha para manter checkboxes coerentes.
-    const inferTipoAcabamento = (): TabItem['tipo_acabamento'] => {
+    const inferTipoAcabamento = (): string => {
+      // Prioridade para flags de mochila/bolsinha
+      if (anyItem.alcinha === true && anyItem.cordinha_extra === true) return 'alca_cordinha';
+      if (anyItem.alcinha === true) return 'alca';
+      if (anyItem.cordinha_extra === true) return 'cordinha';
+
       const rawIlhos = anyItem.quantidade_ilhos ?? anyItem.ilhos_qtd ?? '';
       const rawCordinha = anyItem.quantidade_cordinha ?? '';
       const qtdIlhos = Number.parseInt(String(rawIlhos || '0'), 10);
@@ -333,7 +357,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     };
 
     const tipoAcabamento =
-      (anyItem.tipo_acabamento as TabItem['tipo_acabamento'] | undefined) ?? inferTipoAcabamento();
+      (anyItem.tipo_acabamento as string | undefined) ?? (anyItem.tipo_alcinha as string | undefined) ?? inferTipoAcabamento();
     const acabamentoLona =
       (anyItem.acabamento_lona as TabItem['acabamento_lona'] | undefined) ?? 'refilar';
     const acabamentoTotem =
@@ -395,6 +419,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       material_gasto: anyItem.material_gasto ?? '',
       valor_impressao_3d: formatCurrencyValue(anyItem.valor_impressao_3d ?? '0,00'),
       quantidade_impressao_3d: anyItem.quantidade_impressao_3d ?? '1',
+      tipo_alcinha: (anyItem.tipo_alcinha as TabItem['tipo_alcinha'] | undefined) ?? 'nenhum',
+      valor_mochilinha: formatCurrencyValue(
+        anyItem.valor_mochilinha ?? anyItem.valor_unitario ?? item.unit_price
+      ),
+      quantidade_mochilinha: anyItem.quantidade_mochilinha ?? (item.quantity ? item.quantity.toString() : '1'),
     };
   }
 
@@ -943,6 +972,23 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     });
   }, [tabsData]);
 
+  // Calcular valor unitário automaticamente para mochilinha/bolsinha
+  useEffect(() => {
+    Object.keys(tabsData).forEach(tabId => {
+      const item = tabsData[tabId];
+      if (item && isMochilinhaType(item.tipo_producao)) {
+        const valorMochilinha = parseLocaleNumber(item.valor_mochilinha || '0,00');
+        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+        const valorTotalUnitario = valorMochilinha + valoresAdicionais;
+        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
+
+        if (item.valor_unitario !== valorFormatado) {
+          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
+        }
+      }
+    });
+  }, [tabsData]);
+
 
   // Funções de validação completas
   const validateClientData = () => {
@@ -1092,6 +1138,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0');
           if (quantidadeImpressao3D <= 0) {
             errors[`item_${tabId}_quantidade`] = 'Quantidade de impressões 3D deve ser maior que zero';
+          }
+        } else if (isMochilinhaType(item.tipo_producao)) {
+          const valorMochilinha = parseLocaleNumber(item.valor_mochilinha || '0,00');
+          const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+          const valorUnitarioMochilinha = valorMochilinha + valoresAdicionais;
+          if (!isReplacement && valorUnitarioMochilinha <= 0) {
+            errors[`item_${tabId}_valor`] = 'Valor da mochilinha/bolsinha deve ser maior que zero';
+          }
+          const quantidadeMochilinha = parseInt(item.quantidade_mochilinha || '0');
+          if (quantidadeMochilinha <= 0) {
+            errors[`item_${tabId}_quantidade`] = 'Quantidade de mochilinhas/bolsinhas deve ser maior que zero';
           }
         } else {
           // Para outros tipos, validar valor unitário diretamente
@@ -1488,6 +1545,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
     }
 
+    if (isMochilinhaType(item.tipo_producao)) {
+      const quantidadeMochilinha = parseInt(item.quantidade_mochilinha || '0', 10);
+      if (Number.isNaN(quantidadeMochilinha) || quantidadeMochilinha <= 0) {
+        errors.push("Quantidade de mochilinhas/bolsinhas é obrigatória e deve ser maior que zero");
+      }
+    }
+
     // Campos opcionais - gerar avisos
     if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
       if (!item.overloque) {
@@ -1632,6 +1696,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       if (item.tipo_producao === 'impressao_3d') {
         const quantidadeImpressao3DParse = parseInt(item.quantidade_impressao_3d || '1');
         const quantidadeValida = Number.isNaN(quantidadeImpressao3DParse) || quantidadeImpressao3DParse <= 0 ? 1 : quantidadeImpressao3DParse;
+        return sum + (valor * quantidadeValida);
+      }
+
+      if (isMochilinhaType(item.tipo_producao)) {
+        const quantidadeMochlinhaParse = parseInt(item.quantidade_mochilinha || '1');
+        const quantidadeValida = Number.isNaN(quantidadeMochlinhaParse) || quantidadeMochlinhaParse <= 0 ? 1 : quantidadeMochlinhaParse;
         return sum + (valor * quantidadeValida);
       }
 
@@ -1806,7 +1876,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       ? parseInt(item.quantidade_canga || '1', 10)
                       : item.tipo_producao === 'impressao_3d'
                         ? parseInt(item.quantidade_impressao_3d || '1', 10)
-                        : 1;
+                        : isMochilinhaType(item.tipo_producao)
+                          ? parseInt(item.quantidade_mochilinha || '1', 10)
+                          : 1;
 
           const quantidade = Number.isNaN(quantidadeRaw) || quantidadeRaw <= 0 ? 1 : quantidadeRaw;
 
@@ -2031,6 +2103,21 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               valores_adicionais: canon.tipo_producao === 'impressao_3d' ? canon.valores_adicionais : item.valores_adicionais,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
+            };
+          }
+
+          if (isMochilinhaType(item.tipo_producao)) {
+            const ac = (item.tipo_acabamento || '').toLowerCase().trim();
+            return {
+              ...basePayload,
+              tipo_acabamento: item.tipo_acabamento,
+              tipo_alcinha: item.tipo_acabamento,
+              alcinha: ac === 'alca' || ac === 'alca_cordinha',
+              cordinha_extra: ac === 'cordinha' || ac === 'alca_cordinha',
+              valor_unitario: item.valor_unitario,
+              valores_adicionais: item.valores_adicionais,
+              valor_mochilinha: item.valor_mochilinha,
+              quantidade_mochilinha: item.quantidade_mochilinha,
             };
           }
 
@@ -2818,215 +2905,233 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   </div>
                 )}
 
-                {tabsData[tabId]?.tipo_producao && !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga', 'impressao_3d'].includes(tabsData[tabId]?.tipo_producao) && (
-                  <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
-                    {/* Descrição */}
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Descrição *</Label>
-                      <Input
-                        value={tabsData[tabId]?.descricao || ''}
-                        onChange={(e) => handleTabDataChange(tabId, 'descricao', e.target.value)}
-                        placeholder="Ex: Banner 3x2m"
-                        className={`h-12 text-base ${errors[`item_${tabId}_descricao`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                      />
-                      {errors[`item_${tabId}_descricao`] && (
-                        <p className="text-red-500 text-sm">{errors[`item_${tabId}_descricao`]}</p>
-                      )}
-                    </div>
-
-                    {/* Medidas */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Largura (m)</Label>
-                        <Input
-                          value={tabsData[tabId]?.largura || ''}
-                          onChange={(e) => handleTabDataChange(tabId, 'largura', e.target.value)}
-                          placeholder="3,00"
-                          className={`h-12 text-base ${errors[`item_${tabId}_largura`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                        />
-                        {errors[`item_${tabId}_largura`] && (
-                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_largura`]}</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Altura (m)</Label>
-                        <Input
-                          value={tabsData[tabId]?.altura || ''}
-                          onChange={(e) => handleTabDataChange(tabId, 'altura', e.target.value)}
-                          placeholder="2,00"
-                          className={`h-12 text-base ${errors[`item_${tabId}_altura`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                        />
-                        {errors[`item_${tabId}_altura`] && (
-                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_altura`]}</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Área (m²)</Label>
-                        <Input
-                          value={tabsData[tabId]?.metro_quadrado || '0,00'}
-                          disabled
-                          className="bg-green-100 font-bold text-green-800 h-12 text-base"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Vendedor, Designer, Tecido */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Vendedor *</Label>
-                        <Select
-                          value={tabsData[tabId]?.vendedor || ''}
-                          onValueChange={(value) => handleTabDataChange(tabId, 'vendedor', value)}
-                        >
-                          <SelectTrigger className="bg-white h-12 text-base">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vendedores.map(v => (
-                              <SelectItem key={v} value={v}>{v}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Designer</Label>
-                        <Select
-                          value={tabsData[tabId]?.designer || ''}
-                          onValueChange={(value) => handleTabDataChange(tabId, 'designer', value)}
-                        >
-                          <SelectTrigger className="bg-white h-12 text-base">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {designers.map(d => (
-                              <SelectItem key={d} value={d}>{d}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Tecido</Label>
-                        <Select
-                          value={tabsData[tabId]?.tecido || ''}
-                          onValueChange={(value) => handleTabDataChange(tabId, 'tecido', value)}
-                        >
-                          <SelectTrigger className="bg-white h-12 text-base">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {materiaisTecido.map(t => (
-                              <SelectItem key={t} value={t}>{t}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Acabamentos */}
-                    <div className="flex items-center gap-6 p-4 bg-green-50 rounded border border-green-200">
-                      <Label className="text-base font-medium">Acabamentos:</Label>
-                      <div className="flex gap-6">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`overloque-${tabId}`}
-                            checked={tabsData[tabId]?.overloque || false}
-                            onCheckedChange={(checked) => handleTabDataChange(tabId, 'overloque', checked)}
-                          />
-                          <label htmlFor={`overloque-${tabId}`} className="text-base cursor-pointer">
-                            Overloque
-                          </label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`elastico-${tabId}`}
-                            checked={tabsData[tabId]?.elastico || false}
-                            onCheckedChange={(checked) => handleTabDataChange(tabId, 'elastico', checked)}
-                          />
-                          <label htmlFor={`elastico-${tabId}`} className="text-base cursor-pointer">
-                            Elástico
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Emenda e Valor */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Emenda</Label>
-                        <Select
-                          value={tabsData[tabId]?.emenda || 'sem-emenda'}
-                          onValueChange={(value) => handleTabDataChange(tabId, 'emenda', value)}
-                        >
-                          <SelectTrigger className="bg-white h-12 text-base">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sem-emenda">Sem Emenda</SelectItem>
-                            <SelectItem value="com-emenda">Com Emenda</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base font-medium">Valor Unitário (R$)</Label>
-                        <CurrencyInput
-                          value={tabsData[tabId]?.valor_unitario || '0,00'}
-                          onValueChange={(formatted) => handleTabDataChange(tabId, 'valor_unitario', formatted)}
-                          placeholder="0,00"
-                          className={`h-12 bg-white text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
-                        />
-                        {errors[`item_${tabId}_valor`] && (
-                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Observações */}
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Observações</Label>
-                      <Textarea
-                        value={tabsData[tabId]?.observacao || ''}
-                        onChange={(e) => handleTabDataChange(tabId, 'observacao', e.target.value)}
-                        placeholder="Obs do item..."
-                        rows={3}
-                        className="bg-white text-base"
-                      />
-                    </div>
-
-                    {/* Botões de ação para outros tipos */}
-                    <div className="flex justify-between items-center pt-4 border-t border-green-200">
-                      {itemHasUnsavedChanges[tabId] && (
-                        <div className="flex items-center gap-2 text-orange-600 text-sm">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                          <span>Mudanças não salvas</span>
-                        </div>
-                      )}
-
-                      <div className="flex gap-4 ml-auto">
-                        <Button
-                          variant="outline"
-                          type="button"
-                          onClick={() => handleCancelItem(tabId)}
-                          className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => handleSaveItem(tabId)}
-                          className="h-12 px-6 bg-green-600 hover:bg-green-700"
-                        >
-                          Salvar Item
-                        </Button>
-                      </div>
-                    </div>
+                {isMochilinhaType(tabsData[tabId]?.tipo_producao) && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormMochilinhaProducao
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tecidos={materiaisTecido}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
                   </div>
                 )}
+
+                {tabsData[tabId]?.tipo_producao &&
+                  !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga', 'impressao_3d'].includes(tabsData[tabId]?.tipo_producao) &&
+                  !isMochilinhaType(tabsData[tabId]?.tipo_producao) && (
+                    <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
+                      {/* Descrição */}
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Descrição *</Label>
+                        <Input
+                          value={tabsData[tabId]?.descricao || ''}
+                          onChange={(e) => handleTabDataChange(tabId, 'descricao', e.target.value)}
+                          placeholder="Ex: Banner 3x2m"
+                          className={`h-12 text-base ${errors[`item_${tabId}_descricao`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                        />
+                        {errors[`item_${tabId}_descricao`] && (
+                          <p className="text-red-500 text-sm">{errors[`item_${tabId}_descricao`]}</p>
+                        )}
+                      </div>
+
+                      {/* Medidas */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Largura (m)</Label>
+                          <Input
+                            value={tabsData[tabId]?.largura || ''}
+                            onChange={(e) => handleTabDataChange(tabId, 'largura', e.target.value)}
+                            placeholder="3,00"
+                            className={`h-12 text-base ${errors[`item_${tabId}_largura`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                          />
+                          {errors[`item_${tabId}_largura`] && (
+                            <p className="text-red-500 text-sm">{errors[`item_${tabId}_largura`]}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Altura (m)</Label>
+                          <Input
+                            value={tabsData[tabId]?.altura || ''}
+                            onChange={(e) => handleTabDataChange(tabId, 'altura', e.target.value)}
+                            placeholder="2,00"
+                            className={`h-12 text-base ${errors[`item_${tabId}_altura`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                          />
+                          {errors[`item_${tabId}_altura`] && (
+                            <p className="text-red-500 text-sm">{errors[`item_${tabId}_altura`]}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Área (m²)</Label>
+                          <Input
+                            value={tabsData[tabId]?.metro_quadrado || '0,00'}
+                            disabled
+                            className="bg-green-100 font-bold text-green-800 h-12 text-base"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Vendedor, Designer, Tecido */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Vendedor *</Label>
+                          <Select
+                            value={tabsData[tabId]?.vendedor || ''}
+                            onValueChange={(value) => handleTabDataChange(tabId, 'vendedor', value)}
+                          >
+                            <SelectTrigger className="bg-white h-12 text-base">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {vendedores.map(v => (
+                                <SelectItem key={v} value={v}>{v}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Designer</Label>
+                          <Select
+                            value={tabsData[tabId]?.designer || ''}
+                            onValueChange={(value) => handleTabDataChange(tabId, 'designer', value)}
+                          >
+                            <SelectTrigger className="bg-white h-12 text-base">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {designers.map(d => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Tecido</Label>
+                          <Select
+                            value={tabsData[tabId]?.tecido || ''}
+                            onValueChange={(value) => handleTabDataChange(tabId, 'tecido', value)}
+                          >
+                            <SelectTrigger className="bg-white h-12 text-base">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {materiaisTecido.map(t => (
+                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Acabamentos */}
+                      <div className="flex items-center gap-6 p-4 bg-green-50 rounded border border-green-200">
+                        <Label className="text-base font-medium">Acabamentos:</Label>
+                        <div className="flex gap-6">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`overloque-${tabId}`}
+                              checked={tabsData[tabId]?.overloque || false}
+                              onCheckedChange={(checked) => handleTabDataChange(tabId, 'overloque', checked)}
+                            />
+                            <label htmlFor={`overloque-${tabId}`} className="text-base cursor-pointer">
+                              Overloque
+                            </label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`elastico-${tabId}`}
+                              checked={tabsData[tabId]?.elastico || false}
+                              onCheckedChange={(checked) => handleTabDataChange(tabId, 'elastico', checked)}
+                            />
+                            <label htmlFor={`elastico-${tabId}`} className="text-base cursor-pointer">
+                              Elástico
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Emenda e Valor */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Emenda</Label>
+                          <Select
+                            value={tabsData[tabId]?.emenda || 'sem-emenda'}
+                            onValueChange={(value) => handleTabDataChange(tabId, 'emenda', value)}
+                          >
+                            <SelectTrigger className="bg-white h-12 text-base">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sem-emenda">Sem Emenda</SelectItem>
+                              <SelectItem value="com-emenda">Com Emenda</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-base font-medium">Valor Unitário (R$)</Label>
+                          <CurrencyInput
+                            value={tabsData[tabId]?.valor_unitario || '0,00'}
+                            onValueChange={(formatted) => handleTabDataChange(tabId, 'valor_unitario', formatted)}
+                            placeholder="0,00"
+                            className={`h-12 bg-white text-base font-semibold ${errors[`item_${tabId}_valor`] ? 'border-red-500 focus:border-red-500' : ''}`}
+                          />
+                          {errors[`item_${tabId}_valor`] && (
+                            <p className="text-red-500 text-sm">{errors[`item_${tabId}_valor`]}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Observações */}
+                      <div className="space-y-2">
+                        <Label className="text-base font-medium">Observações</Label>
+                        <Textarea
+                          value={tabsData[tabId]?.observacao || ''}
+                          onChange={(e) => handleTabDataChange(tabId, 'observacao', e.target.value)}
+                          placeholder="Obs do item..."
+                          rows={3}
+                          className="bg-white text-base"
+                        />
+                      </div>
+
+                      {/* Botões de ação para outros tipos */}
+                      <div className="flex justify-between items-center pt-4 border-t border-green-200">
+                        {itemHasUnsavedChanges[tabId] && (
+                          <div className="flex items-center gap-2 text-orange-600 text-sm">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                            <span>Mudanças não salvas</span>
+                          </div>
+                        )}
+
+                        <div className="flex gap-4 ml-auto">
+                          <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => handleCancelItem(tabId)}
+                            className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleSaveItem(tabId)}
+                            className="h-12 px-6 bg-green-600 hover:bg-green-700"
+                          >
+                            Salvar Item
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </TabsContent>
             ))}
           </Tabs>
@@ -3298,6 +3403,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 } else if (item.tipo_producao === 'impressao_3d') {
                   const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '1');
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0 ? 1 : quantidadeImpressao3D);
+                } else if (isMochilinhaType(item.tipo_producao)) {
+                  const quantidadeMochilinha = parseInt(item.quantidade_mochilinha || '1');
+                  valorTotalItem = valorUnitario * (Number.isNaN(quantidadeMochilinha) || quantidadeMochilinha <= 0 ? 1 : quantidadeMochilinha);
                 }
 
                 const valorFormatado = formatCurrencyBR(valorTotalItem);
@@ -3322,6 +3430,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     )}
                     {item.tipo_producao === 'impressao_3d' && parseInt(item.quantidade_impressao_3d || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_impressao_3d})</span>
+                    )}
+                    {isMochilinhaType(item.tipo_producao) && parseInt(item.quantidade_mochilinha || '1') > 1 && (
+                      <span> (Qtd: {item.quantidade_mochilinha})</span>
                     )}
                     <span> - R$ {valorFormatado}</span>
                   </div>

@@ -579,6 +579,16 @@ const FIELD_VISIBILITY_RULES = {
     show: ['overloque', 'elastico', 'emenda', 'emenda_qtd', 'tecido'],
     hide: ['spec-totem', 'spec-lona', 'spec-adesivo'],
     preserveEmpty: true // Não remover campos vazios - usar CSS para esconder
+  },
+  mochilinha: {
+    show: ['tipo_alcinha', 'valor_mochilinha', 'quantidade_mochilinha', 'valores_adicionais', 'tecido'],
+    hide: ['spec-painel', 'spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: false
+  },
+  bolsinha: {
+    show: ['tipo_alcinha', 'valor_mochilinha', 'quantidade_mochilinha', 'valores_adicionais', 'tecido'],
+    hide: ['spec-painel', 'spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: false
   }
 } as const;
 
@@ -626,7 +636,11 @@ const mapVariableToLabel: Record<string, string> = {
   'quantidade_paineis': 'Painéis Qtd',
   'tecido': 'Tecido',
   // Genéricos
-  'terceirizado': 'Terceirizado'
+  'terceirizado': 'Terceirizado',
+  // Mochilinha/Bolsinha
+  'tipo_alcinha': 'Tipo de Alça',
+  'valor_mochilinha': 'Valor Mochilinha',
+  'quantidade_mochilinha': 'Quantidade'
 };
 
 /**

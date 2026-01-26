@@ -319,6 +319,15 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
+  const isMochilinhaType = (tipoProducao?: string): boolean => {
+    if (!tipoProducao) return false;
+    const normalized = tipoProducao.toLowerCase().trim();
+    return normalized === 'mochilinha' ||
+      normalized === 'bolsinha' ||
+      normalized.includes('mochilinha') ||
+      normalized.includes('bolsinha');
+  };
+
   const normalizeText = (value?: string | null) => value?.trim() ?? '';
 
   const hasTextValue = (value?: string | null, options?: { disallow?: string[] }) => {
@@ -379,6 +388,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const isTotem = tipoProducao === 'totem';
     const isAdesivo = tipoProducao === 'adesivo';
     const isPainel = tipoProducao === 'painel' || tipoProducao === 'generica';
+    const isMochilinha = isMochilinhaType(tipoProducao);
 
     const formatSpacing = (value?: string | null) => {
       const normalized = normalizeText(value);
@@ -405,16 +415,26 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
     addBooleanFlag('overloque', 'Overloque');
     addBooleanFlag('elastico', 'Elástico');
+    addBooleanFlag('ziper', 'Zíper');
+    addBooleanFlag('cordinha_extra', 'Cordinha extra');
+    addBooleanFlag('alcinha', 'Alcinha');
+    addBooleanFlag('toalha_pronta', 'Toalha pronta');
+    addBooleanFlag('terceirizado', 'Terceirizado');
+    addBooleanFlag('baininha', 'Baininha');
 
-    if (hasTextValue(item.tipo_acabamento, { disallow: ['nenhum'] })) {
-      sections.push({
-        label: 'Tipo de Acabamento',
-        value: item.tipo_acabamento,
-        variant: 'accent',
-      });
-      omitKeys.add('tipo_acabamento');
+    // Acabamento genérico (se não for mochilinha/painel)
+    if (!isMochilinha && !isPainel && !isLona && !isTotem) {
+      const tipoAcabamento = (item as any).tipo_acabamento || (item as any).tipo_alcinha;
+      if (hasTextValue(tipoAcabamento, { disallow: ['nenhum'] })) {
+        sections.push({
+          label: 'Tipo de Acabamento',
+          value: tipoAcabamento,
+          variant: 'accent',
+        });
+        omitKeys.add('tipo_acabamento');
+        omitKeys.add('tipo_alcinha');
+      }
     }
-
     // Ilhós - quantidade e espaçamento
     const ilhosParts: string[] = [];
     if (hasQuantityValue(item.quantidade_ilhos)) {
@@ -660,6 +680,55 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       if (tipoAdesivo) {
         // Já aparece como "Material" na seção principal, mas vamos adicionar aqui também se necessário
         omitKeys.add('tipo_adesivo');
+      }
+    }
+
+    // Campos específicos para MOCHILINHA / BOLSINHA
+    if (isMochilinha) {
+      const tipoAcabamento = (item as any).tipo_acabamento || (item as any).tipo_alcinha;
+      if (hasTextValue(tipoAcabamento, { disallow: ['nenhum'] })) {
+        const ac = String(tipoAcabamento).toLowerCase().trim();
+        const alcaDisplay = ac === 'alca' ? 'Alça' :
+          ac === 'cordinha' ? 'Cordinha' :
+            ac === 'alca_cordinha' ? 'Alça + Cordinha' : tipoAcabamento;
+        sections.push({
+          label: 'Acabamento (Alça/Cordinha)',
+          value: alcaDisplay,
+          variant: 'accent',
+        });
+        omitKeys.add('tipo_acabamento');
+        omitKeys.add('tipo_alcinha');
+      }
+
+      const valorUnitarioMochilinha = (item as any).valor_unitario;
+      if (hasPositiveNumber(valorUnitarioMochilinha)) {
+        sections.push({
+          label: 'Valor Unitário',
+          value: formatCurrency(parseCurrencyValue(valorUnitarioMochilinha)),
+          variant: 'accent',
+        });
+        omitKeys.add('valor_unitario');
+      }
+
+      const quantidadeProducao = (item as any).quantity || (item as any).quantidade_mochilinha;
+      if (hasQuantityValue(quantidadeProducao)) {
+        sections.push({
+          label: 'Quantidade',
+          value: quantidadeProducao,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_mochilinha');
+        omitKeys.add('quantity');
+      }
+
+      const valoresAdicionais = (item as any).valores_adicionais;
+      if (hasPositiveNumber(valoresAdicionais)) {
+        sections.push({
+          label: 'Valores Adicionais',
+          value: formatCurrency(parseCurrencyValue(valoresAdicionais)),
+          variant: 'warning',
+        });
+        omitKeys.add('valores_adicionais');
       }
     }
 
@@ -1213,12 +1282,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   {order.status}
                 </Badge>
               </div>
-              <div>
-                <span className="font-semibold">Designer x Vendedor:</span><br />
-                <span className="text-blue-700 font-medium">
-                  {(order as any).designer || '---'} x {(order as any).vendedor || '---'}
-                </span>
-              </div>
+
             </div>
 
             {/* Datas e Forma de Envio */}

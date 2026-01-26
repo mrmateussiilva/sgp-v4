@@ -58,11 +58,19 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     if (prod.ziper) techItems.push('ZÍPER');
     if (prod.alcinha) techItems.push('ALCINHA');
     if (prod.terceirizado) techItems.push('TERCEIRIZADO');
-    if (prod.tipo_acabamento && prod.tipo_acabamento !== 'nenhum')
-        techItems.push(prod.tipo_acabamento.toUpperCase());
-    if (prod.quantidade_ilhos) techItems.push(`ILHÓS: ${prod.quantidade_ilhos} UN`);
-    if (prod.quantidade_cordinha) techItems.push(`CORDINHA: ${prod.quantidade_cordinha} UN`);
-    if (prod.emenda) techItems.push(`EMENDA: ${prod.emenda.toUpperCase()}`);
+    const tipoAcabamento = prod.tipo_acabamento || (prod as any).tipo_alcinha;
+    if (tipoAcabamento && tipoAcabamento !== 'nenhum') {
+        const isMochilinha = prod.tipo_producao?.toLowerCase().includes('mochilinha') || prod.tipo_producao?.toLowerCase().includes('bolsinha');
+        if (isMochilinha) {
+            const ac = String(tipoAcabamento).toLowerCase().trim();
+            const alcaLabel = ac === 'alca' ? 'ALÇA' :
+                ac === 'cordinha' ? 'CORDINHA' :
+                    ac === 'alca_cordinha' ? 'ALÇA + CORDINHA' : ac.toUpperCase();
+            techItems.push(`ACABAMENTO: ${alcaLabel}`);
+        } else {
+            techItems.push(String(tipoAcabamento).toUpperCase());
+        }
+    }
 
     return (
         <View style={styles.container} wrap={false}>

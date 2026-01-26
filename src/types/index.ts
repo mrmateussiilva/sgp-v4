@@ -59,6 +59,9 @@ export interface OrderItem {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+  tipo_alcinha?: string;
+  valor_mochilinha?: string;
+  quantidade_mochilinha?: string;
   data_impressao?: string;
   rip_maquina?: string;
 }
@@ -168,6 +171,9 @@ export interface CreateOrderItemRequest {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+  tipo_alcinha?: string;
+  valor_mochilinha?: string;
+  quantidade_mochilinha?: string;
 }
 
 export interface UpdateOrderRequest {
@@ -227,6 +233,9 @@ export interface UpdateOrderItemRequest {
   cordinha_extra?: boolean;
   alcinha?: boolean;
   toalha_pronta?: boolean;
+  tipo_alcinha?: string;
+  valor_mochilinha?: string;
+  quantidade_mochilinha?: string;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -415,6 +424,9 @@ export interface TabItem {
   valor_totem: string;
   quantidade_totem: string;
   outros_valores_totem: string;
+  tipo_alcinha: string;
+  valor_mochilinha: string;
+  quantidade_mochilinha: string;
 }
 
 // ========================================
@@ -577,6 +589,9 @@ export interface OrderItemFicha {
   valor_totem?: string;
   quantidade_totem?: string;
   outros_valores_totem?: string;
+  tipo_alcinha?: string;
+  valor_mochilinha?: string;
+  quantidade_mochilinha?: string;
 }
 
 export type TemplateFieldType =

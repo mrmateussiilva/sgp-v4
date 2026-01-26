@@ -1,6 +1,6 @@
 import type { CreateOrderItemRequest, OrderItem } from '@/types';
 
-export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'canga' | 'impressao_3d' | 'other';
+export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'canga' | 'impressao_3d' | 'mochilinha' | 'bolsinha' | 'other';
 
 export type CommonCanonicalFields = {
   descricao: string;
@@ -26,7 +26,7 @@ export type PainelCanonicalItem = CommonCanonicalFields & {
   tipo_producao: 'painel' | 'generica';
   overloque: boolean;
   elastico: boolean;
-  tipo_acabamento?: 'ilhos' | 'cordinha' | 'nenhum';
+  tipo_acabamento?: string;
   quantidade_ilhos?: string;
   espaco_ilhos?: string;
   valor_ilhos?: string;
@@ -54,7 +54,7 @@ export type LonaCanonicalItem = CommonCanonicalFields & {
   quantidade_lona?: string;
   valor_lona?: string;
   outros_valores_lona?: string;
-  tipo_acabamento?: 'ilhos' | 'cordinha' | 'nenhum';
+  tipo_acabamento?: string;
   quantidade_ilhos?: string;
   espaco_ilhos?: string;
   valor_ilhos?: string;
@@ -87,6 +87,15 @@ export type Impressao3DCanonicalItem = CommonCanonicalFields & {
   valores_adicionais?: string;
 };
 
+export type MochilinhaCanonicalItem = CommonCanonicalFields & {
+  tipo_producao: 'mochilinha' | 'bolsinha';
+  tipo_acabamento?: string;
+  valor_unitario?: string;
+  valores_adicionais?: string;
+  valor_mochilinha?: string;
+  quantidade_mochilinha?: string;
+};
+
 export type CanonicalProductionItem =
   | PainelCanonicalItem
   | TotemCanonicalItem
@@ -94,6 +103,7 @@ export type CanonicalProductionItem =
   | AdesivoCanonicalItem
   | CangaCanonicalItem
   | Impressao3DCanonicalItem
+  | MochilinhaCanonicalItem
   | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
@@ -104,6 +114,8 @@ function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (tipo === 'adesivo') return 'adesivo';
   if (tipo === 'canga') return 'canga';
   if (tipo === 'impressao_3d') return 'impressao_3d';
+  if (tipo === 'mochilinha' || tipo?.includes('mochilinha')) return 'mochilinha';
+  if (tipo === 'bolsinha' || tipo?.includes('bolsinha')) return 'bolsinha';
   return 'other';
 }
 
@@ -234,6 +246,18 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
     };
   }
 
+  if (tipo === 'mochilinha' || tipo === 'bolsinha') {
+    return {
+      tipo_producao: tipo,
+      ...baseCommon,
+      tipo_acabamento: normalizeString(anyItem.tipo_acabamento),
+      valor_unitario: normalizeString(anyItem.valor_unitario),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
+      valor_mochilinha: normalizeString(anyItem.valor_mochilinha),
+      quantidade_mochilinha: normalizeString(anyItem.quantidade_mochilinha),
+    };
+  }
+
   return {
     tipo_producao: 'other',
     ...baseCommon,
@@ -332,6 +356,18 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
       quantidade_impressao_3d: normalizeString(anyItem.quantidade_impressao_3d),
       valor_impressao_3d: normalizeString(anyItem.valor_impressao_3d),
       valores_adicionais: normalizeString(anyItem.valores_adicionais),
+    };
+  }
+
+  if (tipo === 'mochilinha' || tipo === 'bolsinha') {
+    return {
+      tipo_producao: tipo,
+      ...baseCommon,
+      tipo_acabamento: normalizeString(anyItem.tipo_acabamento),
+      valor_unitario: normalizeString(anyItem.valor_unitario),
+      valores_adicionais: normalizeString(anyItem.valores_adicionais),
+      valor_mochilinha: normalizeString(anyItem.valor_mochilinha),
+      quantidade_mochilinha: normalizeString(anyItem.quantidade_mochilinha),
     };
   }
 
@@ -473,7 +509,17 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     fields.valores_adicionais = canon.valores_adicionais ?? '';
   }
 
+  if (canon.tipo_producao === 'mochilinha' || canon.tipo_producao === 'bolsinha' || canon.tipo_producao.includes('mochilinha') || canon.tipo_producao.includes('bolsinha')) {
+    const mCanon = canon as MochilinhaCanonicalItem;
+    const ac = (mCanon.tipo_acabamento ?? '').trim().toLowerCase();
+    fields.tipo_acabamento = ac === 'alca' ? 'Alça' :
+      ac === 'cordinha' ? 'Cordinha' :
+        ac === 'alca_cordinha' ? 'Alça + Cordinha' : (mCanon.tipo_acabamento ?? 'Nenhum');
+    fields.valor_unitario = mCanon.valor_unitario ?? '';
+    fields.valores_adicionais = mCanon.valores_adicionais ?? '';
+    fields.valor_mochilinha = mCanon.valor_mochilinha ?? '';
+    fields.quantidade_mochilinha = mCanon.quantidade_mochilinha ?? '';
+  }
+
   return fields;
 }
-
-

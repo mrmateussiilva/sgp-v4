@@ -58,8 +58,7 @@ const LABELS: Record<string, string> = {
 const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   quantidade_paineis: ['painel', 'generica'],
   valor_painel: ['painel', 'generica'],
-  valores_adicionais: ['painel', 'generica'],
-  tipo_acabamento: ['painel', 'generica', 'lona'],
+  tipo_acabamento: ['painel', 'generica', 'lona', 'mochilinha', 'bolsinha'],
   quantidade_ilhos: ['painel', 'generica', 'lona'],
   espaco_ilhos: ['painel', 'generica', 'lona'],
   valor_ilhos: ['painel', 'generica', 'lona'],
@@ -88,6 +87,7 @@ const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   valor_totem: ['totem'],
   quantidade_totem: ['totem'],
   outros_valores_totem: ['totem'],
+  valores_adicionais: ['mochilinha', 'bolsinha', 'mochilinha/bolsinha', 'painel', 'generica'],
 };
 
 const CURRENCY_FIELDS = new Set([
@@ -272,7 +272,18 @@ export const getItemDisplayEntries = (
       return;
     }
     const allowedTypes = FIELD_ALLOWED_TYPES[key];
-    if (allowedTypes && itemType && !allowedTypes.includes(itemType)) {
+
+    // Lógica especial para tipo_acabamento: permitir se for mochilinha/bolsinha
+    if (key === 'tipo_acabamento') {
+      const itemName = String(item.item_name || '').toLowerCase();
+      const isMochilinha = itemType.includes('mochilinha') ||
+        itemType.includes('bolsinha') ||
+        itemName.includes('mochilinha') ||
+        itemName.includes('bolsinha');
+      if (!isMochilinha && allowedTypes && !allowedTypes.includes(itemType)) {
+        return;
+      }
+    } else if (allowedTypes && itemType && !allowedTypes.includes(itemType)) {
       return;
     }
     const raw = (item as Record<string, unknown>)[key];

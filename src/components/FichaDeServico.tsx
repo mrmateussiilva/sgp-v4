@@ -15,38 +15,38 @@ const resizeImageForPrint = async (
     const img = new Image();
     // NÃO definir crossOrigin para blob URLs (causa erro de CORS)
     // img.crossOrigin = 'anonymous';
-    
+
     img.onload = () => {
       try {
         // Converter mm para pixels (1mm ≈ 3.779527559 pixels a 96dpi)
         const mmToPx = 3.779527559;
         const fixedHeightPx = fixedHeight * mmToPx;
-        
+
         // Calcular largura proporcional baseada na altura fixa
         const aspectRatio = img.width / img.height;
         const newWidth = fixedHeightPx * aspectRatio;
         const newHeight = fixedHeightPx;
-        
+
         console.log(`[resizeImageForPrint] Original: ${img.width}x${img.height}, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}`);
-        
+
         // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(newWidth);
         canvas.height = Math.round(newHeight);
-        
+
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           reject(new Error('Não foi possível criar contexto do canvas'));
           return;
         }
-        
+
         // Melhorar qualidade da imagem redimensionada
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        
+
         // Desenhar imagem redimensionada
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
+
         // Converter para data URL (JPEG com qualidade 0.9)
         const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
         console.log(`[resizeImageForPrint] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
@@ -56,12 +56,12 @@ const resizeImageForPrint = async (
         reject(error);
       }
     };
-    
+
     img.onerror = (error) => {
       console.error('[resizeImageForPrint] ❌ Erro ao carregar imagem:', error);
       reject(new Error('Erro ao carregar imagem para redimensionamento'));
     };
-    
+
     img.src = imageSrc;
   });
 };
@@ -72,7 +72,7 @@ interface FichaDeServicoProps {
   onClose?: () => void;
 }
 
-const FichaDeServico: React.FC<FichaDeServicoProps> = ({ 
+const FichaDeServico: React.FC<FichaDeServicoProps> = ({
   orderId
 }) => {
   const [orderData, setOrderData] = useState<OrderFicha | null>(null);
@@ -84,11 +84,11 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
     try {
       setLoading(true);
       setError(null);
-      
+
       const data = await api.getOrderFicha(orderId);
-      
+
       setOrderData(data);
-      
+
       // Carregar imagens autenticadas
       const imageUrlMap = new Map<string, string>();
       console.log('[FichaDeServico] 📸 Carregando imagens dos itens:', data.items.map(item => ({
@@ -96,13 +96,13 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
         itemName: item.item_name,
         imagem: item.imagem
       })));
-      
+
       for (const item of data.items) {
         if (item.imagem && isValidImagePath(item.imagem)) {
           try {
             console.log(`[FichaDeServico] 🔄 Carregando imagem do item ${item.id}:`, item.imagem);
             const blobUrl = await loadAuthenticatedImage(item.imagem);
-            
+
             // Redimensionar imagem para impressão (80mm altura fixa, largura calculada proporcionalmente)
             try {
               console.log(`[FichaDeServico] 🔄 Redimensionando imagem do item ${item.id}...`);
@@ -158,27 +158,27 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return '';
-    
+
     // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
     if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const [y, m, d] = dateString.split('-');
       return `${d}/${m}/${y}`;
     }
-    
+
     // Se tem timestamp, extrair apenas a parte da data
     if (dateString.match(/^\d{4}-\d{2}-\d{2}T/)) {
       const dateOnly = dateString.split('T')[0];
       const [y, m, d] = dateOnly.split('-');
       return `${d}/${m}/${y}`;
     }
-    
+
     // Tentar extrair data do início
     const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (dateMatch) {
       const [, y, m, d] = dateMatch;
       return `${d}/${m}/${y}`;
     }
-    
+
     return '';
   };
 
@@ -268,187 +268,194 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
 
           return (
             <div key={item.id} className="ficha-container">
-            {/* Cabeçalho */}
-            <div className="ficha-header">
-              <div className="ficha-title">EMISSÃO FICHA DE SERVIÇO</div>
-              <div className="ficha-dates">
-                <span className="date-label">Entrada:</span>
-                <span className="date-value">{formatDate(orderData.data_entrada)}</span>
-                <span className="date-separator">|</span>
-                <span className="date-label">Entrega:</span>
-                <span className="date-value">{formatDate(orderData.data_entrega)}</span>
-              </div>
-              <div className="ficha-customer-info">
-                <span className="customer-name">{orderData.cliente || 'Não informado'}</span>
-                <span className="customer-phone">{orderData.telefone_cliente || ''}</span>
-                <span className="customer-location">
-                  {[orderData.cidade_cliente, orderData.estado_cliente]
-                    .filter(Boolean)
-                    .join(' - ') || 'Não informado'}
-                </span>
-              </div>
-            </div>
-
-            {/* Corpo da Ficha */}
-            <div className="ficha-body">
-              <table className="ficha-table">
-                <tbody>
-                  <tr>
-                    <td className="field-label">Nro. OS:</td>
-                    <td className="field-value">{orderData.numero || orderData.id}</td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Descrição:</td>
-                    <td className="field-value">{item.item_name}</td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Tamanho:</td>
-                    <td className="field-value">{formatDimensions(item)}</td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Arte / Designer / Exclusiva / Vr. Arte:</td>
-                    <td className="field-value">
-                      {item.designer || ''} / {item.vendedor || ''} / / 
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">RIP / Máquina / Impressão / Data Impressão:</td>
-                    <td className="field-value">/ / / </td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Tecido / Ilhós / Emendas / Overloque / Elástico:</td>
-                    <td className="field-value">
-                      {item.tecido || ''} / {item.quantidade_ilhos || ''} / {item.emenda || ''} / 
-                      {item.overloque ? 'Sim' : ''} / {item.elastico ? 'Sim' : ''}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Revisão / Expedição:</td>
-                    <td className="field-value">/ </td>
-                  </tr>
-                  <tr>
-                    <td className="field-label">Forma de Envio / Pagamento:</td>
-                    <td className="field-value">
-                      {orderData.forma_envio || ''} / {getFormaPagamento(orderData.forma_pagamento_id)}
-                    </td>
-                  </tr>
-                  <tr className="financial-row">
-                    <td className="field-label">Valores:</td>
-                    <td className="field-value financial-values">
-                      <div className="financial-line">
-                        <span>Tecido:</span>
-                        <span>{formatCurrency(item.subtotal)}</span>
-                      </div>
-                      <div className="financial-line">
-                        <span>Outros:</span>
-                        <span>R$ 0,00</span>
-                      </div>
-                      <div className="financial-line">
-                        <span>SubTotal:</span>
-                        <span>{formatCurrency(item.subtotal)}</span>
-                      </div>
-                      <div className="financial-line">
-                        <span>Frete:</span>
-                        <span>{formatCurrency(orderData.valor_frete || 0)}</span>
-                      </div>
-                      <div className="financial-line total-line">
-                        <span>Total:</span>
-                        <span>{formatCurrency(orderData.total_value)}</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Seção de Imagem */}
-            {item.imagem && isValidImagePath(item.imagem) && (
-              <div className="ficha-image-section">
-                <div className="ficha-image-container">
-                  {(() => {
-                    const blobUrl = imageUrls.get(item.imagem);
-                    const fallbackUrl = normalizeImagePath(item.imagem);
-                    const imageSrc = blobUrl || fallbackUrl;
-                    
-                    console.log('[FichaDeServico] 🖼️ Renderizando imagem:', {
-                      itemId: item.id,
-                      originalPath: item.imagem,
-                      blobUrl,
-                      fallbackUrl,
-                      finalSrc: imageSrc
-                    });
-                    
-                    return (
-                      <img
-                        src={imageSrc}
-                        alt={`Imagem do item ${item.item_name}`}
-                        className="ficha-image"
-                        onError={(event) => {
-                          console.error('[FichaDeServico] ❌ Erro ao exibir imagem:', {
-                            itemId: item.id,
-                            originalPath: item.imagem,
-                            blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
-                            normalizedPath: item.imagem ? normalizeImagePath(item.imagem) : undefined,
-                            finalSrc: imageSrc,
-                            error: event
-                          });
-                          const target = event.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                          const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
-                          if (placeholder) {
-                            (placeholder as HTMLElement).style.display = 'flex';
-                          }
-                        }}
-                        onLoad={() => {
-                          console.log('[FichaDeServico] ✅ Imagem exibida com sucesso:', {
-                            itemId: item.id,
-                            originalPath: item.imagem,
-                            blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
-                            finalSrc: imageSrc
-                          });
-                        }}
-                      />
-                    );
-                  })()}
-                  <div className="ficha-image-placeholder" style={{ display: 'none' }}>
-                    <span>Imagem não disponível</span>
-                  </div>
+              {/* Cabeçalho */}
+              <div className="ficha-header">
+                <div className="ficha-title">EMISSÃO FICHA DE SERVIÇO</div>
+                <div className="ficha-dates">
+                  <span className="date-label">Entrada:</span>
+                  <span className="date-value">{formatDate(orderData.data_entrada)}</span>
+                  <span className="date-separator">|</span>
+                  <span className="date-label">Entrega:</span>
+                  <span className="date-value">{formatDate(orderData.data_entrega)}</span>
                 </div>
-                {item.legenda_imagem && (
-                  <div className="ficha-image-caption">
-                    {item.legenda_imagem}
-                  </div>
-                )}
+                <div className="ficha-customer-info">
+                  <span className="customer-name">{orderData.cliente || 'Não informado'}</span>
+                  <span className="customer-phone">{orderData.telefone_cliente || ''}</span>
+                  <span className="customer-location">
+                    {[orderData.cidade_cliente, orderData.estado_cliente]
+                      .filter(Boolean)
+                      .join(' - ') || 'Não informado'}
+                  </span>
+                </div>
               </div>
-            )}
 
-            {detailEntries.length > 0 && (
-              <div className="ficha-details">
-                <h4 className="ficha-details-title">Detalhes informados no cadastro do item</h4>
-                <div className="ficha-details-grid">
-                  {detailEntries.map((entry) => (
-                    <div key={entry.key} className="ficha-detail-card">
-                      <span className="ficha-detail-label">{entry.label}</span>
-                      <span className="ficha-detail-value">{entry.value}</span>
+              {/* Corpo da Ficha */}
+              <div className="ficha-body">
+                <table className="ficha-table">
+                  <tbody>
+                    <tr>
+                      <td className="field-label">Nro. OS:</td>
+                      <td className="field-value">{orderData.numero || orderData.id}</td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Descrição:</td>
+                      <td className="field-value">{item.item_name}</td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Tamanho:</td>
+                      <td className="field-value">{formatDimensions(item)}</td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Arte / Designer / Exclusiva / Vr. Arte:</td>
+                      <td className="field-value">
+                        {item.designer || ''} / {item.vendedor || ''} / /
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">RIP / Máquina / Impressão / Data Impressão:</td>
+                      <td className="field-value">/ / / </td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Tecido / Ilhós / Emendas / Alça/Cordinha / Overloque / Elástico:</td>
+                      <td className="field-value">
+                        {item.tecido || ''} / {item.quantidade_ilhos || ''} / {item.emenda || ''} /
+                        {(() => {
+                          const ac = String(item.tipo_acabamento || (item as any).tipo_alcinha || '').toLowerCase().trim();
+                          if (ac === '' || ac === 'nenhum') return '';
+                          if (ac === 'alca') return 'Alça';
+                          if (ac === 'cordinha') return 'Cordinha';
+                          if (ac === 'alca_cordinha') return 'Alça + Cordinha';
+                          return ac;
+                        })()} / {item.overloque ? 'Sim' : ''} / {item.elastico ? 'Sim' : ''}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Revisão / Expedição:</td>
+                      <td className="field-value">/ </td>
+                    </tr>
+                    <tr>
+                      <td className="field-label">Forma de Envio / Pagamento:</td>
+                      <td className="field-value">
+                        {orderData.forma_envio || ''} / {getFormaPagamento(orderData.forma_pagamento_id)}
+                      </td>
+                    </tr>
+                    <tr className="financial-row">
+                      <td className="field-label">Valores:</td>
+                      <td className="field-value financial-values">
+                        <div className="financial-line">
+                          <span>Tecido:</span>
+                          <span>{formatCurrency(item.subtotal)}</span>
+                        </div>
+                        <div className="financial-line">
+                          <span>Outros:</span>
+                          <span>R$ 0,00</span>
+                        </div>
+                        <div className="financial-line">
+                          <span>SubTotal:</span>
+                          <span>{formatCurrency(item.subtotal)}</span>
+                        </div>
+                        <div className="financial-line">
+                          <span>Frete:</span>
+                          <span>{formatCurrency(orderData.valor_frete || 0)}</span>
+                        </div>
+                        <div className="financial-line total-line">
+                          <span>Total:</span>
+                          <span>{formatCurrency(orderData.total_value)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Seção de Imagem */}
+              {item.imagem && isValidImagePath(item.imagem) && (
+                <div className="ficha-image-section">
+                  <div className="ficha-image-container">
+                    {(() => {
+                      const blobUrl = imageUrls.get(item.imagem);
+                      const fallbackUrl = normalizeImagePath(item.imagem);
+                      const imageSrc = blobUrl || fallbackUrl;
+
+                      console.log('[FichaDeServico] 🖼️ Renderizando imagem:', {
+                        itemId: item.id,
+                        originalPath: item.imagem,
+                        blobUrl,
+                        fallbackUrl,
+                        finalSrc: imageSrc
+                      });
+
+                      return (
+                        <img
+                          src={imageSrc}
+                          alt={`Imagem do item ${item.item_name}`}
+                          className="ficha-image"
+                          onError={(event) => {
+                            console.error('[FichaDeServico] ❌ Erro ao exibir imagem:', {
+                              itemId: item.id,
+                              originalPath: item.imagem,
+                              blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
+                              normalizedPath: item.imagem ? normalizeImagePath(item.imagem) : undefined,
+                              finalSrc: imageSrc,
+                              error: event
+                            });
+                            const target = event.currentTarget as HTMLImageElement;
+                            target.style.display = 'none';
+                            const placeholder = target.parentElement?.querySelector('.ficha-image-placeholder');
+                            if (placeholder) {
+                              (placeholder as HTMLElement).style.display = 'flex';
+                            }
+                          }}
+                          onLoad={() => {
+                            console.log('[FichaDeServico] ✅ Imagem exibida com sucesso:', {
+                              itemId: item.id,
+                              originalPath: item.imagem,
+                              blobUrl: item.imagem ? imageUrls.get(item.imagem) : undefined,
+                              finalSrc: imageSrc
+                            });
+                          }}
+                        />
+                      );
+                    })()}
+                    <div className="ficha-image-placeholder" style={{ display: 'none' }}>
+                      <span>Imagem não disponível</span>
                     </div>
-                  ))}
+                  </div>
+                  {item.legenda_imagem && (
+                    <div className="ficha-image-caption">
+                      {item.legenda_imagem}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Rodapé */}
-            <div className="ficha-footer">
-              <div className="observations">
-                <div className="field-label">Observações:</div>
-                <div className="field-value">
-                  {orderData.observacao || item.observacao || ''}
+              {detailEntries.length > 0 && (
+                <div className="ficha-details">
+                  <h4 className="ficha-details-title">Detalhes informados no cadastro do item</h4>
+                  <div className="ficha-details-grid">
+                    {detailEntries.map((entry) => (
+                      <div key={entry.key} className="ficha-detail-card">
+                        <span className="ficha-detail-label">{entry.label}</span>
+                        <span className="ficha-detail-value">{entry.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Rodapé */}
+              <div className="ficha-footer">
+                <div className="observations">
+                  <div className="field-label">Observações:</div>
+                  <div className="field-value">
+                    {orderData.observacao || item.observacao || ''}
+                  </div>
+                </div>
+                <div className="signature-section">
+                  <div className="signature-line"></div>
+                  <div className="signature-label">Assinatura</div>
                 </div>
               </div>
-              <div className="signature-section">
-                <div className="signature-line"></div>
-                <div className="signature-label">Assinatura</div>
-              </div>
-            </div>
             </div>
           );
         })}
