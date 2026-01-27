@@ -315,6 +315,15 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       normalized.includes('bolsinha');
   }
 
+  function isImpressao3DType(tipoProducao?: string): boolean {
+    if (!tipoProducao) return false;
+    const normalized = tipoProducao.toLowerCase().trim();
+    return normalized === 'impressao_3d' ||
+      normalized === 'impressao 3d' ||
+      normalized === 'impressão 3d' ||
+      normalized === 'impressão_3d';
+  }
+
   function toDateInputValue(value?: string | null): string {
     if (!value) {
       return '';
@@ -1128,10 +1137,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           if (quantidadeCanga <= 0) {
             errors[`item_${tabId}_quantidade`] = 'Quantidade de cangas deve ser maior que zero';
           }
-        } else if ((() => {
-          const t = String(item.tipo_producao || '').toLowerCase().trim();
-          return t === 'impressao_3d' || t === 'impressao 3d' || t === 'impressão 3d' || t === 'impressão_3d';
-        })()) {
+        } else if (isImpressao3DType(item.tipo_producao)) {
           const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
           const valorUnitarioImpressao3D = valorImpressao3D + valoresAdicionais;
@@ -2893,26 +2899,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   </div>
                 )}
 
-                {(() => {
-                  const currentTipo = String(tabsData[tabId]?.tipo_producao || '').toLowerCase().trim();
-                  return currentTipo === 'impressao_3d' ||
-                    currentTipo === 'impressao 3d' ||
-                    currentTipo === 'impressão 3d' ||
-                    currentTipo === 'impressão_3d';
-                })() && (
-                    <div className="border border-green-200 rounded-lg p-6 bg-white">
-                      <FormImpressao3D
-                        tabId={tabId}
-                        tabData={tabsData[tabId]}
-                        vendedores={vendedores}
-                        designers={designers}
-                        onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                        onSaveItem={() => handleSaveItem(tabId)}
-                        onCancelItem={() => handleCancelItem(tabId)}
-                        hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
-                      />
-                    </div>
-                  )}
+                {isImpressao3DType(tabsData[tabId]?.tipo_producao) && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormImpressao3D
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                    />
+                  </div>
+                )}
 
                 {isMochilinhaType(tabsData[tabId]?.tipo_producao) && (
                   <div className="border border-green-200 rounded-lg p-6 bg-white">
@@ -2931,8 +2931,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 )}
 
                 {tabsData[tabId]?.tipo_producao &&
-                  !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga', 'impressao_3d'].includes(tabsData[tabId]?.tipo_producao) &&
-                  !isMochilinhaType(tabsData[tabId]?.tipo_producao) && (
+                  !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga'].includes(tabsData[tabId]?.tipo_producao.toLowerCase()) &&
+                  !isMochilinhaType(tabsData[tabId]?.tipo_producao) &&
+                  !isImpressao3DType(tabsData[tabId]?.tipo_producao) && (
                     <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
                       {/* Descrição */}
                       <div className="space-y-2">
