@@ -1,29 +1,20 @@
 # Changelog - SGP v4
  
-## [1.0.20] - 2026-01-26
+## [1.0.20] - 2026-01-27
 
 ### ✨ Adicionado
-- **Suporte Completo para Mochilinhas/Bolsinhas**: Implementação de formulário dedicado para produtos do tipo mochilinha e bolsinha.
-  - Novo componente `FormMochilinhaProducao.tsx` com campos específicos.
-  - Campo de seleção (Select) para tipo de acabamento: Nenhum, Alça, Cordinha, Alça + Cordinha.
-  - Cálculo automático de valores unitários e totais baseado em quantidade.
-  - Upload e preview de imagens do produto.
+- **Filtro de Pedidos Prontos no Relatório de Envios**: Implementada a funcionalidade de filtrar apenas pedidos com status "Pronto".
+  - Novo controle Checkbox na interface de filtros do relatório.
+  - Filtragem eficiente realizada no frontend preservando performance original.
+  - Integração total com a exportação para PDF e visualização em tela.
 
 ### 🔧 Melhorado
-- **Persistência de Dados**: Robustecimento do sistema de salvamento e carregamento de acabamentos.
-  - Sincronização redundante em múltiplos campos (`tipo_acabamento`, `tipo_alcinha`, flags booleanas).
-  - Inferência inteligente de acabamento a partir de flags legadas (`alcinha`, `cordinha_extra`).
-  - Normalização flexível de tipos de produção para suportar variações como "mochilinha/bolsinha".
-- **Exibição em Relatórios**: Melhorias na formatação e exibição de acabamentos.
-  - Tradução automática de códigos técnicos para nomes legíveis (ex: "alca" → "Alça").
-  - Suporte completo em modal de visualização, ficha de serviço e PDF de produção.
-  - Fallbacks robustos para garantir exibição mesmo com dados incompletos.
+- **Persistência de Dados**: Robustecimento do sistema de salvamento e carregamento de acabamentos (Mochilinhas/Bolsinhas).
+- **Exibição em Relatórios**: Melhorias na formatação e exibição de acabamentos técnicos.
 
 ### 🐛 Corrigido
-- **Bug de Zeramento de Valor**: Corrigido conflito entre campo de entrada e calculador automático que resetava valores.
-- **Falha de Persistência**: Resolvido problema onde seleção de acabamento não era mantida após salvar.
-- **Erro de Variável**: Corrigido ReferenceError `ilhosParts` no OrderViewModal.
-- **Mapeamento de Tipos**: Adicionado suporte para mochilinhas/bolsinhas no mapper canônico de produção.
+- **Bug de Zeramento de Valor**: Corrigido conflito que resetava valores unitários em certos fluxos.
+- **Erro de Variável**: Resolvido `ReferenceError` no modal de visualização de pedido.
 
 ## [1.0.19] - 2026-01-25
 
