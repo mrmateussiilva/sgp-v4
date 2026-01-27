@@ -503,7 +503,8 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
   }
 
   if (canon.tipo_producao === 'impressao_3d') {
-    fields.material_gasto = canon.material_gasto ?? '';
+    fields.material_gasto = canon.material_gasto ? `${canon.material_gasto} g` : '0 g';
+    fields.material_3d = canon.tecido ?? 'Não informado';
     fields.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? '';
     fields.valor_impressao_3d = canon.valor_impressao_3d ?? '';
     fields.valores_adicionais = canon.valores_adicionais ?? '';

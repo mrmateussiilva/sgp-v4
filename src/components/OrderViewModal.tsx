@@ -725,10 +725,11 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         omitKeys.add('quantity');
       }
 
-      if (hasPositiveNumber(valoresAdicionais)) {
+      const valAdicionais = (item as any).valores_adicionais;
+      if (hasPositiveNumber(valAdicionais)) {
         sections.push({
           label: 'Valores Adicionais',
-          value: formatCurrency(parseCurrencyValue(valoresAdicionais)),
+          value: formatCurrency(parseCurrencyValue(valAdicionais)),
           variant: 'warning',
         });
         omitKeys.add('valores_adicionais');
@@ -741,10 +742,19 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       if (materialGasto) {
         sections.push({
           label: 'Peso (Gramas)',
-          value: `${materialGasto} g`,
+          value: materialGasto.includes('g') ? materialGasto : `${materialGasto} g`,
           variant: 'accent',
         });
         omitKeys.add('material_gasto');
+      }
+
+      if (item.tecido) {
+        sections.push({
+          label: 'Material (Filamento)',
+          value: item.tecido,
+          variant: 'accent',
+        });
+        omitKeys.add('tecido');
       }
 
       const qtd3D = (item as any).quantidade_impressao_3d;
