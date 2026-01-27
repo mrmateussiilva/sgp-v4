@@ -91,6 +91,10 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+        flex: 1,
+        marginRight: 10,
+        height: 22,
+        overflow: 'hidden',
     },
 
     // ============================================

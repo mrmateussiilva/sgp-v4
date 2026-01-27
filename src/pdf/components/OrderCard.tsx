@@ -88,7 +88,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                 </View>
 
                 <View style={styles.headerBottomRow}>
-                    <Text style={styles.clientName}>{order.cliente.toUpperCase()}</Text>
+                    <Text style={styles.clientName}>
+                        {order.cliente.length > 30
+                            ? order.cliente.substring(0, 30).toUpperCase()
+                            : order.cliente.toUpperCase()}
+                    </Text>
                     <View style={{ flexDirection: 'row', gap: 15 }}>
                         <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
                         <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
