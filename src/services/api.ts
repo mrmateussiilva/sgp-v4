@@ -63,6 +63,7 @@ export const api = {
   getVendedoresAtivos: resourcesApi.getVendedoresAtivos,
   getDesignersAtivos: resourcesApi.getDesignersAtivos,
   getTecidosAtivos: resourcesApi.getTecidosAtivos,
+  getFilamentosAtivos: resourcesApi.getFilamentosAtivos,
   getMateriaisAtivosPorTipo: resourcesApi.getMateriaisAtivosPorTipo,
   getFormasEnvioAtivas: resourcesApi.getFormasEnvioAtivas,
   getFormasPagamentoAtivas: resourcesApi.getFormasPagamentoAtivas,

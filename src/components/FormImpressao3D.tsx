@@ -3,7 +3,9 @@ import { Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyInput } from '@/components/ui/currency-input';
+import { api } from '@/services/api';
 import { Textarea } from '@/components/ui/textarea';
 import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
@@ -64,13 +66,26 @@ export function FormImpressao3D({
   // Estado para preview da imagem (temporário, apenas para exibição)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
+  const [filamentos, setFilamentos] = useState<string[]>([]);
 
-  // Material padrão se não houver um definido
+  // Carregar filamentos do banco de dados
   useEffect(() => {
-    if (!tabData?.tecido) {
-      onDataChange('tecido', 'PLA');
-    }
-  }, [tabData?.tecido, onDataChange]);
+    const loadFilamentos = async () => {
+      try {
+        const data = await api.getFilamentosAtivos();
+        setFilamentos(data);
+
+        // Se não tiver material e tiver filamentos, seleciona o primeiro
+        if (!tabData?.tecido && data.length > 0) {
+          onDataChange('tecido', data[0]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar filamentos:', error);
+      }
+    };
+    loadFilamentos();
+  }, []);
+
 
   // Carregar preview quando imagem mudar
   useEffect(() => {
@@ -134,13 +149,25 @@ export function FormImpressao3D({
 
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label className="text-base font-medium">Material</Label>
-          <Input
+          <Label className="text-base font-medium">Material (Filamento)</Label>
+          <Select
             value={tabData?.tecido || ''}
-            onChange={(event) => onDataChange('tecido', event.target.value)}
-            placeholder="Ex: PLA, ABS, PETG"
-            className="h-10 text-sm"
-          />
+            onValueChange={(value) => onDataChange('tecido', value)}
+          >
+            <SelectTrigger className="h-10 text-sm bg-white">
+              <SelectValue placeholder="Selecione o filamento" />
+            </SelectTrigger>
+            <SelectContent>
+              {filamentos.map((filamento) => (
+                <SelectItem key={filamento} value={filamento}>
+                  {filamento}
+                </SelectItem>
+              ))}
+              {filamentos.length === 0 && (
+                <SelectItem value="none" disabled>Nenhum filamento cadastrado</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
 
         <SelectVendedor

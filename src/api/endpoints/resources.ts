@@ -154,6 +154,10 @@ export const resourcesApi = {
         return resourcesApi.getMateriaisAtivosPorTipo('tecido');
     },
 
+    getFilamentosAtivos: async (): Promise<string[]> => {
+        return resourcesApi.getMateriaisAtivosPorTipo('filamento');
+    },
+
     getMateriaisAtivosPorTipo: async (tipo: string): Promise<string[]> => {
         const normalizedTipo = String(tipo ?? '').trim().toLowerCase();
         if (!normalizedTipo) return [];

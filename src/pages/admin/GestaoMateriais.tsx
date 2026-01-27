@@ -25,7 +25,7 @@ interface Material {
   observacao?: string;
 }
 
-const TIPOS_MATERIAL = ['TECIDO', 'LONA', 'TOTEM', 'PAPEL', 'ADESIVO'];
+const TIPOS_MATERIAL = ['TECIDO', 'LONA', 'TOTEM', 'PAPEL', 'ADESIVO', 'FILAMENTO'];
 
 export default function GestaoMateriais() {
   const { toast } = useToast();
