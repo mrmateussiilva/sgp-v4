@@ -161,11 +161,10 @@ export function FormImpressao3D({
       <div className="space-y-2">
         <Label className="text-base font-medium">Peso (Gramas)</Label>
         <div className="relative w-1/3">
-          <Input
-            type="number"
-            value={tabData?.material_gasto || ''}
-            onChange={(event) => onDataChange('material_gasto', event.target.value)}
-            placeholder="Ex: 50"
+          <CurrencyInput
+            value={tabData?.material_gasto || '0,00'}
+            onValueChange={(formatted) => onDataChange('material_gasto', formatted)}
+            placeholder="0,00"
             className="h-10 text-sm pr-8"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">
