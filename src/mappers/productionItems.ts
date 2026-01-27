@@ -107,15 +107,16 @@ export type CanonicalProductionItem =
   | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
-  if (tipo === 'painel') return 'painel';
-  if (tipo === 'generica') return 'generica';
-  if (tipo === 'totem') return 'totem';
-  if (tipo === 'lona') return 'lona';
-  if (tipo === 'adesivo') return 'adesivo';
-  if (tipo === 'canga') return 'canga';
-  if (tipo === 'impressao_3d') return 'impressao_3d';
-  if (tipo === 'mochilinha' || tipo?.includes('mochilinha')) return 'mochilinha';
-  if (tipo === 'bolsinha' || tipo?.includes('bolsinha')) return 'bolsinha';
+  const normalized = String(tipo ?? '').toLowerCase().trim();
+  if (normalized === 'painel') return 'painel';
+  if (normalized === 'generica') return 'generica';
+  if (normalized === 'totem') return 'totem';
+  if (normalized === 'lona') return 'lona';
+  if (normalized === 'adesivo') return 'adesivo';
+  if (normalized === 'canga') return 'canga';
+  if (normalized === 'impressao_3d' || normalized === 'impressão 3d' || normalized === 'impressão_3d' || normalized === 'impressao 3d') return 'impressao_3d';
+  if (normalized === 'mochilinha' || normalized.includes('mochilinha')) return 'mochilinha';
+  if (normalized === 'bolsinha' || normalized.includes('bolsinha')) return 'bolsinha';
   return 'other';
 }
 
@@ -266,9 +267,8 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
 
 export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionItem {
   const anyItem = item as unknown as Record<string, unknown>;
-  const tipo = normalizeTipo(
-    (item.tipo_producao as string | null | undefined) ?? (anyItem.tipo_producao as string | null | undefined)
-  );
+  const rawTipo = (item.tipo_producao as string | null | undefined) ?? (anyItem.tipo_producao as string | null | undefined);
+  const tipo = normalizeTipo(rawTipo);
   const descricao = item.descricao ?? item.item_name ?? '';
 
   const baseCommon = {

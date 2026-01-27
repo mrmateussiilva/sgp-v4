@@ -589,6 +589,11 @@ const FIELD_VISIBILITY_RULES = {
     show: ['tipo_alcinha', 'valor_mochilinha', 'quantidade_mochilinha', 'valores_adicionais', 'tecido'],
     hide: ['spec-painel', 'spec-totem', 'spec-lona', 'spec-adesivo'],
     preserveEmpty: false
+  },
+  impressao_3d: {
+    show: ['material_gasto', 'quantidade_impressao_3d', 'valor_impressao_3d', 'valores_adicionais', 'tecido'],
+    hide: ['spec-painel', 'spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: false
   }
 } as const;
 
@@ -640,7 +645,12 @@ const mapVariableToLabel: Record<string, string> = {
   // Mochilinha/Bolsinha
   'tipo_alcinha': 'Tipo de Alça',
   'valor_mochilinha': 'Valor Mochilinha',
-  'quantidade_mochilinha': 'Quantidade'
+  'quantidade_mochilinha': 'Quantidade',
+  // Impressão 3D
+  'material_gasto': 'Peso (Gramas)',
+  'quantidade_impressao_3d': 'Qtd Impressão 3D',
+  'valor_impressao_3d': 'Valor Unitário',
+  'valores_adicionais': 'Outros Valores'
 };
 
 /**

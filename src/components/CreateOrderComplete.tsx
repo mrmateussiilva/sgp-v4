@@ -1128,7 +1128,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           if (quantidadeCanga <= 0) {
             errors[`item_${tabId}_quantidade`] = 'Quantidade de cangas deve ser maior que zero';
           }
-        } else if (item.tipo_producao === 'impressao_3d') {
+        } else if ((() => {
+          const t = String(item.tipo_producao || '').toLowerCase().trim();
+          return t === 'impressao_3d' || t === 'impressao 3d' || t === 'impressão 3d' || t === 'impressão_3d';
+        })()) {
           const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
           const valorUnitarioImpressao3D = valorImpressao3D + valoresAdicionais;
@@ -2890,20 +2893,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   </div>
                 )}
 
-                {tabsData[tabId]?.tipo_producao === 'impressao_3d' && (
-                  <div className="border border-green-200 rounded-lg p-6 bg-white">
-                    <FormImpressao3D
-                      tabId={tabId}
-                      tabData={tabsData[tabId]}
-                      vendedores={vendedores}
-                      designers={designers}
-                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
-                      onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
-                    />
-                  </div>
-                )}
+                {(() => {
+                  const currentTipo = String(tabsData[tabId]?.tipo_producao || '').toLowerCase().trim();
+                  return currentTipo === 'impressao_3d' ||
+                    currentTipo === 'impressao 3d' ||
+                    currentTipo === 'impressão 3d' ||
+                    currentTipo === 'impressão_3d';
+                })() && (
+                    <div className="border border-green-200 rounded-lg p-6 bg-white">
+                      <FormImpressao3D
+                        tabId={tabId}
+                        tabData={tabsData[tabId]}
+                        vendedores={vendedores}
+                        designers={designers}
+                        onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                        onSaveItem={() => handleSaveItem(tabId)}
+                        onCancelItem={() => handleCancelItem(tabId)}
+                        hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
+                      />
+                    </div>
+                  )}
 
                 {isMochilinhaType(tabsData[tabId]?.tipo_producao) && (
                   <div className="border border-green-200 rounded-lg p-6 bg-white">

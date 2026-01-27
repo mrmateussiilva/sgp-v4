@@ -389,6 +389,10 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const isAdesivo = tipoProducao === 'adesivo';
     const isPainel = tipoProducao === 'painel' || tipoProducao === 'generica';
     const isMochilinha = isMochilinhaType(tipoProducao);
+    const isImpressao3D = tipoProducao === 'impressao_3d' ||
+      tipoProducao === 'impressao 3d' ||
+      tipoProducao === 'impressão 3d' ||
+      tipoProducao === 'impressão_3d';
 
     const formatSpacing = (value?: string | null) => {
       const normalized = normalizeText(value);
@@ -721,11 +725,53 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         omitKeys.add('quantity');
       }
 
-      const valoresAdicionais = (item as any).valores_adicionais;
       if (hasPositiveNumber(valoresAdicionais)) {
         sections.push({
           label: 'Valores Adicionais',
           value: formatCurrency(parseCurrencyValue(valoresAdicionais)),
+          variant: 'warning',
+        });
+        omitKeys.add('valores_adicionais');
+      }
+    }
+
+    // Campos específicos para IMPRESSÃO 3D
+    if (isImpressao3D) {
+      const materialGasto = (item as any).material_gasto;
+      if (materialGasto) {
+        sections.push({
+          label: 'Peso (Gramas)',
+          value: `${materialGasto} g`,
+          variant: 'accent',
+        });
+        omitKeys.add('material_gasto');
+      }
+
+      const qtd3D = (item as any).quantidade_impressao_3d;
+      if (qtd3D && qtd3D !== '1') {
+        sections.push({
+          label: 'Qtd Impressão 3D',
+          value: qtd3D,
+          variant: 'accent',
+        });
+        omitKeys.add('quantidade_impressao_3d');
+      }
+
+      const valor3D = (item as any).valor_impressao_3d;
+      if (hasPositiveNumber(valor3D)) {
+        sections.push({
+          label: 'Valor Unitário (3D)',
+          value: formatCurrency(parseCurrencyValue(valor3D)),
+          variant: 'accent',
+        });
+        omitKeys.add('valor_impressao_3d');
+      }
+
+      const vAdicionais = (item as any).valores_adicionais;
+      if (hasPositiveNumber(vAdicionais)) {
+        sections.push({
+          label: 'Outros Valores',
+          value: formatCurrency(parseCurrencyValue(vAdicionais)),
           variant: 'warning',
         });
         omitKeys.add('valores_adicionais');
@@ -909,13 +955,14 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const quantidadeTotem = normalizeText((item as any).quantidade_totem);
     const quantidadeAdesivo = normalizeText((item as any).quantidade_adesivo);
     const quantidadeLona = normalizeText((item as any).quantidade_lona);
+    const quantidadeImpressao3D = normalizeText((item as any).quantidade_impressao_3d);
     const itemQuantidade = item.quantity && item.quantity > 0 ? String(item.quantity) : '';
 
     // Para painel, priorizar quantidade_paineis mesmo se for 1
     const isPainelType = tipoLower === 'painel' || tipoLower === 'generica';
     const quantidadeDisplay = isPainelType && painelQuantidade
       ? painelQuantidade
-      : painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || itemQuantidade;
+      : painelQuantidade || quantidadeTotem || quantidadeAdesivo || quantidadeLona || quantidadeImpressao3D || itemQuantidade;
 
     const vendedor = normalizeText(item.vendedor);
     const designer = normalizeText(item.designer);

@@ -65,10 +65,10 @@ export function FormImpressao3D({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
 
-  // Material sempre será "plastico" - definir ao montar o componente
+  // Material padrão se não houver um definido
   useEffect(() => {
-    if (tabData?.tecido !== 'plastico') {
-      onDataChange('tecido', 'plastico');
+    if (!tabData?.tecido) {
+      onDataChange('tecido', 'PLA');
     }
   }, [tabData?.tecido, onDataChange]);
 
@@ -136,9 +136,10 @@ export function FormImpressao3D({
         <div className="space-y-2">
           <Label className="text-base font-medium">Material</Label>
           <Input
-            value="Plástico"
-            disabled
-            className="bg-gray-100 h-12 text-base cursor-not-allowed"
+            value={tabData?.tecido || ''}
+            onChange={(event) => onDataChange('tecido', event.target.value)}
+            placeholder="Ex: PLA, ABS, PETG"
+            className="h-10 text-sm"
           />
         </div>
 
@@ -158,32 +159,37 @@ export function FormImpressao3D({
       </div>
 
       <div className="space-y-2">
-        <Label className="text-base font-medium">Material gasto</Label>
-        <Input
-          value={tabData?.material_gasto || ''}
-          onChange={(event) => onDataChange('material_gasto', event.target.value)}
-          placeholder="Ex: 50g de PLA"
-          className="h-10 text-sm"
-        />
+        <Label className="text-base font-medium">Peso (Gramas)</Label>
+        <div className="relative w-1/3">
+          <Input
+            type="number"
+            value={tabData?.material_gasto || ''}
+            onChange={(event) => onDataChange('material_gasto', event.target.value)}
+            placeholder="Ex: 50"
+            className="h-10 text-sm pr-8"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">
+            g
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6 items-stretch">
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="space-y-4 flex flex-col">
+          <div className="space-y-2 flex-1 flex flex-col">
             <Label className="text-base font-medium">Observações</Label>
             <Textarea
               value={tabData?.observacao || ''}
               onChange={(event) => onDataChange('observacao', event.target.value)}
-              placeholder="Detalhes adicionais sobre a impressão 3D"
-              rows={5}
-              className="text-sm"
+              placeholder="Detalhes adicionais importantes para a produção..."
+              className="flex-1 min-h-[120px] resize-none text-sm"
             />
           </div>
         </div>
 
         <div className="space-y-2 flex flex-col">
-          <Label className="text-base font-semibold">Imagem da impressão 3D</Label>
-          <div className="relative flex-1 min-h-[320px]">
+          <Label className="text-base font-semibold">Imagem da peça</Label>
+          <div className="relative flex-1 min-h-[300px]">
             <Input
               type="file"
               accept="image/*"
@@ -191,31 +197,21 @@ export function FormImpressao3D({
                 const file = event.target.files?.[0];
                 if (!file) return;
 
-                // Se estiver em Tauri, salvar localmente
                 if (isTauri()) {
                   try {
                     setImageLoading(true);
-
-                    // Converter File para Uint8Array
                     const arrayBuffer = await file.arrayBuffer();
                     const imageData = new Uint8Array(arrayBuffer);
-
-                    // Processar e salvar localmente
                     const metadata = await processAndSaveImage(
                       imageData,
-                      5000, // maxWidth
-                      400, // maxHeight
-                      85    // quality
+                      5000,
+                      400,
+                      85
                     );
-
-                    // Armazenar local_path no estado (NÃO base64!)
                     onDataChange('imagem', metadata.local_path);
                     onDataChange('_image_metadata', metadata);
-
-                    // Carregar preview temporário
                     const preview = await getImagePreviewUrl(metadata.local_path);
                     setImagePreviewUrl(preview);
-
                     toast({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
@@ -231,21 +227,11 @@ export function FormImpressao3D({
                     setImageLoading(false);
                   }
                 } else {
-                  // Fallback para ambiente web
-                  try {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      onDataChange('imagem', reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  } catch (error) {
-                    console.error('Erro ao ler arquivo:', error);
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível ler o arquivo.',
-                      variant: 'destructive',
-                    });
-                  }
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    onDataChange('imagem', reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
                 }
               }}
               className="hidden"
@@ -253,123 +239,47 @@ export function FormImpressao3D({
             />
             <label
               htmlFor={`upload-imagem-impressao3d-${tabId}`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onDrop={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const file = e.dataTransfer.files?.[0];
-                if (!file || !file.type.startsWith('image/')) return;
-
-                // Se estiver em Tauri, salvar localmente
-                if (isTauri()) {
-                  try {
-                    setImageLoading(true);
-
-                    // Converter File para Uint8Array
-                    const arrayBuffer = await file.arrayBuffer();
-                    const imageData = new Uint8Array(arrayBuffer);
-
-                    // Processar e salvar localmente
-                    const metadata = await processAndSaveImage(
-                      imageData,
-                      5000, // maxWidth
-                      400, // maxHeight
-                      85    // quality
-                    );
-
-                    // Armazenar local_path no estado
-                    onDataChange('imagem', metadata.local_path);
-                    onDataChange('_image_metadata', metadata);
-
-                    // Carregar preview temporário
-                    const preview = await getImagePreviewUrl(metadata.local_path);
-                    setImagePreviewUrl(preview);
-
-                    toast({
-                      title: 'Imagem salva',
-                      description: 'Imagem salva localmente com sucesso.',
-                    });
-                  } catch (error) {
-                    console.error('Erro ao salvar imagem localmente:', error);
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível salvar a imagem localmente.',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setImageLoading(false);
-                  }
-                } else {
-                  // Fallback para ambiente web
-                  try {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      onDataChange('imagem', reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  } catch (error) {
-                    console.error('Erro ao ler arquivo:', error);
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível ler o arquivo.',
-                      variant: 'destructive',
-                    });
-                  }
-                }
-              }}
-              className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-colors"
+              className="flex flex-col items-center justify-center h-full border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all bg-white overflow-hidden"
             >
               {imageLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                    <span className="text-sm text-gray-600">Carregando imagem...</span>
-                  </div>
+                <div className="flex flex-col items-center gap-2">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                  <span className="text-sm text-slate-600">Processando...</span>
                 </div>
               ) : imagePreviewUrl ? (
-                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <div className="relative w-full h-full flex items-center justify-center">
                   <img
                     src={imagePreviewUrl}
-                    alt="Preview impressão 3D"
-                    className="max-w-full max-h-full object-contain p-2"
-                    style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
+                    alt="Preview"
+                    className="max-w-full max-h-[300px] object-contain p-2"
                   />
                   <button
                     type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
+                    onClick={(e) => {
+                      e.preventDefault();
                       onDataChange('imagem', '');
-                      onDataChange('legenda_imagem', '');
-                      onDataChange('_image_metadata', null);
                       setImagePreviewUrl(null);
                     }}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 shadow-md"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
-                <div className="text-center text-gray-500">
-                  <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                  <span className="text-base text-gray-600">Clique para selecionar</span>
-                  <span className="text-sm text-gray-400 block mt-1">PNG ou JPG até 5MB</span>
+                <div className="text-center p-6 text-gray-500">
+                  <Upload className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                  <span className="text-sm font-medium block">Carregar Imagem</span>
+                  <span className="text-xs mt-1">PNG ou JPG até 5MB</span>
                 </div>
               )}
             </label>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-700">Legenda da imagem</Label>
+            <Label className="text-sm font-medium text-slate-700">Legenda da imagem (Opcional)</Label>
             <Input
               value={tabData?.legenda_imagem || ''}
               onChange={(event) => onDataChange('legenda_imagem', event.target.value)}
-              placeholder="Digite a legenda exibida abaixo da imagem"
+              placeholder="Ex: Vista superior da peça"
               className="h-10"
             />
           </div>
@@ -377,9 +287,9 @@ export function FormImpressao3D({
       </div>
 
       <div className="space-y-4">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="space-y-2">
-            <Label className="text-base font-medium">Valor da impressão 3D (R$)</Label>
+            <Label className="text-base font-medium">Valor Unitário (R$)</Label>
             <CurrencyInput
               value={tabData?.valor_impressao_3d ?? '0,00'}
               onValueChange={(formatted) => onDataChange('valor_impressao_3d', formatted)}
@@ -401,7 +311,7 @@ export function FormImpressao3D({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-base font-medium">Valores adicionais (R$)</Label>
+            <Label className="text-base font-medium">Outros Valores (R$)</Label>
             <CurrencyInput
               value={tabData?.valores_adicionais ?? '0,00'}
               onValueChange={(formatted) => onDataChange('valores_adicionais', formatted)}
@@ -418,22 +328,22 @@ export function FormImpressao3D({
           </div>
         </div>
 
-        {(valorImpressao3D > 0 || outrosValores > 0) && (
+        {valorTotal > 0 && (
           <div className="p-4 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl text-white space-y-2">
             <div className="text-lg font-semibold">Resumo dos valores</div>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span>Valor base da impressão 3D:</span>
+                <span>Valor base da impressão:</span>
                 <strong>R$ {formatBR(valorImpressao3D)}</strong>
               </div>
               {outrosValores > 0 && (
                 <div className="flex justify-between bg-white bg-opacity-10 px-2 py-1 rounded">
-                  <span>+ Valores adicionais:</span>
+                  <span>+ Outros valores:</span>
                   <strong className="text-emerald-200">R$ {formatBR(outrosValores)}</strong>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold bg-white bg-opacity-20 px-3 py-2 rounded-lg mt-2">
-                <span>Total ({tabData?.quantidade_impressao_3d || 1} peça(s)):</span>
+                <span>Total ({quantidade} unidade(s)):</span>
                 <span className="text-yellow-300">R$ {formatBR(valorTotal)}</span>
               </div>
             </div>
@@ -443,7 +353,7 @@ export function FormImpressao3D({
         <div className="flex justify-between items-center">
           {hasUnsavedChanges && (
             <div className="flex items-center gap-2 text-orange-600 text-sm">
-              <div className="w-2 h-2 bg-orange-500 rounded-full" />
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
               <span>Mudanças não salvas</span>
             </div>
           )}
