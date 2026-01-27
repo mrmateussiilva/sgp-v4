@@ -52,6 +52,8 @@ export interface ProductionOrder {
     valor_total?: string | number;
     status?: string;
     produtos: ProductionProduct[];
+    item_index?: number;
+    total_items?: number;
 }
 
 /**
@@ -123,6 +125,8 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     acabamento_totem: item.acabamento_totem,
                     acabamento_totem_outro: item.acabamento_totem_outro,
                 }],
+                item_index: index + 1,
+                total_items: order.items.length,
             });
         });
     });
