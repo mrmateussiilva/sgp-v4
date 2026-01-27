@@ -78,11 +78,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
                 <View style={styles.headerTopRow}>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
                         <HeaderItem
                             label="PEDIDO"
-                            value={`#${order.numero}${order.item_index ? ` (${order.item_index}/${order.total_items})` : ''}`}
+                            value={`#${order.numero}`}
                         />
+                        {order.item_index && (
+                            <View style={styles.itemBadge}>
+                                <Text style={styles.counterValue}>
+                                    {order.item_index}/{order.total_items}
+                                </Text>
+                            </View>
+                        )}
                         {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
                     </View>
                     <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />

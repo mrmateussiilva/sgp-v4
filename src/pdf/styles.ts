@@ -229,4 +229,20 @@ export const styles = StyleSheet.create({
         borderRadius: 2,
         marginLeft: 6,
     },
+    itemBadge: {
+        backgroundColor: '#F0F0F0',
+        borderWidth: 1,
+        borderColor: '#333333',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginLeft: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    counterValue: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#000000',
+    },
 });
