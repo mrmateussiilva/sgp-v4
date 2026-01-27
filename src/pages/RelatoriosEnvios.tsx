@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
 import { Settings } from 'lucide-react';
+import { Checkbox } from '../components/ui/checkbox';
 
 interface RelatorioEnvio {
   forma_envio: string;
@@ -23,6 +24,7 @@ export default function RelatoriosEnvios() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [relatorio, setRelatorio] = useState<RelatorioEnvio[]>([]);
+  const [apenasProntos, setApenasProntos] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -59,6 +61,9 @@ export default function RelatoriosEnvios() {
 
       // Filtro Rigoroso no Frontend: Apenas pedidos onde a data_entrega está no intervalo solicitado
       const pedidos = pedidosResponse.filter((pedido) => {
+        // Filtro por status Pronto, se ativo
+        if (apenasProntos && !pedido.pronto) return false;
+
         if (!pedido.data_entrega) return false;
 
         // Normalizar para YYYY-MM-DD para comparação de string
@@ -219,6 +224,20 @@ export default function RelatoriosEnvios() {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center space-x-2 py-2">
+            <Checkbox
+              id="apenasProntos"
+              checked={apenasProntos}
+              onCheckedChange={(checked) => setApenasProntos(checked === true)}
+            />
+            <Label
+              htmlFor="apenasProntos"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Apenas pedidos marcados como prontos
+            </Label>
           </div>
 
           <div className="flex flex-wrap gap-3">
