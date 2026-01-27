@@ -317,11 +317,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   function isImpressao3DType(tipoProducao?: string): boolean {
     if (!tipoProducao) return false;
-    const normalized = tipoProducao.toLowerCase().trim();
+    const normalized = tipoProducao
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+
     return normalized === 'impressao_3d' ||
       normalized === 'impressao 3d' ||
-      normalized === 'impressão 3d' ||
-      normalized === 'impressão_3d';
+      normalized.includes('impressao 3d') ||
+      normalized.includes('impressao_3d') ||
+      normalized.includes('impressao3d');
   }
 
   function toDateInputValue(value?: string | null): string {
@@ -968,7 +974,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   useEffect(() => {
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'impressao_3d') {
+      if (item && isImpressao3DType(item.tipo_producao)) {
         const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
         const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
         const valorTotalUnitario = valorImpressao3D + valoresAdicionais;
@@ -1496,6 +1502,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           errors.push("Informe a quantidade de emendas");
         }
       }
+    } else if (isImpressao3DType(item.tipo_producao)) {
+      const valor3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
+      const add3D = parseLocaleNumber(item.valores_adicionais || '0,00');
+      const unitVal = parseLocaleNumber(item.valor_unitario || '0,00');
+
+      if (valor3D <= 0 && add3D <= 0 && unitVal <= 0) {
+        errors.push("Valor unitário da Impressão 3D é obrigatório");
+      }
     } else {
       const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
       if (valorUnitario <= 0) {
@@ -1547,7 +1561,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
     }
 
-    if (item.tipo_producao === 'impressao_3d') {
+    if (isImpressao3DType(item.tipo_producao)) {
       const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0', 10);
       if (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0) {
         errors.push("Quantidade de impressões 3D é obrigatória e deve ser maior que zero");
@@ -1702,7 +1716,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         return sum + (valor * quantidadeValida);
       }
 
-      if (item.tipo_producao === 'impressao_3d') {
+      if (isImpressao3DType(item.tipo_producao)) {
         const quantidadeImpressao3DParse = parseInt(item.quantidade_impressao_3d || '1');
         const quantidadeValida = Number.isNaN(quantidadeImpressao3DParse) || quantidadeImpressao3DParse <= 0 ? 1 : quantidadeImpressao3DParse;
         return sum + (valor * quantidadeValida);
@@ -1883,7 +1897,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     ? parseInt(item.quantidade_adesivo || '1', 10)
                     : item.tipo_producao === 'canga'
                       ? parseInt(item.quantidade_canga || '1', 10)
-                      : item.tipo_producao === 'impressao_3d'
+                      : isImpressao3DType(item.tipo_producao)
                         ? parseInt(item.quantidade_impressao_3d || '1', 10)
                         : isMochilinhaType(item.tipo_producao)
                           ? parseInt(item.quantidade_mochilinha || '1', 10)
@@ -2088,7 +2102,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             };
           }
 
-          if (item.tipo_producao === 'impressao_3d') {
+          if (isImpressao3DType(item.tipo_producao)) {
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               material_gasto: item.material_gasto,
@@ -3410,7 +3424,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 } else if (item.tipo_producao === 'canga') {
                   const quantidadeCanga = parseInt(item.quantidade_canga || '1');
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0 ? 1 : quantidadeCanga);
-                } else if (item.tipo_producao === 'impressao_3d') {
+                } else if (isImpressao3DType(item.tipo_producao)) {
                   const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '1');
                   valorTotalItem = valorUnitario * (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0 ? 1 : quantidadeImpressao3D);
                 } else if (isMochilinhaType(item.tipo_producao)) {
@@ -3438,7 +3452,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     {item.tipo_producao === 'canga' && parseInt(item.quantidade_canga || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_canga})</span>
                     )}
-                    {item.tipo_producao === 'impressao_3d' && parseInt(item.quantidade_impressao_3d || '1') > 1 && (
+                    {isImpressao3DType(item.tipo_producao) && parseInt(item.quantidade_impressao_3d || '1') > 1 && (
                       <span> (Qtd: {item.quantidade_impressao_3d})</span>
                     )}
                     {isMochilinhaType(item.tipo_producao) && parseInt(item.quantidade_mochilinha || '1') > 1 && (

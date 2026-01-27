@@ -122,6 +122,14 @@ export function FormImpressao3D({
   const valorUnitario = valorImpressao3D + outrosValores;
   const valorTotal = quantidade > 0 ? valorUnitario * quantidade : valorUnitario;
 
+  // Sincronizar valor unitário com o estado global para validação
+  useEffect(() => {
+    const valorFormatado = formatBR(valorUnitario);
+    if (tabData?.valor_unitario !== valorFormatado) {
+      onDataChange('valor_unitario', valorFormatado);
+    }
+  }, [valorUnitario, tabData?.valor_unitario, onDataChange]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-end gap-4">

@@ -107,14 +107,14 @@ export type CanonicalProductionItem =
   | OtherCanonicalItem;
 
 function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
-  const normalized = String(tipo ?? '').toLowerCase().trim();
+  const normalized = String(tipo ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (normalized === 'painel') return 'painel';
   if (normalized === 'generica') return 'generica';
   if (normalized === 'totem') return 'totem';
   if (normalized === 'lona') return 'lona';
   if (normalized === 'adesivo') return 'adesivo';
   if (normalized === 'canga') return 'canga';
-  if (normalized === 'impressao_3d' || normalized === 'impressão 3d' || normalized === 'impressão_3d' || normalized === 'impressao 3d') return 'impressao_3d';
+  if (normalized === 'impressao_3d' || normalized === 'impressao 3d' || normalized.includes('impressao 3d') || normalized.includes('impressao_3d') || normalized.includes('impressao3d')) return 'impressao_3d';
   if (normalized === 'mochilinha' || normalized.includes('mochilinha')) return 'mochilinha';
   if (normalized === 'bolsinha' || normalized.includes('bolsinha')) return 'bolsinha';
   return 'other';
