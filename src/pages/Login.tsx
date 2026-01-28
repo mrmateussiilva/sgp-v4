@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -66,8 +66,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center pb-6">
-          <div className="mx-auto w-24 h-24 flex items-center justify-center mb-4">
-            <img src="/src/assets/logo.png" alt="SGP Logo" className="w-full h-full object-contain" />
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Lock className="w-8 h-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">
             SGP - Acessar Sistema
