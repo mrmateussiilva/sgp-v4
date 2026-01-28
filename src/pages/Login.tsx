@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -50,7 +50,7 @@ export default function Login() {
     } catch (err) {
       const errorMessage = getErrorMessage(err);
       const isAuth = isAuthError(err);
-      
+
       toast({
         variant: "destructive",
         title: isAuth ? "Falha na autenticação" : "Erro ao fazer login",
@@ -66,8 +66,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center pb-6">
-          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Lock className="w-8 h-8 text-primary" />
+          <div className="mx-auto w-24 h-24 flex items-center justify-center mb-4">
+            <img src="/src/assets/logo.png" alt="SGP Logo" className="w-full h-full object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">
             SGP - Acessar Sistema
@@ -113,6 +113,20 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
+
+          <div className="mt-8 pt-6 border-t text-center">
+            <p className="text-xs text-muted-foreground">
+              Desenvolvido por{' '}
+              <a
+                href="https://finderbit.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline"
+              >
+                finderbit.com.br
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
