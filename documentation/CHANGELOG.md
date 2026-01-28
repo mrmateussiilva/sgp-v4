@@ -1,5 +1,10 @@
 # Changelog - SGP v4
  
+## [1.1.0] - 2026-01-28
+
+### ✨ Adicionado
+- Preparação para a nova versão 1.1.0.
+
 ## [1.0.20] - 2026-01-27
 
 ### ✨ Adicionado
