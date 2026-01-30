@@ -1356,56 +1356,41 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </div>
         )}
 
-        {/* Dados de Produção Editáveis (Card Operacional) */}
-        <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden shadow-sm">
-          <div className="bg-slate-100/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                Ordem de Produção
-              </h4>
-              {saveSuccess[String(item.id)] && (
-                <span className="text-[10px] font-medium text-emerald-600 animate-in fade-in slide-in-from-left-1">
-                  ✓ Produção registrada com sucesso {lastProductionSave[String(item.id)] && `às ${lastProductionSave[String(item.id)]}`}
-                </span>
-              )}
-              {!saveSuccess[String(item.id)] && lastProductionSave[String(item.id)] && (
-                <span className="text-[10px] font-medium text-slate-400">
-                  Última atualização às {lastProductionSave[String(item.id)]}
-                </span>
-              )}
-            </div>
+        {/* Linha Técnica de Produção (Rodapé do Item) */}
+        <div className="mt-6 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+          <FormProducaoFields
+            data={{
+              data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
+              rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+              perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
+              tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
+            }}
+            onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+            className="flex-1"
+          />
+
+          <div className="flex items-center gap-3">
+            {saveSuccess[String(item.id)] && (
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded animate-in fade-in zoom-in duration-300">
+                ✓ Produção Salva
+              </span>
+            )}
 
             <Button
               size="sm"
-              className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-200/50 min-w-[180px] transition-all active:scale-95"
+              className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50"
               disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
               onClick={() => handleSaveProductionData(item.id!)}
             >
               {isSaving[String(item.id)] ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar dados de produção
+                  <Save className="mr-1.5 h-3 w-3" />
+                  Salvar
                 </>
               )}
             </Button>
-          </div>
-
-          <div className="p-5">
-            <FormProducaoFields
-              data={{
-                data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
-                rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
-                perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
-                tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
-              }}
-              onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
-            />
           </div>
         </div>
       </div>
