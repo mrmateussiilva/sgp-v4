@@ -38,6 +38,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const { toast } = useToast();
   const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
+  const [lastProductionSave, setLastProductionSave] = useState<Record<string, string>>({});
+  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -233,6 +235,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         delete newData[itemKey];
         return newData;
       });
+
+      // Registrar sucesso e timestamp
+      setSaveSuccess(prev => ({ ...prev, [itemKey]: true }));
+      setLastProductionSave(prev => ({
+        ...prev,
+        [itemKey]: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      // Limpar mensagem de sucesso após alguns segundos
+      setTimeout(() => {
+        setSaveSuccess(prev => ({ ...prev, [itemKey]: false }));
+      }, 5000);
 
     } catch (error) {
       logger.error("Erro ao salvar dados de produção:", error);
@@ -1342,44 +1356,57 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </div>
         )}
 
-        {/* Dados de Produção Editáveis */}
-        <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-              Dados de Produção
-            </h4>
+        {/* Dados de Produção Editáveis (Card Operacional) */}
+        <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden shadow-sm">
+          <div className="bg-slate-100/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                Ordem de Produção
+              </h4>
+              {saveSuccess[String(item.id)] && (
+                <span className="text-[10px] font-medium text-emerald-600 animate-in fade-in slide-in-from-left-1">
+                  ✓ Produção registrada com sucesso {lastProductionSave[String(item.id)] && `às ${lastProductionSave[String(item.id)]}`}
+                </span>
+              )}
+              {!saveSuccess[String(item.id)] && lastProductionSave[String(item.id)] && (
+                <span className="text-[10px] font-medium text-slate-400">
+                  Última atualização às {lastProductionSave[String(item.id)]}
+                </span>
+              )}
+            </div>
 
             <Button
               size="sm"
-              variant="ghost"
-              className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold"
+              className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-200/50 min-w-[180px] transition-all active:scale-95"
               disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
               onClick={() => handleSaveProductionData(item.id!)}
             >
               {isSaving[String(item.id)] ? (
                 <>
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Salvando...
                 </>
               ) : (
                 <>
-                  <Save className="mr-2 h-3.5 w-3.5" />
-                  Salvar Produção
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar dados de produção
                 </>
               )}
             </Button>
           </div>
 
-          <FormProducaoFields
-            data={{
-              data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
-              rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
-              perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
-              tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
-            }}
-            onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
-          />
+          <div className="p-5">
+            <FormProducaoFields
+              data={{
+                data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
+                rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+                perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
+                tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
+              }}
+              onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+            />
+          </div>
         </div>
       </div>
     );
