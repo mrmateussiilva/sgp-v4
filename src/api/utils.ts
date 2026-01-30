@@ -71,6 +71,9 @@ export const deriveQuantity = (source: any): number => {
         source?.quantidade_totem,
         source?.quantidade_lona,
         source?.quantidade_adesivo,
+        source?.quantidade_canga,
+        source?.quantidade_impressao_3d,
+        source?.quantidade_mochilinha,
         source?.quantidade,
     ];
 
@@ -90,6 +93,10 @@ export const deriveUnitPrice = (source: any): number => {
         source?.valor_totem,
         source?.valor_lona,
         source?.valor_adesivo,
+        source?.valor_painel,
+        source?.valor_canga,
+        source?.valor_impressao_3d,
+        source?.valor_mochilinha,
     ];
 
     for (const candidate of candidates) {

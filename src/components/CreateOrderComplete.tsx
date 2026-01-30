@@ -449,6 +449,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         anyItem.valor_mochilinha ?? anyItem.valor_unitario ?? item.unit_price
       ),
       quantidade_mochilinha: anyItem.quantidade_mochilinha ?? (item.quantity ? item.quantity.toString() : '1'),
+      composicao_tecidos: anyItem.composicao_tecidos ?? '',
     };
   }
 
@@ -1938,10 +1939,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             cordinha_extra: item.cordinha_extra,
             alcinha: item.alcinha,
             toalha_pronta: item.toalha_pronta,
+            composicao_tecidos: item.composicao_tecidos,
           };
 
           // Campos específicos por tipo (começando por Painel e Totem)
-          if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
+          if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao)) {
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               overloque: item.overloque,
@@ -1963,6 +1965,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     ? item.emendaQtd
                     : undefined
                   : undefined,
+              composicao_tecidos: item.composicao_tecidos,
             } as unknown as CreateOrderItemRequest);
 
             return {
@@ -1982,6 +1985,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               valores_adicionais: canon.tipo_producao !== 'other' && 'valores_adicionais' in canon ? canon.valores_adicionais : item.valores_adicionais,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
+              composicao_tecidos: (canon as any).composicao_tecidos ?? item.composicao_tecidos,
             };
           }
 
@@ -2196,6 +2200,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             material_gasto: item.material_gasto,
             valor_impressao_3d: item.valor_impressao_3d,
             quantidade_impressao_3d: item.quantidade_impressao_3d,
+            composicao_tecidos: item.composicao_tecidos,
           };
         });
 

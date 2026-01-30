@@ -79,8 +79,8 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
     const acabamentoAny = (item.acabamento ?? (anyItem.acabamento as ApiAcabamento | null | undefined)) ?? null;
     const quantity = deriveQuantity(item);
     const unitPrice =
-        item.valor_unitario != null || item.valor_totem != null || item.valor_lona != null || item.valor_adesivo != null
-            ? parseDecimal(item.valor_unitario ?? item.valor_totem ?? item.valor_lona ?? item.valor_adesivo)
+        item.valor_unitario != null || item.valor_totem != null || item.valor_lona != null || item.valor_adesivo != null || item.valor_painel != null || item.valor_canga != null || item.valor_impressao_3d != null
+            ? parseDecimal(item.valor_unitario ?? item.valor_totem ?? item.valor_lona ?? item.valor_adesivo ?? item.valor_painel ?? item.valor_canga ?? item.valor_impressao_3d)
             : deriveUnitPrice(item);
     const subtotal = Number((unitPrice * quantity).toFixed(2));
     const fallbackId = item.id ?? orderId * 1000 + index;

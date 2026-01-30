@@ -42,7 +42,7 @@ export function generateTemplateHTML(template: FichaTemplateConfig): string {
 
   // Gerar HTML dos campos
   const fieldsHTML = template.fields
-    .filter(field => field.visible !== false)
+    .filter(field => field.visible !== false && field.key !== 'composicao_tecidos')
     .map((field) => {
       const fieldClass = `field-${field.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
 

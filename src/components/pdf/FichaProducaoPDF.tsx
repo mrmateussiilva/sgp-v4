@@ -207,9 +207,6 @@ export const FichaProducaoPDF: React.FC<{ item: OrderItem }> = ({ item }) => {
             <InfoRow label="Quantidade de Cordinha" value={item.quantidade_cordinha} />
             <InfoRow label="Espaçamento Cordinha" value={item.espaco_cordinha} />
             <InfoRow label="Quantidade de Painéis" value={item.quantidade_paineis} />
-            {item.tipo_producao === 'mesa_babado' && (
-              <InfoRow label="Composição de Tecidos" value={(item as any).composicao_tecidos} name="composicao_tecidos" />
-            )}
           </View>
         )}
 

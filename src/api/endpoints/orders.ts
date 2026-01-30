@@ -396,6 +396,7 @@ export const ordersApi = {
             valor_totem: item.valor_totem,
             quantidade_totem: item.quantidade_totem,
             outros_valores_totem: item.outros_valores_totem,
+            composicao_tecidos: item.composicao_tecidos,
         }));
 
         // Cria o novo pedido
@@ -486,6 +487,7 @@ export const ordersApi = {
             valor_totem: options?.zeroValues ? "0" : item.valor_totem,
             quantidade_totem: item.quantidade_totem,
             outros_valores_totem: options?.zeroValues ? "0" : item.outros_valores_totem,
+            composicao_tecidos: item.composicao_tecidos,
         }));
 
         // Cria o novo pedido de reposição

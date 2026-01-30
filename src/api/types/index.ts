@@ -56,7 +56,12 @@ export interface ApiPedidoItem {
     acabamento_totem?: string | null;
     acabamento_totem_outro?: string | null;
     legenda_imagem?: string | null;
-    outros_valores?: string | null;
+    quantidade_canga?: string | null;
+    valor_canga?: string | null;
+    quantidade_impressao_3d?: string | null;
+    valor_impressao_3d?: string | null;
+    quantidade_mochilinha?: string | null;
+    valor_mochilinha?: string | null;
     composicao_tecidos?: string | null;
 }
 

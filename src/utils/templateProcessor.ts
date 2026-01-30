@@ -345,20 +345,6 @@ const formatCurrency = (value: string | number | undefined): string => {
   }).format(num);
 };
 
-const formatComposition = (value: unknown): string => {
-  if (typeof value !== 'string' || !value.trim()) return '';
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((part: any) => `${part.item}: ${part.tecido}`)
-        .join(' | ');
-    }
-    return value;
-  } catch (e) {
-    return value;
-  }
-};
 
 /**
  * Cria um mapa de dados do pedido e item para preencher os campos do template
@@ -451,7 +437,7 @@ export const createOrderDataMap = (
     observacao_item: item?.observacao || '',
     imagem: item?.imagem || '',
     legenda_imagem: item?.legenda_imagem || '',
-    composicao_tecidos: formatComposition(item?.composicao_tecidos),
+    composicao_tecidos: '', // Removido por ser redundante (já está no campo tecido)
 
     // Campos adicionais do item
     overloque: item?.overloque ? 'Sim' : 'Não',
@@ -612,7 +598,7 @@ const FIELD_VISIBILITY_RULES = {
     preserveEmpty: false
   },
   mesa_babado: {
-    show: ['overloque', 'elastico', 'quantidade_paineis', 'tipo_acabamento', 'composicao_tecidos', 'vendedor', 'designer'],
+    show: ['overloque', 'elastico', 'quantidade_paineis', 'tipo_acabamento', 'vendedor', 'designer'],
     hide: ['spec-totem', 'spec-lona', 'spec-adesivo'],
     preserveEmpty: true
   }
@@ -671,8 +657,7 @@ const mapVariableToLabel: Record<string, string> = {
   'material_gasto': 'Peso (Gramas)',
   'quantidade_impressao_3d': 'Qtd Impressão 3D',
   'valor_impressao_3d': 'Valor Unitário',
-  'valores_adicionais': 'Outros Valores',
-  'composicao_tecidos': 'Composição de Tecidos'
+  'valores_adicionais': 'Outros Valores'
 };
 
 /**
@@ -1310,7 +1295,7 @@ export const renderTemplate = (
 ): string => {
   const dataMap = createOrderDataMap(order, item);
   const fieldsHtml = template.fields
-    .filter(f => f.visible !== false)
+    .filter(f => f.visible !== false && f.key !== 'composicao_tecidos')
     .map(field => renderField(field, dataMap, 1, imageBase64Map))
     .join('\n');
 

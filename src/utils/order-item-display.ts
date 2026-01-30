@@ -53,7 +53,6 @@ const LABELS: Record<string, string> = {
   subtotal: 'Subtotal',
   observacao: 'Observação do item',
   legenda_imagem: 'Legenda da imagem',
-  composicao_tecidos: 'Composição de tecidos',
 };
 
 const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
@@ -89,7 +88,6 @@ const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   quantidade_totem: ['totem'],
   outros_valores_totem: ['totem'],
   valores_adicionais: ['mochilinha', 'bolsinha', 'mochilinha/bolsinha', 'painel', 'generica', 'mesa_babado'],
-  composicao_tecidos: ['mesa_babado'],
 };
 
 const CURRENCY_FIELDS = new Set([
@@ -209,12 +207,12 @@ const formatComposition = (value: unknown): string => {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) {
       return parsed
-        .map((part: any) => `${part.item}: ${part.tecido}`)
+        .map((part: any) => `${part.label || part.item || 'Parte'}: ${part.tecido || 'N/A'}`)
         .join(' | ');
     }
-    return value;
+    return String(value);
   } catch (e) {
-    return value;
+    return String(value);
   }
 };
 
