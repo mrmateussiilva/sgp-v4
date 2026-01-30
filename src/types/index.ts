@@ -64,6 +64,7 @@ export interface OrderItem {
   quantidade_mochilinha?: string;
   data_impressao?: string;
   rip_maquina?: string;
+  composicao_tecidos?: string;
 }
 
 export interface OrderWithItems {
@@ -125,6 +126,7 @@ export interface CreateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  composicao_tecidos?: string;
 
   // Campos detalhados do painel
   tipo_producao?: string;
@@ -236,6 +238,7 @@ export interface UpdateOrderItemRequest {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
+  composicao_tecidos?: string;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -427,6 +430,7 @@ export interface TabItem {
   tipo_alcinha: string;
   valor_mochilinha: string;
   quantidade_mochilinha: string;
+  composicao_tecidos?: string;
 }
 
 // ========================================
@@ -546,6 +550,7 @@ export interface OrderItemFicha {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  composicao_tecidos?: string;
 
   // Campos detalhados
   tipo_producao?: string;

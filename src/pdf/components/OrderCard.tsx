@@ -123,6 +123,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <SpecRow label="Vendedor" value={order.vendedor} />
                     <SpecRow label="Designer" value={order.designer} />
                     <SpecRow label="Quantidade" value={prod.quantity} />
+                    <SpecRow label="Composição" value={prod.composicao_tecidos} />
 
                     {techItems.length > 0 && (
                         <>

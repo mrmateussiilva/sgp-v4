@@ -142,6 +142,7 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         quantidade_totem: item.quantidade_totem ?? undefined,
         valor_totem: normalizeApiMoney(item.valor_totem) ?? undefined,
         outros_valores_totem: normalizeApiMoney(item.outros_valores_totem) ?? undefined,
+        composicao_tecidos: item.composicao_tecidos ?? undefined,
     };
 };
 
@@ -447,9 +448,11 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         quantidade_ilhos: item?.quantidade_ilhos ?? item?.ilhos_qtd ?? undefined,
         valor_ilhos: item?.valor_ilhos ?? item?.ilhos_valor_unitario ?? undefined,
         espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
+        composicao_tecidos: item?.composicao_tecidos ?? undefined,
     };
 
-    if ((tipo === 'painel' || tipo === 'generica') && (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica')) {
+    if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&
+        (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica' || canon.tipo_producao === 'mesa_babado')) {
         payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
         payload.quantidade_paineis = canon.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
         payload.valor_painel = canon.valor_painel ? toCurrencyString(canon.valor_painel) : undefined;

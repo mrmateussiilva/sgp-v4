@@ -57,6 +57,7 @@ export interface ApiPedidoItem {
     acabamento_totem_outro?: string | null;
     legenda_imagem?: string | null;
     outros_valores?: string | null;
+    composicao_tecidos?: string | null;
 }
 
 export interface ApiPedido {

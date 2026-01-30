@@ -122,18 +122,26 @@ const styles = StyleSheet.create({
 /**
  * Formata valor para exibição
  */
-const formatValue = (value: unknown): string => {
+const formatValue = (value: unknown, key?: string): string => {
   if (value === null || value === undefined) return '-';
   if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  if (key === 'composicao_tecidos' && typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((p: any) => `${p.item}: ${p.tecido}`).join(' | ');
+      }
+    } catch (e) { }
+  }
   return String(value);
 };
 
 /**
  * Componente de linha de informação
  */
-const InfoRow: React.FC<{ label: string; value: unknown }> = ({ label, value }) => {
-  const formattedValue = formatValue(value);
-  if (formattedValue === '-' || formattedValue === 'Não') return null;
+const InfoRow: React.FC<{ label: string; value: unknown; name?: string }> = ({ label, value, name }) => {
+  const formattedValue = formatValue(value, name);
+  if (formattedValue === '-' || formattedValue === 'Não' || formattedValue === '') return null;
 
   return (
     <View style={styles.row}>
@@ -187,8 +195,8 @@ export const FichaProducaoPDF: React.FC<{ item: OrderItem }> = ({ item }) => {
           <InfoRow label="Tecido" value={item.tecido} />
         </View>
 
-        {/* Acabamentos (se for Painel/Tecido) */}
-        {(item.tipo_producao === 'painel' || item.tipo_producao === 'tecido') && (
+        {/* Acabamentos (se for Painel/Tecido/Mesa Babado) */}
+        {(item.tipo_producao === 'painel' || item.tipo_producao === 'tecido' || item.tipo_producao === 'mesa_babado') && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>ACABAMENTOS</Text>
             <InfoRow label="Overloque" value={item.overloque} />
@@ -199,6 +207,9 @@ export const FichaProducaoPDF: React.FC<{ item: OrderItem }> = ({ item }) => {
             <InfoRow label="Quantidade de Cordinha" value={item.quantidade_cordinha} />
             <InfoRow label="Espaçamento Cordinha" value={item.espaco_cordinha} />
             <InfoRow label="Quantidade de Painéis" value={item.quantidade_paineis} />
+            {item.tipo_producao === 'mesa_babado' && (
+              <InfoRow label="Composição de Tecidos" value={(item as any).composicao_tecidos} name="composicao_tecidos" />
+            )}
           </View>
         )}
 

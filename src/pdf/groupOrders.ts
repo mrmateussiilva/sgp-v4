@@ -32,6 +32,7 @@ export interface ProductionProduct {
     tipo_adesivo?: string;
     acabamento_totem?: string;
     acabamento_totem_outro?: string;
+    composicao_tecidos?: string;
 }
 
 export interface ProductionOrder {
@@ -124,6 +125,7 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     tipo_adesivo: item.tipo_adesivo,
                     acabamento_totem: item.acabamento_totem,
                     acabamento_totem_outro: item.acabamento_totem_outro,
+                    composicao_tecidos: item.composicao_tecidos,
                 }],
                 item_index: index + 1,
                 total_items: order.items.length,

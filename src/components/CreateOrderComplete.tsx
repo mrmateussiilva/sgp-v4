@@ -35,6 +35,7 @@ import { FormAdesivoProducao } from '@/components/FormAdesivoProducao';
 import { FormCangaProducao } from '@/components/FormCangaProducao';
 import { FormImpressao3D } from '@/components/FormImpressao3D';
 import { FormMochilinhaProducao } from '@/components/FormMochilinhaProducao';
+import { FormMesaBabado } from '@/components/FormMesaBabado';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
@@ -51,6 +52,7 @@ const TIPOS_PRODUCAO_FALLBACK = [
   { value: 'impressao_3d', label: 'Impressão 3D' },
   { value: 'almofada', label: 'Almofada' },
   { value: 'bolsinha', label: 'Bolsinha' },
+  { value: 'mesa_babado', label: 'Mesa de Babado' },
 ];
 
 interface TabItem {
@@ -116,6 +118,7 @@ interface TabItem {
   tipo_alcinha: 'nenhum' | 'alca' | 'cordinha' | 'alca_cordinha';
   valor_mochilinha: string;
   quantidade_mochilinha: string;
+  composicao_tecidos?: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -217,6 +220,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       tipo_alcinha: 'nenhum',
       valor_mochilinha: '0,00',
       quantidade_mochilinha: '1',
+      composicao_tecidos: '',
     };
   }
 
@@ -328,6 +332,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       normalized.includes('impressao 3d') ||
       normalized.includes('impressao_3d') ||
       normalized.includes('impressao3d');
+  }
+
+  function isMesaBabadoType(tipoProducao?: string): boolean {
+    if (!tipoProducao) return false;
+    const normalized = tipoProducao.toLowerCase().trim();
+    return normalized === 'mesa_babado' || normalized.includes('mesa_babado') || normalized === 'mesa de babado';
   }
 
   function toDateInputValue(value?: string | null): string {
@@ -861,7 +871,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   useEffect(() => {
     Object.keys(tabsData).forEach(tabId => {
       const item = tabsData[tabId];
-      if (item && (item.tipo_producao === 'painel' || item.tipo_producao === 'generica')) {
+      if (item && (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao))) {
         // Calcular valor total do painel baseado nos campos específicos
         const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
         const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
@@ -1089,7 +1099,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
 
         // Para painéis, verificar se pelo menos um campo de valor foi preenchido
-        if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
+        if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao)) {
           const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
           const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
 
@@ -1687,8 +1697,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       // Converter valor unitário corretamente
       const valor = parseLocaleNumber(item.valor_unitario || '0,00');
 
-      // Para painéis, considerar a quantidade
-      if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
+      // Para painéis e mesa de babado, considerar a quantidade
+      if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao)) {
         const quantidade = parseInt(item.quantidade_paineis || '1');
         return sum + (valor * quantidade);
       }
@@ -2944,10 +2954,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   </div>
                 )}
 
+                {isMesaBabadoType(tabsData[tabId]?.tipo_producao) && (
+                  <div className="border border-green-200 rounded-lg p-6 bg-white">
+                    <FormMesaBabado
+                      tabId={tabId}
+                      tabData={tabsData[tabId]}
+                      vendedores={vendedores}
+                      designers={designers}
+                      tecidos={materiaisTecido}
+                      onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
+                      onSaveItem={() => handleSaveItem(tabId)}
+                      onCancelItem={() => handleCancelItem(tabId)}
+                    />
+                  </div>
+                )}
+
                 {tabsData[tabId]?.tipo_producao &&
-                  !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga'].includes(tabsData[tabId]?.tipo_producao.toLowerCase()) &&
+                  !['painel', 'generica', 'totem', 'lona', 'adesivo', 'canga', 'mesa_babado'].includes(tabsData[tabId]?.tipo_producao.toLowerCase()) &&
                   !isMochilinhaType(tabsData[tabId]?.tipo_producao) &&
-                  !isImpressao3DType(tabsData[tabId]?.tipo_producao) && (
+                  !isImpressao3DType(tabsData[tabId]?.tipo_producao) &&
+                  !isMesaBabadoType(tabsData[tabId]?.tipo_producao) && (
                     <div className="space-y-4 border border-green-200 rounded-lg p-6 bg-white">
                       {/* Descrição */}
                       <div className="space-y-2">

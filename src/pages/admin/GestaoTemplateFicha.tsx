@@ -75,6 +75,7 @@ const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = 
   { id: 'subtotal', type: 'currency', label: 'Subtotal', key: 'subtotal' },
   { id: 'valor_frete', type: 'currency', label: 'Valor Frete', key: 'valor_frete' },
   { id: 'total', type: 'currency', label: 'Total', key: 'total_value' },
+  { id: 'composicao_tecidos', type: 'text', label: 'Composição de Tecidos', key: 'composicao_tecidos' },
 ];
 
 const TEMPLATE_GERAL_DEFAULT: FichaTemplate = {
