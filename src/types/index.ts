@@ -67,6 +67,7 @@ export interface OrderItem {
   perfil_cor?: string;
   tecido_fornecedor?: string;
   composicao_tecidos?: string;
+  machine_id?: number;
 }
 
 export interface OrderWithItems {

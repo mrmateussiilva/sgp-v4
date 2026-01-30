@@ -3,6 +3,7 @@ import { ordersApi } from '../api/endpoints/orders';
 import { customersApi } from '../api/endpoints/customers';
 import { resourcesApi } from '../api/endpoints/resources';
 import { authApi } from '../api/endpoints/auth';
+import { maquinasApi } from '../api/endpoints/maquinas';
 import { OrderStatus } from '../types';
 
 /**
@@ -81,6 +82,9 @@ export const api = {
   getFechamentoStatistics: resourcesApi.getFechamentoStatistics,
   getFechamentoTrends: resourcesApi.getFechamentoTrends,
   getFechamentoRankings: resourcesApi.getFechamentoRankings,
+
+  // Maquinas
+  getMaquinasAtivas: maquinasApi.getAtivas,
 };
 
 // Re-export deprecated standalone functions to maintain compatibility with existing imports
