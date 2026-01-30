@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { ChevronDown, Printer } from 'lucide-react';
+import { ChevronDown, Printer, Loader2, Save, Monitor } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
@@ -13,7 +13,6 @@ import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { OrderPrintManager } from './OrderPrintManager';
 import { FormProducaoFields } from './FormProducaoFields';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -38,7 +37,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const { toast } = useToast();
   const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
-  const [lastProductionSave, setLastProductionSave] = useState<Record<string, string>>({});
   const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
 
   // Buscar formas de pagamento
@@ -236,12 +234,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         return newData;
       });
 
-      // Registrar sucesso e timestamp
+      // Registrar sucesso
       setSaveSuccess(prev => ({ ...prev, [itemKey]: true }));
-      setLastProductionSave(prev => ({
-        ...prev,
-        [itemKey]: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      }));
 
       // Limpar mensagem de sucesso após alguns segundos
       setTimeout(() => {
@@ -961,30 +955,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
   };
 
-  const renderDetailLines = (entries: DetailEntry[]) => {
-    if (entries.length === 0) {
-      return null;
-    }
-
-    return (
-      <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
-        <div className="space-y-2">
-          {entries.map((entry, index) => (
-            <div
-              key={`${entry.label}-${index}`}
-              className="flex flex-wrap items-baseline gap-2 text-xs sm:text-sm"
-            >
-              <span className={`font-semibold ${getVariantClasses(entry.variant)}`}>
-                {entry.label}:
-              </span>
-              <span className="text-slate-800">{entry.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const renderItemDetailsContent = (item: OrderItem) => {
     const { entries: detailEntries, omitKeys } = buildDetailSections(item);
     const fallbackOmitKeys = new Set(omitKeys);
@@ -1172,7 +1142,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           {/* PAINEL ESQUERDO: DADOS DO ITEM */}
           <div className="space-y-6">
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-slate-900 leading-tight">
+              <h3 className="text-xl font-bold text-slate-800 leading-tight">
                 {item.item_name}
               </h3>
               <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">
@@ -1181,39 +1151,39 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Vendedor</span>
-                <p className="text-sm font-bold text-slate-700">{item.vendedor}</p>
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Vendedor</span>
+                <p className="text-sm font-medium text-slate-700">{item.vendedor}</p>
               </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Designer</span>
-                <p className="text-sm font-bold text-slate-700">{item.designer || '-'}</p>
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Designer</span>
+                <p className="text-sm font-medium text-slate-700">{item.designer || '-'}</p>
               </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Medidas</span>
-                <p className="text-sm font-bold text-slate-700">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Medidas</span>
+                <p className="text-sm font-medium text-slate-700">
                   {item.largura} x {item.altura}m
                   <span className="ml-2 font-normal text-slate-400">({item.metro_quadrado}m²)</span>
                 </p>
               </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Material/Tecido</span>
-                <p className="text-sm font-bold text-slate-700">{item.tecido || '-'}</p>
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Material/Tecido</span>
+                <p className="text-sm font-medium text-slate-700">{item.tecido || '-'}</p>
               </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Acabamento</span>
+              <div className="space-y-1">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Acabamento</span>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {item.overloque && (
-                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full border border-blue-100">
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded border border-blue-100">
                       Overloque
                     </span>
                   )}
                   {item.elastico && (
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-full border border-indigo-100">
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-medium rounded border border-indigo-100">
                       Elástico
                     </span>
                   )}
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
                     {item.tipo_acabamento || 'Padrão'}
                   </span>
                 </div>
@@ -1222,8 +1192,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
             {item.observacao && (
               <div className="space-y-2 pt-4 border-t border-slate-100">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Observações Operacionais</span>
-                <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100/50 text-sm text-amber-900 italic leading-relaxed">
+                <span className="text-xs font-semibold text-slate-500 uppercase">Observações</span>
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 text-sm text-amber-900 italic">
                   "{item.observacao}"
                 </div>
               </div>
@@ -1233,22 +1203,22 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           {/* PAINEL DIREITO: VISUALIZAÇÃO */}
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
-                Visualização da Imagem
+              <h4 className="text-xs font-semibold text-slate-500 uppercase">
+                Visualização
               </h4>
               {hasImage && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
-                  className="h-6 text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2"
+                  className="h-6 text-xs font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  Abrir em tela cheia
+                  Ver em destaque
                 </Button>
               )}
             </div>
 
-            <div className="relative aspect-video lg:aspect-square w-full rounded-2xl border-2 border-slate-100 bg-slate-50 overflow-hidden flex items-center justify-center p-4 group">
+            <div className="relative aspect-video lg:aspect-square w-full rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center p-4">
               {(() => {
                 const imagePath = item.imagem;
                 const isBase64 = imagePath && imagePath.startsWith('data:image/');
@@ -1299,31 +1269,34 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           </div>
         </div>
 
-        {/* BOTTOM SECTION: FAIXA TÉCNICA DE PRODUÇÃO (FULL WIDTH) */}
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+        {/* BOTTOM SECTION: PRODUÇÃO (FULL WIDTH) */}
+        <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
           <div className="bg-white px-5 py-2.5 border-b border-slate-200 flex items-center justify-between">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
-              Faixa de Produção
+            <h4 className="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+              <Monitor className="w-3.5 h-3.5" />
+              Produção
             </h4>
 
             <div className="flex items-center gap-4">
               {saveSuccess[String(item.id)] && (
-                <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2 duration-300">
+                <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2">
                   Produção salva ✅
                 </span>
               )}
 
               <Button
                 size="sm"
-                className="h-7 px-6 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200/50 transition-all active:scale-95"
+                className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all active:scale-95"
                 disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
                 onClick={() => handleSaveProductionData(item.id!)}
               >
                 {isSaving[String(item.id)] ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  "Salvar produção"
+                  <>
+                    <Save className="mr-1.5 h-3 w-3" />
+                    Salvar produção
+                  </>
                 )}
               </Button>
             </div>
