@@ -1166,231 +1166,179 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
-        <div className={`space-y-3 sm:space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
-          {infoRows.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
-              {infoRows.map((row, index) => (
-                <div key={index}>{row}</div>
-              ))}
+      <div className="flex flex-col gap-6 p-4">
+        {/* TOP SECTION: GRID 2 COLUNAS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* PAINEL ESQUERDO: DADOS DO ITEM */}
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-slate-900 leading-tight">
+                {item.item_name}
+              </h3>
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">
+                Informações Técnicas do Produto
+              </p>
             </div>
-          )}
 
-          {renderDetailLines(detailEntries)}
-
-          {filteredFallback.length > 0 && (
-            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
-              {filteredFallback.map((entry) => (
-                <div
-                  key={entry.key}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {entry.label}
-                  </div>
-                  <div className="text-xs sm:text-sm text-slate-900">{entry.value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {hasObservation && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <span className="font-semibold">Observação:</span>{' '}
-              {item.observacao}
-            </div>
-          )}
-        </div>
-
-        {hasImage && (
-          <div className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 lg:w-1/3">
-            <span className="text-sm font-semibold text-slate-700">
-              Visualização da Imagem
-            </span>
-            <div className="flex w-full flex-col items-center gap-3">
-              <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
-                {(() => {
-                  const imagePath = item.imagem;
-                  const isBase64 = imagePath && imagePath.startsWith('data:image/');
-                  const isValid = isBase64 || isValidImagePath(imagePath || '');
-                  const itemKey = String(item.id ?? item.item_name);
-                  const hasError = itemImageErrors[itemKey] || false;
-                  const isLoading = !isBase64 && loadingImages.has(imagePath || '');
-                  const blobUrl = itemImageUrls.get(itemKey);
-
-                  // Debug log
-                  if (imagePath) {
-                    logger.debug('[OrderViewModal] Processando imagem:', {
-                      original: imagePath?.substring(0, 50) + '...',
-                      isBase64,
-                      isValid,
-                      itemKey,
-                      hasError,
-                      isLoading,
-                      hasBlobUrl: !!blobUrl
-                    });
-                  }
-
-                  // Se não for válido, mostrar placeholder
-                  if (!isValid || !imagePath) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Imagem não disponível</span>
-                      </div>
-                    );
-                  }
-
-                  // Se houver erro, mostrar placeholder
-                  if (hasError) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Erro ao carregar imagem</span>
-                      </div>
-                    );
-                  }
-
-                  // Se for base64, usar diretamente
-                  if (isBase64) {
-                    return (
-                      <img
-                        key={`img-${itemKey}-base64`}
-                        src={imagePath}
-                        alt={`Imagem do item ${item.item_name}`}
-                        className="h-full w-full object-contain"
-                        style={{ display: 'block' }}
-                        onError={() => {
-                          logger.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
-                            itemKey
-                          });
-                          setItemImageErrors(prev => ({
-                            ...prev,
-                            [itemKey]: true
-                          }));
-                        }}
-                      />
-                    );
-                  }
-
-                  // Se estiver carregando e não tiver blob URL, mostrar indicador
-                  if (isLoading && !blobUrl) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Carregando imagem...</span>
-                      </div>
-                    );
-                  }
-
-                  // Se não tiver blob URL ainda, mostrar placeholder
-                  if (!blobUrl) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Carregando imagem...</span>
-                      </div>
-                    );
-                  }
-
-                  // Renderizar imagem do blob URL
-                  return (
-                    <img
-                      key={`img-${itemKey}-${blobUrl}`}
-                      src={blobUrl}
-                      alt={`Imagem do item ${item.item_name}`}
-                      className="h-full w-full object-contain"
-                      style={{ display: 'block' }}
-                      onLoad={() => {
-                        logger.debug('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
-                          itemKey,
-                          blobUrl
-                        });
-                        // Garantir que o erro seja removido se a imagem carregar
-                        setItemImageErrors(prev => {
-                          const updated = { ...prev };
-                          delete updated[itemKey];
-                          return updated;
-                        });
-                      }}
-                      onError={(event) => {
-                        const target = event.currentTarget as HTMLImageElement;
-                        const imageSrc = target.src;
-                        logger.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
-                          originalPath: imagePath,
-                          blobUrl,
-                          finalSrc: imageSrc,
-                          itemKey,
-                          status: target.complete ? 'complete' : 'incomplete',
-                          naturalWidth: target.naturalWidth,
-                          naturalHeight: target.naturalHeight
-                        });
-                        // Marcar erro no estado
-                        setItemImageErrors(prev => ({
-                          ...prev,
-                          [itemKey]: true
-                        }));
-                      }}
-                    />
-                  );
-                })()}
+            <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Vendedor</span>
+                <p className="text-sm font-bold text-slate-700">{item.vendedor}</p>
               </div>
-              {(isValidImagePath(item.imagem!) || (item.imagem && item.imagem.startsWith('data:image/'))) && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Designer</span>
+                <p className="text-sm font-bold text-slate-700">{item.designer || '-'}</p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Medidas</span>
+                <p className="text-sm font-bold text-slate-700">
+                  {item.largura} x {item.altura}m
+                  <span className="ml-2 font-normal text-slate-400">({item.metro_quadrado}m²)</span>
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Material/Tecido</span>
+                <p className="text-sm font-bold text-slate-700">{item.tecido || '-'}</p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Acabamento</span>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {item.overloque && (
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full border border-blue-100">
+                      Overloque
+                    </span>
+                  )}
+                  {item.elastico && (
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-full border border-indigo-100">
+                      Elástico
+                    </span>
+                  )}
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full">
+                    {item.tipo_acabamento || 'Padrão'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {item.observacao && (
+              <div className="space-y-2 pt-4 border-t border-slate-100">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Observações Operacionais</span>
+                <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100/50 text-sm text-amber-900 italic leading-relaxed">
+                  "{item.observacao}"
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* PAINEL DIREITO: VISUALIZAÇÃO */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                Visualização da Imagem
+              </h4>
+              {hasImage && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
-                  className="w-full"
-                  disabled={!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
+                  className="h-6 text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2"
                 >
-                  {!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
-                    ? 'Carregando...'
-                    : 'Abrir imagem em destaque'}
+                  Abrir em tela cheia
                 </Button>
               )}
-              {legendaImagem && (
-                <p
-                  className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
-                  style={{ fontSize: '14pt', lineHeight: 1.2 }}
-                >
-                  {legendaImagem}
-                </p>
-              )}
+            </div>
+
+            <div className="relative aspect-video lg:aspect-square w-full rounded-2xl border-2 border-slate-100 bg-slate-50 overflow-hidden flex items-center justify-center p-4 group">
+              {(() => {
+                const imagePath = item.imagem;
+                const isBase64 = imagePath && imagePath.startsWith('data:image/');
+                const isValid = isBase64 || isValidImagePath(imagePath || '');
+                const itemKey = String(item.id ?? item.item_name);
+                const hasError = itemImageErrors[itemKey] || false;
+                const isLoading = !isBase64 && loadingImages.has(imagePath || '');
+                const blobUrl = itemImageUrls.get(itemKey);
+
+                if (!isValid || !imagePath) {
+                  return (
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <Monitor className="w-12 h-12 stroke-[1px]" />
+                      <span className="text-xs font-medium">Sem imagem vinculada</span>
+                    </div>
+                  );
+                }
+
+                if (hasError) {
+                  return (
+                    <div className="flex flex-col items-center gap-2 text-red-400">
+                      <Monitor className="w-12 h-12 stroke-[1px]" />
+                      <span className="text-xs font-medium">Erro no carregamento</span>
+                    </div>
+                  );
+                }
+
+                if (isLoading && !blobUrl) {
+                  return (
+                    <div className="flex flex-col items-center gap-2 text-slate-400 animate-pulse">
+                      <Loader2 className="w-10 h-10 animate-spin stroke-[1px]" />
+                      <span className="text-xs font-medium">Processando...</span>
+                    </div>
+                  );
+                }
+
+                if (!blobUrl && !isBase64) return null;
+
+                return (
+                  <img
+                    src={isBase64 ? imagePath : blobUrl}
+                    alt={item.item_name}
+                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                  />
+                );
+              })()}
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Linha Técnica de Produção (Rodapé do Item) */}
-        <div className="mt-6 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-          <FormProducaoFields
-            data={{
-              data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
-              rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
-              perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
-              tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
-            }}
-            onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
-            className="flex-1"
-          />
+        {/* BOTTOM SECTION: FAIXA TÉCNICA DE PRODUÇÃO (FULL WIDTH) */}
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+          <div className="bg-white px-5 py-2.5 border-b border-slate-200 flex items-center justify-between">
+            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
+              Faixa de Produção
+            </h4>
 
-          <div className="flex items-center gap-3">
-            {saveSuccess[String(item.id)] && (
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded animate-in fade-in zoom-in duration-300">
-                ✓ Produção Salva
-              </span>
-            )}
-
-            <Button
-              size="sm"
-              className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50"
-              disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
-              onClick={() => handleSaveProductionData(item.id!)}
-            >
-              {isSaving[String(item.id)] ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <>
-                  <Save className="mr-1.5 h-3 w-3" />
-                  Salvar
-                </>
+            <div className="flex items-center gap-4">
+              {saveSuccess[String(item.id)] && (
+                <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2 duration-300">
+                  Produção salva ✅
+                </span>
               )}
-            </Button>
+
+              <Button
+                size="sm"
+                className="h-7 px-6 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200/50 transition-all active:scale-95"
+                disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
+                onClick={() => handleSaveProductionData(item.id!)}
+              >
+                {isSaving[String(item.id)] ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  "Salvar produção"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50/30">
+            <FormProducaoFields
+              data={{
+                data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
+                rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+                perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
+                tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
+              }}
+              onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+            />
           </div>
         </div>
       </div>
