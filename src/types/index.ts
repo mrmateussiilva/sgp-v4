@@ -64,6 +64,8 @@ export interface OrderItem {
   quantidade_mochilinha?: string;
   data_impressao?: string;
   rip_maquina?: string;
+  perfil_cor?: string;
+  tecido_fornecedor?: string;
   composicao_tecidos?: string;
 }
 
@@ -176,6 +178,10 @@ export interface CreateOrderItemRequest {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
+  data_impressao?: string;
+  rip_maquina?: string;
+  perfil_cor?: string;
+  tecido_fornecedor?: string;
 }
 
 export interface UpdateOrderRequest {
@@ -239,6 +245,10 @@ export interface UpdateOrderItemRequest {
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
   composicao_tecidos?: string;
+  data_impressao?: string;
+  rip_maquina?: string;
+  perfil_cor?: string;
+  tecido_fornecedor?: string;
 }
 
 export interface UpdateOrderStatusRequest {

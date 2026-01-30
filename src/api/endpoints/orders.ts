@@ -17,6 +17,7 @@ import {
     buildMetadataPayload,
     buildStatusPayload,
     mapOrderToFicha,
+    buildItemPayloadFromRequest,
 } from '../mappers';
 import { logger } from '../../utils/logger';
 import { ordersSocket } from '../../lib/realtimeOrders';
@@ -330,6 +331,13 @@ export const ordersApi = {
         return mapOrderToFicha(order);
     },
 
+    updateOrderItem: async (itemId: number, data: any): Promise<boolean> => {
+        requireSessionToken();
+        const payload = buildItemPayloadFromRequest(data);
+        await apiClient.patch(`/pedido-itens/${itemId}`, payload);
+        return true;
+    },
+
     /**
      * Duplica um pedido existente, criando uma cópia com novo número
      */
@@ -397,6 +405,10 @@ export const ordersApi = {
             quantidade_totem: item.quantidade_totem,
             outros_valores_totem: item.outros_valores_totem,
             composicao_tecidos: item.composicao_tecidos,
+            rip_maquina: item.rip_maquina,
+            data_impressao: item.data_impressao,
+            perfil_cor: item.perfil_cor,
+            tecido_fornecedor: item.tecido_fornecedor,
         }));
 
         // Cria o novo pedido
@@ -488,6 +500,10 @@ export const ordersApi = {
             quantidade_totem: item.quantidade_totem,
             outros_valores_totem: options?.zeroValues ? "0" : item.outros_valores_totem,
             composicao_tecidos: item.composicao_tecidos,
+            rip_maquina: item.rip_maquina,
+            data_impressao: item.data_impressao,
+            perfil_cor: item.perfil_cor,
+            tecido_fornecedor: item.tecido_fornecedor,
         }));
 
         // Cria o novo pedido de reposição

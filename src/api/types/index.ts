@@ -63,6 +63,10 @@ export interface ApiPedidoItem {
     quantidade_mochilinha?: string | null;
     valor_mochilinha?: string | null;
     composicao_tecidos?: string | null;
+    data_impressao?: string | null;
+    rip_maquina?: string | null;
+    perfil_cor?: string | null;
+    tecido_fornecedor?: string | null;
 }
 
 export interface ApiPedido {

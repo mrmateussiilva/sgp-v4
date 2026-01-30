@@ -449,6 +449,10 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         valor_ilhos: item?.valor_ilhos ?? item?.ilhos_valor_unitario ?? undefined,
         espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
         composicao_tecidos: item?.composicao_tecidos ?? undefined,
+        rip_maquina: item?.rip_maquina ?? undefined,
+        data_impressao: item?.data_impressao ?? undefined,
+        perfil_cor: item?.perfil_cor ?? undefined,
+        tecido_fornecedor: item?.tecido_fornecedor ?? undefined,
     };
 
     if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&

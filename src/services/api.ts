@@ -38,6 +38,7 @@ export const api = {
   updateOrder: ordersApi.updateOrder,
   updateOrderMetadata: ordersApi.updateOrderMetadata,
   updateOrderStatus: ordersApi.updateOrderStatus,
+  updateOrderItem: ordersApi.updateOrderItem,
   deleteOrder: ordersApi.deleteOrder,
   deleteAllOrders: async () => { await apiClient.delete('/pedidos/all'); return true; },
   resetOrderIds: async () => { await apiClient.post('/pedidos/reset-ids'); return true; },
