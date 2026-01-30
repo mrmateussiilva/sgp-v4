@@ -26,9 +26,9 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
             {/* Máquina */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <Monitor className="w-3.5 h-3.5 text-slate-400" />
-                    <Label htmlFor="rip_maquina" className="text-xs font-semibold text-slate-500 uppercase">
-                        Máquina/RIP:
+                    <Monitor className="w-3.5 h-3.5 text-slate-500" />
+                    <Label htmlFor="rip_maquina" className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                        Máquina:
                     </Label>
                 </div>
                 <Input
@@ -43,9 +43,9 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
             {/* Data de Impressão */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <Label htmlFor="data_impressao" className="text-xs font-semibold text-slate-500 uppercase">
-                        Data:
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    <Label htmlFor="data_impressao" className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                        Impressão:
                     </Label>
                 </div>
                 <Input
@@ -60,8 +60,8 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
             {/* Perfil de Cor */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <Palette className="w-3.5 h-3.5 text-slate-400" />
-                    <Label htmlFor="perfil_cor" className="text-xs font-semibold text-slate-500 uppercase">
+                    <Palette className="w-3.5 h-3.5 text-slate-500" />
+                    <Label htmlFor="perfil_cor" className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                         Perfil:
                     </Label>
                 </div>
@@ -77,8 +77,8 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
             {/* Tecido */}
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <Layers className="w-3.5 h-3.5 text-slate-400" />
-                    <Label htmlFor="tecido_fornecedor" className="text-xs font-semibold text-slate-500 uppercase">
+                    <Layers className="w-3.5 h-3.5 text-slate-500" />
+                    <Label htmlFor="tecido_fornecedor" className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                         Tecido:
                     </Label>
                 </div>
@@ -86,7 +86,7 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
                     id="tecido_fornecedor"
                     value={data.tecido_fornecedor || ''}
                     onChange={(e) => onDataChange('tecido_fornecedor', e.target.value)}
-                    placeholder="Tecido/Fornecedor"
+                    placeholder="Tecido"
                     className="h-7 w-32 text-xs bg-transparent border-slate-200 focus:border-blue-400 focus:ring-0 transition-all font-medium px-2"
                 />
             </div>
