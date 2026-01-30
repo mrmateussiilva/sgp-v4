@@ -11,6 +11,9 @@ import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { OrderPrintManager } from './OrderPrintManager';
+import { FormProducaoFields } from './FormProducaoFields';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Save } from 'lucide-react';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -32,6 +35,9 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
   const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
+  const { toast } = useToast();
+  const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -196,13 +202,59 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   // Função para fechar o modal de imagem
   const closeImageModal = (open?: boolean) => {
-    // Só fecha se explicitamente solicitado (open === false)
-    // Isso previne fechamento automático indesejado
-    if (open === false) {
+    if (!open) {
       setSelectedImage(null);
       setSelectedImageCaption('');
       setImageError(false);
     }
+  };
+
+  const handleSaveProductionData = async (itemId: number | string) => {
+    const itemKey = String(itemId);
+    const data = localProductionData[itemKey];
+
+    if (!data) return;
+
+    setIsSaving(prev => ({ ...prev, [itemKey]: true }));
+    try {
+      await api.updateOrderItem(Number(itemId), data);
+
+      toast({
+        title: "Dados de produção salvos",
+        description: "Os dados foram atualizados com sucesso.",
+      });
+
+      // Se o pedido estiver no modal, podemos querer atualizar os dados locais se necessário
+      // Mas geralmente o usuário apenas fecha ou a lista se atualiza ao fechar
+
+      // Limpar estado de edição após salvar
+      setLocalProductionData(prev => {
+        const newData = { ...prev };
+        delete newData[itemKey];
+        return newData;
+      });
+
+    } catch (error) {
+      logger.error("Erro ao salvar dados de produção:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar os dados de produção.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(prev => ({ ...prev, [itemKey]: false }));
+    }
+  };
+
+  const handleProductionDataChange = (itemId: number | string, field: string, value: any) => {
+    const itemKey = String(itemId);
+    setLocalProductionData(prev => ({
+      ...prev,
+      [itemKey]: {
+        ...(prev[itemKey] || {}),
+        [field]: value
+      }
+    }));
   };
 
   const handlePrint = async () => {
@@ -1289,6 +1341,46 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Dados de Produção Editáveis */}
+        <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+              Dados de Produção
+            </h4>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold"
+              disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
+              onClick={() => handleSaveProductionData(item.id!)}
+            >
+              {isSaving[String(item.id)] ? (
+                <>
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-3.5 w-3.5" />
+                  Salvar Produção
+                </>
+              )}
+            </Button>
+          </div>
+
+          <FormProducaoFields
+            data={{
+              data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
+              rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+              perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
+              tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
+            }}
+            onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+          />
+        </div>
       </div>
     );
   };
