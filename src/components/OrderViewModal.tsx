@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { ChevronDown, Printer, Loader2, Save, Monitor } from 'lucide-react';
+import { ChevronDown, Printer, Loader2, Save, Monitor, Edit2, X } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
@@ -28,16 +28,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
+
+  const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
+  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
+  const [editingItems, setEditingItems] = useState<Record<string, boolean>>({});
+  const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
+  const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [imageError, setImageError] = useState<boolean>(false);
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
-  const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
   const { toast } = useToast();
-  const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
-  const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
-  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -224,15 +226,21 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         description: "Os dados foram atualizados com sucesso.",
       });
 
-      // Se o pedido estiver no modal, podemos querer atualizar os dados locais se necessário
-      // Mas geralmente o usuário apenas fecha ou a lista se atualiza ao fechar
+      // Atualizar o item na lista do pedido localmente para refletir a mudança imediatamente
+      const updatedOrder = { ...order };
+      const itemIndex = updatedOrder.items.findIndex(i => String(i.id) === itemKey);
 
-      // Limpar estado de edição após salvar
-      setLocalProductionData(prev => {
-        const newData = { ...prev };
-        delete newData[itemKey];
-        return newData;
-      });
+      if (itemIndex >= 0) {
+        updatedOrder.items[itemIndex] = {
+          ...updatedOrder.items[itemIndex],
+          ...data
+        };
+        // Aqui precisaríamos de uma função para atualizar o pedido no componente pai ou recarregar
+        // Como fallback, o localProductionData mantém o valor correto visualmente
+      }
+
+      // Desativar modo de edição
+      setEditingItems(prev => ({ ...prev, [itemKey]: false }));
 
       // Registrar sucesso
       setSaveSuccess(prev => ({ ...prev, [itemKey]: true }));
@@ -264,6 +272,52 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
       }
     }));
   };
+
+  const handleEditProductionData = (itemId: number | string) => {
+    const itemKey = String(itemId);
+    setEditingItems(prev => ({ ...prev, [itemKey]: true }));
+
+    // Inicializar localProductionData com os valores atuais do item se não existirem
+    if (!localProductionData[itemKey]) {
+      const item = order.items.find(i => String(i.id) === itemKey);
+      if (item) {
+        setLocalProductionData(prev => ({
+          ...prev,
+          [itemKey]: {
+            data_impressao: item.data_impressao,
+            rip_maquina: item.rip_maquina,
+            machine_id: item.machine_id,
+            perfil_cor: item.perfil_cor,
+            tecido_fornecedor: item.tecido_fornecedor,
+          }
+        }));
+      }
+    }
+  };
+
+  const handleCancelEdit = (itemId: number | string) => {
+    const itemKey = String(itemId);
+    setEditingItems(prev => ({ ...prev, [itemKey]: false }));
+    // Reverter localProductionData removendo a entrada (ou resetando para original)
+    // Vamos manter os dados no localProductionData caso o usuário queira editar de novo, 
+    // mas a UI vai mostrar os dados do "item" original se localProductionData for removido.
+    // Melhor: manter os dados lá, mas resetar para o original.
+
+    const item = order.items.find(i => String(i.id) === itemKey);
+    if (item) {
+      setLocalProductionData(prev => ({
+        ...prev,
+        [itemKey]: {
+          data_impressao: item.data_impressao,
+          rip_maquina: item.rip_maquina,
+          machine_id: item.machine_id,
+          perfil_cor: item.perfil_cor,
+          tecido_fornecedor: item.tecido_fornecedor,
+        }
+      }));
+    }
+  };
+
 
   const handlePrint = async () => {
     setIsPrintManagerOpen(true);
@@ -1281,28 +1335,52 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 Dados de Produção
               </h4>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 {saveSuccess[String(item.id)] && (
-                  <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2">
+                  <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2 mr-2">
                     Cópia técnica salva ✅
                   </span>
                 )}
 
-                <Button
-                  size="sm"
-                  className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wide"
-                  disabled={!localProductionData[String(item.id)] || isSaving[String(item.id)]}
-                  onClick={() => handleSaveProductionData(item.id!)}
-                >
-                  {isSaving[String(item.id)] ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <>
-                      <Save className="mr-1.5 h-3 w-3" />
-                      Salvar produção
-                    </>
-                  )}
-                </Button>
+                {!editingItems[String(item.id)] ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-3 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wide gap-1.5"
+                    onClick={() => handleEditProductionData(item.id!)}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Editar
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                      onClick={() => handleCancelEdit(item.id!)}
+                      title="Cancelar edição"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wide"
+                      disabled={isSaving[String(item.id)]}
+                      onClick={() => handleSaveProductionData(item.id!)}
+                    >
+                      {isSaving[String(item.id)] ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Save className="mr-1.5 h-3 w-3" />
+                          Salvar
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1311,10 +1389,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                 data={{
                   data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
                   rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+                  machine_id: localProductionData[String(item.id)]?.machine_id ?? item.machine_id,
                   perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
                   tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
                 }}
                 onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+                disabled={!editingItems[String(item.id)]}
               />
             </div>
           </div>
