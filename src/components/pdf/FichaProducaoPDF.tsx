@@ -262,6 +262,10 @@ export const FichaProducaoPDF: React.FC<{ item: OrderItem }> = ({ item }) => {
           <InfoRow label="Cordinha Extra" value={item.cordinha_extra} />
           <InfoRow label="Alcinha" value={item.alcinha} />
           <InfoRow label="Toalha Pronta" value={item.toalha_pronta} />
+          <InfoRow label="Máquina / RIP" value={item.rip_maquina} />
+          <InfoRow label="Perfil de Cor" value={item.perfil_cor} />
+          <InfoRow label="Fornecedor Tecido" value={item.tecido_fornecedor} />
+          <InfoRow label="Data de Impressão" value={item.data_impressao} />
         </View>
 
         {/* Imagem */}

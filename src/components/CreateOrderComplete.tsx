@@ -119,6 +119,10 @@ interface TabItem {
   valor_mochilinha: string;
   quantidade_mochilinha: string;
   composicao_tecidos?: string;
+  data_impressao: string;
+  rip_maquina: string;
+  perfil_cor: string;
+  tecido_fornecedor: string;
 }
 
 interface CreateOrderCompleteProps {
@@ -450,6 +454,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       ),
       quantidade_mochilinha: anyItem.quantidade_mochilinha ?? (item.quantity ? item.quantity.toString() : '1'),
       composicao_tecidos: anyItem.composicao_tecidos ?? '',
+      data_impressao: anyItem.data_impressao ?? '',
+      rip_maquina: anyItem.rip_maquina ?? '',
+      perfil_cor: anyItem.perfil_cor ?? '',
+      tecido_fornecedor: anyItem.tecido_fornecedor ?? '',
     };
   }
 
@@ -1940,6 +1948,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             alcinha: item.alcinha,
             toalha_pronta: item.toalha_pronta,
             composicao_tecidos: item.composicao_tecidos,
+            data_impressao: item.data_impressao,
+            rip_maquina: item.rip_maquina,
+            perfil_cor: item.perfil_cor,
+            tecido_fornecedor: item.tecido_fornecedor,
           };
 
           // Campos específicos por tipo (começando por Painel e Totem)

@@ -53,6 +53,10 @@ const LABELS: Record<string, string> = {
   subtotal: 'Subtotal',
   observacao: 'Observação do item',
   legenda_imagem: 'Legenda da imagem',
+  rip_maquina: 'Máquina / RIP',
+  perfil_cor: 'Perfil de cor',
+  tecido_fornecedor: 'Tecido (Fornecedor)',
+  data_impressao: 'Data de impressão',
 };
 
 const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {

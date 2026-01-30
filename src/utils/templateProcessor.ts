@@ -494,6 +494,8 @@ export const createOrderDataMap = (
     // Campos de impressão (para anotação manual no resumo)
     data_impressao: item?.data_impressao || '',
     rip_maquina: item?.rip_maquina || '',
+    perfil_cor: item?.perfil_cor || '',
+    tecido_fornecedor: item?.tecido_fornecedor || '',
 
     // Campos genéricos (fallback) - excluindo valores monetários
     ...Object.keys(itemRecord).reduce((acc, key) => {

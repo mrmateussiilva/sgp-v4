@@ -123,6 +123,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <SpecRow label="Vendedor" value={order.vendedor} />
                     <SpecRow label="Designer" value={order.designer} />
                     <SpecRow label="Quantidade" value={prod.quantity} />
+                    <SpecRow label="Perfil de Cor" value={prod.perfil_cor} />
+                    <SpecRow label="Fornecedor Tecido" value={prod.tecido_fornecedor} />
 
 
                     {techItems.length > 0 && (
@@ -165,11 +167,13 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             <View style={styles.footer}>
                 <View style={styles.footerField}>
                     <Text style={styles.footerLabel}>Data de Impressão:</Text>
-                    <View style={styles.footerLine} />
+                    <Text style={styles.hValue}>{prod.data_impressao || ''}</Text>
+                    {!prod.data_impressao && <View style={styles.footerLine} />}
                 </View>
                 <View style={styles.footerField}>
                     <Text style={styles.footerLabel}>RIP:</Text>
-                    <View style={styles.footerLine} />
+                    <Text style={styles.hValue}>{prod.rip_maquina || ''}</Text>
+                    {!prod.rip_maquina && <View style={styles.footerLine} />}
                 </View>
                 <View style={{ flex: 0.5, alignItems: 'flex-end', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 7, color: COLORS.textMuted }}>SGP-V4 | {new Date().toLocaleDateString('pt-BR')}</Text>
