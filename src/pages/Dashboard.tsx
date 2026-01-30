@@ -14,7 +14,8 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2
+  Loader2,
+  MonitorPlay
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -43,6 +44,8 @@ const GestaoTiposProducao = lazy(() => import('./admin/GestaoTiposProducao'));
 const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
+const GestaoMaquinas = lazy(() => import('./admin/GestaoMaquinas'));
+const ProducaoMaquinas = lazy(() => import('./ProducaoMaquinas').then(module => ({ default: module.ProducaoMaquinas })));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
@@ -142,6 +145,13 @@ export default function Dashboard() {
       path: '/dashboard/painel-desempenho',
       adminOnly: true,
       section: 'GESTÃO'
+    },
+    {
+      icon: MonitorPlay,
+      label: 'Produção',
+      path: '/dashboard/painel-producao',
+      adminOnly: false,
+      section: 'OPERACIONAL'
     },
     {
       icon: FileText,
@@ -324,6 +334,7 @@ export default function Dashboard() {
                 <Route path="pedido/novo" element={<PedidoCreateView />} />
                 <Route path="pedido/editar/:id" element={<PedidoEditView />} />
                 <Route path="clientes" element={<Clientes />} />
+                <Route path="painel-producao" element={<ProducaoMaquinas />} />
                 <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
                 <Route
                   path="painel-desempenho"
@@ -419,6 +430,14 @@ export default function Dashboard() {
                   element={
                     <ProtectedRoute requireAdmin={true}>
                       <GestaoTemplateRelatorios />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/maquinas"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <GestaoMaquinas />
                     </ProtectedRoute>
                   }
                 />

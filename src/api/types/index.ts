@@ -225,6 +225,18 @@ export interface MaterialPayload {
     observacao?: string | null;
 }
 
+export interface MachineApi {
+    id: number;
+    name: string;
+    active: boolean;
+    created_at?: string | null;
+}
+
+export interface MachinePayload {
+    name: string;
+    active: boolean;
+}
+
 export interface DesignerEntity {
     id: number;
     nome: string;
@@ -281,6 +293,34 @@ export interface TipoProducaoEntity {
 export type MaterialEntity = Omit<MaterialApi, 'observacao'> & {
     observacao?: string;
 };
+
+export interface MachineEntity {
+    id: number;
+    name: string;
+    active: boolean;
+    created_at?: string;
+}
+
+export interface MachineDashboardItem {
+    order_id: number;
+    order_number?: string;
+    item_index: number;
+    item_name?: string;
+    dimensions?: string;
+    material?: string;
+    date_due?: string;
+    preview_url?: string;
+    status: ApiOrderStatus;
+    priority: ApiPriority | string;
+}
+
+export interface MachineDashboardData {
+    machine_id: number;
+    machine_name: string;
+    total_items: number;
+    total_area: number;
+    queue: MachineDashboardItem[];
+}
 
 // Re-export domain types from src/types/index.ts
 export { OrderStatus } from '../../types';
