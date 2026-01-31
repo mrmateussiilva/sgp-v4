@@ -14,8 +14,7 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2,
-  MonitorPlay
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
