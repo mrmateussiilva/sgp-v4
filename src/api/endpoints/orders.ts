@@ -334,6 +334,9 @@ export const ordersApi = {
     updateOrderItem: async (itemId: number, data: any): Promise<boolean> => {
         requireSessionToken();
         const payload = buildItemPayloadFromRequest(data);
+        if (data?.pedido_id != null) {
+            payload.pedido_id = data.pedido_id;
+        }
         await apiClient.patch(`/pedidos/pedido-itens/${itemId}`, payload);
         return true;
     },

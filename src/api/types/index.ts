@@ -299,7 +299,7 @@ export interface MachineEntity {
     id: number;
     name: string;
     active: boolean;
-    created_at?: string;
+    created_at?: string | null;
 }
 
 export interface MachineDashboardItem {

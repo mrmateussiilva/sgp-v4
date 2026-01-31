@@ -14,13 +14,11 @@ import { MachineEntity } from '@/api/types';
 
 interface FormProducaoFieldsProps {
     data: {
-        rip_maquina?: string;
+        rip_maquina?: string | null;
         machine_id?: number | null;
-        data_impressao?: string;
-        perfil_cor?: string;
-        tecidofornecedor?: string;
-        tecedo_fornecedor?: string;
-        tecido_fornecedor?: string;
+        data_impressao?: string | null;
+        perfil_cor?: string | null;
+        tecido_fornecedor?: string | null;
     };
     onDataChange: (field: string, value: any) => void;
     className?: string;

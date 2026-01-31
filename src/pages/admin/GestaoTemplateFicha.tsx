@@ -54,8 +54,6 @@ const AVAILABLE_FIELDS: Omit<TemplateField, 'x' | 'y' | 'width' | 'height'>[] = 
   { id: 'toalha_pronta', type: 'text', label: 'Toalha Pronta', key: 'toalha_pronta' },
   { id: 'quantidade_paineis', type: 'text', label: 'Quantidade de Painéis', key: 'quantidade_paineis' },
   { id: 'terceirizado', type: 'text', label: 'Terceirizado', key: 'terceirizado' },
-  { id: 'data_impressao', type: 'date', label: 'Data de Impressão', key: 'data_impressao' },
-  { id: 'rip_maquina', type: 'text', label: 'RIP Máquina', key: 'rip_maquina' },
   { id: 'acabamento_lona', type: 'text', label: 'Acabamento (Lona)', key: 'acabamento_lona' },
   { id: 'acabamento_lona_display', type: 'text', label: 'Acabamento Lona (Formatado)', key: 'acabamento_lona_display' },
   { id: 'quantidade_lona', type: 'text', label: 'Quantidade de Lonas', key: 'quantidade_lona' },

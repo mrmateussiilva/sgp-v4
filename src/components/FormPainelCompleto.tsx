@@ -615,6 +615,7 @@ export function FormPainelCompleto({
       <FormProducaoFields
         data={{
           data_impressao: tabData.data_impressao,
+          machine_id: tabData.machine_id,
           rip_maquina: tabData.rip_maquina,
           perfil_cor: tabData.perfil_cor,
           tecido_fornecedor: tabData.tecido_fornecedor

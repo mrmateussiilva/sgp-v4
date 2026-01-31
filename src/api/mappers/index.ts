@@ -90,6 +90,39 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         (typeof anyItem.image_reference === 'string' && anyItem.image_reference.trim().length > 0 ? anyItem.image_reference : null) ??
         (typeof anyItem.server_reference === 'string' && anyItem.server_reference.trim().length > 0 ? anyItem.server_reference : null) ??
         null;
+    const machineIdCandidate =
+        item.machine_id ??
+        (typeof anyItem.maquina_id === 'number' ? anyItem.maquina_id : undefined) ??
+        (typeof anyItem.machineId === 'number' ? anyItem.machineId : undefined) ??
+        (typeof anyItem.maquina === 'object' && anyItem.maquina !== null
+            ? (anyItem.maquina as Record<string, unknown>).id ?? (anyItem.maquina as Record<string, unknown>).machine_id
+            : undefined) ??
+        null;
+    const ripMaquinaCandidate =
+        item.rip_maquina ??
+        (typeof anyItem.rip_maquina === 'string' ? anyItem.rip_maquina : undefined) ??
+        (typeof anyItem.maquina === 'string' ? anyItem.maquina : undefined) ??
+        (typeof anyItem.machine_name === 'string' ? anyItem.machine_name : undefined) ??
+        (typeof anyItem.maquina_nome === 'string' ? anyItem.maquina_nome : undefined) ??
+        (typeof anyItem.maquina === 'object' && anyItem.maquina !== null
+            ? (anyItem.maquina as Record<string, unknown>).nome ?? (anyItem.maquina as Record<string, unknown>).name
+            : undefined) ??
+        null;
+    const dataImpressaoCandidate =
+        item.data_impressao ??
+        (typeof anyItem.data_impressao === 'string' ? anyItem.data_impressao : undefined) ??
+        (typeof anyItem.dataImpressao === 'string' ? anyItem.dataImpressao : undefined) ??
+        null;
+    const perfilCorCandidate =
+        item.perfil_cor ??
+        (typeof anyItem.perfil_cor === 'string' ? anyItem.perfil_cor : undefined) ??
+        (typeof anyItem.perfilCor === 'string' ? anyItem.perfilCor : undefined) ??
+        null;
+    const tecidoFornecedorCandidate =
+        item.tecido_fornecedor ??
+        (typeof anyItem.tecido_fornecedor === 'string' ? anyItem.tecido_fornecedor : undefined) ??
+        (typeof anyItem.tecidoFornecedor === 'string' ? anyItem.tecidoFornecedor : undefined) ??
+        null;
 
     return {
         id: fallbackId,
@@ -143,11 +176,11 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         valor_totem: normalizeApiMoney(item.valor_totem) ?? undefined,
         outros_valores_totem: normalizeApiMoney(item.outros_valores_totem) ?? undefined,
         composicao_tecidos: item.composicao_tecidos ?? undefined,
-        machine_id: item.machine_id ?? undefined,
-        rip_maquina: item.rip_maquina ?? undefined,
-        data_impressao: item.data_impressao ?? undefined,
-        perfil_cor: item.perfil_cor ?? undefined,
-        tecido_fornecedor: item.tecido_fornecedor ?? undefined,
+        machine_id: machineIdCandidate,
+        rip_maquina: ripMaquinaCandidate,
+        data_impressao: dataImpressaoCandidate,
+        perfil_cor: perfilCorCandidate,
+        tecido_fornecedor: tecidoFornecedorCandidate,
     };
 };
 
@@ -454,11 +487,11 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         valor_ilhos: item?.valor_ilhos ?? item?.ilhos_valor_unitario ?? undefined,
         espaco_ilhos: item?.espaco_ilhos ?? item?.ilhos_distancia ?? undefined,
         composicao_tecidos: item?.composicao_tecidos ?? undefined,
-        rip_maquina: item?.rip_maquina ?? undefined,
-        data_impressao: item?.data_impressao ?? undefined,
-        perfil_cor: item?.perfil_cor ?? undefined,
-        tecido_fornecedor: item?.tecido_fornecedor ?? undefined,
-        machine_id: item?.machine_id ?? undefined,
+        rip_maquina: item?.rip_maquina ?? null,
+        data_impressao: item?.data_impressao ?? null,
+        perfil_cor: item?.perfil_cor ?? null,
+        tecido_fornecedor: item?.tecido_fornecedor ?? null,
+        machine_id: item?.machine_id ?? null,
     };
 
     if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&

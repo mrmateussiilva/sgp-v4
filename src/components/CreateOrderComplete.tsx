@@ -119,10 +119,11 @@ interface TabItem {
   valor_mochilinha: string;
   quantidade_mochilinha: string;
   composicao_tecidos?: string;
-  data_impressao: string;
-  rip_maquina: string;
-  perfil_cor: string;
-  tecido_fornecedor: string;
+  data_impressao: string | null;
+  rip_maquina: string | null;
+  perfil_cor: string | null;
+  tecido_fornecedor: string | null;
+  machine_id?: number | null;
 }
 
 interface CreateOrderCompleteProps {
@@ -225,6 +226,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       valor_mochilinha: '0,00',
       quantidade_mochilinha: '1',
       composicao_tecidos: '',
+      data_impressao: null,
+      rip_maquina: null,
+      perfil_cor: null,
+      tecido_fornecedor: null,
+      machine_id: null,
     };
   }
 

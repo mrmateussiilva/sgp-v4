@@ -62,12 +62,12 @@ export interface OrderItem {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
-  data_impressao?: string;
-  rip_maquina?: string;
-  perfil_cor?: string;
-  tecido_fornecedor?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
   composicao_tecidos?: string;
-  machine_id?: number;
+  machine_id?: number | null;
 }
 
 export interface OrderWithItems {
@@ -179,10 +179,11 @@ export interface CreateOrderItemRequest {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
-  data_impressao?: string;
-  rip_maquina?: string;
-  perfil_cor?: string;
-  tecido_fornecedor?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 export interface UpdateOrderRequest {
@@ -246,10 +247,11 @@ export interface UpdateOrderItemRequest {
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
   composicao_tecidos?: string;
-  data_impressao?: string;
-  rip_maquina?: string;
-  perfil_cor?: string;
-  tecido_fornecedor?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -442,6 +444,11 @@ export interface TabItem {
   valor_mochilinha: string;
   quantidade_mochilinha: string;
   composicao_tecidos?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 // ========================================
