@@ -143,6 +143,11 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         valor_totem: normalizeApiMoney(item.valor_totem) ?? undefined,
         outros_valores_totem: normalizeApiMoney(item.outros_valores_totem) ?? undefined,
         composicao_tecidos: item.composicao_tecidos ?? undefined,
+        machine_id: item.machine_id ?? undefined,
+        rip_maquina: item.rip_maquina ?? undefined,
+        data_impressao: item.data_impressao ?? undefined,
+        perfil_cor: item.perfil_cor ?? undefined,
+        tecido_fornecedor: item.tecido_fornecedor ?? undefined,
     };
 };
 
@@ -453,6 +458,7 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         data_impressao: item?.data_impressao ?? undefined,
         perfil_cor: item?.perfil_cor ?? undefined,
         tecido_fornecedor: item?.tecido_fornecedor ?? undefined,
+        machine_id: item?.machine_id ?? undefined,
     };
 
     if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&

@@ -219,7 +219,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
     setIsSaving(prev => ({ ...prev, [itemKey]: true }));
     try {
-      await api.updateOrderItem(Number(itemId), data);
+      const originalItem = order.items.find(i => String(i.id) === itemKey);
+      await api.updateOrderItem(Number(itemId), { ...originalItem, ...data });
 
       toast({
         title: "Dados de produção salvos",

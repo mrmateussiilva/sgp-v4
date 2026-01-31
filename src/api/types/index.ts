@@ -67,6 +67,7 @@ export interface ApiPedidoItem {
     rip_maquina?: string | null;
     perfil_cor?: string | null;
     tecido_fornecedor?: string | null;
+    machine_id?: number | null;
 }
 
 export interface ApiPedido {
