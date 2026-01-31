@@ -146,13 +146,13 @@ export default function Dashboard() {
       adminOnly: true,
       section: 'GESTÃO'
     },
-    {
-      icon: MonitorPlay,
-      label: 'Produção',
-      path: '/dashboard/painel-producao',
-      adminOnly: false,
-      section: 'OPERACIONAL'
-    },
+    // {
+    //   icon: MonitorPlay,
+    //   label: 'Produção',
+    //   path: '/dashboard/painel-producao',
+    //   adminOnly: false,
+    //   section: 'OPERACIONAL'
+    // },
     {
       icon: FileText,
       label: 'Fechamentos',
