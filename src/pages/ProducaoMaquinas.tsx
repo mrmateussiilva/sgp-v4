@@ -4,9 +4,9 @@ import { maquinasApi } from '../api/endpoints/maquinas';
 import { MachineDashboardData } from '../api/types';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Loader2, Calendar, Maximize2, AlertCircle } from 'lucide-react';
+import { Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Separator } from '../components/ui/separator';
+import { RemoteImage } from '../components/RemoteImage';
 
 export const ProducaoMaquinas: React.FC = () => {
     const [data, setData] = useState<MachineDashboardData[]>([]);
@@ -89,7 +89,7 @@ export const ProducaoMaquinas: React.FC = () => {
                                             Fila vazia
                                         </div>
                                     ) : (
-                                        machine.queue.map((item, idx) => (
+                                        machine.queue.map((item) => (
                                             <div
                                                 key={`${item.order_id}-${item.item_index}`}
                                                 className="group relative flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
@@ -106,19 +106,13 @@ export const ProducaoMaquinas: React.FC = () => {
                                                 </div>
 
                                                 <div className="flex gap-3 mt-1">
-                                                    {item.preview_url ? (
-                                                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-                                                            <img
-                                                                src={item.preview_url}
-                                                                alt="Preview"
-                                                                className="h-full w-full object-cover"
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="h-16 w-16 shrink-0 rounded-md bg-slate-100 flex items-center justify-center text-slate-300">
-                                                            <Maximize2 className="h-5 w-5" />
-                                                        </div>
-                                                    )}
+                                                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+                                                        <RemoteImage
+                                                            src={item.preview_url}
+                                                            alt="Preview"
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </div>
 
                                                     <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                                                         <span className="text-xs font-semibold text-slate-800 line-clamp-2 leading-tight">
