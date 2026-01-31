@@ -164,7 +164,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             </View>
 
             {/* SEÇÃO 3: RODAPÉ (Operational) */}
-            <View style={styles.footer}>
+            {/* <View style={styles.footer}>
                 <View style={styles.footerField}>
                     <Text style={styles.footerLabel}>Data de Impressão:</Text>
                     <Text style={styles.hValue}>{prod.data_impressao || ''}</Text>
@@ -178,7 +178,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                 <View style={{ flex: 0.5, alignItems: 'flex-end', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 7, color: COLORS.textMuted }}>SGP-V4 | {new Date().toLocaleDateString('pt-BR')}</Text>
                 </View>
-            </View>
+            </View> */}
 
         </View>
     );
