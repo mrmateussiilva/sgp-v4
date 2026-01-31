@@ -1,9 +1,27 @@
 # Changelog - SGP v4
  
-## [1.1.0] - 2026-01-28
+## [1.1.0] - 2026-01-31
 
 ### ✨ Adicionado
-- Preparação para a nova versão 1.1.0.
+- **Gestão de Máquinas**: Sistema completo para cadastro e gerenciamento de máquinas de produção (Impressoras, Calandras, etc).
+  - Nova interface administrativa para CRUD de máquinas.
+  - Endpoint de API dedicado para integração com o backend.
+- **Painel de Produção por Máquina**: Nova visualização de "Produção Maquinas" para monitoramento em tempo real do que está sendo produzido em cada equipamento.
+- **Novos Formas de Produção**:
+  - Implementado suporte para "Mesa de Babado".
+  - Refinamento completo do formulário de "Impressão 3D".
+- **Componente RemoteImage**: Novo componente para carregamento seguro e otimizado de imagens remotas.
+- **Documentação PWA**: Adicionados guias de estilo e implementação para transformar o sistema em um Progressive Web App.
+
+### 🔧 Melhorado
+- **Formulários de Acabamento**: Reestruturação dos campos de produção para maior clareza e precisão nos dados técnicos.
+- **Fichas de Produção (PDF)**: Melhorias no layout e na organização das informações nas fichas industriais e térmicas.
+- **Scroll Area Customizada**: Implementação de scrollbar temática consistente em toda a aplicação.
+
+### 🐛 Corrigido
+- **Erros de Build (TypeScript)**: Resolvidos problemas de tipagem nos mappers de pedidos que impediam a compilação.
+- **Importações Limpas**: Removidos diversos ícones e componentes importados mas não utilizados (ex: `MonitorPlay`).
+- **Persistência de Campos**: Garantido que campos de RIP e Data de Impressão sejam salvos e exibidos corretamente.
 
 ## [1.0.20] - 2026-01-27
 
