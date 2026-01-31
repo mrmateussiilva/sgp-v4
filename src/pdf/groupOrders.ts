@@ -32,6 +32,11 @@ export interface ProductionProduct {
     tipo_adesivo?: string;
     acabamento_totem?: string;
     acabamento_totem_outro?: string;
+    composicao_tecidos?: string;
+    data_impressao?: string;
+    rip_maquina?: string;
+    perfil_cor?: string;
+    tecido_fornecedor?: string;
 }
 
 export interface ProductionOrder {
@@ -124,6 +129,11 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     tipo_adesivo: item.tipo_adesivo,
                     acabamento_totem: item.acabamento_totem,
                     acabamento_totem_outro: item.acabamento_totem_outro,
+                    composicao_tecidos: item.composicao_tecidos,
+                    data_impressao: (item as any).data_impressao,
+                    rip_maquina: (item as any).rip_maquina,
+                    perfil_cor: (item as any).perfil_cor,
+                    tecido_fornecedor: (item as any).tecido_fornecedor,
                 }],
                 item_index: index + 1,
                 total_items: order.items.length,

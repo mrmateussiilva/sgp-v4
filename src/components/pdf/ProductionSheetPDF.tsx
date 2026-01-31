@@ -358,10 +358,6 @@ const ProductionItemView: React.FC<{ item: ProductionItem }> = ({ item }) => {
                     <Text style={styles.footerLabel}>Vendedor</Text>
                     <Text style={styles.footerValue}>{item.vendedor || '—'}</Text>
                 </View>
-                <View style={styles.footerItem}>
-                    <Text style={styles.footerLabel}>Controle de Produção</Text>
-                    <Text>RIP: _______ DATA: __/__/__</Text>
-                </View>
             </View>
         </View>
     );

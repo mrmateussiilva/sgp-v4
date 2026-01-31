@@ -375,7 +375,8 @@ export function FormAdesivoProducao({
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* === DADOS DE PRODUÇÃO === */}
+      <div className="space-y-4 pt-4 border-t border-dashed border-gray-200">
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label className="text-base font-medium">Valor do adesivo (R$)</Label>

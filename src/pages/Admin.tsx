@@ -1,4 +1,4 @@
-import { Package, Palette, Users, Truck, CreditCard, Settings, FileText } from 'lucide-react';
+import { Package, Palette, Users, Truck, CreditCard, Settings, FileText, Monitor } from 'lucide-react';
 import { AdminStatusBanner } from '@/components/admin/AdminStatusBanner';
 import { AdminModuleSection } from '@/components/admin/AdminModuleSection';
 import { AdminModule } from '@/components/admin/AdminModuleCard';
@@ -19,6 +19,14 @@ export default function Admin() {
       path: '/dashboard/admin/tipos-producao',
       color: 'text-amber-600',
       stats: '8 ativos',
+      status: 'ok',
+    },
+    {
+      title: 'Máquinas',
+      icon: Monitor,
+      path: '/dashboard/admin/maquinas',
+      color: 'text-indigo-600',
+      stats: 'Gerenciar',
       status: 'ok',
     },
   ];

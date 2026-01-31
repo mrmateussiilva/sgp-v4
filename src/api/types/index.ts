@@ -56,7 +56,18 @@ export interface ApiPedidoItem {
     acabamento_totem?: string | null;
     acabamento_totem_outro?: string | null;
     legenda_imagem?: string | null;
-    outros_valores?: string | null;
+    quantidade_canga?: string | null;
+    valor_canga?: string | null;
+    quantidade_impressao_3d?: string | null;
+    valor_impressao_3d?: string | null;
+    quantidade_mochilinha?: string | null;
+    valor_mochilinha?: string | null;
+    composicao_tecidos?: string | null;
+    data_impressao?: string | null;
+    rip_maquina?: string | null;
+    perfil_cor?: string | null;
+    tecido_fornecedor?: string | null;
+    machine_id?: number | null;
 }
 
 export interface ApiPedido {
@@ -215,6 +226,18 @@ export interface MaterialPayload {
     observacao?: string | null;
 }
 
+export interface MachineApi {
+    id: number;
+    name: string;
+    active: boolean;
+    created_at?: string | null;
+}
+
+export interface MachinePayload {
+    name: string;
+    active: boolean;
+}
+
 export interface DesignerEntity {
     id: number;
     nome: string;
@@ -271,6 +294,34 @@ export interface TipoProducaoEntity {
 export type MaterialEntity = Omit<MaterialApi, 'observacao'> & {
     observacao?: string;
 };
+
+export interface MachineEntity {
+    id: number;
+    name: string;
+    active: boolean;
+    created_at?: string | null;
+}
+
+export interface MachineDashboardItem {
+    order_id: number;
+    order_number?: string;
+    item_index: number;
+    item_name?: string;
+    dimensions?: string;
+    material?: string;
+    date_due?: string;
+    preview_url?: string;
+    status: ApiOrderStatus;
+    priority: ApiPriority | string;
+}
+
+export interface MachineDashboardData {
+    machine_id: number;
+    machine_name: string;
+    total_items: number;
+    total_area: number;
+    queue: MachineDashboardItem[];
+}
 
 // Re-export domain types from src/types/index.ts
 export { OrderStatus } from '../../types';

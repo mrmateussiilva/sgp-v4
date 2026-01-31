@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { ChevronDown, Printer } from 'lucide-react';
+import { ChevronDown, Printer, Loader2, Save, Monitor, Edit2, X } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import { getItemDisplayEntries } from '@/utils/order-item-display';
@@ -11,6 +11,8 @@ import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { OrderPrintManager } from './OrderPrintManager';
+import { FormProducaoFields } from './FormProducaoFields';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -26,12 +28,18 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageCaption, setSelectedImageCaption] = useState<string>('');
+
+  const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
+  const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
+  const [editingItems, setEditingItems] = useState<Record<string, boolean>>({});
+  const [localProductionData, setLocalProductionData] = useState<Record<string, any>>({});
+  const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [imageError, setImageError] = useState<boolean>(false);
   const [itemImageErrors, setItemImageErrors] = useState<Record<string, boolean>>({});
   const [itemImageUrls, setItemImageUrls] = useState<Map<string, string>>(new Map());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
-  const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
+  const { toast } = useToast();
 
   // Buscar formas de pagamento
   useEffect(() => {
@@ -196,14 +204,121 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
 
   // Função para fechar o modal de imagem
   const closeImageModal = (open?: boolean) => {
-    // Só fecha se explicitamente solicitado (open === false)
-    // Isso previne fechamento automático indesejado
-    if (open === false) {
+    if (!open) {
       setSelectedImage(null);
       setSelectedImageCaption('');
       setImageError(false);
     }
   };
+
+  const handleSaveProductionData = async (itemId: number | string) => {
+    const itemKey = String(itemId);
+    const data = localProductionData[itemKey];
+
+    if (!data) return;
+
+    setIsSaving(prev => ({ ...prev, [itemKey]: true }));
+    try {
+      const originalItem = order.items.find(i => String(i.id) === itemKey);
+      await api.updateOrderItem(Number(itemId), { ...originalItem, ...data, pedido_id: order.id });
+
+      toast({
+        title: "Dados de produção salvos",
+        description: "Os dados foram atualizados com sucesso.",
+      });
+
+      // Atualizar o item na lista do pedido localmente para refletir a mudança imediatamente
+      const updatedOrder = { ...order };
+      const itemIndex = updatedOrder.items.findIndex(i => String(i.id) === itemKey);
+
+      if (itemIndex >= 0) {
+        updatedOrder.items[itemIndex] = {
+          ...updatedOrder.items[itemIndex],
+          ...data
+        };
+        // Aqui precisaríamos de uma função para atualizar o pedido no componente pai ou recarregar
+        // Como fallback, o localProductionData mantém o valor correto visualmente
+      }
+
+      // Desativar modo de edição
+      setEditingItems(prev => ({ ...prev, [itemKey]: false }));
+
+      // Registrar sucesso
+      setSaveSuccess(prev => ({ ...prev, [itemKey]: true }));
+
+      // Limpar mensagem de sucesso após alguns segundos
+      setTimeout(() => {
+        setSaveSuccess(prev => ({ ...prev, [itemKey]: false }));
+      }, 5000);
+
+    } catch (error) {
+      logger.error("Erro ao salvar dados de produção:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar os dados de produção.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(prev => ({ ...prev, [itemKey]: false }));
+    }
+  };
+
+  const handleProductionDataChange = (itemId: number | string, field: string, value: any) => {
+    const itemKey = String(itemId);
+    setLocalProductionData(prev => ({
+      ...prev,
+      [itemKey]: {
+        ...(prev[itemKey] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const handleEditProductionData = (itemId: number | string) => {
+    const itemKey = String(itemId);
+    setEditingItems(prev => ({ ...prev, [itemKey]: true }));
+
+    // Inicializar localProductionData com os valores atuais do item se não existirem
+    if (!localProductionData[itemKey]) {
+      const item = order.items.find(i => String(i.id) === itemKey);
+      if (item) {
+        setLocalProductionData(prev => ({
+          ...prev,
+          [itemKey]: {
+            data_impressao: item.data_impressao,
+            rip_maquina: item.rip_maquina,
+            machine_id: item.machine_id,
+            perfil_cor: item.perfil_cor,
+            tecido_fornecedor: item.tecido_fornecedor,
+          }
+        }));
+      }
+    }
+  };
+
+  const handleCancelEdit = (itemId: number | string) => {
+    const itemKey = String(itemId);
+    setEditingItems(prev => ({ ...prev, [itemKey]: false }));
+    // Reverter localProductionData removendo a entrada (ou resetando para original)
+    // Vamos manter os dados no localProductionData caso o usuário queira editar de novo, 
+    // mas a UI vai mostrar os dados do "item" original se localProductionData for removido.
+    // Melhor: manter os dados lá, mas resetar para o original.
+
+    const item = order.items.find(i => String(i.id) === itemKey);
+    if (item) {
+      setLocalProductionData(prev => ({
+        ...prev,
+        [itemKey]: {
+          data_impressao: item.data_impressao,
+          rip_maquina: item.rip_maquina,
+          machine_id: item.machine_id,
+          perfil_cor: item.perfil_cor,
+          tecido_fornecedor: item.tecido_fornecedor,
+        }
+      }));
+    }
+  };
+
 
   const handlePrint = async () => {
     setIsPrintManagerOpen(true);
@@ -901,20 +1016,20 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
-        <div className="space-y-2">
-          {entries.map((entry, index) => (
-            <div
-              key={`${entry.label}-${index}`}
-              className="flex flex-wrap items-baseline gap-2 text-xs sm:text-sm"
-            >
-              <span className={`font-semibold ${getVariantClasses(entry.variant)}`}>
-                {entry.label}:
-              </span>
-              <span className="text-slate-800">{entry.value}</span>
+      <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
+        {entries.map((entry, index) => (
+          <div
+            key={`${entry.label}-${index}`}
+            className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {entry.label}
             </div>
-          ))}
-        </div>
+            <div className={`text-xs sm:text-sm ${getVariantClasses(entry.variant)}`}>
+              {entry.value}
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -1100,195 +1215,191 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     }
 
     return (
-      <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
-        <div className={`space-y-3 sm:space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
-          {infoRows.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
-              {infoRows.map((row, index) => (
-                <div key={index}>{row}</div>
-              ))}
-            </div>
-          )}
+      <div className="flex flex-col gap-3 sm:gap-4">
+        {/* TOP SECTION: GRID ORIGINAL (INFO + IMAGEM) */}
+        <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
+          <div className={`space-y-3 sm:space-y-4 ${hasImage ? 'lg:w-2/3' : 'w-full'}`}>
+            {infoRows.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 sm:py-3">
+                {infoRows.map((row, index) => (
+                  <div key={index}>{row}</div>
+                ))}
+              </div>
+            )}
 
-          {renderDetailLines(detailEntries)}
+            {renderDetailLines(detailEntries)}
 
-          {filteredFallback.length > 0 && (
-            <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
-              {filteredFallback.map((entry) => (
-                <div
-                  key={entry.key}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {entry.label}
+            {filteredFallback.length > 0 && (
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
+                {filteredFallback.map((entry) => (
+                  <div
+                    key={entry.key}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5 sm:py-2"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {entry.label}
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-900">{entry.value}</div>
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-900">{entry.value}</div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
-          {hasObservation && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <span className="font-semibold">Observação:</span>{' '}
-              {item.observacao}
+            {hasObservation && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <span className="font-semibold">Observação:</span>{' '}
+                {item.observacao}
+              </div>
+            )}
+          </div>
+
+          {hasImage && (
+            <div className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 lg:w-1/3">
+              <span className="text-sm font-semibold text-slate-700">
+                Visualização da Imagem
+              </span>
+              <div className="flex w-full flex-col items-center gap-3">
+                <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
+                  {(() => {
+                    const imagePath = item.imagem;
+                    const isBase64 = imagePath && imagePath.startsWith('data:image/');
+                    const isValid = isBase64 || isValidImagePath(imagePath || '');
+                    const itemKey = String(item.id ?? item.item_name);
+                    const hasError = itemImageErrors[itemKey] || false;
+                    const isLoading = !isBase64 && loadingImages.has(imagePath || '');
+                    const blobUrl = itemImageUrls.get(itemKey);
+
+                    if (!isValid || !imagePath) {
+                      return (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                          <span className="text-sm">Imagem não disponível</span>
+                        </div>
+                      );
+                    }
+
+                    if (hasError) {
+                      return (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                          <span className="text-sm">Erro ao carregar imagem</span>
+                        </div>
+                      );
+                    }
+
+                    if (isLoading && !blobUrl) {
+                      return (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                          <span className="text-sm">Carregando imagem...</span>
+                        </div>
+                      );
+                    }
+
+                    if (!blobUrl && !isBase64) return null;
+
+                    return (
+                      <img
+                        src={isBase64 ? imagePath : blobUrl}
+                        alt={`Imagem do item ${item.item_name}`}
+                        className="h-full w-full object-contain"
+                      />
+                    );
+                  })()}
+                </div>
+                {(isValidImagePath(item.imagem!) || (item.imagem && item.imagem.startsWith('data:image/'))) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
+                    className="w-full"
+                  >
+                    Abrir imagem em destaque
+                  </Button>
+                )}
+                {legendaImagem && (
+                  <p
+                    className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
+                    style={{ fontSize: '14pt', lineHeight: 1.2 }}
+                  >
+                    {legendaImagem}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {hasImage && (
-          <div className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 lg:w-1/3">
-            <span className="text-sm font-semibold text-slate-700">
-              Visualização da Imagem
-            </span>
-            <div className="flex w-full flex-col items-center gap-3">
-              <div className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white">
-                {(() => {
-                  const imagePath = item.imagem;
-                  const isBase64 = imagePath && imagePath.startsWith('data:image/');
-                  const isValid = isBase64 || isValidImagePath(imagePath || '');
-                  const itemKey = String(item.id ?? item.item_name);
-                  const hasError = itemImageErrors[itemKey] || false;
-                  const isLoading = !isBase64 && loadingImages.has(imagePath || '');
-                  const blobUrl = itemImageUrls.get(itemKey);
+        {/* BOTTOM SECTION: PRODUÇÃO (FULL WIDTH) */}
+        <div className="mt-4 pt-4 border-t-2 border-slate-100">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/50 overflow-hidden">
+            <div className="bg-white px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Monitor className="w-3 h-3" />
+                Dados de Produção
+              </h4>
 
-                  // Debug log
-                  if (imagePath) {
-                    logger.debug('[OrderViewModal] Processando imagem:', {
-                      original: imagePath?.substring(0, 50) + '...',
-                      isBase64,
-                      isValid,
-                      itemKey,
-                      hasError,
-                      isLoading,
-                      hasBlobUrl: !!blobUrl
-                    });
-                  }
+              <div className="flex items-center gap-2">
+                {saveSuccess[String(item.id)] && (
+                  <span className="text-[10px] font-bold text-emerald-600 animate-in fade-in slide-in-from-right-2 mr-2">
+                    Cópia técnica salva ✅
+                  </span>
+                )}
 
-                  // Se não for válido, mostrar placeholder
-                  if (!isValid || !imagePath) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Imagem não disponível</span>
-                      </div>
-                    );
-                  }
+                {!editingItems[String(item.id)] ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-3 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wide gap-1.5"
+                    onClick={() => handleEditProductionData(item.id!)}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Editar
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+                      onClick={() => handleCancelEdit(item.id!)}
+                      title="Cancelar edição"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
 
-                  // Se houver erro, mostrar placeholder
-                  if (hasError) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Erro ao carregar imagem</span>
-                      </div>
-                    );
-                  }
-
-                  // Se for base64, usar diretamente
-                  if (isBase64) {
-                    return (
-                      <img
-                        key={`img-${itemKey}-base64`}
-                        src={imagePath}
-                        alt={`Imagem do item ${item.item_name}`}
-                        className="h-full w-full object-contain"
-                        style={{ display: 'block' }}
-                        onError={() => {
-                          logger.error('[OrderViewModal] ❌ Erro ao carregar imagem base64:', {
-                            itemKey
-                          });
-                          setItemImageErrors(prev => ({
-                            ...prev,
-                            [itemKey]: true
-                          }));
-                        }}
-                      />
-                    );
-                  }
-
-                  // Se estiver carregando e não tiver blob URL, mostrar indicador
-                  if (isLoading && !blobUrl) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Carregando imagem...</span>
-                      </div>
-                    );
-                  }
-
-                  // Se não tiver blob URL ainda, mostrar placeholder
-                  if (!blobUrl) {
-                    return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                        <span className="text-sm">Carregando imagem...</span>
-                      </div>
-                    );
-                  }
-
-                  // Renderizar imagem do blob URL
-                  return (
-                    <img
-                      key={`img-${itemKey}-${blobUrl}`}
-                      src={blobUrl}
-                      alt={`Imagem do item ${item.item_name}`}
-                      className="h-full w-full object-contain"
-                      style={{ display: 'block' }}
-                      onLoad={() => {
-                        logger.debug('[OrderViewModal] ✅ Imagem carregada com sucesso:', {
-                          itemKey,
-                          blobUrl
-                        });
-                        // Garantir que o erro seja removido se a imagem carregar
-                        setItemImageErrors(prev => {
-                          const updated = { ...prev };
-                          delete updated[itemKey];
-                          return updated;
-                        });
-                      }}
-                      onError={(event) => {
-                        const target = event.currentTarget as HTMLImageElement;
-                        const imageSrc = target.src;
-                        logger.error('[OrderViewModal] ❌ Erro ao carregar imagem:', {
-                          originalPath: imagePath,
-                          blobUrl,
-                          finalSrc: imageSrc,
-                          itemKey,
-                          status: target.complete ? 'complete' : 'incomplete',
-                          naturalWidth: target.naturalWidth,
-                          naturalHeight: target.naturalHeight
-                        });
-                        // Marcar erro no estado
-                        setItemImageErrors(prev => ({
-                          ...prev,
-                          [itemKey]: true
-                        }));
-                      }}
-                    />
-                  );
-                })()}
+                    <Button
+                      size="sm"
+                      className="h-7 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-wide"
+                      disabled={isSaving[String(item.id)]}
+                      onClick={() => handleSaveProductionData(item.id!)}
+                    >
+                      {isSaving[String(item.id)] ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Save className="mr-1.5 h-3 w-3" />
+                          Salvar
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
-              {(isValidImagePath(item.imagem!) || (item.imagem && item.imagem.startsWith('data:image/'))) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleImageClick(item.imagem!, legendaImagem, item.id ?? item.item_name)}
-                  className="w-full"
-                  disabled={!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))}
-                >
-                  {!item.imagem?.startsWith('data:image/') && loadingImages.has(item.imagem!) && !itemImageUrls.has(String(item.id ?? item.item_name))
-                    ? 'Carregando...'
-                    : 'Abrir imagem em destaque'}
-                </Button>
-              )}
-              {legendaImagem && (
-                <p
-                  className="w-full rounded-md bg-white px-3 py-2 text-center text-slate-600 shadow-sm"
-                  style={{ fontSize: '14pt', lineHeight: 1.2 }}
-                >
-                  {legendaImagem}
-                </p>
-              )}
+            </div>
+
+            <div className="p-4 bg-white/50">
+              <FormProducaoFields
+                data={{
+                  data_impressao: localProductionData[String(item.id)]?.data_impressao ?? item.data_impressao,
+                  rip_maquina: localProductionData[String(item.id)]?.rip_maquina ?? item.rip_maquina,
+                  machine_id: localProductionData[String(item.id)]?.machine_id ?? item.machine_id,
+                  perfil_cor: localProductionData[String(item.id)]?.perfil_cor ?? item.perfil_cor,
+                  tecido_fornecedor: localProductionData[String(item.id)]?.tecido_fornecedor ?? item.tecido_fornecedor,
+                }}
+                onDataChange={(field, value) => handleProductionDataChange(item.id!, field, value)}
+                disabled={!editingItems[String(item.id)]}
+              />
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   };

@@ -13,6 +13,7 @@ import { processAndSaveImage } from '@/utils/localImageManager';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
 import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
+import { FormProducaoFields } from './FormProducaoFields';
 
 const normalizeDecimal = (value: string | number): string => {
     const str = String(value ?? '').trim();
@@ -389,6 +390,17 @@ export function FormMochilinhaProducao({
                     </div>
                 </div>
             </div>
+
+            {/* === DADOS DE PRODUÇÃO === */}
+            <FormProducaoFields
+                data={{
+                    data_impressao: tabData.data_impressao,
+                    rip_maquina: tabData.rip_maquina,
+                    perfil_cor: tabData.perfil_cor,
+                    tecido_fornecedor: tabData.tecido_fornecedor
+                }}
+                onDataChange={onDataChange}
+            />
 
             <div className="space-y-4">
                 <div className="grid grid-cols-4 gap-4">

@@ -53,12 +53,16 @@ const LABELS: Record<string, string> = {
   subtotal: 'Subtotal',
   observacao: 'Observação do item',
   legenda_imagem: 'Legenda da imagem',
+  rip_maquina: 'Máquina / RIP',
+  perfil_cor: 'Perfil de cor',
+  tecido_fornecedor: 'Tecido (Fornecedor)',
+  data_impressao: 'Data de impressão',
 };
 
 const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
-  quantidade_paineis: ['painel', 'generica'],
-  valor_painel: ['painel', 'generica'],
-  tipo_acabamento: ['painel', 'generica', 'lona', 'mochilinha', 'bolsinha'],
+  quantidade_paineis: ['painel', 'generica', 'mesa_babado'],
+  valor_painel: ['painel', 'generica', 'mesa_babado'],
+  tipo_acabamento: ['painel', 'generica', 'lona', 'mochilinha', 'bolsinha', 'mesa_babado'],
   quantidade_ilhos: ['painel', 'generica', 'lona'],
   espaco_ilhos: ['painel', 'generica', 'lona'],
   valor_ilhos: ['painel', 'generica', 'lona'],
@@ -87,7 +91,7 @@ const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   valor_totem: ['totem'],
   quantidade_totem: ['totem'],
   outros_valores_totem: ['totem'],
-  valores_adicionais: ['mochilinha', 'bolsinha', 'mochilinha/bolsinha', 'painel', 'generica'],
+  valores_adicionais: ['mochilinha', 'bolsinha', 'mochilinha/bolsinha', 'painel', 'generica', 'mesa_babado'],
 };
 
 const CURRENCY_FIELDS = new Set([
@@ -201,6 +205,21 @@ const formatBoolean = (value: unknown): string => {
   return '';
 };
 
+const formatComposition = (value: unknown): string => {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((part: any) => `${part.label || part.item || 'Parte'}: ${part.tecido || 'N/A'}`)
+        .join(' | ');
+    }
+    return String(value);
+  } catch (e) {
+    return String(value);
+  }
+};
+
 const shouldInclude = (_item: GenericOrderItem, key: string, raw: unknown): boolean => {
   if (BOOLEAN_FIELDS.has(key)) {
     return !!raw;
@@ -229,6 +248,9 @@ const shouldInclude = (_item: GenericOrderItem, key: string, raw: unknown): bool
 };
 
 const formatValue = (key: string, raw: unknown): string => {
+  if (key === 'composicao_tecidos') {
+    return formatComposition(raw);
+  }
   if (CURRENCY_FIELDS.has(key)) {
     return formatCurrency(raw);
   }

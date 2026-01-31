@@ -1,6 +1,6 @@
 import type { CreateOrderItemRequest, OrderItem } from '@/types';
 
-export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'canga' | 'impressao_3d' | 'mochilinha' | 'bolsinha' | 'other';
+export type CanonicalTipoProducao = 'painel' | 'generica' | 'totem' | 'lona' | 'adesivo' | 'canga' | 'impressao_3d' | 'mochilinha' | 'bolsinha' | 'mesa_babado' | 'other';
 
 export type CommonCanonicalFields = {
   descricao: string;
@@ -23,7 +23,7 @@ export type OtherCanonicalItem = CommonCanonicalFields & {
 };
 
 export type PainelCanonicalItem = CommonCanonicalFields & {
-  tipo_producao: 'painel' | 'generica';
+  tipo_producao: 'painel' | 'generica' | 'mesa_babado';
   overloque: boolean;
   elastico: boolean;
   tipo_acabamento?: string;
@@ -36,6 +36,7 @@ export type PainelCanonicalItem = CommonCanonicalFields & {
   quantidade_paineis?: string;
   valor_painel?: string;
   valores_adicionais?: string;
+  composicao_tecidos?: string;
 };
 
 export type TotemCanonicalItem = CommonCanonicalFields & {
@@ -117,6 +118,7 @@ function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (normalized === 'impressao_3d' || normalized === 'impressao 3d' || normalized.includes('impressao 3d') || normalized.includes('impressao_3d') || normalized.includes('impressao3d')) return 'impressao_3d';
   if (normalized === 'mochilinha' || normalized.includes('mochilinha')) return 'mochilinha';
   if (normalized === 'bolsinha' || normalized.includes('bolsinha')) return 'bolsinha';
+  if (normalized === 'mesa_babado' || normalized === 'mesa de babado' || normalized.includes('mesa_babado')) return 'mesa_babado';
   return 'other';
 }
 
@@ -164,7 +166,7 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
     ...baseFromAny(anyItem),
   };
 
-  if (tipo === 'painel' || tipo === 'generica') {
+  if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
     return {
       tipo_producao: tipo,
       ...baseCommon,
@@ -180,6 +182,7 @@ export function canonicalizeFromItemRequest(item: CreateOrderItemRequest): Canon
       quantidade_paineis: normalizeString(anyItem.quantidade_paineis),
       valor_painel: normalizeString(anyItem.valor_painel),
       valores_adicionais: normalizeString(anyItem.valores_adicionais),
+      composicao_tecidos: normalizeString(anyItem.composicao_tecidos as string),
     };
   }
 
@@ -276,7 +279,7 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
     ...baseFromAny(anyItem),
   };
 
-  if (tipo === 'painel' || tipo === 'generica') {
+  if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
     return {
       tipo_producao: tipo,
       ...baseCommon,
@@ -292,6 +295,7 @@ export function canonicalizeFromOrderItem(item: OrderItem): CanonicalProductionI
       quantidade_paineis: normalizeString(anyItem.quantidade_paineis),
       valor_painel: normalizeString(anyItem.valor_painel),
       valores_adicionais: normalizeString(anyItem.valores_adicionais),
+      composicao_tecidos: normalizeString(anyItem.composicao_tecidos as string),
     };
   }
 
@@ -423,7 +427,7 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     emenda_label: emendaLabel(canon.emenda),
   };
 
-  if (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica') {
+  if (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica' || canon.tipo_producao === 'mesa_babado') {
     fields.overloque = boolText(canon.overloque);
     fields.elastico = boolText(canon.elastico);
     fields.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';

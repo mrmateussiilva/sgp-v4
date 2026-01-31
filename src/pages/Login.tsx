@@ -50,7 +50,7 @@ export default function Login() {
     } catch (err) {
       const errorMessage = getErrorMessage(err);
       const isAuth = isAuthError(err);
-      
+
       toast({
         variant: "destructive",
         title: isAuth ? "Falha na autenticação" : "Erro ao fazer login",
@@ -113,6 +113,20 @@ export default function Login() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
+
+          <div className="mt-8 pt-6 border-t text-center">
+            <p className="text-xs text-muted-foreground">
+              Desenvolvido por{' '}
+              <a
+                href="https://finderbit.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline"
+              >
+                finderbit.com.br
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

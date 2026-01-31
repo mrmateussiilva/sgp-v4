@@ -312,10 +312,6 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                       </td>
                     </tr>
                     <tr>
-                      <td className="field-label">RIP / Máquina / Impressão / Data Impressão:</td>
-                      <td className="field-value">/ / / </td>
-                    </tr>
-                    <tr>
                       <td className="field-label">Tecido / Ilhós / Emendas / Alça/Cordinha / Overloque / Elástico:</td>
                       <td className="field-value">
                         {item.tecido || ''} / {item.quantidade_ilhos || ''} / {item.emenda || ''} /

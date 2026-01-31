@@ -14,7 +14,7 @@ export function generateTemplateHTML(template: FichaTemplateConfig): string {
   const templateId = `template_${template.templateType || 'default'}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const pageWidthPx = mmToPx(template.width);
   const pageHeightPx = mmToPx(template.height);
-  
+
   // Gerar CSS para os campos
   const fieldsCSS = template.fields
     .filter(field => field.visible !== false)
@@ -25,7 +25,7 @@ export function generateTemplateHTML(template: FichaTemplateConfig): string {
       const height = mmToPx(field.height);
       const fontSize = field.fontSize || 11;
       const fontWeight = field.bold ? 'bold' : 'normal';
-      
+
       return `
     .field-${field.id.replace(/[^a-zA-Z0-9]/g, '-')} {
       position: absolute;
@@ -42,10 +42,10 @@ export function generateTemplateHTML(template: FichaTemplateConfig): string {
 
   // Gerar HTML dos campos
   const fieldsHTML = template.fields
-    .filter(field => field.visible !== false)
+    .filter(field => field.visible !== false && field.key !== 'composicao_tecidos')
     .map((field) => {
       const fieldClass = `field-${field.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      
+
       if (field.type === 'image') {
         return `    <div class="${fieldClass}">
       <img src="{{${field.key}}}" alt="${field.label}" style="width: 100%; height: 100%; object-fit: contain;" />
@@ -164,6 +164,11 @@ ${fieldsHTML}
         valor_frete: 20.00,
         total_value: 120.00,
         observacao: 'Observações do pedido',
+        composicao_tecidos: 'Corpo: Oxford, Babado: Voal',
+        rip_maquina: 'Epson F6200',
+        data_impressao: '2024-01-16',
+        perfil_cor: 'High Saturation v2',
+        tecido_fornecedor: 'Fornecedor Alpha',
         imagem: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2VtPC90ZXh0Pjwvc3ZnPg=='
         };
         return data;

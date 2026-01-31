@@ -345,6 +345,7 @@ const formatCurrency = (value: string | number | undefined): string => {
   }).format(num);
 };
 
+
 /**
  * Cria um mapa de dados do pedido e item para preencher os campos do template
  */
@@ -436,6 +437,7 @@ export const createOrderDataMap = (
     observacao_item: item?.observacao || '',
     imagem: item?.imagem || '',
     legenda_imagem: item?.legenda_imagem || '',
+    composicao_tecidos: '', // Removido por ser redundante (já está no campo tecido)
 
     // Campos adicionais do item
     overloque: item?.overloque ? 'Sim' : 'Não',
@@ -492,6 +494,8 @@ export const createOrderDataMap = (
     // Campos de impressão (para anotação manual no resumo)
     data_impressao: item?.data_impressao || '',
     rip_maquina: item?.rip_maquina || '',
+    perfil_cor: item?.perfil_cor || '',
+    tecido_fornecedor: item?.tecido_fornecedor || '',
 
     // Campos genéricos (fallback) - excluindo valores monetários
     ...Object.keys(itemRecord).reduce((acc, key) => {
@@ -594,6 +598,11 @@ const FIELD_VISIBILITY_RULES = {
     show: ['material_gasto', 'quantidade_impressao_3d', 'valor_impressao_3d', 'valores_adicionais', 'tecido'],
     hide: ['spec-painel', 'spec-totem', 'spec-lona', 'spec-adesivo'],
     preserveEmpty: false
+  },
+  mesa_babado: {
+    show: ['overloque', 'elastico', 'quantidade_paineis', 'tipo_acabamento', 'vendedor', 'designer'],
+    hide: ['spec-totem', 'spec-lona', 'spec-adesivo'],
+    preserveEmpty: true
   }
 } as const;
 
@@ -1288,7 +1297,7 @@ export const renderTemplate = (
 ): string => {
   const dataMap = createOrderDataMap(order, item);
   const fieldsHtml = template.fields
-    .filter(f => f.visible !== false)
+    .filter(f => f.visible !== false && f.key !== 'composicao_tecidos')
     .map(field => renderField(field, dataMap, 1, imageBase64Map))
     .join('\n');
 

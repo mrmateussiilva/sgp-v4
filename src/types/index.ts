@@ -62,8 +62,12 @@ export interface OrderItem {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
-  data_impressao?: string;
-  rip_maquina?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  composicao_tecidos?: string;
+  machine_id?: number | null;
 }
 
 export interface OrderWithItems {
@@ -125,6 +129,7 @@ export interface CreateOrderItemRequest {
   item_name: string;
   quantity: number;
   unit_price: number;
+  composicao_tecidos?: string;
 
   // Campos detalhados do painel
   tipo_producao?: string;
@@ -174,6 +179,11 @@ export interface CreateOrderItemRequest {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 export interface UpdateOrderRequest {
@@ -236,6 +246,12 @@ export interface UpdateOrderItemRequest {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
+  composicao_tecidos?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -427,6 +443,12 @@ export interface TabItem {
   tipo_alcinha: string;
   valor_mochilinha: string;
   quantidade_mochilinha: string;
+  composicao_tecidos?: string;
+  data_impressao?: string | null;
+  rip_maquina?: string | null;
+  perfil_cor?: string | null;
+  tecido_fornecedor?: string | null;
+  machine_id?: number | null;
 }
 
 // ========================================
@@ -546,6 +568,7 @@ export interface OrderItemFicha {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  composicao_tecidos?: string;
 
   // Campos detalhados
   tipo_producao?: string;
