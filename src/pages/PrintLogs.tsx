@@ -47,6 +47,7 @@ export default function PrintLogsPage() {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [materialFilter, setMaterialFilter] = useState<string>('all');
     const [refreshInterval, setRefreshInterval] = useState<string>('off');
+    const [logLimit, setLogLimit] = useState<string>('1000');
 
     const [logs, setLogs] = useState<PrintLog[]>([]);
     const [filteredLogs, setFilteredLogs] = useState<PrintLog[]>([]);
@@ -66,7 +67,7 @@ export default function PrintLogsPage() {
 
     useEffect(() => {
         loadLogs();
-    }, [selectedMachine, startDate, endDate]);
+    }, [selectedMachine, startDate, endDate, logLimit]);
 
     useEffect(() => {
         applyFilters();
@@ -97,10 +98,11 @@ export default function PrintLogsPage() {
         try {
             if (!loading) setLoading(true);
             let data: PrintLog[];
+            const limit = parseInt(logLimit);
             if (selectedMachine === null) {
-                data = await api.getAllLogs(1000, 0, undefined, startDate, endDate);
+                data = await api.getAllLogs(limit, 0, undefined, startDate, endDate);
             } else {
-                data = await api.getPrinterLogs(selectedMachine, 1000, 0, undefined, startDate, endDate);
+                data = await api.getPrinterLogs(selectedMachine, limit, 0, undefined, startDate, endDate);
             }
             setLogs(data);
         } catch (error) {
@@ -346,6 +348,20 @@ export default function PrintLogsPage() {
                             <SelectItem value="off">Atualização Off</SelectItem>
                             <SelectItem value="60">A cada 1 min</SelectItem>
                             <SelectItem value="300">A cada 5 min</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select value={logLimit} onValueChange={setLogLimit}>
+                        <SelectTrigger className="w-[120px] h-9 bg-muted/50 border-none text-xs font-bold">
+                            <History className="w-3 h-3 mr-2 text-blue-500" />
+                            <SelectValue placeholder="Limite" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="100">Ver 100</SelectItem>
+                            <SelectItem value="500">Ver 500</SelectItem>
+                            <SelectItem value="1000">Ver 1000</SelectItem>
+                            <SelectItem value="5000">Ver 5000</SelectItem>
+                            <SelectItem value="10000">Ver 10000</SelectItem>
                         </SelectContent>
                     </Select>
 
