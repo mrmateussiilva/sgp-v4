@@ -45,6 +45,7 @@ const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento')
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
 const GestaoMaquinas = lazy(() => import('./admin/GestaoMaquinas'));
 const ProducaoMaquinas = lazy(() => import('./ProducaoMaquinas').then(module => ({ default: module.ProducaoMaquinas })));
+const PrintLogs = lazy(() => import('./PrintLogs'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
@@ -440,6 +441,7 @@ export default function Dashboard() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="print-logs" element={<PrintLogs />} />
               </Routes>
             </Suspense>
           </main>
