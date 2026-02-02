@@ -20,7 +20,6 @@ import { PrintLog, PrintLogStatus, OrderWithItems } from '@/types';
 import { MachineEntity } from '@/api/types';
 import { useLazyImage } from '@/hooks/useLazyImage';
 import { OrderViewModal } from '@/components/OrderViewModal';
-import { OrderPrintManager } from '@/components/OrderPrintManager';
 import { useToast } from '@/hooks/use-toast';
 
 export default function PrintLogsPage() {
@@ -36,10 +35,9 @@ export default function PrintLogsPage() {
     const [loading, setLoading] = useState(false);
     const [loadingMachines, setLoadingMachines] = useState(true);
 
-    // Estados para os Modais
+    // Estados para o Modal de Pedido
     const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isPrintManagerOpen, setIsPrintManagerOpen] = useState(false);
     const [loadingOrder, setLoadingOrder] = useState(false);
 
     const { toast } = useToast();
@@ -115,24 +113,6 @@ export default function PrintLogsPage() {
             toast({
                 title: "Erro ao abrir pedido",
                 description: "Não foi possível carregar os detalhes do pedido.",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingOrder(false);
-        }
-    };
-
-    const handleReprint = async (e: React.MouseEvent, orderId: number) => {
-        e.stopPropagation();
-        try {
-            setLoadingOrder(true);
-            const order = await api.getOrderById(orderId);
-            setSelectedOrder(order);
-            setIsPrintManagerOpen(true);
-        } catch (error) {
-            toast({
-                title: "Erro ao abrir impressão",
-                description: "Não foi possível carregar o pedido para reimpressão.",
                 variant: "destructive"
             });
         } finally {
@@ -373,7 +353,6 @@ export default function PrintLogsPage() {
                                         formatDate={formatDate}
                                         getStatusInfo={getStatusInfo}
                                         onOpenOrder={handleOpenOrder}
-                                        onReprint={handleReprint}
                                     />
                                 ))}
                             </div>
@@ -386,12 +365,6 @@ export default function PrintLogsPage() {
             <OrderViewModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                order={selectedOrder}
-            />
-
-            <OrderPrintManager
-                isOpen={isPrintManagerOpen}
-                onClose={() => setIsPrintManagerOpen(false)}
                 order={selectedOrder}
             />
 
@@ -412,14 +385,12 @@ function PrintLogItem({
     log,
     formatDate,
     getStatusInfo,
-    onOpenOrder,
-    onReprint
+    onOpenOrder
 }: {
     log: PrintLog;
     formatDate: (d: string) => string;
     getStatusInfo: (s: PrintLogStatus) => any;
     onOpenOrder: (id: number) => void;
-    onReprint: (e: React.MouseEvent, id: number) => void;
 }) {
     const { imageSrc, isLoading, imgRef } = useLazyImage(log.item_imagem, { eager: false });
     const status = getStatusInfo(log.status);
@@ -494,19 +465,9 @@ function PrintLogItem({
 
                         <div className="flex items-center gap-1">
                             <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2 text-[10px] font-bold border-primary/20 hover:bg-primary hover:text-white transition-all order-2 md:order-1"
-                                onClick={(e) => onReprint(e, log.pedido_id)}
-                            >
-                                <RotateCcw className="w-3 h-3 mr-1" />
-                                REIMPRIMIR
-                            </Button>
-
-                            <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-full md:opacity-0 group-hover:opacity-100 transition-opacity order-1 md:order-2"
+                                className="h-8 w-8 rounded-full md:opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
                             </Button>
