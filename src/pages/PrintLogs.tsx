@@ -8,7 +8,7 @@ import { MachineEntity } from '@/api/types';
 
 export default function PrintLogsPage() {
     const [machines, setMachines] = useState<MachineEntity[]>([]);
-    const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
+    const [selectedMachine, setSelectedMachine] = useState<number | null>(null); // null = Todas
     const [logs, setLogs] = useState<PrintLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingMachines, setLoadingMachines] = useState(true);
@@ -18,9 +18,7 @@ export default function PrintLogsPage() {
     }, []);
 
     useEffect(() => {
-        if (selectedMachine) {
-            loadLogs();
-        }
+        loadLogs();
     }, [selectedMachine]);
 
     const loadMachines = async () => {
@@ -28,9 +26,6 @@ export default function PrintLogsPage() {
             setLoadingMachines(true);
             const data = await api.getMaquinasAtivas();
             setMachines(data);
-            if (data.length > 0) {
-                setSelectedMachine(data[0].id);
-            }
         } catch (error) {
             console.error('Erro ao carregar máquinas:', error);
         } finally {
@@ -39,11 +34,14 @@ export default function PrintLogsPage() {
     };
 
     const loadLogs = async () => {
-        if (!selectedMachine) return;
-
         try {
             setLoading(true);
-            const data = await api.getPrinterLogs(selectedMachine, 100, 0);
+            let data: PrintLog[];
+            if (selectedMachine === null) {
+                data = await api.getAllLogs(100, 0);
+            } else {
+                data = await api.getPrinterLogs(selectedMachine, 100, 0);
+            }
             setLogs(data);
         } catch (error) {
             console.error('Erro ao carregar logs:', error);
@@ -125,45 +123,38 @@ export default function PrintLogsPage() {
         );
     }
 
-    if (machines.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen gap-4">
-                <Printer className="w-16 h-16 text-muted-foreground" />
-                <h2 className="text-2xl font-bold">Nenhuma impressora cadastrada</h2>
-                <p className="text-muted-foreground">Cadastre impressoras para visualizar os logs</p>
-            </div>
-        );
-    }
-
     const groupedLogs = groupLogsByDate(logs);
-    const selectedMachineName = machines.find(m => m.id === selectedMachine)?.name || '';
+    const selectedMachineName = selectedMachine
+        ? machines.find(m => m.id === selectedMachine)?.name || ''
+        : 'Todas as Impressoras';
 
     return (
         <div className="container mx-auto p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold">Logs de Impressão</h1>
-                    <p className="text-muted-foreground">Histórico de impressões por máquina</p>
+                    <p className="text-muted-foreground">Histórico detalhado por item e máquina</p>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Printer className="w-5 h-5" />
-                        Selecione a Impressora
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <Printer className="w-5 h-5 text-primary" />
+                        Filtro por Máquina
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-2">
+                    <div className="flex flex-col md:flex-row gap-4">
                         <Select
-                            value={selectedMachine?.toString()}
-                            onValueChange={(value) => setSelectedMachine(parseInt(value))}
+                            value={selectedMachine?.toString() || 'all'}
+                            onValueChange={(value) => setSelectedMachine(value === 'all' ? null : parseInt(value))}
                         >
-                            <SelectTrigger className="w-full md:w-96">
+                            <SelectTrigger className="w-full md:w-80">
                                 <SelectValue placeholder="Selecione uma impressora" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="all">Todas as Impressoras</SelectItem>
                                 {machines.map((machine) => (
                                     <SelectItem key={machine.id} value={machine.id.toString()}>
                                         {machine.name}
@@ -176,58 +167,87 @@ export default function PrintLogsPage() {
             </Card>
 
             {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-center space-y-4">
+                        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                        <p className="text-muted-foreground animate-pulse">Carregando logs...</p>
+                    </div>
                 </div>
             ) : logs.length === 0 ? (
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-                        <Printer className="w-20 h-20 text-muted-foreground/50" />
-                        <h3 className="text-xl font-semibold">Nenhuma impressão registrada</h3>
-                        <p className="text-muted-foreground text-center max-w-md">
-                            A impressora <strong>{selectedMachineName}</strong> ainda não realizou nenhuma impressão.
-                        </p>
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+                        <div className="p-4 rounded-full bg-muted">
+                            <Printer className="w-12 h-12 text-muted-foreground/50" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-semibold">Sem registros encontrados</h3>
+                            <p className="text-muted-foreground max-w-sm">
+                                {selectedMachine
+                                    ? `A impressora ${selectedMachineName} ainda não realizou nenhuma impressão.`
+                                    : 'Ainda não foram registradas impressões em nenhuma máquina.'}
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-6">
+                <div className="space-y-8">
                     {groupedLogs.map(([dateKey, dateLogs]) => (
-                        <Card key={dateKey}>
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-lg font-semibold">{formatGroupDate(dateKey)}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {dateLogs.map((log) => (
-                                        <div
-                                            key={log.id}
-                                            className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
-                                        >
-                                            <div className="mt-0.5">
-                                                {getStatusIcon(log.status)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-baseline gap-2 flex-wrap">
-                                                    <span className="font-medium">Pedido #{log.pedido_numero || log.pedido_id}</span>
+                        <div key={dateKey} className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-lg font-bold min-w-max text-primary">
+                                    {formatGroupDate(dateKey)}
+                                </h2>
+                                <div className="h-px w-full bg-border" />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3">
+                                {dateLogs.map((log) => (
+                                    <div
+                                        key={log.id}
+                                        className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all duration-200"
+                                    >
+                                        <div className="mt-1 p-2 rounded-lg bg-muted">
+                                            {getStatusIcon(log.status)}
+                                        </div>
+
+                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-lg">
+                                                        Pedido #{log.pedido_numero || log.pedido_id}
+                                                    </span>
                                                     {log.item_id && (
-                                                        <span className="text-sm text-muted-foreground">Item {log.item_id}</span>
+                                                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary">
+                                                            Item {log.item_id}
+                                                        </span>
                                                     )}
                                                 </div>
-                                                <div className="text-sm text-muted-foreground mt-0.5">
-                                                    {formatDate(log.created_at)}
+                                                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                                    <span>{formatDate(log.created_at)}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col md:items-end justify-center space-y-1">
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <Printer className="w-4 h-4 text-muted-foreground" />
+                                                    <span>{log.printer_name}</span>
                                                 </div>
                                                 {log.error_message && (
-                                                    <div className="text-sm text-red-600 dark:text-red-400 mt-2 p-2 bg-red-50 dark:bg-red-950/20 rounded">
-                                                        <strong>Erro:</strong> {log.error_message}
+                                                    <div className="text-xs text-red-500 font-medium px-2 py-1 rounded-md bg-red-50 dark:bg-red-950/30">
+                                                        {log.error_message}
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     ))}
+
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                        Exibindo os últimos 100 registros
+                    </p>
                 </div>
             )}
         </div>

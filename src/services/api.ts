@@ -89,6 +89,7 @@ export const api = {
 
   // Print Logs
   getPrinterLogs: printLogsApi.getPrinterLogs,
+  getAllLogs: printLogsApi.getAllLogs,
   createPrintLog: printLogsApi.createPrintLog,
   getPrinterStats: printLogsApi.getPrinterStats,
 };
