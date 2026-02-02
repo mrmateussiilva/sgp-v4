@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import { logPrintForOrders } from '@/utils/printLogs';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
 import { EditingIndicator } from './EditingIndicator';
@@ -134,7 +133,6 @@ export default function OrderList() {
   const [bulkPdfBlob, setBulkPdfBlob] = useState<Blob | null>(null);
   const [bulkPdfFilename, setBulkPdfFilename] = useState('');
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
-  const [bulkOrdersForPrint, setBulkOrdersForPrint] = useState<OrderWithItems[]>([]);
   // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   // const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
@@ -1466,7 +1464,6 @@ export default function OrderList() {
 
       setBulkPdfBlob(blob);
       setBulkPdfFilename(filename);
-      setBulkOrdersForPrint(ordersToPrint);
       setIsBulkPreviewOpen(true);
 
       toast({
@@ -2941,14 +2938,10 @@ export default function OrderList() {
           isOpen={isBulkPreviewOpen}
           onClose={() => {
             setIsBulkPreviewOpen(false);
-            setBulkOrdersForPrint([]);
           }}
           pdfBlob={bulkPdfBlob}
           filename={bulkPdfFilename}
           title="Pré-visualização - Impressão em Lote"
-          onPrintResult={(status, errorMessage) =>
-            logPrintForOrders(bulkOrdersForPrint, status, errorMessage)
-          }
         />
 
         <OrderQuickEditDialog

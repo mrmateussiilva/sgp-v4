@@ -9,7 +9,6 @@ import {
 import { Button } from './ui/button';
 import { Printer, Download, Loader2 } from 'lucide-react';
 import { printPdfBlob, saveAndOpenPdf } from '../pdf/tauriPdfUtils';
-import { PrintLogStatus } from '@/types';
 
 interface PrintPreviewModalProps {
     isOpen: boolean;
@@ -17,7 +16,6 @@ interface PrintPreviewModalProps {
     pdfBlob: Blob | null;
     filename: string;
     title: string;
-    onPrintResult?: (status: PrintLogStatus, errorMessage?: string) => Promise<void> | void;
 }
 
 export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
@@ -25,8 +23,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     onClose,
     pdfBlob,
     filename,
-    title,
-    onPrintResult
+    title
 }) => {
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [isPrinting, setIsPrinting] = useState(false);
@@ -45,21 +42,12 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     const handlePrint = async () => {
         if (!pdfBlob) return;
         setIsPrinting(true);
-        let status: PrintLogStatus | null = null;
-        let errorMessage: string | undefined;
         try {
             await printPdfBlob(pdfBlob);
-            status = PrintLogStatus.SUCCESS;
         } catch (error) {
             console.error('Erro ao imprimir:', error);
-            status = PrintLogStatus.ERROR;
-            errorMessage = error instanceof Error ? error.message : String(error);
         } finally {
             setIsPrinting(false);
-        }
-
-        if (status && onPrintResult) {
-            await onPrintResult(status, errorMessage);
         }
     };
 

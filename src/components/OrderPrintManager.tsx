@@ -6,8 +6,6 @@ import { Printer, Save, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { saveAndOpenPdf } from '../pdf/tauriPdfUtils';
 import { groupOrders } from '../pdf/groupOrders';
 import { imageToBase64 } from '@/utils/imageLoader';
-import { logPrintForOrders } from '@/utils/printLogs';
-import { PrintLogStatus } from '@/types';
 import { PrintPreviewModal } from './PrintPreviewModal';
 
 interface OrderPrintManagerProps {
@@ -147,11 +145,6 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 
   // Abrir Preview de Impressão
   const handlePrint = () => generatePDF('preview');
-  const handlePrintResult = async (status: PrintLogStatus, errorMessage?: string) => {
-    const targetOrder = getReorderedOrder() ?? order;
-    if (!targetOrder) return;
-    await logPrintForOrders([targetOrder], status, errorMessage);
-  };
 
   if (!order) return null;
 
@@ -283,7 +276,6 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
           pdfBlob={generatedBlob}
           filename={pdfFilename}
           title={`Pré-visualização - Pedido #${order.numero || order.id}`}
-          onPrintResult={handlePrintResult}
         />
       )}
     </>
