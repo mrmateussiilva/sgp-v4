@@ -1,5 +1,14 @@
 # Changelog - SGP v4
 
+## [1.2.1] - 2026-02-02
+
+### ✨ Adicionado
+- **Relatórios Analíticos Completos**: Implementada a lógica de agrupamento para as combinações Designer × Vendedor e Vendedor × Designer que estavam pendentes no sistema.
+
+### 🐛 Corrigido
+- **Cálculo Universal de Quantidade**: Correção crítica no cálculo de subtotais de fechamento. O sistema agora extrai e multiplica corretamente quantidades de qualquer campo de produção (Mochilinhas, Lonas, Painéis, Adesivos, etc.), garantindo precisão total quando a quantidade é maior que um.
+- **Processamento Local de Relatórios**: Migração da lógica de geração de fechamentos para o frontend (Client-side), eliminando discrepâncias de arredondamento e erros de cálculo provenientes do banco de dados legado.
+
 ## [1.2.0] - 2026-02-02
 
 ### ✨ Adicionado
