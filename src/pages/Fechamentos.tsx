@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey, Cliente } from '@/types';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
+import { generateFechamentoReport } from '@/utils/fechamentoReport';
 
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
@@ -119,8 +120,8 @@ interface ReportTableProps {
   isAnalitico: boolean;
 }
 
-  type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
-  type SortDirection = 'asc' | 'desc' | null;
+type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
+type SortDirection = 'asc' | 'desc' | null;
 
 function ReportTable({ report, columnName, loading, isAnalitico }: ReportTableProps) {
   const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection }>({
@@ -214,7 +215,7 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
     const hasSubgroups = subgroups.length > 0;
     const hasRows = rows.length > 0;
     const sortedRows = hasRows ? sortRows(rows) : [];
-    
+
     return (
       <div key={path} className="space-y-3">
         <div
@@ -222,99 +223,99 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
           style={{ marginLeft }}
         >
           <span>{group.label}</span>
-        <span className="text-base font-semibold text-slate-700">
-          Frete: {formatCurrency(group.subtotal.valor_frete)} · Serviços: {formatCurrency(group.subtotal.valor_servico)}
-        </span>
-      </div>
+          <span className="text-base font-semibold text-slate-700">
+            Frete: {formatCurrency(group.subtotal.valor_frete)} · Serviços: {formatCurrency(group.subtotal.valor_servico)}
+          </span>
+        </div>
 
         {hasSubgroups ? (
-              <div className="space-y-4">
-                {subgroups.map((subgroup, index) =>
-                  renderGroup(subgroup, depth + 1, `${path}-${index}`),
-                )}
-              </div>
+          <div className="space-y-4">
+            {subgroups.map((subgroup, index) =>
+              renderGroup(subgroup, depth + 1, `${path}-${index}`),
+            )}
+          </div>
         ) : hasRows ? (
           <div
             className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm"
             style={{ marginLeft }}
           >
-                <table className="w-full border-collapse text-base">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr className="text-sm font-medium">
-                      <th
-                        className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
-                        onClick={() => handleSort('ficha')}
-                        title="Clique para ordenar por Ficha"
-                      >
-                        <div className="flex items-center gap-2">
-                          Ficha
-                          <SortIcon field="ficha" />
-                        </div>
-                      </th>
-                      <th
-                        className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
-                        onClick={() => handleSort('descricao')}
-                        title="Clique para ordenar por Descrição"
-                      >
-                        <div className="flex items-center gap-2">
-                          Descrição
-                          <SortIcon field="descricao" />
-                        </div>
-                      </th>
-                      <th
-                        className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
-                        onClick={() => handleSort('valor_frete')}
-                        title="Clique para ordenar por Valor Frete"
-                      >
-                        <div className="flex items-center justify-end gap-2">
-                          Valor Frete
-                          <SortIcon field="valor_frete" />
-                        </div>
-                      </th>
-                      <th
-                        className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
-                        onClick={() => handleSort('valor_servico')}
-                        title="Clique para ordenar por Valor Serviços"
-                      >
-                        <div className="flex items-center justify-end gap-2">
-                          Valor Serviços
-                          <SortIcon field="valor_servico" />
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedRows.map((row, index) => (
-                      <tr
-                        key={`${path}-row-${index}`}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                      >
-                        <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
-                        <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
-                        <td className="px-4 py-2 text-right text-slate-600">
-                          {formatCurrency(row.valor_frete)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                          {formatCurrency(row.valor_servico)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-100 text-slate-700">
-                      <td className="px-4 py-2 text-right font-medium" colSpan={2}>
-                        Subtotal do grupo
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium">
-                        {formatCurrency(group.subtotal.valor_frete)}
-                      </td>
-                      <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                        {formatCurrency(group.subtotal.valor_servico)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+            <table className="w-full border-collapse text-base">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr className="text-sm font-medium">
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('ficha')}
+                    title="Clique para ordenar por Ficha"
+                  >
+                    <div className="flex items-center gap-2">
+                      Ficha
+                      <SortIcon field="ficha" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('descricao')}
+                    title="Clique para ordenar por Descrição"
+                  >
+                    <div className="flex items-center gap-2">
+                      Descrição
+                      <SortIcon field="descricao" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('valor_frete')}
+                    title="Clique para ordenar por Valor Frete"
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Valor Frete
+                      <SortIcon field="valor_frete" />
+                    </div>
+                  </th>
+                  <th
+                    className="cursor-pointer select-none px-4 py-2 text-right hover:bg-slate-100 transition-colors"
+                    onClick={() => handleSort('valor_servico')}
+                    title="Clique para ordenar por Valor Serviços"
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Valor Serviços
+                      <SortIcon field="valor_servico" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row, index) => (
+                  <tr
+                    key={`${path}-row-${index}`}
+                    className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
+                  >
+                    <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
+                    <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
+                    <td className="px-4 py-2 text-right text-slate-600">
+                      {formatCurrency(row.valor_frete)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                      {formatCurrency(row.valor_servico)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-100 text-slate-700">
+                  <td className="px-4 py-2 text-right font-medium" colSpan={2}>
+                    Subtotal do grupo
+                  </td>
+                  <td className="px-4 py-2 text-right font-medium">
+                    {formatCurrency(group.subtotal.valor_frete)}
+                  </td>
+                  <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                    {formatCurrency(group.subtotal.valor_servico)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         ) : (
           <div
             className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-base text-slate-500"
@@ -525,10 +526,10 @@ export default function Fechamentos() {
     if (key === 'startDate') {
       setStartDate(value);
       if (value && endDate && value > endDate) {
-          setDateError('A data final não pode ser anterior à data inicial.');
-        } else {
-          setDateError('');
-        }
+        setDateError('A data final não pode ser anterior à data inicial.');
+      } else {
+        setDateError('');
+      }
     } else if (key === 'endDate') {
       setEndDate(value);
       if (startDate && value && startDate > value) {
@@ -600,7 +601,7 @@ export default function Fechamentos() {
 
     setLoading(true);
     try {
-    const payload: ReportRequestPayload = {
+      const payload: ReportRequestPayload = {
         report_type: reportType,
         start_date: startDate,
         end_date: endDate,
@@ -609,8 +610,15 @@ export default function Fechamentos() {
         cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
       };
 
-      const response = await api.generateReport(payload);
-      setReport(response);
+      const response = await api.getRelatorioSemanal({
+        start_date: startDate,
+        end_date: endDate,
+        date_mode: dateMode,
+        cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
+      });
+
+      const processedReport = generateFechamentoReport(response, payload);
+      setReport(processedReport);
     } catch (error) {
       const message =
         error instanceof Error
@@ -644,7 +652,7 @@ export default function Fechamentos() {
       // Importar papaparse corretamente
       const PapaModule = await import('papaparse');
       const Papa = PapaModule.default || PapaModule;
-      
+
       const csvRows: Array<Record<string, string>> = [];
 
       const columnName = getColumnName();
@@ -702,7 +710,7 @@ export default function Fechamentos() {
       // Verificar se está no Tauri
       const { isTauri } = await import('@/utils/isTauri');
       const tauriCheck = isTauri();
-      const tauriCheckAlt = typeof window !== 'undefined' && 
+      const tauriCheckAlt = typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
         (window.location.port === '1420' || window.location.protocol === 'tauri:');
 
@@ -710,21 +718,21 @@ export default function Fechamentos() {
         // Usar API do Tauri para salvar
         const { save } = await import('@tauri-apps/plugin-dialog');
         const { writeFile } = await import('@tauri-apps/plugin-fs');
-        
+
         const filePath = await save({
           defaultPath: filename,
           filters: [{ name: 'CSV', extensions: ['csv'] }],
         });
-        
+
         if (filePath) {
           // Converter CSV para Uint8Array com BOM UTF-8
           const csvWithBom = '\ufeff' + csv;
           const encoder = new TextEncoder();
           const uint8Array = encoder.encode(csvWithBom);
-          
+
           // Salvar arquivo
           await writeFile(filePath, uint8Array);
-          
+
           toast({
             title: 'CSV exportado com sucesso',
             description: `Arquivo salvo: ${filename}`,
@@ -740,13 +748,13 @@ export default function Fechamentos() {
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        
+
         // Limpar após um tempo
         setTimeout(() => {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
         }, 100);
-        
+
         toast({
           title: 'CSV exportado com sucesso',
           description: `Download iniciado: ${filename}`,
@@ -813,12 +821,12 @@ export default function Fechamentos() {
       const titleText = report.title || 'Relatório de Fechamentos';
       const titleWidth = doc.getTextWidth(titleText);
       doc.text(titleText, marginLeft + (pageWidth - titleWidth) / 2, cursorY);
-      
+
       // Número da página à direita
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.text(`Pág:${pageNumber}`, marginLeft + pageWidth - 10, cursorY);
-      
+
       cursorY += 4;
 
       // Subtítulo com período e status (centralizado)
@@ -852,7 +860,7 @@ export default function Fechamentos() {
 
         // Cliente/Grupo: texto em negrito + linha horizontal simples abaixo
         ensurePdfSpace(8);
-        
+
         // Linha horizontal acima do nome do cliente (separar clientes)
         if (depth === 0) {
           drawHorizontalLine(cursorY);
@@ -889,35 +897,35 @@ export default function Fechamentos() {
           const colFichaWidth = 25; // Largura fixa para Ficha
           const colFreteWidth = 35; // Largura fixa para Vr.Frete
           const colServicosWidth = 35; // Largura fixa para Vr.Serviços
-          
+
           // Gaps (espaçamentos) entre colunas
           const gapFichaDesc = 4; // Gap entre Ficha e Descrição
           const gapDescValores = 5; // Gap entre Descrição e valores (IMPORTANTE: previne invasão)
           const gapFreteServicos = 4; // Gap entre Frete e Serviços
-          
+
           // ========== POSIÇÕES DAS COLUNAS (BOUNDING BOXES EXPLÍCITOS) ==========
           // Coluna Ficha: ancorada à esquerda
           const colFichaStart = indent;
           const colFichaEnd = colFichaStart + colFichaWidth;
-          
+
           // Bloco de Valores: ancorado à direita (colado no canto direito) - CALCULAR PRIMEIRO
           const colServicosStart = marginLeft + pageWidth - colServicosWidth;
           const colFreteEnd = colServicosStart - gapFreteServicos;
           const colFreteStart = colFreteEnd - colFreteWidth;
-          
+
           // Gap entre Descrição e Valores (zona proibida - nenhum texto pode passar)
           const gapZoneStart = colFreteStart - gapDescValores;
-          
+
           // Coluna Descrição: usa APENAS o espaço entre Ficha e Gap (calculado exatamente)
           const colDescricaoStart = colFichaEnd + gapFichaDesc;
           const colDescricaoEnd = gapZoneStart; // Termina exatamente onde começa o gap
           const colDescricaoWidth = colDescricaoEnd - colDescricaoStart;
-          
+
           // Validação: garantir que descrição tem largura mínima
           if (colDescricaoWidth < 10) {
             console.warn('Aviso: Largura da descrição muito pequena. Ajustando layout...');
           }
-          
+
           // Posições finais para renderização
           const colFicha = colFichaStart;
           const colDescricao = colDescricaoStart;
@@ -944,20 +952,20 @@ export default function Fechamentos() {
           group.rows.forEach((row) => {
             ensurePdfSpace(6);
             const rowStartY = cursorY;
-            
+
             // ========== COLUNA FICHA (bounding box fixo) ==========
             const fichaText = (row.ficha || '-').toString();
             const fichaFinal = fichaText.length > 15 ? fichaText.substring(0, 15) + '...' : fichaText;
             doc.text(fichaFinal, colFicha, cursorY);
-            
+
             // ========== COLUNA DESCRIÇÃO (bounding box fixo, pode quebrar) ==========
             const descricaoText = (row.descricao || '-').toString();
             // Largura EXATA da descrição (sem aproximações)
             const descricaoMaxWidth = colDescricaoWidthFinal - 0.5; // Margem de 0.5mm
-            
+
             // splitTextToSize garante quebra de linha respeitando a largura EXATA
             const descricaoLines = doc.splitTextToSize(descricaoText, descricaoMaxWidth);
-            
+
             // Validação adicional: verificar cada linha não ultrapassa o limite
             const validatedLines: string[] = [];
             descricaoLines.forEach((line: string) => {
@@ -973,7 +981,7 @@ export default function Fechamentos() {
                 validatedLines.push(line);
               }
             });
-            
+
             // Renderizar linhas da descrição dentro do bounding box
             let maxDescricaoHeight = 0;
             validatedLines.forEach((line: string, lineIndex: number) => {
@@ -984,26 +992,26 @@ export default function Fechamentos() {
               }
               maxDescricaoHeight = Math.max(maxDescricaoHeight, cursorY - rowStartY);
             });
-            
+
             // ========== COLUNAS DE VALORES (bounding boxes fixos, ancorados à direita) ==========
             // Posicionar valores na primeira linha da descrição
             const firstLineY = rowStartY;
-            
+
             // Aplicar fonte monoespaçada para melhor alinhamento visual dos números
             doc.setFont('courier', 'normal');
-            
+
             // Renderizar valores dentro de seus bounding boxes (alinhados à direita)
             // Vr.Frete: dentro de colFreteStart até colFreteEnd
             const freteText = formatCurrencyNumber(row.valor_frete);
             doc.text(freteText, colFrete + colFreteWidth, firstLineY, { align: 'right' });
-            
+
             // Vr.Serviços: dentro de colServicosStart até colServicosEnd
             const servicosText = formatCurrencyNumber(row.valor_servico);
             doc.text(servicosText, colServicos + colServicosWidth, firstLineY, { align: 'right' });
-            
+
             // Restaurar fonte normal para próximas linhas
             doc.setFont('helvetica', 'normal');
-            
+
             // Ajustar cursorY para a próxima linha (usar a maior altura entre descrição e valores)
             cursorY = rowStartY + Math.max(maxDescricaoHeight, 4) + 2; // Espaçamento vertical leve entre linhas
           });
@@ -1079,11 +1087,11 @@ export default function Fechamentos() {
 
   return (
     <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
-          <p className="text-muted-foreground">
-            Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
-          </p>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Fechamentos</h1>
+        <p className="text-muted-foreground">
+          Explore rapidamente como os valores estão distribuídos. Ajuste os filtros abaixo e gere o relatório na hora.
+        </p>
       </div>
 
       <Card>
@@ -1132,23 +1140,23 @@ export default function Fechamentos() {
                   ? 'Agrupamento detalhado para análise.'
                   : 'Visão resumida com totais.'}
               </p>
-          </div>
+            </div>
 
             {/* Botões de ação rápida */}
             <div className="flex flex-col gap-2 md:justify-end">
               <div className="flex flex-wrap gap-2">
-            {QUICK_RANGES.map((range) => (
-              <Button
-                key={range.value}
-                variant="outline"
+                {QUICK_RANGES.map((range) => (
+                  <Button
+                    key={range.value}
+                    variant="outline"
                     size="sm"
-                className="border-slate-200 text-slate-600 hover:bg-slate-100"
-                onClick={() => applyQuickRange(range.value)}
-                type="button"
-              >
-                {range.label}
-              </Button>
-            ))}
+                    className="border-slate-200 text-slate-600 hover:bg-slate-100"
+                    onClick={() => applyQuickRange(range.value)}
+                    type="button"
+                  >
+                    {range.label}
+                  </Button>
+                ))}
               </div>
             </div>
           </div>
@@ -1230,7 +1238,7 @@ export default function Fechamentos() {
               </Button>
             )}
 
-              <Button
+            <Button
               variant="outline"
               className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
               onClick={exportToCsv}
@@ -1247,12 +1255,12 @@ export default function Fechamentos() {
                   Exportar CSV
                 </>
               )}
-              </Button>
+            </Button>
 
-              <Button
-                variant="outline"
+            <Button
+              variant="outline"
               className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-100"
-                onClick={exportToPdf}
+              onClick={exportToPdf}
               disabled={!report || loading || exportingPdf}
             >
               {exportingPdf ? (
@@ -1262,8 +1270,8 @@ export default function Fechamentos() {
                 </>
               ) : (
                 <>
-                <FileDown className="h-4 w-4" />
-                Exportar PDF
+                  <FileDown className="h-4 w-4" />
+                  Exportar PDF
                 </>
               )}
             </Button>
@@ -1271,7 +1279,7 @@ export default function Fechamentos() {
             <Button className="gap-2" onClick={handleGenerate} disabled={loading || !!dateError}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               {loading ? 'Gerando...' : 'Gerar Relatório'}
-              </Button>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -1282,9 +1290,9 @@ export default function Fechamentos() {
             <div className="flex flex-col items-center justify-center gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
               <span className="text-slate-600">Gerando relatório...</span>
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         report && <ReportTable report={report} columnName={getColumnName()} loading={loading} isAnalitico={activeTab === 'analitico'} />
       )}

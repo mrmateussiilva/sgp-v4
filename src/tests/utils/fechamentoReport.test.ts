@@ -625,6 +625,144 @@ describe('fechamentoReport', () => {
       // Deve parsear valor_unitario = '200,00' -> 200
       expect(result.total.valor_servico).toBe(200);
     });
+
+    it('deve calcular corretamente quando quantidade > 1 e usar valor_unitario string (Bug Fix)', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-999',
+          cliente: 'Teste Bug',
+          data_entrada: '2024-02-01',
+          data_entrega: '2024-02-02',
+          total_value: 138.60,
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Mochilinha',
+              valor_unitario: '9,90',
+              quantity: 14,
+              subtotal: null as any,
+              unit_price: null as any,
+              tipo_producao: 'mochilinha',
+            } as any,
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_data',
+        start_date: '2024-02-01',
+        end_date: '2024-02-02',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // 14 * 9.90 = 138.60
+      expect(result.total.valor_servico).toBe(138.60);
+    });
+
+    it('deve extrair quantidade de campos específicos de produção (ex: quantidade_mochilinha)', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-998',
+          cliente: 'Teste Produção',
+          data_entrada: '2024-02-01',
+          data_entrega: '2024-02-02',
+          total_value: 100,
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Item Produção',
+              valor_unitario: '10,00',
+              quantidade_mochilinha: '10', // Campo específico
+              subtotal: null as any,
+              unit_price: null as any,
+              tipo_producao: 'mochilinha',
+            } as any,
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_data',
+        start_date: '2024-02-01',
+        end_date: '2024-02-02',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // 10 * 10.00 = 100.00
+      expect(result.total.valor_servico).toBe(100.00);
+    });
+
+    it('deve extrair a quantidade correta do campo quantidade_mochilinha', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 412,
+          numero: '412',
+          cliente: 'DAVIZINHO',
+          data_entrada: '2024-02-01',
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'MOCHILINHAS DAVI',
+              valor_unitario: 'R$ 9,90',
+              unit_price: 9.90,
+              // @ts-ignore - simulando campo dinâmico da API
+              quantidade_mochilinha: 14,
+              tipo_producao: 'mochilinha',
+            } as any,
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_data',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // 14 * 9.90 = 138.60
+      expect(result.total.valor_servico).toBe(138.60);
+    });
+
+    it('deve gerar corretamente o relatório analitico_vendedor_designer', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: '1',
+          cliente: 'Cliente A',
+          data_entrada: '2024-02-01',
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Item 1',
+              unit_price: 100,
+              quantity: 1,
+              vendedor: 'Vendedor Alpha',
+              designer: 'Designer Beta',
+              tipo_producao: 'painel',
+            },
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'analitico_vendedor_designer',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      expect(result.groups.length).toBe(1);
+      expect(result.groups[0].label).toBe('Vendedor: Vendedor Alpha');
+      expect(result.groups[0].subgroups![0].label).toBe('Designer: Designer Beta');
+      expect(result.total.valor_servico).toBe(100);
+    });
   });
 
   describe('Edge Cases', () => {

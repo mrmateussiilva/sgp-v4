@@ -27,6 +27,8 @@ const REPORT_TITLES: Record<string, string> = {
   analitico_cliente_designer: 'Relatório Analítico — Cliente × Designer',
   analitico_cliente_painel: 'Relatório Analítico — Cliente × Tipo de Produção',
   analitico_designer_painel: 'Relatório Analítico — Designer × Tipo de Produção',
+  analitico_vendedor_designer: 'Relatório Analítico — Vendedor × Designer',
+  analitico_designer_vendedor: 'Relatório Analítico — Designer × Vendedor',
   analitico_entrega_painel: 'Relatório Analítico — Forma de Entrega × Tipo de Produção',
   sintetico_data: 'Relatório Sintético — Totais por Data (referência automática)',
   sintetico_data_entrada: 'Relatório Sintético — Totais por Data de Entrada',
@@ -74,23 +76,23 @@ const parseCurrencyCached = (value: unknown): number => {
   if (currencyCache.size > MAX_CACHE_SIZE) {
     clearCurrencyCache();
   }
-  
+
   // Criar chave única para o cache
-  const key = typeof value === 'string' 
-    ? value 
+  const key = typeof value === 'string'
+    ? value
     : (value !== null && value !== undefined ? String(value) : 'null');
-  
+
   // Verificar se já está no cache
   if (currencyCache.has(key)) {
     return currencyCache.get(key)!;
   }
-  
+
   // Parsear o valor
   const parsed = parseCurrency(value);
-  
+
   // Armazenar no cache
   currencyCache.set(key, parsed);
-  
+
   return parsed;
 };
 
@@ -123,40 +125,48 @@ const parseCurrency = (value: unknown): number => {
  * @returns Valor do subtotal calculado (arredondado para 2 casas decimais)
  */
 const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number => {
-  // Prioridade 1: Tentar subtotal direto
-  if (typeof orderItem.subtotal === 'number' && Number.isFinite(orderItem.subtotal)) {
-    if (orderItem.subtotal >= 0) {
-      return roundCurrency(orderItem.subtotal);
+  // 1. Tentar obter a quantidade de forma robusta (mesma lógica da UI)
+  const anyItem = orderItem as any;
+  const rawQuantity =
+    orderItem.quantity ??
+    parseInt(anyItem.quantidade_paineis ||
+      anyItem.quantidade_mochilinha ||
+      anyItem.quantidade_totem ||
+      anyItem.quantidade_lona ||
+      anyItem.quantidade_adesivo ||
+      anyItem.quantidade_canga ||
+      anyItem.quantidade_impressao_3d || '1');
+
+  const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? rawQuantity : 1;
+
+  // Prioridade 1: Tentar subtotal direto (se já vier calculado do banco/api e for consistente)
+  // Nota: Se o subtotal vier errado do banco, as prioridades seguintes tentarão corrigir.
+  if (typeof orderItem.subtotal === 'number' && Number.isFinite(orderItem.subtotal) && orderItem.subtotal > 0) {
+    // Verificamos se o subtotal parece correto em relação ao unit_price * quantity
+    // Se houver uma discrepância óbvia e tivermos unit_price, preferimos recalcular
+    const expectedSubtotal = (orderItem.unit_price ?? 0) * quantity;
+    if (expectedSubtotal > 0 && Math.abs(orderItem.subtotal - expectedSubtotal) > 0.01) {
+      return roundCurrency(expectedSubtotal);
     }
-    console.warn('[fechamentoReport] Subtotal negativo encontrado para item:', {
-      item_id: orderItem.id,
-      subtotal: orderItem.subtotal,
-    });
+    return roundCurrency(orderItem.subtotal);
   }
-  
-  // Prioridade 2: Calcular a partir de quantity * unit_price
-  if (typeof orderItem.quantity === 'number' && typeof orderItem.unit_price === 'number') {
-    if (orderItem.quantity > 0 && orderItem.unit_price >= 0) {
-      return roundCurrency(orderItem.quantity * orderItem.unit_price);
-    }
-    console.warn('[fechamentoReport] Quantidade ou preço inválido para item:', {
-      item_id: orderItem.id,
-      quantity: orderItem.quantity,
-      unit_price: orderItem.unit_price,
-    });
+
+  // Prioridade 2: Calcular a partir de quantity * unit_price (campos numéricos)
+  if (typeof orderItem.unit_price === 'number' && Number.isFinite(orderItem.unit_price) && orderItem.unit_price >= 0) {
+    return roundCurrency(quantity * orderItem.unit_price);
   }
-  
-  // Prioridade 3: Tentar parsear string (usando cache)
-  const parsed = parseCurrencyCached(orderItem.valor_unitario);
-  if (parsed > 0) {
-    return parsed;
+
+  // Prioridade 3: Tentar parsear valor_unitario (string) e MULTIPLICAR pela quantidade
+  const parsedUnit = parseCurrencyCached(orderItem.valor_unitario);
+  if (parsedUnit > 0) {
+    return roundCurrency(quantity * parsedUnit);
   }
-  
+
   // Fallback: logar erro e retornar 0
   console.error('[fechamentoReport] Não foi possível calcular subtotal para item:', {
     item_id: orderItem.id,
     subtotal: orderItem.subtotal,
-    quantity: orderItem.quantity,
+    quantity,
     unit_price: orderItem.unit_price,
     valor_unitario: orderItem.valor_unitario,
   });
@@ -174,35 +184,35 @@ const validateOrderTotals = (order: OrderWithItems): { valid: boolean; issues: s
   const issues: string[] = [];
   const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
   const valorTotal = parseCurrencyCached(order.total_value ?? 0);
-  
+
   // Calcular soma de itens
   const somaItens = (order.items ?? []).reduce((sum, item) => {
     return sum + getSubtotalValue(item);
   }, 0);
-  
+
   // Validar se total_value faz sentido em relação a somaItens + frete
   // Descontos podem reduzir o total, então permitir diferença
   const expectedMin = somaItens + valorFrete;
   const expectedMax = expectedMin * 1.15; // Permitir até 15% de margem para descontos/arredondamentos
-  
+
   if (valorTotal < 0) {
     issues.push(`Total do pedido negativo: ${valorTotal.toFixed(2)}`);
   }
-  
+
   if (valorTotal > expectedMax) {
     issues.push(
       `Total do pedido (${valorTotal.toFixed(2)}) muito maior que soma de itens + frete (${expectedMin.toFixed(2)}). Diferença: ${(valorTotal - expectedMin).toFixed(2)}`
     );
   }
-  
+
   if (valorFrete < 0) {
     issues.push(`Valor de frete negativo: ${valorFrete.toFixed(2)}`);
   }
-  
+
   if (somaItens < 0) {
     issues.push(`Soma de itens negativa: ${somaItens.toFixed(2)}`);
   }
-  
+
   return {
     valid: issues.length === 0,
     issues
@@ -222,13 +232,13 @@ const formatDateLabel = (value: string | null | undefined): string => {
   if (!value) {
     return 'Sem data';
   }
-  
+
   // Extrair apenas a parte da data (YYYY-MM-DD)
   const dateOnly = extractDateOnly(value);
   if (!dateOnly) {
     return 'Sem data';
   }
-  
+
   // Formatar diretamente sem usar Date para evitar timezone
   const [year, month, day] = dateOnly.split('-');
   return `${day}/${month}/${year}`;
@@ -253,23 +263,23 @@ const slugify = (value: string): string =>
 const calculateOrderDiscount = (order: OrderWithItems): number => {
   const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
   const valorTotal = parseCurrencyCached(order.total_value ?? 0);
-  
+
   // Calcular soma de itens
   const somaItens = (order.items ?? []).reduce((sum, item) => {
     return sum + getSubtotalValue(item);
   }, 0);
-  
+
   // Se não há itens, calcular a partir do total
   if (order.items?.length === 0) {
     const expectedTotal = valorFrete;
     const desconto = Math.max(0, expectedTotal - valorTotal);
     return roundCurrency(desconto);
   }
-  
+
   // Desconto = (itens + frete) - total
   const totalBeforeDiscount = somaItens + valorFrete;
   const desconto = Math.max(0, totalBeforeDiscount - valorTotal);
-  
+
   return roundCurrency(desconto);
 };
 
@@ -292,7 +302,7 @@ const calculateOrderDiscount = (order: OrderWithItems): number => {
  * @returns Totais de frete, serviço, desconto e valor líquido calculados
  */
 const computeTotalsFromRows = (
-  rows: NormalizedRow[], 
+  rows: NormalizedRow[],
   ordersMap?: Map<number, OrderWithItems>,
   freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): ReportTotals => {
@@ -306,7 +316,7 @@ const computeTotalsFromRows = (
     rows.forEach((row) => {
       totalServico = roundCurrency(totalServico + row.valorServico);
       totalFrete = roundCurrency(totalFrete + row.valorFrete);
-      
+
       // Calcular desconto apenas uma vez por pedido
       if (!descontoPorPedido.has(row.orderId) && ordersMap) {
         const order = ordersMap.get(row.orderId);
@@ -325,11 +335,11 @@ const computeTotalsFromRows = (
     rows.forEach((row) => {
       // Serviços: somar todos (por item)
       totalServico = roundCurrency(totalServico + row.valorServico);
-      
+
       // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
       if (!fretePorPedido.has(row.orderId)) {
         fretePorPedido.set(row.orderId, row.valorFrete);
-        
+
         // Calcular desconto se ordersMap foi fornecido
         if (ordersMap) {
           const order = ordersMap.get(row.orderId);
@@ -349,13 +359,13 @@ const computeTotalsFromRows = (
       0
     );
   }
-  
+
   // Somar descontos únicos de cada pedido
   const totalDesconto = Array.from(descontoPorPedido.values()).reduce(
     (sum, desconto) => roundCurrency(sum + desconto),
     0
   );
-  
+
   // Calcular valor líquido
   const valorLiquido = roundCurrency(totalFrete + totalServico - totalDesconto);
 
@@ -363,7 +373,7 @@ const computeTotalsFromRows = (
     valor_frete: totalFrete,
     valor_servico: totalServico,
   };
-  
+
   // Adicionar desconto e valor líquido apenas se houver desconto
   if (totalDesconto > 0) {
     result.desconto = totalDesconto;
@@ -382,8 +392,8 @@ const convertRowsToReportRows = (rows: NormalizedRow[]) =>
   }));
 
 const createLeafGroup = (
-  label: string, 
-  key: string, 
+  label: string,
+  key: string,
   rows: NormalizedRow[],
   ordersMap?: Map<number, OrderWithItems>,
   freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
@@ -466,13 +476,13 @@ const extractDateOnly = (dateString: string): string => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     return dateString;
   }
-  
+
   // Tenta extrair YYYY-MM-DD do início da string
   const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
   if (match) {
     return match[1];
   }
-  
+
   // Fallback: parseia e extrai
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) {
@@ -517,7 +527,7 @@ const getOrderReferenceDate = (
  * @returns Array de linhas normalizadas (uma por item, ou uma se não houver itens)
  */
 const buildRowsFromOrder = (
-  order: OrderWithItems, 
+  order: OrderWithItems,
   dateMode: DateReferenceMode,
   freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): NormalizedRow[] => {
@@ -549,7 +559,7 @@ const buildRowsFromOrder = (
   }
 
   // Calcular total de itens para distribuição proporcional
-  const totalItensValue = freteDistribution === 'proporcional' 
+  const totalItensValue = freteDistribution === 'proporcional'
     ? items.reduce((sum, item) => sum + getSubtotalValue(item), 0)
     : 0;
 
@@ -562,7 +572,7 @@ const buildRowsFromOrder = (
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
     const descricao = safeLabel(item.descricao ?? item.item_name, 'Item sem descrição');
     const valorServico = getSubtotalValue(item);
-    
+
     // Distribuir frete conforme opção escolhida
     let valorFrete: number;
     if (useProportional) {
@@ -645,14 +655,14 @@ const buildTwoLevelGroups = (
             valor_frete: roundCurrency(acc.valor_frete + (group.subtotal.valor_frete ?? 0)),
             valor_servico: roundCurrency(acc.valor_servico + (group.subtotal.valor_servico ?? 0)),
           };
-          
+
           // Somar descontos
           const totalDesconto = roundCurrency((acc.desconto ?? 0) + (group.subtotal.desconto ?? 0));
           if (totalDesconto > 0) {
             result.desconto = totalDesconto;
             result.valor_liquido = roundCurrency(result.valor_frete + result.valor_servico - totalDesconto);
           }
-          
+
           return result;
         },
         { valor_frete: 0, valor_servico: 0 },
@@ -731,24 +741,24 @@ const filterOrdersByDate = (
     if (!referenceDateString) {
       return true;
     }
-    
+
     // Extrair apenas a parte da data e criar data local normalizada
     const dateOnly = extractDateOnly(referenceDateString);
     if (!dateOnly) {
       return true;
     }
-    
+
     let current: Date;
     try {
       current = normalizeDateToMidnight(createDateFromString(dateOnly));
     } catch {
       return true; // Se não conseguir parsear, mantém o pedido
     }
-    
+
     if (Number.isNaN(current.getTime())) {
       return true;
     }
-    
+
     // Comparações usando datas normalizadas (apenas dia, sem hora/timezone)
     if (start && current < start) return false;
     if (end && current > end) return false;
@@ -818,7 +828,7 @@ const buildPeriodLabel = (startDate?: string, endDate?: string): string => {
  */
 const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { valid: boolean; warnings: string[] } => {
   const warnings: string[] = [];
-  
+
   // Calcular soma de todos os grupos
   const sumGroups = groups.reduce(
     (acc, group) => ({
@@ -828,47 +838,47 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
     }),
     { valor_frete: 0, valor_servico: 0, desconto: 0 }
   );
-  
+
   // Verificar se totais dos grupos batem com total geral (com margem de erro de arredondamento)
   const freteDiff = Math.abs(sumGroups.valor_frete - total.valor_frete);
   const servicoDiff = Math.abs(sumGroups.valor_servico - total.valor_servico);
-  
+
   if (freteDiff > 0.01) { // Mais de 1 centavo de diferença
     warnings.push(
       `Diferença entre soma de grupos e total geral no frete: ${freteDiff.toFixed(2)}`
     );
   }
-  
+
   if (servicoDiff > 0.01) {
     warnings.push(
       `Diferença entre soma de grupos e total geral no serviço: ${servicoDiff.toFixed(2)}`
     );
   }
-  
+
   // Validar desconto se presente
   if (total.desconto !== undefined || sumGroups.desconto > 0) {
     const descontoTotal = total.desconto ?? 0;
     const descontoGroups = sumGroups.desconto ?? 0;
     const descontoDiff = Math.abs(descontoGroups - descontoTotal);
-    
+
     if (descontoDiff > 0.01) {
       warnings.push(
         `Diferença entre soma de grupos e total geral no desconto: ${descontoDiff.toFixed(2)}`
       );
     }
-    
+
     // Validar valor líquido
     const expectedLiquido = (total.valor_frete + total.valor_servico) - (total.desconto ?? 0);
     const actualLiquido = total.valor_liquido ?? expectedLiquido;
     const liquidoDiff = Math.abs(expectedLiquido - actualLiquido);
-    
+
     if (liquidoDiff > 0.01) {
       warnings.push(
         `Inconsistência no valor líquido: esperado ${expectedLiquido.toFixed(2)}, calculado ${actualLiquido.toFixed(2)}`
       );
     }
   }
-  
+
   // Validar subgrupos
   groups.forEach((group) => {
     if (group.subgroups && group.subgroups.length > 0) {
@@ -880,11 +890,11 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
         }),
         { valor_frete: 0, valor_servico: 0, desconto: 0 }
       );
-      
+
       const subFreteDiff = Math.abs(sumSubgroups.valor_frete - (group.subtotal?.valor_frete ?? 0));
       const subServicoDiff = Math.abs(sumSubgroups.valor_servico - (group.subtotal?.valor_servico ?? 0));
       const subDescontoDiff = Math.abs((sumSubgroups.desconto ?? 0) - (group.subtotal?.desconto ?? 0));
-      
+
       if (subFreteDiff > 0.01 || subServicoDiff > 0.01 || subDescontoDiff > 0.01) {
         warnings.push(
           `Inconsistência nos subtotais do grupo "${group.label}": frete diff=${subFreteDiff.toFixed(2)}, serviço diff=${subServicoDiff.toFixed(2)}, desconto diff=${subDescontoDiff.toFixed(2)}`
@@ -892,7 +902,7 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
       }
     }
   });
-  
+
   return {
     valid: warnings.length === 0,
     warnings
@@ -908,24 +918,24 @@ const validateReportTotals = (groups: ReportGroup[], total: ReportTotals): { val
  */
 const validateReportRequest = (payload: ReportRequestPayload): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  
+
   // Validar datas
   if (payload.start_date && payload.end_date) {
     if (payload.start_date > payload.end_date) {
       errors.push('Data inicial não pode ser posterior à data final');
     }
   }
-  
+
   // Validar formato de datas (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (payload.start_date && !dateRegex.test(payload.start_date)) {
     errors.push('Data inicial deve estar no formato YYYY-MM-DD');
   }
-  
+
   if (payload.end_date && !dateRegex.test(payload.end_date)) {
     errors.push('Data final deve estar no formato YYYY-MM-DD');
   }
-  
+
   // Validar tipo de relatório
   const validReportTypes = [
     'analitico_designer_cliente',
@@ -944,11 +954,11 @@ const validateReportRequest = (payload: ReportRequestPayload): { valid: boolean;
     'sintetico_cliente',
     'sintetico_entrega',
   ];
-  
+
   if (!validReportTypes.includes(payload.report_type)) {
     errors.push(`Tipo de relatório inválido: ${payload.report_type}`);
   }
-  
+
   return {
     valid: errors.length === 0,
     errors
@@ -1027,13 +1037,13 @@ export const generateFechamentoReport = (
 
     return Array.from(byId.values());
   })();
-  
+
   // Validar payload
   const validation = validateReportRequest(payload);
   if (!validation.valid) {
     throw new Error(`Payload inválido: ${validation.errors.join('; ')}`);
   }
-  
+
   const dateMode: DateReferenceMode =
     payload.date_mode === 'entrada' || payload.date_mode === 'entrega'
       ? payload.date_mode
@@ -1055,7 +1065,7 @@ export const generateFechamentoReport = (
       validationWarnings.push(`Pedido #${order.id} (${order.numero ?? 'sem número'}): ${orderValidation.issues.join('; ')}`);
     }
   });
-  
+
   if (validationWarnings.length > 0) {
     console.warn('[fechamentoReport] Avisos de validação de pedidos:', validationWarnings);
   }
@@ -1065,21 +1075,21 @@ export const generateFechamentoReport = (
   // quando um pedido aparece em múltiplos grupos (vendedor/designer diferentes)
   const reportType = payload.report_type;
   const defaultFreteDistribution = payload.frete_distribution ?? 'por_pedido';
-  const freteDistributionForRows = (reportType === 'sintetico_vendedor_designer') 
-    ? 'proporcional' 
+  const freteDistributionForRows = (reportType === 'sintetico_vendedor_designer')
+    ? 'proporcional'
     : defaultFreteDistribution;
-  
-  const baseRowsAll = filteredOrders.flatMap((order) => 
+
+  const baseRowsAll = filteredOrders.flatMap((order) =>
     buildRowsFromOrder(order, dateMode, freteDistributionForRows)
   );
   const baseRows = filterRowsByPeople(baseRowsAll, payload);
-  
+
   // Criar mapa de pedidos por ID para calcular desconto
   const ordersMap = new Map<number, OrderWithItems>();
   filteredOrders.forEach((order) => {
     ordersMap.set(order.id, order);
   });
-  
+
   // Para o total geral, usar a distribuição escolhida pelo usuário (ou proporcional se sintetico_vendedor_designer)
   // O total geral deve ser consistente com a distribuição usada nas linhas
   const freteDistributionForTotals = freteDistributionForRows;
@@ -1127,6 +1137,26 @@ export const generateFechamentoReport = (
           (value) => `Designer: ${value}`,
           (row) => row.tipo,
           (value) => `Tipo: ${value}`,
+          ordersMap,
+          freteDistribution
+        );
+      case 'analitico_vendedor_designer':
+        return buildTwoLevelGroups(
+          baseRows,
+          (row) => row.vendedor,
+          (value) => `Vendedor: ${value}`,
+          (row) => row.designer,
+          (value) => `Designer: ${value}`,
+          ordersMap,
+          freteDistribution
+        );
+      case 'analitico_designer_vendedor':
+        return buildTwoLevelGroups(
+          baseRows,
+          (row) => row.designer,
+          (value) => `Designer: ${value}`,
+          (row) => row.vendedor,
+          (value) => `Vendedor: ${value}`,
           ordersMap,
           freteDistribution
         );
