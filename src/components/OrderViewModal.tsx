@@ -18,12 +18,14 @@ interface OrderViewModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: OrderWithItems | null;
+  onOrderUpdate?: (updatedOrder: OrderWithItems) => void;
 }
 
 export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   isOpen,
   onClose,
   order,
+  onOrderUpdate,
 }) => {
   const [formasPagamento, setFormasPagamento] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -123,6 +125,30 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   // REMOVIDO: Cleanup que revogava blob URLs quando o modal fechava
   // O cache global do imageLoader já gerencia as blob URLs e não precisa ser limpo manualmente
   // Isso permite que as imagens sejam reutilizadas quando o modal reabrir
+
+  // Inicializar localProductionData com os dados atuais dos itens quando o modal abre
+  useEffect(() => {
+    if (!isOpen || !order?.items) {
+      // Limpar dados quando o modal fecha
+      setLocalProductionData({});
+      setEditingItems({});
+      return;
+    }
+
+    // Inicializar localProductionData com os dados atuais de cada item
+    const initialData: Record<string, any> = {};
+    order.items.forEach((item) => {
+      const itemKey = String(item.id);
+      initialData[itemKey] = {
+        data_impressao: item.data_impressao,
+        rip_maquina: item.rip_maquina,
+        machine_id: item.machine_id,
+        perfil_cor: item.perfil_cor,
+        tecido_fornecedor: item.tecido_fornecedor,
+      };
+    });
+    setLocalProductionData(initialData);
+  }, [isOpen, order?.id]); // Reinicializar quando o modal abre ou quando o pedido muda
 
   if (!order) return null;
 
@@ -236,8 +262,11 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
           ...updatedOrder.items[itemIndex],
           ...data
         };
-        // Aqui precisaríamos de uma função para atualizar o pedido no componente pai ou recarregar
-        // Como fallback, o localProductionData mantém o valor correto visualmente
+
+        // Notificar o componente pai sobre a atualização
+        if (onOrderUpdate) {
+          onOrderUpdate(updatedOrder);
+        }
       }
 
       // Desativar modo de edição
@@ -277,23 +306,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   const handleEditProductionData = (itemId: number | string) => {
     const itemKey = String(itemId);
     setEditingItems(prev => ({ ...prev, [itemKey]: true }));
-
-    // Inicializar localProductionData com os valores atuais do item se não existirem
-    if (!localProductionData[itemKey]) {
-      const item = order.items.find(i => String(i.id) === itemKey);
-      if (item) {
-        setLocalProductionData(prev => ({
-          ...prev,
-          [itemKey]: {
-            data_impressao: item.data_impressao,
-            rip_maquina: item.rip_maquina,
-            machine_id: item.machine_id,
-            perfil_cor: item.perfil_cor,
-            tecido_fornecedor: item.tecido_fornecedor,
-          }
-        }));
-      }
-    }
   };
 
   const handleCancelEdit = (itemId: number | string) => {

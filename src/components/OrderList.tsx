@@ -2925,6 +2925,13 @@ export default function OrderList() {
           isOpen={viewModalOpen}
           onClose={() => setViewModalOpen(false)}
           order={selectedOrderForView}
+          onOrderUpdate={(updatedOrder) => {
+            // Atualizar o pedido selecionado para visualização
+            setSelectedOrderForView(updatedOrder);
+
+            // Atualizar também na lista de pedidos se existir
+            updateOrder(updatedOrder);
+          }}
         />
 
         <PrintPreviewModal
