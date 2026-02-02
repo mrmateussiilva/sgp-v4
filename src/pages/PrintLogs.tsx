@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Printer, AlertCircle, CheckCircle2, RotateCcw, FileText } from 'lucide-react';
+import { Loader2, Printer, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
 import { api } from '@/services/api';
 import { PrintLog, PrintLogStatus } from '@/types';
 import { MachineEntity } from '@/api/types';
@@ -13,7 +12,6 @@ export default function PrintLogsPage() {
     const [logs, setLogs] = useState<PrintLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingMachines, setLoadingMachines] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<PrintLogStatus | 'all'>('all');
 
     useEffect(() => {
         loadMachines();
@@ -23,7 +21,7 @@ export default function PrintLogsPage() {
         if (selectedMachine) {
             loadLogs();
         }
-    }, [selectedMachine, statusFilter]);
+    }, [selectedMachine]);
 
     const loadMachines = async () => {
         try {
@@ -45,8 +43,7 @@ export default function PrintLogsPage() {
 
         try {
             setLoading(true);
-            const filter = statusFilter === 'all' ? undefined : statusFilter;
-            const data = await api.getPrinterLogs(selectedMachine, 100, 0, filter);
+            const data = await api.getPrinterLogs(selectedMachine, 100, 0);
             setLogs(data);
         } catch (error) {
             console.error('Erro ao carregar logs:', error);
@@ -55,29 +52,14 @@ export default function PrintLogsPage() {
         }
     };
 
-    const getStatusBadge = (status: PrintLogStatus) => {
+    const getStatusIcon = (status: PrintLogStatus) => {
         switch (status) {
             case PrintLogStatus.SUCCESS:
-                return (
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Sucesso
-                    </Badge>
-                );
+                return <CheckCircle2 className="w-5 h-5 text-green-600" />;
             case PrintLogStatus.ERROR:
-                return (
-                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Erro
-                    </Badge>
-                );
+                return <AlertCircle className="w-5 h-5 text-red-600" />;
             case PrintLogStatus.REPRINT:
-                return (
-                    <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
-                        <RotateCcw className="w-3 h-3 mr-1" />
-                        Reimpressão
-                    </Badge>
-                );
+                return <RotateCcw className="w-5 h-5 text-yellow-600" />;
         }
     };
 
@@ -154,13 +136,14 @@ export default function PrintLogsPage() {
     }
 
     const groupedLogs = groupLogsByDate(logs);
+    const selectedMachineName = machines.find(m => m.id === selectedMachine)?.name || '';
 
     return (
         <div className="container mx-auto p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold">Logs de Impressão</h1>
-                    <p className="text-muted-foreground">Histórico completo de impressões por máquina</p>
+                    <p className="text-muted-foreground">Histórico de impressões por máquina</p>
                 </div>
             </div>
 
@@ -168,47 +151,26 @@ export default function PrintLogsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Printer className="w-5 h-5" />
-                        Filtros
+                        Selecione a Impressora
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Impressora</label>
-                            <Select
-                                value={selectedMachine?.toString()}
-                                onValueChange={(value) => setSelectedMachine(parseInt(value))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione uma impressora" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {machines.map((machine) => (
-                                        <SelectItem key={machine.id} value={machine.id.toString()}>
-                                            {machine.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Status</label>
-                            <Select
-                                value={statusFilter}
-                                onValueChange={(value) => setStatusFilter(value as PrintLogStatus | 'all')}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos</SelectItem>
-                                    <SelectItem value={PrintLogStatus.SUCCESS}>Sucesso</SelectItem>
-                                    <SelectItem value={PrintLogStatus.ERROR}>Erro</SelectItem>
-                                    <SelectItem value={PrintLogStatus.REPRINT}>Reimpressão</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Select
+                            value={selectedMachine?.toString()}
+                            onValueChange={(value) => setSelectedMachine(parseInt(value))}
+                        >
+                            <SelectTrigger className="w-full md:w-96">
+                                <SelectValue placeholder="Selecione uma impressora" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {machines.map((machine) => (
+                                    <SelectItem key={machine.id} value={machine.id.toString()}>
+                                        {machine.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
@@ -219,12 +181,11 @@ export default function PrintLogsPage() {
                 </div>
             ) : logs.length === 0 ? (
                 <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-                        <FileText className="w-16 h-16 text-muted-foreground" />
-                        <h3 className="text-xl font-semibold">Nenhum log encontrado</h3>
-                        <p className="text-muted-foreground text-center">
-                            Não há registros de impressão para esta máquina
-                            {statusFilter !== 'all' && ' com o filtro selecionado'}
+                    <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+                        <Printer className="w-20 h-20 text-muted-foreground/50" />
+                        <h3 className="text-xl font-semibold">Nenhuma impressão registrada</h3>
+                        <p className="text-muted-foreground text-center max-w-md">
+                            A impressora <strong>{selectedMachineName}</strong> ainda não realizou nenhuma impressão.
                         </p>
                     </CardContent>
                 </Card>
@@ -232,24 +193,27 @@ export default function PrintLogsPage() {
                 <div className="space-y-6">
                     {groupedLogs.map(([dateKey, dateLogs]) => (
                         <Card key={dateKey}>
-                            <CardHeader>
-                                <CardTitle className="text-lg">{formatGroupDate(dateKey)}</CardTitle>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-lg font-semibold">{formatGroupDate(dateKey)}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-3">
+                                <div className="space-y-2">
                                     {dateLogs.map((log) => (
                                         <div
                                             key={log.id}
-                                            className="flex items-start gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                                            className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/30 transition-colors"
                                         >
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex items-center gap-2">
+                                            <div className="mt-0.5">
+                                                {getStatusIcon(log.status)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-baseline gap-2 flex-wrap">
                                                     <span className="font-medium">Pedido #{log.pedido_numero || log.pedido_id}</span>
                                                     {log.item_id && (
-                                                        <span className="text-sm text-muted-foreground">• Item {log.item_id}</span>
+                                                        <span className="text-sm text-muted-foreground">Item {log.item_id}</span>
                                                     )}
                                                 </div>
-                                                <div className="text-sm text-muted-foreground">
+                                                <div className="text-sm text-muted-foreground mt-0.5">
                                                     {formatDate(log.created_at)}
                                                 </div>
                                                 {log.error_message && (
@@ -258,7 +222,6 @@ export default function PrintLogsPage() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <div>{getStatusBadge(log.status)}</div>
                                         </div>
                                     ))}
                                 </div>
