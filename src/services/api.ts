@@ -4,6 +4,7 @@ import { customersApi } from '../api/endpoints/customers';
 import { resourcesApi } from '../api/endpoints/resources';
 import { authApi } from '../api/endpoints/auth';
 import { maquinasApi } from '../api/endpoints/maquinas';
+import { printLogsApi } from '../api/endpoints/printLogs';
 import { OrderStatus } from '../types';
 
 /**
@@ -85,6 +86,11 @@ export const api = {
 
   // Maquinas
   getMaquinasAtivas: maquinasApi.getAtivas,
+
+  // Print Logs
+  getPrinterLogs: printLogsApi.getPrinterLogs,
+  createPrintLog: printLogsApi.createPrintLog,
+  getPrinterStats: printLogsApi.getPrinterStats,
 };
 
 // Re-export deprecated standalone functions to maintain compatibility with existing imports

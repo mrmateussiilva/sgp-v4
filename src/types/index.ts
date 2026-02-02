@@ -715,3 +715,43 @@ export interface RelatorioTemplatesConfig {
   envios: RelatorioTemplateConfig;
   fechamentos: RelatorioTemplateConfig;
 }
+
+// ========================================
+// Print Logs
+// ========================================
+
+export enum PrintLogStatus {
+  SUCCESS = 'success',
+  ERROR = 'error',
+  REPRINT = 'reprint',
+}
+
+export interface PrintLog {
+  id: number;
+  printer_id: number;
+  printer_name: string;
+  pedido_id: number;
+  pedido_numero?: string | null;
+  item_id?: number | null;
+  status: PrintLogStatus;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface PrintLogCreate {
+  printer_id: number;
+  pedido_id: number;
+  item_id?: number | null;
+  status: PrintLogStatus;
+  error_message?: string | null;
+}
+
+export interface PrinterStats {
+  printer_id: number;
+  printer_name: string;
+  total_prints: number;
+  successful: number;
+  errors: number;
+  reprints: number;
+  success_rate: number;
+}
