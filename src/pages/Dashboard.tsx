@@ -14,7 +14,8 @@ import {
   Settings,
   Truck,
   RefreshCw,
-  Loader2
+  Loader2,
+  Printer
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -136,6 +137,13 @@ export default function Dashboard() {
       icon: Truck,
       label: 'Envios',
       path: '/dashboard/relatorios-envios',
+      adminOnly: false,
+      section: 'OPERACIONAL'
+    },
+    {
+      icon: Printer,
+      label: 'Logs de Impressão',
+      path: '/dashboard/print-logs',
       adminOnly: false,
       section: 'OPERACIONAL'
     },
