@@ -1,7 +1,7 @@
 {
-  "version": "1.2.0",
-  "notes": "Refinamentos no layout industrial do PDF e correção no filtro do relatório de envios.",
-  "pub_date": "2026-01-27T15:30:00Z",
+  "version": "1.2.1",
+  "notes": "Correção universal de cálculo de fechamento e ativação de relatórios analíticos de designer/vendedor.",
+  "pub_date": "2026-02-02T15:00:00Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.0/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.0_x64_en-US.msi",
