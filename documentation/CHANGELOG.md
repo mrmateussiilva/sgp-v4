@@ -1,5 +1,26 @@
 # Changelog - SGP v4
- 
+
+## [1.2.0] - 2026-02-02
+
+### ✨ Adicionado
+- **Dashboard de Gestão de Produção**: Nova interface completa para monitoramento industrial.
+  - **KPI Cards**: Métricas de Volume Total, Taxa de Sucesso, Alertas e Top Máquina.
+  - **Gráfico de Volume**: Visualização de barras dos últimos 7 dias via Recharts.
+  - **Auto-Refresh (Modo Zap)**: Atualização automática inteligente a cada 1 ou 5 minutos.
+  - **Exportação CSV**: Download instantâneo de registros filtrados para Excel/Planilhas.
+  - **Filtro de Material**: Novo seletor dinâmico baseado nos insumos utilizados.
+- **Limites Flexíveis**: 
+  - Backend agora suporta consultas de até 50.000 registros.
+  - Seletor de limite na interface (100, 500, 1.000, 5.000, 10.000) para controle total do usuário.
+
+### 🔧 Melhorado
+- **Performance de Imagens**: Otimização no carregamento lazy e autenticado de previews de produção.
+- **Escalabilidade**: Backend agora utiliza limites e offsets maiores por padrão.
+
+### 🐛 Corrigido
+- **Duplicidade de Logs**: Implementada lógica de **Upsert** na troca de máquinas. Atribuir um item a uma nova máquina agora atualiza o log existente em vez de criar um duplicado.
+- **Integridade de Dados**: Limpeza automática de registros duplicados legados no banco de dados.
+
 ## [1.1.0] - 2026-01-31
 
 ### ✨ Adicionado
