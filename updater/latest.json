@@ -1,11 +1,11 @@
 {
-  "version": "1.0.20",
+  "version": "1.1.0",
   "notes": "Refinamentos no layout industrial do PDF e correção no filtro do relatório de envios.",
   "pub_date": "2026-01-27T15:30:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.0.20/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.0.20_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3YwTG9Nck1SQ25qZTdHYTRpRUp0QmRKU0svRlFWakZkejgvNktjTVN0VURnUHhwQUE2WDR5M2hSUWRYZlY4WHJaWHQ1SXAzc1hCZGEzZUlPWm1tUXdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY5NTYwMDM3CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4wLjIwX3g2NF9lbi1VUy5tc2kKQjBxM3dFWXVZQ01iMzU2ZndZV1dTaWxndjlmTmw0RDFHWTRjMEtncFNOb3AvaDJDbU9BZHhENm4veWh0VUR3SUwyUCtMQUpXUGhnZG9lVmo3OWRrQlE9PQo="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.1.0/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.1.0_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3FldFdMY3pEQU55bzZ6RDRZVnVncnA5Rk9DSE84OVZBNnZMb3QwcldnWm9zR2ZmQ2c0RDJoOXMyNlFwRXJyTlNLcEZTTnRVYzQ0T2pONDJEY3I5SVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzY5ODYyMTI3CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4xLjBfeDY0X2VuLVVTLm1zaQo1V2d1NzAvaW1IYWkzWlJNaTR0aUV5Uzd1cTg2VEZKRmhKNGpERWpRQjFaVndoQ1BJYWdlVUdEdmJLWVhaQXJIZ0t2MkQyc2owSnladEFsZlowMm5Ddz09Cg=="
     }
   }
 }
