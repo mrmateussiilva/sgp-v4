@@ -5,6 +5,7 @@ import { Loader2, Printer, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-r
 import { api } from '@/services/api';
 import { PrintLog, PrintLogStatus } from '@/types';
 import { MachineEntity } from '@/api/types';
+import { useLazyImage } from '@/hooks/useLazyImage';
 
 export default function PrintLogsPage() {
     const [machines, setMachines] = useState<MachineEntity[]>([]);
@@ -202,44 +203,12 @@ export default function PrintLogsPage() {
 
                             <div className="grid grid-cols-1 gap-3">
                                 {dateLogs.map((log) => (
-                                    <div
+                                    <PrintLogItem
                                         key={log.id}
-                                        className="flex items-start gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all duration-200"
-                                    >
-                                        <div className="mt-1 p-2 rounded-lg bg-muted">
-                                            {getStatusIcon(log.status)}
-                                        </div>
-
-                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-lg">
-                                                        Pedido #{log.pedido_numero || log.pedido_id}
-                                                    </span>
-                                                    {log.item_id && (
-                                                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary">
-                                                            Item {log.item_id}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                                    <span>{formatDate(log.created_at)}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col md:items-end justify-center space-y-1">
-                                                <div className="flex items-center gap-2 text-sm font-medium">
-                                                    <Printer className="w-4 h-4 text-muted-foreground" />
-                                                    <span>{log.printer_name}</span>
-                                                </div>
-                                                {log.error_message && (
-                                                    <div className="text-xs text-red-500 font-medium px-2 py-1 rounded-md bg-red-50 dark:bg-red-950/30">
-                                                        {log.error_message}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        log={log}
+                                        formatDate={formatDate}
+                                        getStatusIcon={getStatusIcon}
+                                    />
                                 ))}
                             </div>
                         </div>
@@ -250,6 +219,102 @@ export default function PrintLogsPage() {
                     </p>
                 </div>
             )}
+        </div>
+    );
+}
+
+function PrintLogItem({
+    log,
+    formatDate,
+    getStatusIcon
+}: {
+    log: PrintLog;
+    formatDate: (d: string) => string;
+    getStatusIcon: (s: PrintLogStatus) => React.ReactNode;
+}) {
+    const { imageSrc, isLoading, error, imgRef } = useLazyImage(log.item_imagem, { eager: false });
+
+    return (
+        <div
+            className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all duration-200"
+        >
+            {/* Imagem de Preview */}
+            <div
+                ref={imgRef as any}
+                className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-muted border flex items-center justify-center relative"
+            >
+                {imageSrc ? (
+                    <img
+                        src={imageSrc}
+                        alt={log.item_descricao || 'Item'}
+                        className="w-full h-full object-contain bg-white"
+                    />
+                ) : isLoading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/30" />
+                ) : (
+                    <Printer className="w-8 h-8 text-muted-foreground/30" />
+                )}
+                {error && log.item_imagem && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                        <AlertCircle className="w-6 h-6 text-red-500/50" />
+                    </div>
+                )}
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Detalhes do Pedido e Cliente */}
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <div className="mt-0.5">
+                            {getStatusIcon(log.status)}
+                        </div>
+                        <span className="font-bold text-lg">
+                            Pedido #{log.pedido_numero || log.pedido_id}
+                        </span>
+                    </div>
+                    <div className="font-semibold text-primary truncate max-w-[200px]" title={log.cliente || ''}>
+                        {log.cliente || 'Consumidor Final'}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                        {formatDate(log.created_at)}
+                    </div>
+                </div>
+
+                {/* Detalhes do Item */}
+                <div className="space-y-2 flex flex-col justify-center border-l md:border-l-0 md:pl-0 pl-4 border-muted-foreground/20">
+                    <div className="font-medium text-sm line-clamp-2 leading-tight" title={log.item_descricao || ''}>
+                        {log.item_descricao || `Item ${log.item_id}`}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {log.item_medidas && (
+                            <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold border border-primary/20">
+                                {log.item_medidas}
+                            </span>
+                        )}
+                        {log.item_material && (
+                            <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium border border-border">
+                                {log.item_material}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Máquina e Status */}
+                <div className="flex flex-col md:items-end justify-center space-y-2 md:border-l md:border-muted-foreground/20 md:pl-4 pl-4 border-l">
+                    <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                        <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>{log.printer_name}</span>
+                    </div>
+                    {log.error_message && (
+                        <div className="text-[10px] text-red-500 font-medium px-2 py-1 rounded-md bg-red-50 dark:bg-red-950/30 line-clamp-2">
+                            {log.error_message}
+                        </div>
+                    )}
+                    <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/50">
+                        PRODUÇÃO CONCLUÍDA
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

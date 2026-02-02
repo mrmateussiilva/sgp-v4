@@ -732,7 +732,12 @@ export interface PrintLog {
   printer_name: string;
   pedido_id: number;
   pedido_numero?: string | null;
+  cliente?: string | null;
   item_id?: number | null;
+  item_descricao?: string | null;
+  item_imagem?: string | null;
+  item_medidas?: string | null;
+  item_material?: string | null;
   status: PrintLogStatus;
   error_message?: string | null;
   created_at: string;
