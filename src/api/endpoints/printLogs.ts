@@ -4,9 +4,11 @@ import { PrintLog, PrintLogCreate, PrintLogStatus, PrinterStats } from '@/types'
 export const printLogsApi = {
     async getPrinterLogs(
         printerId: number,
-        limit: number = 50,
+        limit: number = 1000,
         offset: number = 0,
-        statusFilter?: PrintLogStatus
+        statusFilter?: PrintLogStatus,
+        dataInicio?: string,
+        dataFim?: string
     ): Promise<PrintLog[]> {
         const params = new URLSearchParams({
             limit: limit.toString(),
@@ -17,6 +19,14 @@ export const printLogsApi = {
             params.append('status_filter', statusFilter);
         }
 
+        if (dataInicio) {
+            params.append('data_inicio', dataInicio);
+        }
+
+        if (dataFim) {
+            params.append('data_fim', dataFim);
+        }
+
         const response = await apiClient.get<PrintLog[]>(
             `/print-logs/printers/${printerId}?${params.toString()}`
         );
@@ -24,9 +34,11 @@ export const printLogsApi = {
     },
 
     async getAllLogs(
-        limit: number = 50,
+        limit: number = 1000,
         offset: number = 0,
-        statusFilter?: PrintLogStatus
+        statusFilter?: PrintLogStatus,
+        dataInicio?: string,
+        dataFim?: string
     ): Promise<PrintLog[]> {
         const params = new URLSearchParams({
             limit: limit.toString(),
@@ -35,6 +47,14 @@ export const printLogsApi = {
 
         if (statusFilter) {
             params.append('status_filter', statusFilter);
+        }
+
+        if (dataInicio) {
+            params.append('data_inicio', dataInicio);
+        }
+
+        if (dataFim) {
+            params.append('data_fim', dataFim);
         }
 
         const response = await apiClient.get<PrintLog[]>(

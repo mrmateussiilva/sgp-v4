@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Printer, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Printer, AlertCircle, CheckCircle2, RotateCcw, Calendar } from 'lucide-react';
 import { api } from '@/services/api';
 import { PrintLog, PrintLogStatus } from '@/types';
 import { MachineEntity } from '@/api/types';
@@ -10,6 +11,8 @@ import { useLazyImage } from '@/hooks/useLazyImage';
 export default function PrintLogsPage() {
     const [machines, setMachines] = useState<MachineEntity[]>([]);
     const [selectedMachine, setSelectedMachine] = useState<number | null>(null); // null = Todas
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
     const [logs, setLogs] = useState<PrintLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingMachines, setLoadingMachines] = useState(true);
@@ -20,7 +23,7 @@ export default function PrintLogsPage() {
 
     useEffect(() => {
         loadLogs();
-    }, [selectedMachine]);
+    }, [selectedMachine, startDate, endDate]);
 
     const loadMachines = async () => {
         try {
@@ -39,9 +42,9 @@ export default function PrintLogsPage() {
             setLoading(true);
             let data: PrintLog[];
             if (selectedMachine === null) {
-                data = await api.getAllLogs(100, 0);
+                data = await api.getAllLogs(1000, 0, undefined, startDate, endDate);
             } else {
-                data = await api.getPrinterLogs(selectedMachine, 100, 0);
+                data = await api.getPrinterLogs(selectedMachine, 1000, 0, undefined, startDate, endDate);
             }
             setLogs(data);
         } catch (error) {
@@ -50,6 +53,8 @@ export default function PrintLogsPage() {
             setLoading(false);
         }
     };
+
+    // ... (restante das funções auxiliares permanece igual)
 
     const getStatusIcon = (status: PrintLogStatus) => {
         switch (status) {
@@ -134,35 +139,58 @@ export default function PrintLogsPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold">Logs de Impressão</h1>
-                    <p className="text-muted-foreground">Histórico detalhado por item e máquina</p>
+                    <p className="text-muted-foreground">Histórico detalhado da produção</p>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                        <Printer className="w-5 h-5 text-primary" />
-                        Filtro por Máquina
+                        <Calendar className="w-5 h-5 text-primary" />
+                        Filtros de Busca
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <Select
-                            value={selectedMachine?.toString() || 'all'}
-                            onValueChange={(value) => setSelectedMachine(value === 'all' ? null : parseInt(value))}
-                        >
-                            <SelectTrigger className="w-full md:w-80">
-                                <SelectValue placeholder="Selecione uma impressora" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas as Impressoras</SelectItem>
-                                {machines.map((machine) => (
-                                    <SelectItem key={machine.id} value={machine.id.toString()}>
-                                        {machine.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Máquina</label>
+                            <Select
+                                value={selectedMachine?.toString() || 'all'}
+                                onValueChange={(value) => setSelectedMachine(value === 'all' ? null : parseInt(value))}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Todas as Impressoras" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas as Impressoras</SelectItem>
+                                    {machines.map((machine) => (
+                                        <SelectItem key={machine.id} value={machine.id.toString()}>
+                                            {machine.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Início</label>
+                            <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Fim</label>
+                            <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full"
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -213,10 +241,6 @@ export default function PrintLogsPage() {
                             </div>
                         </div>
                     ))}
-
-                    <p className="text-center text-sm text-muted-foreground py-4">
-                        Exibindo os últimos 100 registros
-                    </p>
                 </div>
             )}
         </div>
