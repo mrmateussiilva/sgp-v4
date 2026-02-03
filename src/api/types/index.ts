@@ -356,4 +356,5 @@ export type {
     ReportGroup,
     ReportRowData,
     ReportTotals,
+    DashboardSummary,
 } from '../../types';

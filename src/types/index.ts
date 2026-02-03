@@ -314,6 +314,22 @@ export interface AnalyticsSummary {
   average_ticket: number;
 }
 
+export interface DashboardSummary {
+  total: number;
+  pendentes: number;
+  em_producao: number;
+  concluidos: number;
+  atrasados: number;
+  urgentes: number;
+  hoje: number;
+  efficiency_rate: number;
+  avg_production_time: number;
+  avg_delay_time: number;
+  production_efficiency: Record<string, number>;
+  shipping_methods: Array<{ name: string; count: number; percentage: number }>;
+  status_counts: Record<string, number>;
+}
+
 export interface AnalyticsLeaderboardEntry {
   id: number | string;
   name: string;
