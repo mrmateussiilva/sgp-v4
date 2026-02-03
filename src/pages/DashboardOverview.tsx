@@ -21,7 +21,7 @@ import {
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
-import { OrderWithItems } from '../types';
+import { OrderWithItems, DashboardSummary } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +59,7 @@ export default function DashboardOverview() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
   // Função para carregar pedidos do servidor
   const loadOrdersFromServer = useCallback(async (showToast = false) => {
@@ -66,42 +67,33 @@ export default function DashboardOverview() {
       setIsRefreshing(true);
       setError(null);
 
-      // Carregar pedidos paginados com limite alto para ter dados suficientes para estatísticas
-      // Usar múltiplas páginas se necessário, mas começar com uma página grande
-      const pageSize = 100; // Limite alto para dashboard
-      let allOrders: OrderWithItems[] = [];
-      let currentPage = 1;
-      let hasMore = true;
+      // Carregar o resumo estatístico e os pedidos iniciais em paralelo
+      const [summaryResult, initialOrdersResult] = await Promise.all([
+        api.getDashboardSummary(),
+        api.getOrdersPaginated(1, 100)
+      ]);
 
-      // Carregar pedidos em lotes até ter dados suficientes ou não houver mais
-      while (hasMore && currentPage <= 5) { // Limitar a 5 páginas (500 pedidos) para não sobrecarregar
-        const result = await api.getOrdersPaginated(
-          currentPage,
-          pageSize,
-          undefined, // status - todos
-          undefined, // cliente
-          undefined, // data_inicio
-          undefined  // data_fim
-        );
+      setSummary(summaryResult);
 
-        allOrders = [...allOrders, ...result.orders];
+      // Carregar até 500 pedidos (5 páginas) para garantir que busca e listagem funcionem como antes
+      let allOrders = [...initialOrdersResult.orders];
+      let currentPage = 2;
+      const pageSize = 100;
+      let totalPages = initialOrdersResult.total_pages;
 
-        // Se retornou menos que o pageSize, não há mais páginas
-        if (result.orders.length < pageSize || currentPage >= result.total_pages) {
-          hasMore = false;
-        } else {
-          currentPage++;
-        }
+      while (currentPage <= 5 && currentPage <= totalPages) {
+        const nextResult = await api.getOrdersPaginated(currentPage, pageSize);
+        allOrders = [...allOrders, ...nextResult.orders];
+        currentPage++;
       }
 
-      // Atualizar o store com os pedidos carregados
       setOrders(allOrders);
       setLastUpdate(new Date());
 
       if (showToast) {
         toast({
           title: 'Atualizado',
-          description: `${allOrders.length} pedidos carregados com sucesso`,
+          description: `Dados do dashboard atualizados com sucesso`,
         });
       }
     } catch (error: any) {
@@ -155,18 +147,18 @@ export default function DashboardOverview() {
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
 
-      if (validOrders.length === 0) {
+      if (summary) {
         return {
-          totalOrders: 0,
-          pendingOrders: 0,
-          completedOrders: 0,
-          urgentOrders: 0,
-          overdueOrders: 0,
-          avgProductionTime: 0,
-          avgDelayTime: 0,
-          todayOrders: 0,
-          efficiencyRate: 0,
-          shippingMethods: [],
+          totalOrders: summary.total,
+          pendingOrders: summary.pendentes,
+          completedOrders: summary.concluidos,
+          urgentOrders: summary.urgentes,
+          overdueOrders: summary.atrasados,
+          avgProductionTime: summary.avg_production_time,
+          avgDelayTime: summary.avg_delay_time,
+          todayOrders: summary.hoje,
+          efficiencyRate: summary.efficiency_rate,
+          shippingMethods: summary.shipping_methods || [],
         };
       }
 
@@ -326,7 +318,7 @@ export default function DashboardOverview() {
         shippingMethods: [],
       };
     }
-  }, [validOrders, toast]);
+  }, [validOrders, summary, toast]);
 
   // Atualização automática a cada 30 segundos
   useEffect(() => {
@@ -430,6 +422,10 @@ export default function DashboardOverview() {
 
   // Memoizar eficiência por etapa
   const productionEfficiency = useMemo(() => {
+    if (summary?.production_efficiency) {
+      return summary.production_efficiency;
+    }
+
     const total = Math.max(validOrders.length, 1);
     return {
       financeiro: Math.round((validOrders.filter(o => o.financeiro).length / total) * 100),
@@ -438,7 +434,7 @@ export default function DashboardOverview() {
       costura: Math.round((validOrders.filter(o => o.costura).length / total) * 100),
       expedicao: Math.round((validOrders.filter(o => o.expedicao).length / total) * 100),
     };
-  }, [validOrders]);
+  }, [validOrders, summary]);
 
   const handleRefresh = useCallback(() => {
     loadOrdersFromServer(true); // Mostrar toast no refresh manual
