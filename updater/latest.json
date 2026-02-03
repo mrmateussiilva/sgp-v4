@@ -1,11 +1,11 @@
 {
-  "version": "1.2.1",
-  "notes": "Correção do campo de valor unitario x quantidade de items",
-  "pub_date": "2026-02-02T15:00:00Z",
+  "version": "1.2.2",
+  "notes": "Otimização do Dashboard e atualização de versão para 1.2.2",
+  "pub_date": "2026-02-03T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.1/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.1_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2o1OVNwUVl0S0haSnVUdFJrZm5PU0laNmM0eVowb0liczczK1J3OWR5cUJRdm0rTGtkNmxqbTYxTmlOcEtEaVpvZHV4TlI3ak10V3lIVWZhbnhQaXdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcwMDU2MzQyCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjFfeDY0X2VuLVVTLm1zaQp2RzlGdy94NUFNb0p6R0dPWmVlYVBjZ3ppV0h5eE85RGhNZmVJbjBzeWNWWTdSOHhaejVXZnE1ek5pbktrZm1ML05VWktkUTlUS1l3d0YzZ0RCTUdDQT09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.2/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.2_x64_en-US.msi",
+      "signature": ""
     }
   }
 }

@@ -1,5 +1,11 @@
 # Changelog - SGP v4
 
+## [1.2.2] - 2026-02-03
+
+### 🔧 Melhorado
+- **Otimização do Dashboard**: Refatoração da lógica de busca de métricas para maior eficiência.
+- **Sincronização de Versão**: Atualização global da versão do sistema para 1.2.2.
+
 ## [1.2.1] - 2026-02-02
 
 ### ✨ Adicionado
