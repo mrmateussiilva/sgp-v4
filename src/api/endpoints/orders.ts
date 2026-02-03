@@ -9,6 +9,7 @@ import {
     UpdateOrderMetadataRequest,
     UpdateOrderStatusRequest,
     OrderFicha,
+    DashboardSummary,
 } from '../types';
 import {
     mapPedidoFromApi,
@@ -530,5 +531,23 @@ export const ordersApi = {
         logger.info(`[createReplacementOrder] Ficha de reposição criada para pedido ${orderId} como ${newOrder.id}`);
 
         return newOrder;
+    },
+
+    getTotalOrdersCount: async (filters: {
+        status?: OrderStatus;
+        cliente?: string;
+        data_inicio?: string;
+        data_fim?: string;
+        date_mode?: string
+    } = {}): Promise<number> => {
+        requireSessionToken();
+        const response = await apiClient.get<{ total: number }>('/pedidos/total', { params: filters });
+        return response.data?.total ?? 0;
+    },
+
+    getDashboardSummary: async (): Promise<DashboardSummary> => {
+        requireSessionToken();
+        const response = await apiClient.get<DashboardSummary>('/pedidos/summary');
+        return response.data;
     },
 };

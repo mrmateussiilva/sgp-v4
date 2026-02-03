@@ -46,6 +46,8 @@ export const api = {
   resetOrderIds: async () => { await apiClient.post('/pedidos/reset-ids'); return true; },
   getOrdersWithFilters: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
   getOrdersWithFiltersForTable: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
+  getDashboardSummary: ordersApi.getDashboardSummary,
+  getTotalOrdersCount: ordersApi.getTotalOrdersCount,
   getOrderHistory: async (_orderId?: number) => [],
   getOrderFicha: ordersApi.getOrderFicha,
   // Orders by range
