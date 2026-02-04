@@ -85,6 +85,7 @@ export const filterOrdersByPeriod = (
     mode: DateMode
 ): DashboardOrder[] => {
     return orders
+        .filter(o => o.status !== OrderStatus.Cancelado) // Remover cancelados para faturamento bruto real
         .map((o) => normalizeOrder(o, mode))
         .filter((o): o is DashboardOrder => {
             if (!o) return false;
