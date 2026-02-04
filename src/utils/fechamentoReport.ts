@@ -6,6 +6,7 @@ import {
   ReportResponse,
   ReportTotals,
 } from '@/types';
+import { parseMonetary, roundToTwoDecimals } from '@/utils/currency';
 
 type NormalizedRow = {
   orderId: number;
@@ -48,7 +49,7 @@ const STATUS_FILTER_LABEL: Record<string, string> = {
   [OrderStatus.Cancelado]: 'Cancelado',
 };
 
-const roundCurrency = (value: number): number => Math.round(value * 100) / 100;
+
 
 /**
  * Cache para valores de moeda parseados.
@@ -87,8 +88,8 @@ const parseCurrencyCached = (value: unknown): number => {
     return currencyCache.get(key)!;
   }
 
-  // Parsear o valor
-  const parsed = parseCurrency(value);
+  // Parsear o valor usando função centralizada
+  const parsed = parseMonetary(value);
 
   // Armazenar no cache
   currencyCache.set(key, parsed);
@@ -96,26 +97,7 @@ const parseCurrencyCached = (value: unknown): number => {
   return parsed;
 };
 
-const parseCurrency = (value: unknown): number => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? roundCurrency(value) : 0;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return 0;
-    }
-    let normalized = trimmed;
-    if (trimmed.includes(',') && trimmed.includes('.')) {
-      normalized = trimmed.replace(/\./g, '').replace(',', '.');
-    } else if (trimmed.includes(',')) {
-      normalized = trimmed.replace(',', '.');
-    }
-    const numeric = Number.parseFloat(normalized);
-    return Number.isFinite(numeric) ? roundCurrency(numeric) : 0;
-  }
-  return 0;
-};
+
 
 /**
  * Calcula o valor do subtotal de um item de pedido.
@@ -146,20 +128,20 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
     // Se houver uma discrepância óbvia e tivermos unit_price, preferimos recalcular
     const expectedSubtotal = (orderItem.unit_price ?? 0) * quantity;
     if (expectedSubtotal > 0 && Math.abs(orderItem.subtotal - expectedSubtotal) > 0.01) {
-      return roundCurrency(expectedSubtotal);
+      return roundToTwoDecimals(expectedSubtotal);
     }
-    return roundCurrency(orderItem.subtotal);
+    return roundToTwoDecimals(orderItem.subtotal);
   }
 
   // Prioridade 2: Calcular a partir de quantity * unit_price (campos numéricos)
   if (typeof orderItem.unit_price === 'number' && Number.isFinite(orderItem.unit_price) && orderItem.unit_price >= 0) {
-    return roundCurrency(quantity * orderItem.unit_price);
+    return roundToTwoDecimals(quantity * orderItem.unit_price);
   }
 
   // Prioridade 3: Tentar parsear valor_unitario (string) e MULTIPLICAR pela quantidade
   const parsedUnit = parseCurrencyCached(orderItem.valor_unitario);
   if (parsedUnit > 0) {
-    return roundCurrency(quantity * parsedUnit);
+    return roundToTwoDecimals(quantity * parsedUnit);
   }
 
   // Fallback: logar erro e retornar 0
@@ -273,14 +255,14 @@ const calculateOrderDiscount = (order: OrderWithItems): number => {
   if (order.items?.length === 0) {
     const expectedTotal = valorFrete;
     const desconto = Math.max(0, expectedTotal - valorTotal);
-    return roundCurrency(desconto);
+    return roundToTwoDecimals(desconto);
   }
 
   // Desconto = (itens + frete) - total
   const totalBeforeDiscount = somaItens + valorFrete;
   const desconto = Math.max(0, totalBeforeDiscount - valorTotal);
 
-  return roundCurrency(desconto);
+  return roundToTwoDecimals(desconto);
 };
 
 /**
@@ -314,8 +296,8 @@ const computeTotalsFromRows = (
     // Quando proporcional, somar diretamente todos os valores de frete
     // (cada linha já tem sua parte proporcional)
     rows.forEach((row) => {
-      totalServico = roundCurrency(totalServico + row.valorServico);
-      totalFrete = roundCurrency(totalFrete + row.valorFrete);
+      totalServico = roundToTwoDecimals(totalServico + row.valorServico);
+      totalFrete = roundToTwoDecimals(totalFrete + row.valorFrete);
 
       // Calcular desconto apenas uma vez por pedido
       if (!descontoPorPedido.has(row.orderId) && ordersMap) {
@@ -334,7 +316,7 @@ const computeTotalsFromRows = (
 
     rows.forEach((row) => {
       // Serviços: somar todos (por item)
-      totalServico = roundCurrency(totalServico + row.valorServico);
+      totalServico = roundToTwoDecimals(totalServico + row.valorServico);
 
       // Frete: contar apenas uma vez por pedido (usar o primeiro valor encontrado)
       if (!fretePorPedido.has(row.orderId)) {
@@ -355,19 +337,19 @@ const computeTotalsFromRows = (
 
     // Somar fretes únicos de cada pedido
     totalFrete = Array.from(fretePorPedido.values()).reduce(
-      (sum, frete) => roundCurrency(sum + frete),
+      (sum, frete) => roundToTwoDecimals(sum + frete),
       0
     );
   }
 
   // Somar descontos únicos de cada pedido
   const totalDesconto = Array.from(descontoPorPedido.values()).reduce(
-    (sum, desconto) => roundCurrency(sum + desconto),
+    (sum, desconto) => roundToTwoDecimals(sum + desconto),
     0
   );
 
   // Calcular valor líquido
-  const valorLiquido = roundCurrency(totalFrete + totalServico - totalDesconto);
+  const valorLiquido = roundToTwoDecimals(totalFrete + totalServico - totalDesconto);
 
   const result: ReportTotals = {
     valor_frete: totalFrete,
@@ -387,8 +369,8 @@ const convertRowsToReportRows = (rows: NormalizedRow[]) =>
   rows.map((row) => ({
     ficha: row.ficha,
     descricao: row.descricao,
-    valor_frete: roundCurrency(row.valorFrete),
-    valor_servico: roundCurrency(row.valorServico),
+    valor_frete: roundToTwoDecimals(row.valorFrete),
+    valor_servico: roundToTwoDecimals(row.valorServico),
   }));
 
 const createLeafGroup = (
@@ -539,7 +521,7 @@ const buildRowsFromOrder = (
   const valorFreteTotal = parseCurrencyCached(order.valor_frete ?? 0);
 
   if (items.length === 0) {
-    const totalServico = roundCurrency(parseCurrencyCached(order.total_value ?? 0) - valorFreteTotal);
+    const totalServico = roundToTwoDecimals(parseCurrencyCached(order.total_value ?? 0) - valorFreteTotal);
     return [
       {
         orderId: order.id,
@@ -577,7 +559,7 @@ const buildRowsFromOrder = (
     let valorFrete: number;
     if (useProportional) {
       const proporcao = valorServico / totalItensValue;
-      valorFrete = roundCurrency(valorFreteTotal * proporcao);
+      valorFrete = roundToTwoDecimals(valorFreteTotal * proporcao);
     } else {
       // Por padrão, cada item mostra o frete TOTAL do pedido
       valorFrete = valorFreteTotal;
@@ -652,15 +634,15 @@ const buildTwoLevelGroups = (
       const subtotal = subgroups.reduce<ReportTotals>(
         (acc, group) => {
           const result: ReportTotals = {
-            valor_frete: roundCurrency(acc.valor_frete + (group.subtotal.valor_frete ?? 0)),
-            valor_servico: roundCurrency(acc.valor_servico + (group.subtotal.valor_servico ?? 0)),
+            valor_frete: roundToTwoDecimals(acc.valor_frete + (group.subtotal.valor_frete ?? 0)),
+            valor_servico: roundToTwoDecimals(acc.valor_servico + (group.subtotal.valor_servico ?? 0)),
           };
 
           // Somar descontos
-          const totalDesconto = roundCurrency((acc.desconto ?? 0) + (group.subtotal.desconto ?? 0));
+          const totalDesconto = roundToTwoDecimals((acc.desconto ?? 0) + (group.subtotal.desconto ?? 0));
           if (totalDesconto > 0) {
             result.desconto = totalDesconto;
-            result.valor_liquido = roundCurrency(result.valor_frete + result.valor_servico - totalDesconto);
+            result.valor_liquido = roundToTwoDecimals(result.valor_frete + result.valor_servico - totalDesconto);
           }
 
           return result;
