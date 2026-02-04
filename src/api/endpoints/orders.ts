@@ -560,4 +560,18 @@ export const ordersApi = {
         const response = await apiClient.get<DashboardSummary>('/pedidos/summary');
         return response.data;
     },
+
+    batchUpdateStatus: async (orderIds: number[], status: OrderStatus): Promise<{ count: number; status: string }> => {
+        requireSessionToken();
+        const apiStatus = STATUS_MAP[status] || status;
+        const response = await apiClient.post<{ count: number; status: string }>('/pedidos/batch-status', {
+            id_pedidos: orderIds,
+            status: apiStatus,
+        });
+
+        // Invalida cache para todos os pedidos afetados
+        orderIds.forEach(id => clearOrderCache(id));
+
+        return response.data;
+    },
 };

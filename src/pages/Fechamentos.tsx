@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -502,6 +503,8 @@ export default function Fechamentos() {
   const [report, setReport] = useState<ReportResponse | null>(null);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [exportingCsv, setExportingCsv] = useState<boolean>(false);
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [processing, setProcessing] = useState<boolean>(false);
   const [dateError, setDateError] = useState<string>('');
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
@@ -619,6 +622,7 @@ export default function Fechamentos() {
 
       const processedReport = generateFechamentoReport(response, payload);
       setReport(processedReport);
+      setRawOrders(response);
     } catch (error) {
       const message =
         error instanceof Error
@@ -633,6 +637,45 @@ export default function Fechamentos() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProcessar = async () => {
+    // Pegar pedidos que estão com status 'pronto' (ou 'Concluido' no mapeamento legível)
+    const prontos = rawOrders.filter(o => o.status === 'pronto');
+
+    if (prontos.length === 0) {
+      toast({
+        title: 'Nenhum pedido para processar',
+        description: 'Não há pedidos com status "Pronto" na lista atual.',
+      });
+      return;
+    }
+
+    if (!confirm(`Deseja marcar ${prontos.length} pedidos como "Entregue"?`)) {
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const orderIds = prontos.map(o => o.id);
+      await api.batchUpdateStatus(orderIds, 'entregue' as any);
+
+      toast({
+        title: 'Sucesso!',
+        description: `${prontos.length} pedidos foram marcados como Entregue.`,
+      });
+
+      // Atualizar o relatório para refletir os novos status se necessário
+      handleGenerate();
+    } catch (error) {
+      toast({
+        title: 'Erro ao processar pedidos',
+        description: 'Ocorreu um erro ao tentar atualizar os status em lote.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -1274,6 +1317,16 @@ export default function Fechamentos() {
                   Exportar PDF
                 </>
               )}
+            </Button>
+
+            <Button
+              variant="outline"
+              className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
+              onClick={handleProcessar}
+              disabled={loading || processing || !rawOrders.some(o => o.status === 'pronto')}
+            >
+              {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {processing ? 'Processando...' : 'Processar Prontos'}
             </Button>
 
             <Button className="gap-2" onClick={handleGenerate} disabled={loading || !!dateError}>

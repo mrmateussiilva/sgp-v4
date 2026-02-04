@@ -94,6 +94,9 @@ export const api = {
   getAllLogs: printLogsApi.getAllLogs,
   createPrintLog: printLogsApi.createPrintLog,
   getPrinterStats: printLogsApi.getPrinterStats,
+
+  // Batch operations
+  batchUpdateStatus: ordersApi.batchUpdateStatus,
 };
 
 // Re-export deprecated standalone functions to maintain compatibility with existing imports
