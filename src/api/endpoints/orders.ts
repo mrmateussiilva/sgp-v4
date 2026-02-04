@@ -232,6 +232,11 @@ export const ordersApi = {
     createOrder: async (request: CreateOrderRequest): Promise<OrderWithItems> => {
         requireSessionToken();
         const payload = buildPedidoCreatePayload(request);
+
+        // Log detalhado para diagnóstico de erro 422
+        logger.debug('[api.createOrder] Payload completo:', JSON.stringify(payload, null, 2));
+        logger.debug('[api.createOrder] Request original:', JSON.stringify(request, null, 2));
+
         const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
         const order = mapPedidoFromApi(response.data);
 
@@ -253,6 +258,11 @@ export const ordersApi = {
     updateOrder: async (request: UpdateOrderRequest): Promise<OrderWithItems> => {
         requireSessionToken();
         const payload = buildPedidoUpdatePayload(request);
+
+        // Log detalhado para diagnóstico de erro 422
+        logger.debug('[api.updateOrder] Payload completo:', JSON.stringify(payload, null, 2));
+        logger.debug('[api.updateOrder] Request original:', JSON.stringify(request, null, 2));
+
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
         const order = mapPedidoFromApi(response.data);
 

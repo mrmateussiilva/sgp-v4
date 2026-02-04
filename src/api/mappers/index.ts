@@ -491,27 +491,27 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         data_impressao: item?.data_impressao ?? null,
         perfil_cor: item?.perfil_cor ?? null,
         tecido_fornecedor: item?.tecido_fornecedor ?? null,
-        machine_id: item?.machine_id ?? null,
+        machine_id: parseNumericId(item?.machine_id),
     };
 
     if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&
         (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica' || canon.tipo_producao === 'mesa_babado')) {
         payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
         payload.quantidade_paineis = canon.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
-        payload.valor_painel = canon.valor_painel ? toCurrencyString(canon.valor_painel) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
+        payload.valor_painel = canon.valor_painel != null ? toCurrencyString(canon.valor_painel) : undefined;
+        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
     } else if (tipo === 'totem' && canon.tipo_producao === 'totem') {
         payload.quantidade_totem = canon.quantidade_totem ?? undefined;
-        payload.valor_totem = canon.valor_totem ? toCurrencyString(canon.valor_totem) : undefined;
-        payload.outros_valores_totem = canon.outros_valores_totem ?? undefined;
+        payload.valor_totem = canon.valor_totem != null ? toCurrencyString(canon.valor_totem) : undefined;
+        payload.outros_valores_totem = canon.outros_valores_totem != null ? toCurrencyString(canon.outros_valores_totem) : undefined;
         payload.acabamento_totem = canon.acabamento_totem ?? undefined;
         payload.acabamento_totem_outro = canon.acabamento_totem_outro ?? undefined;
     } else if (tipo === 'lona' && canon.tipo_producao === 'lona') {
         payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
         payload.acabamento_lona = canon.acabamento_lona ?? undefined;
         payload.quantidade_lona = canon.quantidade_lona ?? undefined;
-        payload.valor_lona = canon.valor_lona ? toCurrencyString(canon.valor_lona) : undefined;
-        payload.outros_valores_lona = canon.outros_valores_lona ? toCurrencyString(canon.outros_valores_lona) : undefined;
+        payload.valor_lona = canon.valor_lona != null ? toCurrencyString(canon.valor_lona) : undefined;
+        payload.outros_valores_lona = canon.outros_valores_lona != null ? toCurrencyString(canon.outros_valores_lona) : undefined;
         payload.quantidade_ilhos = canon.quantidade_ilhos ?? undefined;
         payload.espaco_ilhos = canon.espaco_ilhos ?? undefined;
         payload.valor_ilhos = canon.valor_ilhos ?? undefined;
@@ -521,41 +521,41 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     } else if (tipo === 'adesivo' && canon.tipo_producao === 'adesivo') {
         payload.tipo_adesivo = canon.tipo_adesivo ?? undefined;
         payload.quantidade_adesivo = canon.quantidade_adesivo ?? undefined;
-        payload.valor_adesivo = canon.valor_adesivo ? toCurrencyString(canon.valor_adesivo) : undefined;
-        payload.outros_valores_adesivo = canon.outros_valores_adesivo
+        payload.valor_adesivo = canon.valor_adesivo != null ? toCurrencyString(canon.valor_adesivo) : undefined;
+        payload.outros_valores_adesivo = canon.outros_valores_adesivo != null
             ? toCurrencyString(canon.outros_valores_adesivo)
             : undefined;
     } else if (tipo === 'canga' && canon.tipo_producao === 'canga') {
         payload.baininha = canon.baininha ?? false;
         payload.quantidade_canga = canon.quantidade_canga ?? undefined;
-        payload.valor_canga = canon.valor_canga ? toCurrencyString(canon.valor_canga) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
+        payload.valor_canga = canon.valor_canga != null ? toCurrencyString(canon.valor_canga) : undefined;
+        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
     } else if (tipo === 'impressao_3d' && canon.tipo_producao === 'impressao_3d') {
         payload.material_gasto = canon.material_gasto ?? undefined;
         payload.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? undefined;
-        payload.valor_impressao_3d = canon.valor_impressao_3d ? toCurrencyString(canon.valor_impressao_3d) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais ? toCurrencyString(canon.valores_adicionais) : undefined;
+        payload.valor_impressao_3d = canon.valor_impressao_3d != null ? toCurrencyString(canon.valor_impressao_3d) : undefined;
+        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
     } else {
         payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
-        payload.valor_painel = item?.valor_painel ? toCurrencyString(item.valor_painel) : undefined;
-        payload.valores_adicionais = item?.valores_adicionais ? toCurrencyString(item.valores_adicionais) : undefined;
+        payload.valor_painel = item?.valor_painel != null ? toCurrencyString(item.valor_painel) : undefined;
+        payload.valores_adicionais = item?.valores_adicionais != null ? toCurrencyString(item.valores_adicionais) : undefined;
         payload.quantidade_totem = item?.quantidade_totem ?? undefined;
         payload.quantidade_lona = item?.quantidade_lona ?? undefined;
         payload.quantidade_adesivo = item?.quantidade_adesivo ?? undefined;
-        payload.valor_totem = item?.valor_totem ? toCurrencyString(item.valor_totem) : undefined;
-        payload.valor_lona = item?.valor_lona ? toCurrencyString(item.valor_lona) : undefined;
-        payload.valor_adesivo = item?.valor_adesivo ? toCurrencyString(item.valor_adesivo) : undefined;
-        payload.outros_valores_totem = item?.outros_valores_totem ?? undefined;
-        payload.outros_valores_lona = item?.outros_valores_lona ?? undefined;
-        payload.outros_valores_adesivo = item?.outros_valores_adesivo ?? undefined;
+        payload.valor_totem = item?.valor_totem != null ? toCurrencyString(item.valor_totem) : undefined;
+        payload.valor_lona = item?.valor_lona != null ? toCurrencyString(item.valor_lona) : undefined;
+        payload.valor_adesivo = item?.valor_adesivo != null ? toCurrencyString(item.valor_adesivo) : undefined;
+        payload.outros_valores_totem = item?.outros_valores_totem != null ? toCurrencyString(item.outros_valores_totem) : undefined;
+        payload.outros_valores_lona = item?.outros_valores_lona != null ? toCurrencyString(item.outros_valores_lona) : undefined;
+        payload.outros_valores_adesivo = item?.outros_valores_adesivo != null ? toCurrencyString(item.outros_valores_adesivo) : undefined;
         payload.acabamento_lona = item?.acabamento_lona ?? undefined;
         payload.acabamento_totem = item?.acabamento_totem ?? undefined;
         payload.acabamento_totem_outro = item?.acabamento_totem_outro ?? undefined;
         payload.tipo_adesivo = item?.tipo_adesivo ?? undefined;
     }
 
-    const identifier = item?.orderItemId ?? item?.id;
-    if (identifier) {
+    const identifier = parseNumericId(item?.orderItemId ?? item?.id);
+    if (identifier !== null) {
         payload.id = identifier;
     }
 

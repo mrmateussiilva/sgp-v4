@@ -30,6 +30,17 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // Log detalhado para erros 422 (Unprocessable Entity)
+    if (error.response?.status === 422) {
+      logger.error('[API Client] Erro 422 - Unprocessable Entity:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data,
+        responseData: error.response?.data,
+        headers: error.config?.headers,
+      });
+    }
+
     // Se a requisição tiver o header 'X-Silent-Request', não notificar os listeners globais
     // Isso evita que falhas em chamadas não essenciais (ex: logout) acionem a tela de fallback
     const isSilent = error.config?.headers?.['X-Silent-Request'] === 'true';
