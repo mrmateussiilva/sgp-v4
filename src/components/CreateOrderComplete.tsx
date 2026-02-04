@@ -40,6 +40,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
+import { parseMonetary } from '@/utils/currency';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -1893,6 +1894,26 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   };
 
+  /**
+   * Converte campos monetários de string (formato TabItem) para number (formato CreateOrderItemRequest)
+   */
+  const convertMonetaryFields = (item: TabItem) => ({
+    valor_painel: parseMonetary(item.valor_painel),
+    valores_adicionais: parseMonetary(item.valores_adicionais),
+    valor_unitario: parseMonetary(item.valor_unitario),
+    valor_ilhos: parseMonetary(item.valor_ilhos),
+    valor_cordinha: parseMonetary(item.valor_cordinha),
+    valor_lona: parseMonetary(item.valor_lona),
+    outros_valores_lona: parseMonetary(item.outros_valores_lona),
+    valor_adesivo: parseMonetary(item.valor_adesivo),
+    outros_valores_adesivo: parseMonetary(item.outros_valores_adesivo),
+    valor_totem: parseMonetary(item.valor_totem),
+    outros_valores_totem: parseMonetary(item.outros_valores_totem),
+    valor_mochilinha: parseMonetary(item.valor_mochilinha),
+    valor_canga: parseMonetary(item.valor_canga),
+    valor_impressao_3d: parseMonetary(item.valor_impressao_3d),
+  });
+
   const handleConfirmSave = async () => {
     setIsSaving(true);
 
@@ -1962,6 +1983,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
           // Campos específicos por tipo (começando por Painel e Totem)
           if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao)) {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               overloque: item.overloque,
@@ -1969,13 +1991,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               tipo_acabamento: item.tipo_acabamento,
               quantidade_ilhos: item.quantidade_ilhos,
               espaco_ilhos: item.espaco_ilhos,
-              valor_ilhos: item.valor_ilhos,
               quantidade_cordinha: item.quantidade_cordinha,
               espaco_cordinha: item.espaco_cordinha,
-              valor_cordinha: item.valor_cordinha,
               quantidade_paineis: item.quantidade_paineis,
-              valor_painel: item.valor_painel,
-              valores_adicionais: item.valores_adicionais,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -1994,13 +2012,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               tipo_acabamento: canon.tipo_producao !== 'other' && 'tipo_acabamento' in canon ? canon.tipo_acabamento : item.tipo_acabamento,
               quantidade_ilhos: canon.tipo_producao !== 'other' && 'quantidade_ilhos' in canon ? canon.quantidade_ilhos : item.quantidade_ilhos,
               espaco_ilhos: canon.tipo_producao !== 'other' && 'espaco_ilhos' in canon ? canon.espaco_ilhos : item.espaco_ilhos,
-              valor_ilhos: canon.tipo_producao !== 'other' && 'valor_ilhos' in canon ? canon.valor_ilhos : item.valor_ilhos,
+              valor_ilhos: monetaryFields.valor_ilhos,
               quantidade_cordinha: canon.tipo_producao !== 'other' && 'quantidade_cordinha' in canon ? canon.quantidade_cordinha : item.quantidade_cordinha,
               espaco_cordinha: canon.tipo_producao !== 'other' && 'espaco_cordinha' in canon ? canon.espaco_cordinha : item.espaco_cordinha,
-              valor_cordinha: canon.tipo_producao !== 'other' && 'valor_cordinha' in canon ? canon.valor_cordinha : item.valor_cordinha,
+              valor_cordinha: monetaryFields.valor_cordinha,
               quantidade_paineis: canon.tipo_producao !== 'other' && 'quantidade_paineis' in canon ? canon.quantidade_paineis : item.quantidade_paineis,
-              valor_painel: canon.tipo_producao !== 'other' && 'valor_painel' in canon ? canon.valor_painel : item.valor_painel,
-              valores_adicionais: canon.tipo_producao !== 'other' && 'valores_adicionais' in canon ? canon.valores_adicionais : item.valores_adicionais,
+              valor_painel: monetaryFields.valor_painel,
+              valores_adicionais: monetaryFields.valores_adicionais,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
               composicao_tecidos: (canon as any).composicao_tecidos ?? item.composicao_tecidos,
@@ -2008,14 +2026,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           }
 
           if (item.tipo_producao === 'totem') {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               acabamento_totem: item.acabamento_totem,
               acabamento_totem_outro: item.acabamento_totem_outro,
               quantidade_totem: item.quantidade_totem,
-              valor_totem: item.valor_totem,
-              outros_valores_totem: item.outros_valores_totem,
-              valor_unitario: item.valor_unitario,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -2031,28 +2047,25 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               acabamento_totem: canon.tipo_producao === 'totem' ? canon.acabamento_totem : item.acabamento_totem,
               acabamento_totem_outro: canon.tipo_producao === 'totem' ? canon.acabamento_totem_outro : item.acabamento_totem_outro,
               quantidade_totem: canon.tipo_producao === 'totem' ? canon.quantidade_totem : item.quantidade_totem,
-              valor_totem: canon.tipo_producao === 'totem' ? canon.valor_totem : item.valor_totem,
-              outros_valores_totem: canon.tipo_producao === 'totem' ? canon.outros_valores_totem : item.outros_valores_totem,
-              valor_unitario: canon.tipo_producao === 'totem' ? canon.valor_unitario : item.valor_unitario,
+              valor_totem: monetaryFields.valor_totem,
+              outros_valores_totem: monetaryFields.outros_valores_totem,
+              valor_unitario: monetaryFields.valor_unitario,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (item.tipo_producao === 'lona') {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               tipo_acabamento: item.tipo_acabamento,
               quantidade_ilhos: item.quantidade_ilhos,
               espaco_ilhos: item.espaco_ilhos,
-              valor_ilhos: item.valor_ilhos,
               quantidade_cordinha: item.quantidade_cordinha,
               espaco_cordinha: item.espaco_cordinha,
-              valor_cordinha: item.valor_cordinha,
               acabamento_lona: item.acabamento_lona,
               quantidade_lona: item.quantidade_lona,
-              valor_lona: item.valor_lona,
-              outros_valores_lona: item.outros_valores_lona,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -2067,26 +2080,25 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               tipo_acabamento: canon.tipo_producao === 'lona' ? canon.tipo_acabamento : item.tipo_acabamento,
               quantidade_ilhos: canon.tipo_producao === 'lona' ? canon.quantidade_ilhos : item.quantidade_ilhos,
               espaco_ilhos: canon.tipo_producao === 'lona' ? canon.espaco_ilhos : item.espaco_ilhos,
-              valor_ilhos: canon.tipo_producao === 'lona' ? canon.valor_ilhos : item.valor_ilhos,
+              valor_ilhos: monetaryFields.valor_ilhos,
               quantidade_cordinha: canon.tipo_producao === 'lona' ? canon.quantidade_cordinha : item.quantidade_cordinha,
               espaco_cordinha: canon.tipo_producao === 'lona' ? canon.espaco_cordinha : item.espaco_cordinha,
-              valor_cordinha: canon.tipo_producao === 'lona' ? canon.valor_cordinha : item.valor_cordinha,
+              valor_cordinha: monetaryFields.valor_cordinha,
               acabamento_lona: canon.tipo_producao === 'lona' ? canon.acabamento_lona : item.acabamento_lona,
               quantidade_lona: canon.tipo_producao === 'lona' ? canon.quantidade_lona : item.quantidade_lona,
-              valor_lona: canon.tipo_producao === 'lona' ? canon.valor_lona : item.valor_lona,
-              outros_valores_lona: canon.tipo_producao === 'lona' ? canon.outros_valores_lona : item.outros_valores_lona,
+              valor_lona: monetaryFields.valor_lona,
+              outros_valores_lona: monetaryFields.outros_valores_lona,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (item.tipo_producao === 'adesivo') {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               tipo_adesivo: item.tipo_adesivo,
               quantidade_adesivo: item.quantidade_adesivo,
-              valor_adesivo: item.valor_adesivo,
-              outros_valores_adesivo: item.outros_valores_adesivo,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -2100,20 +2112,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               ...basePayload,
               tipo_adesivo: canon.tipo_producao === 'adesivo' ? canon.tipo_adesivo : item.tipo_adesivo,
               quantidade_adesivo: canon.tipo_producao === 'adesivo' ? canon.quantidade_adesivo : item.quantidade_adesivo,
-              valor_adesivo: canon.tipo_producao === 'adesivo' ? canon.valor_adesivo : item.valor_adesivo,
-              outros_valores_adesivo: canon.tipo_producao === 'adesivo' ? canon.outros_valores_adesivo : item.outros_valores_adesivo,
+              valor_adesivo: monetaryFields.valor_adesivo,
+              outros_valores_adesivo: monetaryFields.outros_valores_adesivo,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (item.tipo_producao === 'canga') {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               baininha: item.baininha,
               quantidade_canga: item.quantidade_canga,
-              valor_canga: item.valor_canga,
-              valores_adicionais: item.valores_adicionais,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -2127,20 +2138,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               ...basePayload,
               baininha: canon.tipo_producao === 'canga' ? canon.baininha : item.baininha,
               quantidade_canga: canon.tipo_producao === 'canga' ? canon.quantidade_canga : item.quantidade_canga,
-              valor_canga: canon.tipo_producao === 'canga' ? canon.valor_canga : item.valor_canga,
-              valores_adicionais: canon.tipo_producao === 'canga' ? canon.valores_adicionais : item.valores_adicionais,
+              valor_canga: monetaryFields.valor_canga,
+              valores_adicionais: monetaryFields.valores_adicionais,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (isImpressao3DType(item.tipo_producao)) {
+            const monetaryFields = convertMonetaryFields(item);
             const canon = canonicalizeFromItemRequest({
               ...basePayload,
               material_gasto: item.material_gasto,
               quantidade_impressao_3d: item.quantidade_impressao_3d,
-              valor_impressao_3d: item.valor_impressao_3d,
-              valores_adicionais: item.valores_adicionais,
               emenda: item.emenda,
               emenda_qtd:
                 item.emenda && item.emenda !== 'sem-emenda'
@@ -2154,14 +2164,15 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               ...basePayload,
               material_gasto: canon.tipo_producao === 'impressao_3d' ? canon.material_gasto : item.material_gasto,
               quantidade_impressao_3d: canon.tipo_producao === 'impressao_3d' ? canon.quantidade_impressao_3d : item.quantidade_impressao_3d,
-              valor_impressao_3d: canon.tipo_producao === 'impressao_3d' ? canon.valor_impressao_3d : item.valor_impressao_3d,
-              valores_adicionais: canon.tipo_producao === 'impressao_3d' ? canon.valores_adicionais : item.valores_adicionais,
+              valor_impressao_3d: monetaryFields.valor_impressao_3d,
+              valores_adicionais: monetaryFields.valores_adicionais,
               emenda: canon.emenda ?? item.emenda,
               emenda_qtd: canon.emenda_qtd ?? undefined,
             };
           }
 
           if (isMochilinhaType(item.tipo_producao)) {
+            const monetaryFields = convertMonetaryFields(item);
             const ac = (item.tipo_acabamento || '').toLowerCase().trim();
             return {
               ...basePayload,
@@ -2169,14 +2180,15 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               tipo_alcinha: item.tipo_acabamento,
               alcinha: ac === 'alca' || ac === 'alca_cordinha',
               cordinha_extra: ac === 'cordinha' || ac === 'alca_cordinha',
-              valor_unitario: item.valor_unitario,
-              valores_adicionais: item.valores_adicionais,
-              valor_mochilinha: item.valor_mochilinha,
+              valor_unitario: monetaryFields.valor_unitario,
+              valores_adicionais: monetaryFields.valores_adicionais,
+              valor_mochilinha: monetaryFields.valor_mochilinha,
               quantidade_mochilinha: item.quantidade_mochilinha,
             };
           }
 
           // Outros tipos: manter payload completo atual (serão refatorados depois)
+          const monetaryFields = convertMonetaryFields(item);
           return {
             ...basePayload,
             overloque: item.overloque,
@@ -2184,14 +2196,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             tipo_acabamento: item.tipo_acabamento,
             quantidade_ilhos: item.quantidade_ilhos,
             espaco_ilhos: item.espaco_ilhos,
-            valor_ilhos: item.valor_ilhos,
+            valor_ilhos: monetaryFields.valor_ilhos,
             quantidade_cordinha: item.quantidade_cordinha,
             espaco_cordinha: item.espaco_cordinha,
-            valor_cordinha: item.valor_cordinha,
+            valor_cordinha: monetaryFields.valor_cordinha,
             quantidade_paineis: item.quantidade_paineis,
-            valor_painel: item.valor_painel,
-            valores_adicionais: item.valores_adicionais,
-            valor_unitario: item.valor_unitario,
+            valor_painel: monetaryFields.valor_painel,
+            valores_adicionais: monetaryFields.valores_adicionais,
+            valor_unitario: monetaryFields.valor_unitario,
             emenda: item.emenda,
             emenda_qtd:
               item.emenda && item.emenda !== 'sem-emenda'
@@ -2200,23 +2212,23 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                   : undefined
                 : undefined,
             acabamento_lona: item.acabamento_lona,
-            valor_lona: item.valor_lona,
+            valor_lona: monetaryFields.valor_lona,
             quantidade_lona: item.quantidade_lona,
-            outros_valores_lona: item.outros_valores_lona,
+            outros_valores_lona: monetaryFields.outros_valores_lona,
             acabamento_totem: item.acabamento_totem,
             acabamento_totem_outro: item.acabamento_totem_outro,
-            valor_totem: item.valor_totem,
+            valor_totem: monetaryFields.valor_totem,
             quantidade_totem: item.quantidade_totem,
-            outros_valores_totem: item.outros_valores_totem,
+            outros_valores_totem: monetaryFields.outros_valores_totem,
             tipo_adesivo: item.tipo_adesivo,
-            valor_adesivo: item.valor_adesivo,
+            valor_adesivo: monetaryFields.valor_adesivo,
             quantidade_adesivo: item.quantidade_adesivo,
-            outros_valores_adesivo: item.outros_valores_adesivo,
+            outros_valores_adesivo: monetaryFields.outros_valores_adesivo,
             baininha: item.baininha,
-            valor_canga: item.valor_canga,
+            valor_canga: parseMonetary(item.valor_canga),
             quantidade_canga: item.quantidade_canga,
             material_gasto: item.material_gasto,
-            valor_impressao_3d: item.valor_impressao_3d,
+            valor_impressao_3d: parseMonetary(item.valor_impressao_3d),
             quantidade_impressao_3d: item.quantidade_impressao_3d,
             composicao_tecidos: item.composicao_tecidos,
           };
