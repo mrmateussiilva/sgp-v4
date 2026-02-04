@@ -37,28 +37,22 @@ describe('FechamentoView', () => {
 
   it('deve renderizar a view de fechamentos', async () => {
     server.use(
-      http.post('http://localhost:8000/api/reports', () => {
-        return HttpResponse.json({
-          groups: [],
-          total: { valor_frete: 0, valor_servico: 0 },
-        });
+      http.get('http://localhost:8000/api/relatorios-fechamentos/pedidos/relatorio-semanal', () => {
+        return HttpResponse.json([]);
       })
     );
 
     render(<Fechamentos />);
 
     await waitFor(() => {
-      expect(screen.getByText(/fechamentos/i)).toBeInTheDocument();
+      expect(screen.getByText(/Relatórios de Fechamentos/i)).toBeTruthy();
     });
   });
 
   it('deve aplicar filtros corretamente', async () => {
     server.use(
-      http.post('http://localhost:8000/api/reports', () => {
-        return HttpResponse.json({
-          groups: [],
-          total: { valor_frete: 0, valor_servico: 0 },
-        });
+      http.get('http://localhost:8000/api/relatorios-fechamentos/pedidos/relatorio-semanal', () => {
+        return HttpResponse.json([]);
       })
     );
 
@@ -76,33 +70,49 @@ describe('FechamentoView', () => {
     }
 
     // Verificar que filtros foram aplicados
-    expect(startDateInput).toHaveValue('2024-01-01');
+    expect((startDateInput as HTMLInputElement).value).toBe('2024-01-01');
   });
 
   it('deve calcular totais corretamente', async () => {
-    const mockReport = {
-      groups: [
-        {
-          label: 'Grupo 1',
-          subtotal: { valor_frete: 100, valor_servico: 200 },
-          rows: [],
-        },
-      ],
-      total: { valor_frete: 100, valor_servico: 200 },
-    };
+    const mockPedidos = [
+      {
+        id: 1,
+        numero: 'PED-001',
+        cliente: 'Cliente A',
+        data_entrada: '2024-01-15',
+        valor_frete: 100,
+        total_value: 300,
+        status: 'Concluido',
+        items: [
+          {
+            id: 1,
+            item_name: 'Item 1',
+            unit_price: 200,
+            quantity: 1,
+            vendedor: 'Vendedor 1',
+            designer: 'Designer 1',
+          }
+        ]
+      }
+    ];
 
     server.use(
-      http.post('http://localhost:8000/api/reports', () => {
-        return HttpResponse.json(mockReport);
+      http.get('http://localhost:8000/api/relatorios-fechamentos/pedidos/relatorio-semanal', () => {
+        return HttpResponse.json(mockPedidos);
       })
     );
 
     render(<Fechamentos />);
 
+    // Clicar no botão gerar relatório
+    const generateBtn = screen.getByRole('button', { name: /gerar relatório/i });
+    fireEvent.click(generateBtn);
+
     await waitFor(() => {
-      // Verificar que totais são exibidos
-      expect(screen.getByText(/total/i)).toBeInTheDocument();
-    });
+      // Verificar que o valor do serviço ou frete aparece na tela
+      // O utilitário formata como moeda R$ 100,00 etc.
+      expect(screen.getByText(/R\$ 100,00/i)).toBeTruthy();
+    }, { timeout: 3000 });
   });
 });
 

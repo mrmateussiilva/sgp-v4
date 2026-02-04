@@ -758,25 +758,30 @@ const normalizeFilterText = (value?: string): string => {
     .replace(/[\u0300-\u036f]/g, '');
 };
 
-const filterRowsByPeople = (
+const filterRows = (
   rows: NormalizedRow[],
   payload: ReportRequestPayload,
 ): NormalizedRow[] => {
   const vendedorFilter = normalizeFilterText(payload.vendedor);
   const designerFilter = normalizeFilterText(payload.designer);
+  const clienteFilter = normalizeFilterText(payload.cliente);
 
-  if (!vendedorFilter && !designerFilter) {
+  if (!vendedorFilter && !designerFilter && !clienteFilter) {
     return rows;
   }
 
   return rows.filter((row) => {
     const rowVendedor = normalizeFilterText(row.vendedor);
     const rowDesigner = normalizeFilterText(row.designer);
+    const rowCliente = normalizeFilterText(row.cliente);
 
     if (vendedorFilter && !rowVendedor.includes(vendedorFilter)) {
       return false;
     }
     if (designerFilter && !rowDesigner.includes(designerFilter)) {
+      return false;
+    }
+    if (clienteFilter && !rowCliente.includes(clienteFilter)) {
       return false;
     }
     return true;
@@ -1064,7 +1069,7 @@ export const generateFechamentoReport = (
   const baseRowsAll = filteredOrders.flatMap((order) =>
     buildRowsFromOrder(order, dateMode, freteDistributionForRows)
   );
-  const baseRows = filterRowsByPeople(baseRowsAll, payload);
+  const baseRows = filterRows(baseRowsAll, payload);
 
   // Criar mapa de pedidos por ID para calcular desconto
   const ordersMap = new Map<number, OrderWithItems>();

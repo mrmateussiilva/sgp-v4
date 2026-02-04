@@ -475,7 +475,7 @@ describe('fechamentoReport', () => {
               quantity: 1,
               unit_price: 100,
               designer: 'Pedro',
-              vendedor: 'Ana Costa', // Vendedor diferente
+              vendedor: 'Ana Costa',
               tipo_producao: 'banner',
             },
           ],
@@ -494,6 +494,69 @@ describe('fechamentoReport', () => {
       // Deve incluir apenas itens do vendedor Maria
       expect(result.total.valor_frete).toBe(50); // Apenas pedido 1
       expect(result.total.valor_servico).toBe(100); // Apenas item 1
+    });
+
+    it('deve filtrar por cliente corretamente', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-001',
+          cliente: 'Maria Oliveira',
+          data_entrada: '2024-01-15',
+          data_entrega: '2024-01-20',
+          valor_frete: 50,
+          total_value: 150,
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Item 1',
+              subtotal: 100,
+              quantity: 1,
+              unit_price: 100,
+              designer: 'João',
+              vendedor: 'Maria Silva',
+              tipo_producao: 'painel',
+            },
+          ],
+        },
+        {
+          id: 2,
+          numero: 'PED-002',
+          cliente: 'João Santos',
+          data_entrada: '2024-01-16',
+          data_entrega: '2024-01-21',
+          valor_frete: 30,
+          total_value: 130,
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 2,
+              descricao: 'Item 2',
+              subtotal: 100,
+              quantity: 1,
+              unit_price: 100,
+              designer: 'Pedro',
+              vendedor: 'Ana Costa',
+              tipo_producao: 'banner',
+            },
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_cliente',
+        start_date: '2024-01-15',
+        end_date: '2024-01-21',
+        cliente: 'maria', // Busca parcial, case-insensitive
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // Deve incluir apenas itens da cliente Maria Oliveira
+      expect(result.total.valor_frete).toBe(50); // Apenas pedido 1
+      expect(result.total.valor_servico).toBe(100); // Apenas item 1
+      expect(result.groups[0].label).toContain('Maria Oliveira');
     });
 
     it('deve gerar relatório analítico com dois níveis de agrupamento', () => {
