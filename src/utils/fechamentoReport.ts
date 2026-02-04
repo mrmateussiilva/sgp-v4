@@ -165,7 +165,7 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
 const validateOrderTotals = (order: OrderWithItems): { valid: boolean; issues: string[] } => {
   const issues: string[] = [];
   const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
-  const valorTotal = parseCurrencyCached(order.total_value ?? 0);
+  const valorTotal = parseCurrencyCached(order.total_value ?? order.valor_total ?? 0);
 
   // Calcular soma de itens
   const somaItens = (order.items ?? []).reduce((sum, item) => {
@@ -244,7 +244,7 @@ const slugify = (value: string): string =>
  */
 const calculateOrderDiscount = (order: OrderWithItems): number => {
   const valorFrete = parseCurrencyCached(order.valor_frete ?? 0);
-  const valorTotal = parseCurrencyCached(order.total_value ?? 0);
+  const valorTotal = parseCurrencyCached(order.total_value ?? order.valor_total ?? 0);
 
   // Calcular soma de itens
   const somaItens = (order.items ?? []).reduce((sum, item) => {
@@ -548,7 +548,7 @@ const buildRowsFromOrder = (
   // Se distribuição proporcional mas total é zero, usar por_pedido
   const useProportional = freteDistribution === 'proporcional' && totalItensValue > 0;
 
-  return items.map((item) => {
+  const rows: NormalizedRow[] = items.map((item) => {
     const designer = safeLabel(item.designer, 'Sem designer');
     const vendedor = safeLabel(item.vendedor, 'Sem vendedor');
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
@@ -580,6 +580,43 @@ const buildRowsFromOrder = (
       valorServico,
     };
   });
+
+  // Cálculo de ajuste (Valor Excedente)
+  // Alguns pedidos tem valor total maior que a soma dos itens (ex: pedidos antigos ou ajustes manuais)
+  // No Relatório de Fechamento, o total do cabeçalho é soberano (Faturamento Bruto)
+  const valorTotalPedido = parseCurrencyCached(order.total_value ?? order.valor_total ?? 0);
+
+  // Só aplicamos ajuste se houver um valor total definido para o pedido (> 0)
+  // Se for 0, assumimos que o total é a soma dos itens (evita quebrar testes e pedidos legados sem total)
+  if (valorTotalPedido > 0.01) {
+    const sumItemsValue = rows.reduce((sum, r) => sum + r.valorServico, 0);
+    const expectedServicoTotal = roundToTwoDecimals(valorTotalPedido - valorFreteTotal);
+    const adjustment = roundToTwoDecimals(expectedServicoTotal - sumItemsValue);
+
+    if (adjustment > 0.01) {
+      // Tentar herdar designer/vendedor do primeiro item real se existir
+      const firstItem = items[0];
+      const adjustmentDesigner = firstItem?.designer || 'Sem designer';
+      const adjustmentVendedor = firstItem?.vendedor || 'Sem vendedor';
+
+      rows.push({
+        orderId: order.id,
+        ficha: order.numero ?? order.id.toString(),
+        cliente,
+        designer: adjustmentDesigner,
+        vendedor: adjustmentVendedor,
+        tipo: 'Ajuste',
+        formaEnvio,
+        data: ordemDataRef ?? '',
+        dataLabel,
+        descricao: 'Complemento de valor (Diferença Pedido x Itens)',
+        valorFrete: valorFreteTotal,
+        valorServico: adjustment,
+      });
+    }
+  }
+
+  return rows;
 };
 
 /**
@@ -689,7 +726,31 @@ const filterOrdersByStatus = (orders: OrderWithItems[], statusFilter?: string) =
   if (!statusFilter || statusFilter === 'Todos') {
     return orders;
   }
-  return orders.filter((order) => order.status === statusFilter);
+
+  const normalized = statusFilter.toLowerCase().trim();
+
+  return orders.filter((order) => {
+    const orderStatus = (order.status || '').toLowerCase().trim();
+
+    // No Relatório de Fechamento, "Concluido" deve ser INCLUSIVO (Pendente, Produção, Pronto, Entregue)
+    // conforme solicitado pelo usuário para bater com o Dashboard e incluir pedidos em andamento no mês.
+    if (normalized === 'concluido') {
+      return (
+        orderStatus === 'pendente' ||
+        orderStatus === 'em_producao' ||
+        orderStatus === 'processamento' ||
+        orderStatus === 'pronto' ||
+        orderStatus === 'entregue' ||
+        orderStatus === 'concluido'
+      );
+    }
+
+    if (normalized === 'pendente') return orderStatus === 'pendente';
+    if (normalized === 'em processamento') return orderStatus === 'em_producao';
+    if (normalized === 'cancelado') return orderStatus === 'cancelado';
+
+    return orderStatus === normalized;
+  });
 };
 
 /**

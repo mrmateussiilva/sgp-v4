@@ -367,9 +367,9 @@ describe('fechamentoReport', () => {
 
       const result = generateFechamentoReport(orders, payload);
 
-      // Deve incluir apenas pedido com status Concluido
-      expect(result.total.valor_frete).toBe(50); // Apenas pedido 1
-      expect(result.total.valor_servico).toBe(100); // Apenas item 1
+      // Deve incluir tanto Concluido quanto Pendente (Inclusive)
+      expect(result.total.valor_frete).toBe(80); // 50 (Concluido) + 30 (Pendente)
+      expect(result.total.valor_servico).toBe(200); // 100 + 100
     });
 
     it('deve filtrar por data corretamente (data de entrega)', () => {
