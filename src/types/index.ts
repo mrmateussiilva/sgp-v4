@@ -27,10 +27,10 @@ export interface OrderItem {
   tipo_acabamento?: string;
   quantidade_ilhos?: string;
   espaco_ilhos?: string;
-  valor_ilhos?: string;
+  valor_ilhos?: number;
   quantidade_cordinha?: string;
   espaco_cordinha?: string;
-  valor_cordinha?: string;
+  valor_cordinha?: number;
   observacao?: string;
   imagem?: string;
   legenda_imagem?: string;
@@ -60,7 +60,7 @@ export interface OrderItem {
   quantidade_totem?: string;
   outros_valores_totem?: number;
   tipo_alcinha?: string;
-  valor_mochilinha?: string;
+  valor_mochilinha?: number;
   quantidade_mochilinha?: string;
   data_impressao?: string | null;
   rip_maquina?: string | null;
@@ -145,10 +145,10 @@ export interface CreateOrderItemRequest {
   tipo_acabamento?: string;
   quantidade_ilhos?: string;
   espaco_ilhos?: string;
-  valor_ilhos?: string;
+  valor_ilhos?: number;
   quantidade_cordinha?: string;
   espaco_cordinha?: string;
-  valor_cordinha?: string;
+  valor_cordinha?: number;
   observacao?: string;
   imagem?: string;
   legenda_imagem?: string;
@@ -177,7 +177,7 @@ export interface CreateOrderItemRequest {
   quantidade_totem?: string;
   outros_valores_totem?: number;
   tipo_alcinha?: string;
-  valor_mochilinha?: string;
+  valor_mochilinha?: number;
   quantidade_mochilinha?: string;
   data_impressao?: string | null;
   rip_maquina?: string | null;
@@ -244,7 +244,7 @@ export interface UpdateOrderItemRequest {
   alcinha?: boolean;
   toalha_pronta?: boolean;
   tipo_alcinha?: string;
-  valor_mochilinha?: string;
+  valor_mochilinha?: number;
   quantidade_mochilinha?: string;
   composicao_tecidos?: string;
   data_impressao?: string | null;
@@ -600,10 +600,10 @@ export interface OrderItemFicha {
   tipo_acabamento?: string;
   quantidade_ilhos?: string;
   espaco_ilhos?: string;
-  valor_ilhos?: string;
+  valor_ilhos?: number;
   quantidade_cordinha?: string;
   espaco_cordinha?: string;
-  valor_cordinha?: string;
+  valor_cordinha?: number;
   observacao?: string;
   imagem?: string;
   legenda_imagem?: string;
@@ -629,7 +629,7 @@ export interface OrderItemFicha {
   quantidade_totem?: string;
   outros_valores_totem?: number;
   tipo_alcinha?: string;
-  valor_mochilinha?: string;
+  valor_mochilinha?: number;
   quantidade_mochilinha?: string;
 }
 
