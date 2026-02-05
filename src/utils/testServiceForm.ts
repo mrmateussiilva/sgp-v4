@@ -1,6 +1,5 @@
 import { printOrderServiceForm } from './printOrderServiceForm';
 import { OrderWithItems, OrderStatus } from '../types';
-import { parseMonetary } from '@/utils/currency';
 
 // Dados de exemplo para testar a ficha de serviço
 export const testOrderData: OrderWithItems = {
@@ -51,37 +50,37 @@ export const testOrderData: OrderWithItems = {
       tipo_acabamento: 'ilhos',
       quantidade_ilhos: '8',
       espaco_ilhos: '15cm',
-      valor_ilhos: parseMonetary('80.00'),
+      valor_ilhos: '80.00',
       quantidade_cordinha: '',
       espaco_cordinha: '',
-      valor_cordinha: parseMonetary(''),
+      valor_cordinha: '0.00',
       observacao: 'Verificar se o design está centralizado',
       imagem: 'https://via.placeholder.com/300x200/FF6B6B/FFFFFF?text=Painel+Teste',
       quantidade_paineis: '2',
-      valor_painel: parseMonetary('150.00'),
-      valores_adicionais: parseMonetary('0'),
-      valor_unitario: parseMonetary('400.00'),
+      valor_painel: '150.00',
+      valores_adicionais: '0.00',
+      valor_unitario: '400.00',
       emenda: 'sem-emenda',
       emenda_qtd: '',
       emendaQtd: '',
       terceirizado: false,
       acabamento_lona: '',
-      valor_lona: parseMonetary('0'),
+      valor_lona: '0.00',
       quantidade_lona: '0',
-      outros_valores_lona: parseMonetary('0'),
+      outros_valores_lona: '0.00',
       tipo_adesivo: '',
-      valor_adesivo: parseMonetary('0'),
+      valor_adesivo: '0.00',
       quantidade_adesivo: '0',
-      outros_valores_adesivo: parseMonetary('0'),
+      outros_valores_adesivo: '0.00',
       ziper: false,
       cordinha_extra: false,
       alcinha: false,
       toalha_pronta: false,
       acabamento_totem: '',
       acabamento_totem_outro: '',
-      valor_totem: parseMonetary('0'),
+      valor_totem: '0.00',
       quantidade_totem: '0',
-      outros_valores_totem: parseMonetary('0')
+      outros_valores_totem: '0.00'
     }
   ]
 };
