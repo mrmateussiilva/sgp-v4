@@ -1203,7 +1203,328 @@ R: 1) Verificar console do navegador, 2) Verificar logs detalhados do intercepto
 
 ---
 
-## 🌐 Ambiente de Produção
+## � Tipos de Produção e Processamento de Valores
+
+### Visão Geral
+
+O sistema suporta múltiplos tipos de produção, cada um com campos e validações específicas. Esta seção documenta as regras críticas para adicionar novos tipos de produção e processar valores monetários corretamente.
+
+### ⚠️ REGRAS CRÍTICAS DE VALIDAÇÃO
+
+#### 1. Campos Monetários DEVEM Ser Strings
+
+**IMPORTANTE:** O backend espera que **TODOS** os campos monetários sejam enviados como **strings**, não como números.
+
+```typescript
+// ❌ ERRADO - Causa erro 422
+{
+  valor_ilhos: 0,           // número
+  valor_cordinha: 150.50    // número
+}
+
+// ✅ CORRETO
+{
+  valor_ilhos: "0.00",      // string
+  valor_cordinha: "150.50"  // string
+}
+```
+
+**Razão:** O schema `ItemPedido` no backend define campos monetários como `Optional[str]`, não como `float` ou `Decimal`.
+
+#### 2. Função `convertMonetaryFields`
+
+Ao adicionar novos campos monetários, use sempre a função `convertMonetaryFields` em `CreateOrderComplete.tsx`:
+
+```typescript
+const convertMonetaryFields = (item: TabItem) => ({
+  // Parse para número e depois formata de volta para string
+  valor_painel: formatMonetary(parseMonetary(item.valor_painel)),
+  valor_ilhos: formatMonetary(parseMonetary(item.valor_ilhos)),
+  // ... adicione novos campos aqui
+});
+```
+
+**Fluxo de Conversão:**
+1. `parseMonetary(value)` → Converte string para número (remove formatação)
+2. `formatMonetary(number)` → Converte número de volta para string formatada ("0.00")
+
+#### 3. Schema do Backend
+
+Ao adicionar novos campos monetários no backend (`pedidos/schema.py`):
+
+```python
+class ItemPedido(SQLModel):
+    # ✅ CORRETO - Campos monetários como Optional[str]
+    valor_novo_campo: Optional[str] = None
+    outro_valor: Optional[str] = None
+    
+    # ❌ ERRADO - Não usar float ou Decimal
+    # valor_campo: Optional[float] = None
+```
+
+### Tipos de Produção Suportados
+
+#### 1. Painel / Genérica
+
+**Campos Obrigatórios:**
+- `descricao`: Descrição do item
+- `quantidade_paineis`: Quantidade de painéis
+- `valor_unitario`: Valor unitário
+- `vendedor`: Nome do vendedor
+- `designer`: Nome do designer
+- `tecido`: Tipo de tecido
+
+**Campos Opcionais:**
+- `largura`, `altura`, `metro_quadrado`: Dimensões
+- `overloque`, `elastico`: Acabamentos booleanos
+- `tipo_acabamento`: "ilhos", "cordinha", "nenhum"
+- `quantidade_ilhos`, `espaco_ilhos`, `valor_ilhos`: Configuração de ilhós
+- `quantidade_cordinha`, `espaco_cordinha`, `valor_cordinha`: Configuração de cordinha
+- `emenda`, `emenda_qtd`: Configuração de emendas
+- `composicao_tecidos`: Composição de tecidos
+
+**Cálculo de Valor:**
+```typescript
+const subtotal = parseLocaleNumber(item.valor_unitario) * parseInt(item.quantidade_paineis);
+```
+
+#### 2. Totem
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_totem`, `valor_unitario`
+- `acabamento_totem`: Tipo de acabamento
+
+**Campos Opcionais:**
+- `acabamento_totem_outro`: Descrição customizada
+- `valor_totem`, `outros_valores_totem`: Valores adicionais
+- `emenda`, `emenda_qtd`
+
+#### 3. Lona
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_lona`, `valor_unitario`
+- `acabamento_lona`: Tipo de acabamento
+
+**Campos Opcionais:**
+- `tipo_acabamento`: "ilhos", "cordinha", "nenhum"
+- `valor_lona`, `outros_valores_lona`
+- `quantidade_ilhos`, `espaco_ilhos`, `valor_ilhos`
+- `quantidade_cordinha`, `espaco_cordinha`, `valor_cordinha`
+- `terceirizado`: Boolean
+
+#### 4. Adesivo
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_adesivo`, `valor_unitario`
+- `tipo_adesivo`: Tipo específico
+
+**Campos Opcionais:**
+- `valor_adesivo`, `outros_valores_adesivo`
+
+#### 5. Canga
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_canga`, `valor_unitario`
+
+**Campos Opcionais:**
+- `baininha`: Boolean
+- `valor_canga`, `valores_adicionais`
+
+#### 6. Impressão 3D
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_impressao_3d`, `valor_unitario`
+
+**Campos Opcionais:**
+- `material_gasto`: Quantidade de material
+- `valor_impressao_3d`, `valores_adicionais`
+
+#### 7. Mochilinha/Bolsinha
+
+**Campos Obrigatórios:**
+- `descricao`, `quantidade_mochilinha`, `valor_unitario`
+
+**Campos Opcionais:**
+- `tipo_acabamento`: "alca", "cordinha", "alca_cordinha"
+- `alcinha`, `cordinha_extra`: Derivados do tipo_acabamento
+- `valor_mochilinha`, `valores_adicionais`
+
+### Adicionando um Novo Tipo de Produção
+
+#### Passo 1: Backend - Schema (`pedidos/schema.py`)
+
+```python
+class ItemPedido(SQLModel):
+    # ... campos existentes ...
+    
+    # Adicionar campos específicos do novo tipo
+    quantidade_novo_tipo: Optional[str] = None
+    valor_novo_tipo: Optional[str] = None  # SEMPRE string!
+    acabamento_novo_tipo: Optional[str] = None
+    outros_valores_novo_tipo: Optional[str] = None  # SEMPRE string!
+```
+
+#### Passo 2: Frontend - Tipo TypeScript (`types/index.ts`)
+
+```typescript
+export interface OrderItem {
+  // ... campos existentes ...
+  
+  // Adicionar campos do novo tipo
+  quantidade_novo_tipo?: string;
+  valor_novo_tipo?: string;
+  acabamento_novo_tipo?: string;
+  outros_valores_novo_tipo?: string;
+}
+```
+
+#### Passo 3: Frontend - Função `convertMonetaryFields`
+
+```typescript
+const convertMonetaryFields = (item: TabItem) => ({
+  // ... campos existentes ...
+  
+  // Adicionar novos campos monetários
+  valor_novo_tipo: formatMonetary(parseMonetary(item.valor_novo_tipo)),
+  outros_valores_novo_tipo: formatMonetary(parseMonetary(item.outros_valores_novo_tipo)),
+});
+```
+
+#### Passo 4: Frontend - Lógica de Processamento
+
+Em `CreateOrderComplete.tsx`, adicionar seção específica para o novo tipo:
+
+```typescript
+if (item.tipo_producao === 'novo_tipo') {
+  const monetaryFields = convertMonetaryFields(item);
+  const canon = canonicalizeFromItemRequest({
+    ...basePayload,
+    quantidade_novo_tipo: item.quantidade_novo_tipo,
+    acabamento_novo_tipo: item.acabamento_novo_tipo,
+  } as unknown as CreateOrderItemRequest);
+
+  return {
+    ...basePayload,
+    quantidade_novo_tipo: canon.tipo_producao === 'novo_tipo' ? canon.quantidade_novo_tipo : item.quantidade_novo_tipo,
+    valor_novo_tipo: monetaryFields.valor_novo_tipo,
+    outros_valores_novo_tipo: monetaryFields.outros_valores_novo_tipo,
+    acabamento_novo_tipo: canon.tipo_producao === 'novo_tipo' ? canon.acabamento_novo_tipo : item.acabamento_novo_tipo,
+  };
+}
+```
+
+#### Passo 5: Validação
+
+Adicionar validação específica em `validateItemComplete`:
+
+```typescript
+if (item.tipo_producao === 'novo_tipo') {
+  const quantidadeNovoTipo = parseInt(item.quantidade_novo_tipo || '0', 10);
+  if (Number.isNaN(quantidadeNovoTipo) || quantidadeNovoTipo <= 0) {
+    errors.push("Quantidade é obrigatória e deve ser maior que zero");
+  }
+  
+  const valorNovoTipo = parseLocaleNumber(item.valor_novo_tipo || '0,00');
+  if (valorNovoTipo <= 0) {
+    errors.push("Valor unitário é obrigatório e deve ser maior que zero");
+  }
+  
+  if (!item.acabamento_novo_tipo || item.acabamento_novo_tipo.trim().length === 0) {
+    errors.push("Selecione o acabamento");
+  }
+}
+```
+
+#### Passo 6: Cálculo de Valor Total
+
+Adicionar lógica em `calcularValorItens`:
+
+```typescript
+if (item.tipo_producao === 'novo_tipo') {
+  const quantidadeNovoTipoParse = parseInt(item.quantidade_novo_tipo || '1');
+  const quantidadeValida = Number.isNaN(quantidadeNovoTipoParse) || quantidadeNovoTipoParse <= 0 ? 1 : quantidadeNovoTipoParse;
+  return sum + (valor * quantidadeValida);
+}
+```
+
+### Processamento de Valores no Relatório
+
+O relatório de fechamento (`fechamentoReport.ts`) processa valores de forma específica:
+
+#### Função `getSubtotalValue`
+
+```typescript
+// Prioridade 1: Usar subtotal direto se disponível
+if (orderItem.subtotal) {
+  return parseCurrencyCached(orderItem.subtotal);
+}
+
+// Prioridade 2: Calcular quantity * unit_price
+const quantity = getQuantityValue(orderItem);
+const unitPrice = parseCurrencyCached(orderItem.unit_price);
+if (quantity > 0 && unitPrice > 0) {
+  return roundToTwoDecimals(quantity * unitPrice);
+}
+
+// Prioridade 3: Parsear valor_unitario e multiplicar pela quantidade
+const parsedUnit = parseCurrencyCached(orderItem.valor_unitario);
+if (parsedUnit > 0) {
+  return roundToTwoDecimals(quantity * parsedUnit);
+}
+
+// Fallback: retornar 0
+return 0;
+```
+
+### Bugs Comuns e Como Evitar
+
+#### Bug 1: Erro 422 - Campos Monetários como Números
+
+**Sintoma:** Backend rejeita pedido com erro 422 "Input should be a valid string"
+
+**Causa:** Campos monetários enviados como números em vez de strings
+
+**Solução:** Sempre usar `formatMonetary(parseMonetary(value))` para campos monetários
+
+#### Bug 2: Itens Duplicados/Sobrescritos
+
+**Sintoma:** Apenas 1 item aparece em vez de múltiplos
+
+**Causa:** Deduplicação usando `item.id` quando todos os itens têm `id=null`
+
+**Solução:** Usar índice como fallback:
+```typescript
+items.forEach((item, index) => {
+  const key = item.id != null ? item.id : `__index_${index}`;
+  itemsById.set(key, item);
+});
+```
+
+#### Bug 3: Valores Zerados no Relatório
+
+**Sintoma:** Subtotais aparecem como R$ 0,00 no relatório
+
+**Causa:** Função `parseCurrencyCached` retorna 0 para valores inválidos
+
+**Solução:** Garantir que `valor_unitario` seja sempre uma string válida ("0.00", "150.50", etc.)
+
+### Checklist para Novos Tipos de Produção
+
+- [ ] Adicionar campos no schema backend (`ItemPedido`)
+- [ ] Adicionar tipos TypeScript (`OrderItem`)
+- [ ] Atualizar `convertMonetaryFields` com novos campos monetários
+- [ ] Adicionar lógica de processamento em `handleConfirmSave`
+- [ ] Adicionar validação em `validateItemComplete`
+- [ ] Adicionar cálculo em `calcularValorItens`
+- [ ] Testar criação de pedido
+- [ ] Testar edição de pedido
+- [ ] Testar relatório de fechamento
+- [ ] Verificar que valores aparecem corretamente
+- [ ] Confirmar que não há erro 422
+
+---
+
+## �🌐 Ambiente de Produção
 
 - **Build**: `pnpm run tauri:build`
 - **Executável**: Gerado em `src-tauri/target/release/`
