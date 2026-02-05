@@ -1555,6 +1555,6 @@ items.forEach((item, index) => {
 
 ---
 
-**Última Atualização:** 2026-02-04  
-**Versão do Sistema:** 1.2.2  
+**Última Atualização:** 2026-02-05  
+**Versão do Sistema:** 1.2.3  
 **Autor:** Equipe SGP v4

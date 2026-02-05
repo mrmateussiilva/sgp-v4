@@ -1,5 +1,33 @@
 # Changelog - SGP v4
 
+## [1.2.3] - 2026-02-05
+
+### 🐛 Corrigido
+- **Erro 422 na Criação de Pedidos**: Resolvido erro crítico de validação que impedia a criação de novos pedidos.
+  - Campos monetários agora são enviados como strings formatadas (`"0.00"`) em vez de números, conforme esperado pelo backend.
+  - Função `convertMonetaryFields` atualizada para usar `formatMonetary(parseMonetary(...))`.
+  - Corrigidos valores de fallback em casos especiais (Canga, Impressão 3D).
+- **Deduplicação de Itens no Relatório de Fechamentos**: Corrigido bug que causava perda de dados no relatório.
+  - Itens com `id=null` agora usam índice como chave alternativa, evitando sobrescrita.
+  - Todos os itens de pedidos com múltiplos produtos agora aparecem corretamente.
+  - Discrepâncias financeiras causadas por itens faltantes foram eliminadas.
+- **Erros de Build TypeScript**: Resolvidos todos os erros de compilação relacionados a tipos monetários.
+  - Interfaces `OrderItem`, `CreateOrderItemRequest`, `UpdateOrderItemRequest` e `OrderItemFicha` atualizadas para usar `string`.
+  - Mappers de dados (`mapItemFromApi`) ajustados para normalizar valores como strings via `toCurrencyString`.
+  - Lógica de criação de fichas de reposição corrigida para usar `"0.00"` em vez de `0`.
+
+### 📚 Documentação
+- **Guia de Tipos de Produção**: Adicionada seção completa em `agents.md` documentando:
+  - Regras críticas de validação para campos monetários.
+  - Todos os 7 tipos de produção suportados (Painel, Totem, Lona, Adesivo, Canga, Impressão 3D, Mochilinha).
+  - Guia passo-a-passo para adicionar novos tipos de produção.
+  - Bugs comuns e como evitá-los.
+  - Checklist completo de implementação.
+
+### 🔧 Melhorado
+- **Consistência de Dados**: Sistema agora trata valores monetários de forma uniforme em todas as camadas (API, Mappers, Componentes).
+- **Robustez de Validação**: Backend e frontend totalmente sincronizados quanto ao formato esperado de campos monetários.
+
 ## [1.2.2] - 2026-02-03
 
 ### 🔧 Melhorado
