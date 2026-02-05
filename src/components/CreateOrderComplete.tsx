@@ -40,7 +40,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
-import { parseMonetary } from '@/utils/currency';
+import { parseMonetary, formatMonetary } from '@/utils/currency';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -1895,23 +1895,24 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
   /**
-   * Converte campos monetários de string (formato TabItem) para number (formato CreateOrderItemRequest)
+   * Converte campos monetários de string (formato TabItem) para string formatada (formato CreateOrderItemRequest)
+   * O backend espera strings, não números
    */
   const convertMonetaryFields = (item: TabItem) => ({
-    valor_painel: parseMonetary(item.valor_painel),
-    valores_adicionais: parseMonetary(item.valores_adicionais),
-    valor_unitario: parseMonetary(item.valor_unitario),
-    valor_ilhos: parseMonetary(item.valor_ilhos),
-    valor_cordinha: parseMonetary(item.valor_cordinha),
-    valor_lona: parseMonetary(item.valor_lona),
-    outros_valores_lona: parseMonetary(item.outros_valores_lona),
-    valor_adesivo: parseMonetary(item.valor_adesivo),
-    outros_valores_adesivo: parseMonetary(item.outros_valores_adesivo),
-    valor_totem: parseMonetary(item.valor_totem),
-    outros_valores_totem: parseMonetary(item.outros_valores_totem),
-    valor_mochilinha: parseMonetary(item.valor_mochilinha),
-    valor_canga: parseMonetary(item.valor_canga),
-    valor_impressao_3d: parseMonetary(item.valor_impressao_3d),
+    valor_painel: formatMonetary(parseMonetary(item.valor_painel)),
+    valores_adicionais: formatMonetary(parseMonetary(item.valores_adicionais)),
+    valor_unitario: formatMonetary(parseMonetary(item.valor_unitario)),
+    valor_ilhos: formatMonetary(parseMonetary(item.valor_ilhos)),
+    valor_cordinha: formatMonetary(parseMonetary(item.valor_cordinha)),
+    valor_lona: formatMonetary(parseMonetary(item.valor_lona)),
+    outros_valores_lona: formatMonetary(parseMonetary(item.outros_valores_lona)),
+    valor_adesivo: formatMonetary(parseMonetary(item.valor_adesivo)),
+    outros_valores_adesivo: formatMonetary(parseMonetary(item.outros_valores_adesivo)),
+    valor_totem: formatMonetary(parseMonetary(item.valor_totem)),
+    outros_valores_totem: formatMonetary(parseMonetary(item.outros_valores_totem)),
+    valor_mochilinha: formatMonetary(parseMonetary(item.valor_mochilinha)),
+    valor_canga: formatMonetary(parseMonetary(item.valor_canga)),
+    valor_impressao_3d: formatMonetary(parseMonetary(item.valor_impressao_3d)),
   });
 
   const handleConfirmSave = async () => {
@@ -2225,10 +2226,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             quantidade_adesivo: item.quantidade_adesivo,
             outros_valores_adesivo: monetaryFields.outros_valores_adesivo,
             baininha: item.baininha,
-            valor_canga: parseMonetary(item.valor_canga),
+            valor_canga: formatMonetary(parseMonetary(item.valor_canga)),
             quantidade_canga: item.quantidade_canga,
             material_gasto: item.material_gasto,
-            valor_impressao_3d: parseMonetary(item.valor_impressao_3d),
+            valor_impressao_3d: formatMonetary(parseMonetary(item.valor_impressao_3d)),
             quantidade_impressao_3d: item.quantidade_impressao_3d,
             composicao_tecidos: item.composicao_tecidos,
           };
