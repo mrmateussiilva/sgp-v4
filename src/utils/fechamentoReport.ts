@@ -140,8 +140,10 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
 
   // Prioridade 3: Tentar parsear valor_unitario (string) e MULTIPLICAR pela quantidade
   const parsedUnit = parseCurrencyCached(orderItem.valor_unitario);
+
   if (parsedUnit > 0) {
-    return roundToTwoDecimals(quantity * parsedUnit);
+    const result = roundToTwoDecimals(quantity * parsedUnit);
+    return result;
   }
 
   // Fallback: logar erro e retornar 0
@@ -514,6 +516,7 @@ const buildRowsFromOrder = (
   freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
 ): NormalizedRow[] => {
   const items = order.items ?? [];
+
   const cliente = safeLabel(order.cliente ?? order.customer_name, 'Cliente não informado');
   const formaEnvio = safeLabel(order.forma_envio, 'Sem forma de envio');
   const ordemDataRef = getOrderReferenceDate(order, dateMode);
@@ -831,7 +834,7 @@ const filterRows = (
     return rows;
   }
 
-  return rows.filter((row) => {
+  const filtered = rows.filter((row) => {
     const rowVendedor = normalizeFilterText(row.vendedor);
     const rowDesigner = normalizeFilterText(row.designer);
     const rowCliente = normalizeFilterText(row.cliente);
@@ -847,6 +850,8 @@ const filterRows = (
     }
     return true;
   });
+
+  return filtered;
 };
 
 const buildPeriodLabel = (startDate?: string, endDate?: string): string => {
@@ -1048,9 +1053,11 @@ export const generateFechamentoReport = (
 
     orders.forEach((order) => {
       const items = order.items ?? [];
-      const itemsById = new Map<number, (typeof items)[number]>();
-      items.forEach((item) => {
-        itemsById.set(item.id, item);
+      const itemsById = new Map<number | string, (typeof items)[number]>();
+      items.forEach((item, index) => {
+        // Se o item não tem ID, usar índice como chave para evitar sobrescrever
+        const key = item.id != null ? item.id : `__index_${index}`;
+        itemsById.set(key, item);
       });
 
       const normalized: OrderWithItems = {
