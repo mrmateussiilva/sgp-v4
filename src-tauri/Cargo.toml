@@ -1,6 +1,6 @@
 [package]
 name = "sgp-v4"
-version = "1.2.2"
+version = "1.2.3"
 description = "Sistema de Gerenciamento de Pedidos"
 authors = ["SGP Team"]
 license = ""
