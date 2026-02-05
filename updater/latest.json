@@ -1,11 +1,11 @@
 {
-  "version": "1.2.1",
-  "notes": "Otimização do Dashboard e atualização de versão para 1.2.2",
-  "pub_date": "2026-02-03T01:00:00Z",
+  "version": "1.2.3",
+  "notes": "Otimização do Dashboard e atualização de versão para 1.2.3",
+  "pub_date": "2026-02-05T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.2/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.2_x64_en-US.msi",
-      "signature": ""
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.3/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.3_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3NGOGlWQU5LK1UzNmprRzBWczZjSDlpOE9FR2FXdWlPWi9oOWhqZGgyMkNkNDJzMkpNckpHYjhDVjljUlBic3VaQzU4Q2xBVHI0TWlFdGpXMVJmcGcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcwMjY2MDcwCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjNfeDY0X2VuLVVTLm1zaQo3YVdKcjcrN3lVVzY2dVZIUHFYZkFORWdaZzZPVHF2czBjdGsvMXNSSzNkNEp3VmZCa09KNTVBQUVUOGlSZlE3R0pPcnBUTjVXTEx0RHJPM3k0YzRBdz09Cg=="
     }
   }
 }
