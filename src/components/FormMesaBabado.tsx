@@ -13,7 +13,6 @@ import { processAndSaveImage } from '@/utils/localImageManager';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
 import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
-import { FormProducaoFields } from './FormProducaoFields';
 
 interface FabricComposition {
     label: string;
@@ -375,16 +374,6 @@ export function FormMesaBabado({
                 </div>
             </div>
 
-            {/* === DADOS DE PRODUÇÃO === */}
-            <FormProducaoFields
-                data={{
-                    data_impressao: tabData.data_impressao,
-                    rip_maquina: tabData.rip_maquina,
-                    perfil_cor: tabData.perfil_cor,
-                    tecido_fornecedor: tabData.tecido_fornecedor
-                }}
-                onDataChange={onDataChange}
-            />
 
             {/* === VALORES === */}
             <div className="space-y-4">

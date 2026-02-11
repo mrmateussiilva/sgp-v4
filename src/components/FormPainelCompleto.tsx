@@ -13,7 +13,6 @@ import { processAndSaveImage } from '@/utils/localImageManager';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
 import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
-import { FormProducaoFields } from './FormProducaoFields';
 
 interface FormPainelCompletoProps {
   tabId: string;
@@ -616,17 +615,6 @@ export function FormPainelCompleto({
         </div>
       </div>
 
-      {/* === DADOS DE PRODUÇÃO === */}
-      <FormProducaoFields
-        data={{
-          data_impressao: tabData.data_impressao,
-          machine_id: tabData.machine_id,
-          rip_maquina: tabData.rip_maquina,
-          perfil_cor: tabData.perfil_cor,
-          tecido_fornecedor: tabData.tecido_fornecedor
-        }}
-        onDataChange={onDataChange}
-      />
 
       {/* === RODAPÉ: VALORES + BOTÕES === */}
       <div className="space-y-4">
