@@ -68,9 +68,26 @@ export function MedidasCalculator({
         <div className="flex-1">
           <Input
             type="text"
+            inputMode="decimal"
             value={largura}
             onChange={(e) => handleInputChange(e.target.value, onLarguraChange)}
+            onKeyDown={(e) => {
+              // Permite apenas números, vírgula, backspace, delete, tab, escape, enter, e setas
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+              const isNumber = /[0-9]/.test(e.key);
+              const isComma = e.key === ',' || e.key === '.';
+              const isAllowedKey = allowedKeys.includes(e.key);
+              const isCtrlA = e.ctrlKey && e.key === 'a';
+              const isCtrlC = e.ctrlKey && e.key === 'c';
+              const isCtrlV = e.ctrlKey && e.key === 'v';
+              const isCtrlX = e.ctrlKey && e.key === 'x';
+              
+              if (!isNumber && !isComma && !isAllowedKey && !isCtrlA && !isCtrlC && !isCtrlV && !isCtrlX) {
+                e.preventDefault();
+              }
+            }}
             placeholder="3,00"
+            noUppercase={true}
             className="h-10 text-sm rounded-r-none border-r-0 focus:z-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
@@ -84,9 +101,26 @@ export function MedidasCalculator({
         <div className="flex-1">
           <Input
             type="text"
+            inputMode="decimal"
             value={altura}
             onChange={(e) => handleInputChange(e.target.value, onAlturaChange)}
+            onKeyDown={(e) => {
+              // Permite apenas números, vírgula, backspace, delete, tab, escape, enter, e setas
+              const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+              const isNumber = /[0-9]/.test(e.key);
+              const isComma = e.key === ',' || e.key === '.';
+              const isAllowedKey = allowedKeys.includes(e.key);
+              const isCtrlA = e.ctrlKey && e.key === 'a';
+              const isCtrlC = e.ctrlKey && e.key === 'c';
+              const isCtrlV = e.ctrlKey && e.key === 'v';
+              const isCtrlX = e.ctrlKey && e.key === 'x';
+              
+              if (!isNumber && !isComma && !isAllowedKey && !isCtrlA && !isCtrlC && !isCtrlV && !isCtrlX) {
+                e.preventDefault();
+              }
+            }}
             placeholder="2,00"
+            noUppercase={true}
             className="h-10 text-sm rounded-none border-r-0 focus:z-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
