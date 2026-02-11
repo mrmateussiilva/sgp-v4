@@ -1,5 +1,31 @@
 # Changelog - SGP v4
 
+## [1.2.4] - 2026-02-06
+
+### ✨ Adicionado
+- **Validação de Material na Legenda**: Implementada validação para garantir que o material selecionado esteja contido na legenda da imagem.
+  - Validação aplicada apenas quando a legenda está preenchida (não é obrigatória).
+  - Verificação case-insensitive para maior flexibilidade.
+  - Mensagens de erro visuais em todos os formulários quando material não está na legenda.
+  - Bloqueia salvamento se material não estiver contido na legenda.
+
+### 🐛 Corrigido
+- **Bug de Cursor ao Digitar no Meio do Texto**: Corrigido problema crítico onde inserir texto no meio de strings existentes causava deslocamento do cursor.
+  - Input agora usa estado local durante digitação para preservar posição do cursor.
+  - Conversão para maiúsculas ocorre apenas ao perder foco (onBlur), não durante digitação.
+  - Elimina problemas de cursor ao inserir texto no meio de strings existentes.
+- **Digitação de Letras em Campos de Medida**: Bloqueada digitação de caracteres não numéricos nos campos de largura e altura.
+  - Validação onKeyDown para bloquear letras e caracteres inválidos antes de serem digitados.
+  - Permite apenas números, vírgula/ponto e teclas de controle.
+  - Adicionado `inputMode='decimal'` para melhor UX em dispositivos móveis.
+
+### 🔧 Melhorado
+- **Atualização de Versão**: Versão do sistema atualizada para 1.2.4 em todos os arquivos de configuração (package.json, Cargo.toml e updater/latest.json).
+- **Formulários de Criação**: Removidos campos de produção (Máquina, Impressão, Perfil, Tecido) dos formulários de criação de itens.
+  - Campos de produção devem ser preenchidos apenas na visualização/edição de pedidos.
+  - Aplicado em: FormPainelCompleto, FormMochilinhaProducao, FormImpressao3D, FormCangaProducao, FormMesaBabado.
+  - Mantém FormProducaoFields no OrderViewModal para edição de pedidos existentes.
+
 ## [1.2.3] - 2026-02-05
 
 ### 🐛 Corrigido
