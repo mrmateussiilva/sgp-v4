@@ -368,9 +368,14 @@ export function FormAdesivoProducao({
             <Input
               value={tabData?.legenda_imagem || ''}
               onChange={(event) => onDataChange('legenda_imagem', event.target.value)}
-              placeholder="Digite a legenda exibida abaixo da imagem"
+              placeholder="Ex: VINIL 100X100"
               className="h-10"
             />
+            {tabData?.tipo_adesivo && tabData?.legenda_imagem && !tabData.legenda_imagem.toUpperCase().includes(tabData.tipo_adesivo.toUpperCase()) && (
+              <p className="text-sm text-red-600 mt-1">
+                A legenda deve conter o material selecionado acima ({tabData.tipo_adesivo})
+              </p>
+            )}
           </div>
         </div>
       </div>

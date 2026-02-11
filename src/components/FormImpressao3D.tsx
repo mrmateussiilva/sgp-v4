@@ -314,9 +314,14 @@ export function FormImpressao3D({
             <Input
               value={tabData?.legenda_imagem || ''}
               onChange={(event) => onDataChange('legenda_imagem', event.target.value)}
-              placeholder="Ex: Vista superior da peça"
+              placeholder="Ex: PLA 100X100"
               className="h-10"
             />
+            {tabData?.tecido && tabData?.legenda_imagem && !tabData.legenda_imagem.toUpperCase().includes(tabData.tecido.toUpperCase()) && (
+              <p className="text-sm text-red-600 mt-1">
+                A legenda deve conter o material selecionado acima ({tabData.tecido})
+              </p>
+            )}
           </div>
         </div>
       </div>

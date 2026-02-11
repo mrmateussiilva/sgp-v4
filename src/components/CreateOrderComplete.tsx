@@ -1634,6 +1634,28 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       // Espaço reservado para avisos específicos de adesivo, se necessário
     }
 
+    // Validar que a legenda contenha o material selecionado
+    // Apenas se a legenda estiver preenchida (não é obrigatória)
+    if (item.legenda_imagem && item.legenda_imagem.trim().length > 0) {
+      let materialPrincipal = '';
+      
+      // Determinar qual campo de material usar baseado no tipo_producao
+      if (item.tipo_producao === 'adesivo') {
+        materialPrincipal = item.tipo_adesivo || '';
+      } else {
+        materialPrincipal = item.tecido || '';
+      }
+      
+      // Se o material principal estiver preenchido e não estiver contido na legenda, adicionar erro
+      if (materialPrincipal && materialPrincipal.trim().length > 0) {
+        const legendaUpper = item.legenda_imagem.toUpperCase();
+        const materialUpper = materialPrincipal.toUpperCase();
+        if (!legendaUpper.includes(materialUpper)) {
+          errors.push(`A legenda deve conter o material selecionado no campo Material/Tecido (${materialPrincipal})`);
+        }
+      }
+    }
+
     return { errors, warnings };
   };
 
