@@ -47,6 +47,9 @@ export const CUSTOM_PRINT_TEMPLATE = `
           <div><strong>Overloque:</strong> {{overloque}}</div>
           <div><strong>Elástico:</strong> {{elastico}}</div>
           <div><strong>Emenda:</strong> {{emenda}}</div>
+          <div><strong>Qtd. Emendas:</strong> {{emenda_qtd}}</div>
+          <div><strong>Ilhós:</strong> {{ilhos_display}}</div>
+          <div><strong>Cordinha:</strong> {{cordinha_display}}</div>
         </div>
       </div>
     </div>

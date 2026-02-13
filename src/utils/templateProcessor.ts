@@ -446,11 +446,33 @@ export const createOrderDataMap = (
     quantidade_ilhos: item?.quantidade_ilhos || '',
     espaco_ilhos: item?.espaco_ilhos || '',
     valor_ilhos: '', // Valor monetário removido
+    ilhos_display: (() => {
+      const q = item?.quantidade_ilhos?.trim();
+      if (!q) return '—';
+      const esp = item?.espaco_ilhos?.trim();
+      const withCm = (s: string) => (/cm$/i.test(s) ? s : `${s} cm`);
+      return esp ? `${q} ilhós a cada ${withCm(esp)}` : `${q} ilhós`;
+    })(),
     quantidade_cordinha: item?.quantidade_cordinha || '',
     espaco_cordinha: item?.espaco_cordinha || '',
     valor_cordinha: '', // Valor monetário removido
-    emenda: item?.emenda ? (item.emenda === 'vertical' ? 'Vertical' : item.emenda === 'horizontal' ? 'Horizontal' : item.emenda) : '',
-    emenda_qtd: item?.emenda_qtd || item?.emendaQtd || '',
+    cordinha_display: (() => {
+      const q = item?.quantidade_cordinha?.trim();
+      if (!q) return '—';
+      const esp = item?.espaco_cordinha?.trim();
+      const withCm = (s: string) => (/cm$/i.test(s) ? s : `${s} cm`);
+      return esp ? `${q} cordinhas a cada ${withCm(esp)}` : `${q} cordinhas`;
+    })(),
+    emenda: (() => {
+      const e = item?.emenda?.trim();
+      if (!e || e.toLowerCase() === 'sem-emenda') return 'Não';
+      return e === 'vertical' ? 'Vertical' : e === 'horizontal' ? 'Horizontal' : e === 'com-emenda' ? 'Sim' : e;
+    })(),
+    emenda_qtd: (() => {
+      const e = item?.emenda?.trim();
+      if (!e || e.toLowerCase() === 'sem-emenda') return '—';
+      return item?.emenda_qtd || item?.emendaQtd || '';
+    })(),
 
     // Campos de painéis
     quantidade_paineis: item?.quantidade_paineis || '',
