@@ -1,5 +1,24 @@
 # Changelog - SGP v4
 
+## [1.2.5] - 2026-02-13
+
+### ✨ Adicionado
+- **Emenda na ficha impressa**: Emenda e quantidade de emendas passam a aparecer em todas as fichas de impressão.
+  - Ficha de Serviço (tela): texto formatado (ex.: "2 emendas horizontais", "Horizontal (2)").
+  - PDF da Ficha de Serviço (OrderCard): campo Emenda nas Especificações Gerais com tipo e quantidade.
+  - Template customizado: Emenda, Qtd. Emendas e valor "Não" quando sem emenda.
+- **Ilhós e Cordinha na ficha impressa**: Ilhós e cordinha (quantidade e espaçamento) passam a aparecer nas fichas.
+  - Ficha de Serviço (tela): ilhós e cordinha formatados na célula Tecido/Ilhós/Emendas/...
+  - PDF OrderCard: SpecRows para Ilhós e Cordinha (quantidade + espaço); Cordinha extra quando aplicável.
+  - Template customizado: linhas Ilhós e Cordinha com placeholders `ilhos_display` e `cordinha_display`.
+
+### 🐛 Corrigido
+- **Formato de ilhós e cordinha**: Exibição alterada de "10(20)" para "10 ilhós a cada 20 cm" (e equivalente para cordinha) em todos os fluxos de impressão.
+- **Duplicação em Acabamento/Costura**: Ilhós e cordinha não são mais exibidos na seção Acabamento/Costura do PDF, pois já constam em Especificações Gerais.
+
+### 🔧 Melhorado
+- **Template de impressão**: `createOrderDataMap` passa a preencher `emenda` como "Não" quando sem emenda e `emenda_qtd` como "—" quando não há emenda; adicionados `ilhos_display` e `cordinha_display` no formato "X ilhós/cordinhas a cada Y cm".
+
 ## [1.2.4] - 2026-02-06
 
 ### ✨ Adicionado
