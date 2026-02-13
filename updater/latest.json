@@ -1,11 +1,11 @@
 {
-  "version": "1.2.4",
-  "notes": "Melhorias no campo de legenda dos itens",
+  "version": "1.2.5",
+  "notes": "Emenda e quantidade de emendas passam a aparecer em todas as fichas de impressão.",
   "pub_date": "2026-02-05T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.4/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.4_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2pMNWJudENqbWUvWitrMTZCbVl2U1lac3RFRUMzUDRsRE16QWg3U0pTMUdpcnQxbkF1eTVDaldTcmthNmxLMW1YWndFQTRFV3NReUFGcm9PckdEcHdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcwNzk0NDIxCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjRfeDY0X2VuLVVTLm1zaQpCTEhVdllkanlLVFhManVKS3FIUlRZdWxnVTZaczN4LzVQYkZXc1dVU0NJRjc5NzU2UHZLRlhXOUJTaTl6ejJHZXdmakxiVEtYTThncXNjd2FXMWlCQT09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.5/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.5_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3FBSllvTnBleFp4bkpOT1VSNTF2bWpOL2plV0VIZ2M2ZWxzZXVrVjVMQ1N4TEZYdHF0ME82aDRtd3NoWnVhOU56UzVnaC9tWWM1RjBsQ3EwUU4zL2dNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcwOTYxMDk2CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjVfeDY0X2VuLVVTLm1zaQo4REJieEE2Nmxlc2VQVmNnbGJQM1MzU3Z6ZlBuTGJKZTJDTDV3UVYxS2R1Q1lNL1I3a1A3dnJBb2pwTUNHL3h2djJlTFk0eUFNbk13UVhieXJ5YkZEdz09Cg=="
     }
   }
 }
