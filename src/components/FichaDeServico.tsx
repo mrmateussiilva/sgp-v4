@@ -199,6 +199,45 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
     return 'PIX'; // Placeholder
   };
 
+  /** Anexa "cm" ao espaçamento se for só número (ex.: "20" → "20cm") */
+  const withCm = (esp: string): string => (/cm$/i.test(esp.trim()) ? esp.trim() : `${esp.trim()} cm`);
+
+  /** Formata ilhós para exibição na ficha (ex.: "10 ilhós a cada 20 cm") */
+  const formatIlhosForFicha = (item: OrderItemFicha): string => {
+    const qtd = (item.quantidade_ilhos || '').trim();
+    if (!qtd) return '—';
+    const esp = (item.espaco_ilhos || '').trim();
+    return esp ? `${qtd} ilhós a cada ${withCm(esp)}` : `${qtd} ilhós`;
+  };
+
+  /** Formata cordinha para exibição na ficha (ex.: "2 cordinhas a cada 10 cm") */
+  const formatCordinhaForFicha = (item: OrderItemFicha): string => {
+    const qtd = (item.quantidade_cordinha || '').trim();
+    if (!qtd) return '—';
+    const esp = (item.espaco_cordinha || '').trim();
+    return esp ? `${qtd} cordinhas a cada ${withCm(esp)}` : `${qtd} cordinhas`;
+  };
+
+  /** Formata emenda + quantidade para exibição na ficha (ex.: "2 emendas horizontais" ou "Horizontal (2)") */
+  const formatEmendaForFicha = (item: OrderItemFicha): string => {
+    const emenda = (item.emenda || '').trim();
+    if (!emenda || emenda.toLowerCase() === 'sem-emenda') return 'Não';
+    const qtd = (item.emenda_qtd || (item as any).emendaQtd || '').trim();
+    const tipo = emenda.toLowerCase();
+    const label =
+      tipo === 'horizontal' ? 'Horizontal' :
+      tipo === 'vertical' ? 'Vertical' :
+      tipo === 'com-emenda' ? 'Sim' : emenda;
+    if (!qtd) return label;
+    const n = parseInt(qtd, 10);
+    if (Number.isNaN(n) || n <= 0) return label;
+    if (tipo === 'com-emenda') return `Sim (${qtd})`;
+    const plural = tipo === 'horizontal' ? 'horizontais' : 'verticais';
+    return n === 1
+      ? `1 emenda ${tipo === 'horizontal' ? 'horizontal' : 'vertical'}`
+      : `${qtd} emendas ${plural}`;
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -314,13 +353,13 @@ const FichaDeServico: React.FC<FichaDeServicoProps> = ({
                     <tr>
                       <td className="field-label">Tecido / Ilhós / Emendas / Alça/Cordinha / Overloque / Elástico:</td>
                       <td className="field-value">
-                        {item.tecido || ''} / {item.quantidade_ilhos || ''} / {item.emenda || ''} /
+                        {item.tecido || ''} / {formatIlhosForFicha(item)} / {formatEmendaForFicha(item)} /
                         {(() => {
                           const ac = String(item.tipo_acabamento || (item as any).tipo_alcinha || '').toLowerCase().trim();
-                          if (ac === '' || ac === 'nenhum') return '';
+                          if (ac === '' || ac === 'nenhum') return formatCordinhaForFicha(item) !== '—' ? formatCordinhaForFicha(item) : '';
                           if (ac === 'alca') return 'Alça';
-                          if (ac === 'cordinha') return 'Cordinha';
-                          if (ac === 'alca_cordinha') return 'Alça + Cordinha';
+                          if (ac === 'cordinha') return formatCordinhaForFicha(item) !== '—' ? formatCordinhaForFicha(item) : 'Cordinha';
+                          if (ac === 'alca_cordinha') return formatCordinhaForFicha(item) !== '—' ? `Alça + ${formatCordinhaForFicha(item)}` : 'Alça + Cordinha';
                           return ac;
                         })()} / {item.overloque ? 'Sim' : ''} / {item.elastico ? 'Sim' : ''}
                       </td>
