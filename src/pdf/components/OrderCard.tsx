@@ -43,6 +43,40 @@ const formatDate = (dateString?: string) => {
     return dateString;
 };
 
+/** Formata tipo de emenda para exibição e monta texto com quantidade quando houver */
+const formatEmendaDisplay = (emenda?: string, emendaQtd?: string): string | undefined => {
+    if (!emenda || String(emenda).toLowerCase().trim() === 'sem-emenda') return undefined;
+    const tipo = String(emenda).toLowerCase().trim();
+    const label =
+        tipo === 'horizontal' ? 'Horizontal' :
+        tipo === 'vertical' ? 'Vertical' :
+        tipo === 'com-emenda' ? 'Sim' : emenda;
+    const qtd = emendaQtd?.trim();
+    const qtdNum = qtd ? (parseInt(qtd, 10) || 0) : 0;
+    if (qtdNum > 0) return `${label} (${qtd} emenda${qtdNum !== 1 ? 's' : ''})`;
+    return label;
+};
+
+/** Anexa "cm" ao espaçamento se for só número (ex.: "20" → "20cm", "15cm" → "15cm") */
+const withCm = (esp: string): string =>
+    /cm$/i.test(esp.trim()) ? esp.trim() : `${esp.trim()} cm`;
+
+/** Formata ilhós para exibição: quantidade e opcionalmente "a cada X cm" (ex.: "10 ilhós a cada 20 cm") */
+const formatIlhosDisplay = (quantidade?: string, espaco?: string): string | undefined => {
+    const q = quantidade?.trim();
+    if (!q) return undefined;
+    const esp = espaco?.trim();
+    return esp ? `${q} ilhós a cada ${withCm(esp)}` : `${q} ilhós`;
+};
+
+/** Formata cordinha para exibição: quantidade e opcionalmente "a cada X cm" (ex.: "2 cordinhas a cada 10 cm") */
+const formatCordinhaDisplay = (quantidade?: string, espaco?: string): string | undefined => {
+    const q = quantidade?.trim();
+    if (!q) return undefined;
+    const esp = espaco?.trim();
+    return esp ? `${q} cordinhas a cada ${withCm(esp)}` : `${q} cordinhas`;
+};
+
 // ============================================
 // MAIN COMPONENT: 3-SECTION INDUSTRIAL V2
 // ============================================
@@ -59,13 +93,12 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     if (prod.alcinha) techItems.push('ALCINHA');
     if (prod.terceirizado) techItems.push('TERCEIRIZADO');
     const tipoAcabamento = prod.tipo_acabamento || (prod as any).tipo_alcinha;
-    if (tipoAcabamento && tipoAcabamento !== 'nenhum') {
+    const acLower = tipoAcabamento ? String(tipoAcabamento).toLowerCase().trim() : '';
+    const isIlhosOuCordinha = acLower === 'ilhos' || acLower === 'cordinha' || acLower === 'alca_cordinha';
+    if (tipoAcabamento && tipoAcabamento !== 'nenhum' && !isIlhosOuCordinha) {
         const isMochilinha = prod.tipo_producao?.toLowerCase().includes('mochilinha') || prod.tipo_producao?.toLowerCase().includes('bolsinha');
         if (isMochilinha) {
-            const ac = String(tipoAcabamento).toLowerCase().trim();
-            const alcaLabel = ac === 'alca' ? 'ALÇA' :
-                ac === 'cordinha' ? 'CORDINHA' :
-                    ac === 'alca_cordinha' ? 'ALÇA + CORDINHA' : ac.toUpperCase();
+            const alcaLabel = acLower === 'alca' ? 'ALÇA' : acLower.toUpperCase();
             techItems.push(`ACABAMENTO: ${alcaLabel}`);
         } else {
             techItems.push(String(tipoAcabamento).toUpperCase());
@@ -125,7 +158,21 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     <SpecRow label="Quantidade" value={prod.quantity} />
                     <SpecRow label="Perfil de Cor" value={prod.perfil_cor} />
                     <SpecRow label="Fornecedor Tecido" value={prod.tecido_fornecedor} />
-
+                    <SpecRow
+                        label="Emenda"
+                        value={formatEmendaDisplay(prod.emenda, prod.emenda_qtd)}
+                    />
+                    <SpecRow
+                        label="Ilhós"
+                        value={formatIlhosDisplay(prod.quantidade_ilhos, prod.espaco_ilhos)}
+                    />
+                    <SpecRow
+                        label="Cordinha"
+                        value={formatCordinhaDisplay(prod.quantidade_cordinha, prod.espaco_cordinha)}
+                    />
+                    {prod.cordinha_extra && (
+                        <SpecRow label="Cordinha extra" value="Sim" />
+                    )}
 
                     {techItems.length > 0 && (
                         <>
