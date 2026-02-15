@@ -1,5 +1,15 @@
 # Changelog - SGP v4
 
+## [1.2.6] - 2026-02-15
+
+### ✨ Adicionado
+- **Checkboxes de exportação no relatório de fechamento**: Cada linha do relatório possui um checkbox para selecionar quais itens incluir na exportação (PDF/CSV). Itens desmarcados não aparecem no arquivo exportado.
+- **Valores em tempo real**: Subtotais e total geral do relatório são recalculados em tempo real conforme a seleção dos checkboxes.
+
+### 🐛 Corrigido
+- **Frete duplicado**: O frete passou a ser contado uma vez por ficha (pedido), e não por item, corrigindo a soma incorreta quando um pedido tinha múltiplos itens.
+- **Alinhamento de cabeçalhos no PDF**: Os cabeçalhos "Vr.Frete (R$)" e "Vr.Serviços (R$)" agora ficam alinhados à direita, em linha com os valores numéricos.
+
 ## [1.2.5] - 2026-02-13
 
 ### ✨ Adicionado
