@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import {
   LayoutDashboard,
@@ -122,7 +122,7 @@ export default function Dashboard() {
     {
       icon: Plus,
       label: 'Novo Pedido',
-      path: '/dashboard/orders/new',
+      path: '/dashboard/pedido/novo',
       adminOnly: false,
       section: 'OPERACIONAL'
     },
@@ -336,9 +336,9 @@ export default function Dashboard() {
               <Routes>
                 <Route path="/" element={<DashboardOverview />} />
                 <Route path="orders" element={<OrderList />} />
-                <Route path="orders/new" element={<PedidoCreateView />} />
+                <Route path="orders/new" element={<Navigate to="/dashboard/pedido/novo" replace />} />
                 <Route path="orders/edit/:id" element={<PedidoEditView />} />
-                {/* Novas rotas conforme solicitado */}
+                {/* Rota canônica para novo pedido */}
                 <Route path="pedido/novo" element={<PedidoCreateView />} />
                 <Route path="pedido/editar/:id" element={<PedidoEditView />} />
                 <Route path="clientes" element={<Clientes />} />

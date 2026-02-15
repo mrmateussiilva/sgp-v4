@@ -1,5 +1,6 @@
-import { useState, useEffect, ChangeEvent } from 'react';
-import { Plus, Search, Pencil, Trash2, Eye, Upload } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from 'react';
+import { Plus, Search, Pencil, Trash2, Eye, Upload, Users } from 'lucide-react';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { api } from '../services/api';
 
 // Lazy load de papaparse
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Clientes() {
   const { toast } = useToast();
@@ -86,6 +88,16 @@ export default function Clientes() {
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const nomeInputRef = useRef<HTMLInputElement>(null);
+
+  // Autofocus no campo nome quando o modal abrir
+  useEffect(() => {
+    if (showModal) {
+      const t = setTimeout(() => nomeInputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [showModal]);
 
   const formatOptionalField = (value?: string | null) => {
     const trimmed = value?.trim();
@@ -411,6 +423,19 @@ export default function Clientes() {
     setShowModal(true);
   };
 
+  // Atalho Ctrl+Shift+N para novo cliente (após abrirModal para evitar hoisting)
+  const clienteShortcuts = useMemo(() => [
+    {
+      key: 'n',
+      ctrl: true,
+      shift: true,
+      action: () => abrirModal(),
+      description: 'Novo cliente',
+      enabled: !showModal,
+    },
+  ], [showModal]);
+  useKeyboardShortcuts(clienteShortcuts);
+
   const salvarCliente = async () => {
     // Validar todos os campos
     const nomeValido = validarCampo('nome', form.nome);
@@ -519,7 +544,7 @@ export default function Clientes() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cadastro de Clientes</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground">Gerencie os clientes do sistema</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -531,7 +556,7 @@ export default function Clientes() {
             <Upload className="h-4 w-4" />
             Importar CSV
           </Button>
-          <Button onClick={() => abrirModal()} className="gap-2">
+          <Button onClick={() => abrirModal()} className="gap-2" title="Novo cliente (Ctrl+Shift+N)">
             <Plus className="h-4 w-4" />
             Novo Cliente
           </Button>
@@ -575,15 +600,37 @@ export default function Clientes() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-8" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-8" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ) : clientesPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3">
+                        <Users className="h-12 w-12 text-muted-foreground" />
+                        <p className="font-medium text-foreground">
+                          {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
+                        </p>
+                        <p className="text-sm text-muted-foreground max-w-sm">
+                          {searchTerm ? 'Tente outro termo de busca.' : 'Cadastre o primeiro cliente para começar.'}
+                        </p>
+                        {!searchTerm && (
+                          <Button onClick={() => abrirModal()} className="gap-2 mt-1">
+                            <Plus className="h-4 w-4" />
+                            Cadastrar cliente
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -766,7 +813,15 @@ export default function Clientes() {
           setErros({ nome: '', cep: '', cidade: '', estado: '', telefone: '' });
         }
       }}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent
+          className="sm:max-w-[550px]"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+              salvarCliente();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-xl">
               {editando ? 'Editar Cliente' : 'Novo Cliente'}
@@ -783,6 +838,7 @@ export default function Clientes() {
                 Nome Completo *
               </Label>
               <Input
+                ref={nomeInputRef}
                 id="nome"
                 value={form.nome}
                 onChange={(e) => handleFormChange('nome', e.target.value)}

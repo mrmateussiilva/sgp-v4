@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2, RefreshCw, History, Zap, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2, RefreshCw, History, Zap, AlertCircle, Keyboard } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { logger } from '@/utils/logger';
@@ -60,6 +60,7 @@ import { PrintPreviewModal } from './PrintPreviewModal';
 import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
+import { ShortcutsHelp } from './ShortcutsHelp';
 
 // import { cn } from '@/lib/utils'; // Não usado mais (painel lateral desabilitado)
 
@@ -133,6 +134,7 @@ export default function OrderList() {
   const [bulkPdfBlob, setBulkPdfBlob] = useState<Blob | null>(null);
   const [bulkPdfFilename, setBulkPdfFilename] = useState('');
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   // const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
@@ -1551,8 +1553,10 @@ export default function OrderList() {
         // Painel lateral desabilitado
         // if (contextPanelOpen) {
         //   handleCloseContextPanel();
-        // } else 
-        if (viewModalOpen) {
+        // } else
+        if (shortcutsModalOpen) {
+          setShortcutsModalOpen(false);
+        } else if (viewModalOpen) {
           setViewModalOpen(false);
         } else if (deleteDialogOpen) {
           setDeleteDialogOpen(false);
@@ -1560,8 +1564,14 @@ export default function OrderList() {
       },
       description: 'Fechar modal',
     },
+    {
+      key: '?',
+      action: () => setShortcutsModalOpen(true),
+      description: 'Ver atalhos',
+    },
   ], [
     navigate,
+    shortcutsModalOpen,
     // handleNavigateUp, // Painel lateral desabilitado
     // handleNavigateDown, // Painel lateral desabilitado
     selectedOrder,
@@ -1764,9 +1774,9 @@ export default function OrderList() {
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                   <div className="h-6 w-1 bg-primary rounded-full" />
-                  Status de Produção — Visão em Pipeline
+                  Pedidos
                 </h1>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Fluxo Linear e Sequencial</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Status de Produção — Visão em Pipeline</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -1830,6 +1840,21 @@ export default function OrderList() {
                   </div>
                 )}
 
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => setShortcutsModalOpen(true)}
+                      aria-label="Ver atalhos de teclado"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Atalhos de teclado (?)</TooltipContent>
+                </Tooltip>
                 <Button
                   size="sm"
                   className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm shadow-primary/20"
@@ -1860,10 +1885,25 @@ export default function OrderList() {
             {/* Header com alternância de visualização */}
             <div className="flex items-center justify-between py-2 mb-2">
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Gestão de Pedidos</h1>
+                <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
                 <p className="text-sm text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
               </div>
-              {isAdmin && (
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShortcutsModalOpen(true)}
+                      aria-label="Ver atalhos de teclado"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Atalhos de teclado (?)</TooltipContent>
+                </Tooltip>
+                {isAdmin && (
                 <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
                   <Button
                     type="button"
@@ -1890,7 +1930,8 @@ export default function OrderList() {
                     Pipeline
                   </Button>
                 </div>
-              )}
+                )}
+              </div>
             </div>
             {/* Barra de Filtros Principais - Sempre Visível */}
             <Card className="border-2">
@@ -2338,11 +2379,23 @@ export default function OrderList() {
                           </>
                         ) : paginatedOrders.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={13} className="h-24 text-center">
-                              <div className="flex flex-col items-center gap-2">
-                                <Inbox className="h-10 w-10 text-muted-foreground" />
+                            <TableCell colSpan={13} className="h-40 text-center align-top">
+                              <div className="flex flex-col items-center gap-3 py-4">
+                                <Inbox className="h-12 w-12 text-muted-foreground" />
                                 <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
-                                <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
+                                <p className="text-sm text-muted-foreground max-w-sm">
+                                  {activeSearchTerm || dateFrom || dateTo || selectedStatuses.length > 0 || selectedVendedor || selectedDesigner || selectedCidade || selectedFormaEnvio
+                                    ? 'Tente ajustar seus filtros de busca.'
+                                    : 'Ainda não há pedidos. Crie o primeiro para começar.'}
+                                </p>
+                                <Button
+                                  type="button"
+                                  onClick={() => navigate('/dashboard/pedido/novo')}
+                                  className="mt-1 gap-2"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Novo pedido
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2721,6 +2774,13 @@ export default function OrderList() {
             )}
           </>
         )}
+
+        <ShortcutsHelp
+          open={shortcutsModalOpen}
+          onOpenChange={setShortcutsModalOpen}
+          shortcuts={shortcuts}
+          title="Atalhos — Lista de pedidos"
+        />
 
         {/* Modal de Confirmação de Exclusão */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

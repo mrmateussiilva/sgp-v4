@@ -2591,6 +2591,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Renderizar o formulário
   return (
     <div className="space-y-4 max-w-full mx-auto pb-8 px-4">
+      <h1 className="text-2xl font-bold text-foreground">
+        {mode === 'create' ? 'Novo pedido' : `Editar pedido #${selectedOrderId ?? ''}`}
+      </h1>
 
       {/* Alerta de Ficha Concluída */}
       {isLocked && (
