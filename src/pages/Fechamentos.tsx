@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Loader2, RefreshCcw, FileDown, FileText, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ReportRequestPayload, ReportResponse, ReportGroup, ReportTypeKey, Cliente } from '@/types';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ReportRequestPayload, ReportResponse, ReportGroup, ReportRowData, ReportTotals, ReportTypeKey, Cliente } from '@/types';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { generateFechamentoReport } from '@/utils/fechamentoReport';
@@ -113,18 +114,233 @@ const formatCurrencyNumber = (value: number): string => {
 
 const formatInputDate = (date: Date) => date.toISOString().slice(0, 10);
 
+/** Extrai IDs estáveis de todas as linhas exportáveis do relatório */
+function getAllRowIds(report: ReportResponse, isAnalitico: boolean): string[] {
+  const ids: string[] = [];
+  if (!report?.groups) return ids;
+
+  if (isAnalitico) {
+    const visit = (group: ReportGroup, path: string) => {
+      if (group.subgroups && group.subgroups.length > 0) {
+        group.subgroups.forEach((sg, i) => visit(sg, `${path}-${i}`));
+      } else if (group.rows && group.rows.length > 0) {
+        group.rows.forEach((_, rowIndex) => ids.push(`analitico-${path}-row-${rowIndex}`));
+      }
+    };
+    report.groups.forEach((g, i) => visit(g, `group-${i}`));
+  } else {
+    report.groups.forEach((group, gi) => {
+      if (group.subgroups && group.subgroups.length > 0) {
+        group.subgroups.forEach((_, si) => ids.push(`sintetico-${gi}-${si}`));
+      } else {
+        ids.push(`sintetico-${gi}`);
+      }
+    });
+  }
+  return ids;
+}
+
+/** Soma totais deduplicando frete por ficha (frete é por pedido, não por item) */
+function sumTotalsDedupFrete(rows: ReportRowData[]): ReportTotals {
+  const fretesPorFicha = new Map<string, number>();
+  let valor_servico = 0;
+  rows.forEach((r) => {
+    valor_servico += r.valor_servico ?? 0;
+    if (!fretesPorFicha.has(r.ficha)) {
+      fretesPorFicha.set(r.ficha, r.valor_frete ?? 0);
+    }
+  });
+  const valor_frete = Array.from(fretesPorFicha.values()).reduce((a, v) => a + v, 0);
+  return { valor_frete, valor_servico };
+}
+
+/** Filtra o relatório mantendo apenas linhas selecionadas e recalcula subtotais e total */
+function filterReportBySelection(
+  report: ReportResponse,
+  selectedIds: Set<string>,
+  isAnalitico: boolean
+): ReportResponse {
+  if (!report?.groups) return report;
+
+  if (isAnalitico) {
+    const visit = (group: ReportGroup, path: string): ReportGroup | null => {
+      if (group.subgroups && group.subgroups.length > 0) {
+        const filteredSubs = group.subgroups
+          .map((sg, i) => visit(sg, `${path}-${i}`))
+          .filter((g): g is ReportGroup => g !== null);
+        if (filteredSubs.length === 0) return null;
+        const valor_frete = filteredSubs.reduce((a, g) => a + (g.subtotal.valor_frete || 0), 0);
+        const valor_servico = filteredSubs.reduce((a, g) => a + (g.subtotal.valor_servico || 0), 0);
+        return {
+          ...group,
+          subgroups: filteredSubs,
+          subtotal: { valor_frete, valor_servico },
+        };
+      }
+      if (group.rows && group.rows.length > 0) {
+        const filteredRows = group.rows.filter((_, rowIndex) =>
+          selectedIds.has(`analitico-${path}-row-${rowIndex}`)
+        );
+        if (filteredRows.length === 0) return null;
+        return {
+          ...group,
+          rows: filteredRows,
+          subtotal: sumTotalsDedupFrete(filteredRows),
+        };
+      }
+      return null;
+    };
+
+    const filteredGroups = report.groups
+      .map((g, i) => visit(g, `group-${i}`))
+      .filter((g): g is ReportGroup => g !== null);
+
+    const total = filteredGroups.reduce(
+      (acc, g) => ({
+        valor_frete: acc.valor_frete + (g.subtotal.valor_frete || 0),
+        valor_servico: acc.valor_servico + (g.subtotal.valor_servico || 0),
+      }),
+      { valor_frete: 0, valor_servico: 0 }
+    );
+
+    return {
+      ...report,
+      groups: filteredGroups,
+      total,
+    };
+  }
+
+  // Sintético: filtrar groups/subgroups
+  const filteredGroups: ReportGroup[] = [];
+  let totalFrete = 0;
+  let totalServico = 0;
+
+  report.groups.forEach((group, gi) => {
+    if (group.subgroups && group.subgroups.length > 0) {
+      const filteredSubs = group.subgroups.filter((_, si) =>
+        selectedIds.has(`sintetico-${gi}-${si}`)
+      );
+      if (filteredSubs.length === 0) return;
+      const valor_frete = filteredSubs.reduce((a, sg) => a + (sg.subtotal.valor_frete || 0), 0);
+      const valor_servico = filteredSubs.reduce((a, sg) => a + (sg.subtotal.valor_servico || 0), 0);
+      filteredGroups.push({
+        ...group,
+        subgroups: filteredSubs,
+        subtotal: { valor_frete, valor_servico },
+      });
+      totalFrete += valor_frete;
+      totalServico += valor_servico;
+    } else if (selectedIds.has(`sintetico-${gi}`)) {
+      filteredGroups.push(group);
+      totalFrete += group.subtotal.valor_frete || 0;
+      totalServico += group.subtotal.valor_servico || 0;
+    }
+  });
+
+  return {
+    ...report,
+    groups: filteredGroups,
+    total: { valor_frete: totalFrete, valor_servico: totalServico },
+  };
+}
+
+/** Calcula subtotais filtrados por path percorrendo o relatório completo (paths alinhados à exibição) */
+function computeFilteredTotalsByPath(
+  report: ReportResponse | null,
+  selectedIds: Set<string>,
+  isAnalitico: boolean
+): { subtotalByPath: Map<string, ReportTotals>; total: ReportTotals } {
+  const subtotalByPath = new Map<string, ReportTotals>();
+  const zeroTotal: ReportTotals = { valor_frete: 0, valor_servico: 0 };
+
+  if (!report?.groups) {
+    return { subtotalByPath, total: zeroTotal };
+  }
+
+  if (isAnalitico) {
+    const visit = (group: ReportGroup, path: string): ReportTotals => {
+      if (group.subgroups?.length) {
+        let vf = 0;
+        let vs = 0;
+        group.subgroups.forEach((sg, i) => {
+          const st = visit(sg, `${path}-${i}`);
+          vf += st.valor_frete ?? 0;
+          vs += st.valor_servico ?? 0;
+        });
+        const t = { valor_frete: vf, valor_servico: vs };
+        subtotalByPath.set(path, t);
+        return t;
+      }
+      if (group.rows?.length) {
+        const filteredRows = group.rows.filter((_, rowIndex) =>
+          selectedIds.has(`analitico-${path}-row-${rowIndex}`)
+        );
+        const t = sumTotalsDedupFrete(filteredRows);
+        subtotalByPath.set(path, t);
+        return t;
+      }
+      subtotalByPath.set(path, zeroTotal);
+      return zeroTotal;
+    };
+
+    let totalVf = 0;
+    let totalVs = 0;
+    report.groups.forEach((g, i) => {
+      const st = visit(g, `group-${i}`);
+      totalVf += st.valor_frete ?? 0;
+      totalVs += st.valor_servico ?? 0;
+    });
+    return { subtotalByPath, total: { valor_frete: totalVf, valor_servico: totalVs } };
+  }
+
+  // Sintético
+  let totalVf = 0;
+  let totalVs = 0;
+  report.groups.forEach((group, gi) => {
+    if (group.subgroups?.length) {
+      group.subgroups.forEach((subgroup, si) => {
+        const id = `sintetico-${gi}-${si}`;
+        if (selectedIds.has(id)) {
+          const vf = subgroup.subtotal.valor_frete ?? 0;
+          const vs = subgroup.subtotal.valor_servico ?? 0;
+          subtotalByPath.set(`sintetico-${gi}-${si}`, { valor_frete: vf, valor_servico: vs });
+          totalVf += vf;
+          totalVs += vs;
+        }
+      });
+    } else if (selectedIds.has(`sintetico-${gi}`)) {
+      const vf = group.subtotal.valor_frete ?? 0;
+      const vs = group.subtotal.valor_servico ?? 0;
+      subtotalByPath.set(`sintetico-${gi}`, { valor_frete: vf, valor_servico: vs });
+      totalVf += vf;
+      totalVs += vs;
+    }
+  });
+  return { subtotalByPath, total: { valor_frete: totalVf, valor_servico: totalVs } };
+}
+
 // Componente de Tabela de Resultados
+interface FilteredTotals {
+  subtotalByPath: Map<string, ReportTotals>;
+  total: ReportTotals;
+}
+
 interface ReportTableProps {
   report: ReportResponse;
   columnName: string;
   loading: boolean;
   isAnalitico: boolean;
+  selectedRowIds: Set<string>;
+  onSelectionChange: (id: string, checked: boolean) => void;
+  filteredTotals: FilteredTotals;
 }
 
 type SortField = 'ficha' | 'descricao' | 'valor_frete' | 'valor_servico' | null;
 type SortDirection = 'asc' | 'desc' | null;
 
-function ReportTable({ report, columnName, loading, isAnalitico }: ReportTableProps) {
+const ZERO_TOTAL: ReportTotals = { valor_frete: 0, valor_servico: 0 };
+
+function ReportTable({ report, columnName, loading, isAnalitico, selectedRowIds, onSelectionChange, filteredTotals }: ReportTableProps) {
   const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection }>({
     field: null,
     direction: null,
@@ -225,7 +441,7 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
         >
           <span>{group.label}</span>
           <span className="text-base font-semibold text-slate-700">
-            Frete: {formatCurrency(group.subtotal.valor_frete)} · Serviços: {formatCurrency(group.subtotal.valor_servico)}
+            Frete: {formatCurrency((filteredTotals.subtotalByPath.get(path) ?? ZERO_TOTAL).valor_frete)} · Serviços: {formatCurrency((filteredTotals.subtotalByPath.get(path) ?? ZERO_TOTAL).valor_servico)}
           </span>
         </div>
 
@@ -243,6 +459,9 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
             <table className="w-full border-collapse text-base">
               <thead className="bg-slate-50 text-slate-600">
                 <tr className="text-sm font-medium">
+                  <th className="w-12 px-2 py-2 text-center" title="Incluir na exportação">
+                    Incluir
+                  </th>
                   <th
                     className="cursor-pointer select-none px-4 py-2 text-left hover:bg-slate-100 transition-colors"
                     onClick={() => handleSort('ficha')}
@@ -286,11 +505,21 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map((row, index) => (
+                {sortedRows.map((row, index) => {
+                  const rowId = `analitico-${path}-row-${rows.indexOf(row)}`;
+                  return (
                   <tr
                     key={`${path}-row-${index}`}
                     className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
                   >
+                    <td className="w-12 px-2 py-2 text-center">
+                      <Checkbox
+                        checked={selectedRowIds.has(rowId)}
+                        onCheckedChange={(checked) => onSelectionChange(rowId, checked === true)}
+                        title="Incluir na exportação"
+                        aria-label="Incluir na exportação"
+                      />
+                    </td>
                     <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
                     <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
                     <td className="px-4 py-2 text-right text-slate-600">
@@ -300,18 +529,20 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
                       {formatCurrency(row.valor_servico)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-slate-100 text-slate-700">
+                  <td className="px-4 py-2" />
                   <td className="px-4 py-2 text-right font-medium" colSpan={2}>
                     Subtotal do grupo
                   </td>
                   <td className="px-4 py-2 text-right font-medium">
-                    {formatCurrency(group.subtotal.valor_frete)}
+                    {formatCurrency((filteredTotals.subtotalByPath.get(path) ?? ZERO_TOTAL).valor_frete)}
                   </td>
                   <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                    {formatCurrency(group.subtotal.valor_servico)}
+                    {formatCurrency((filteredTotals.subtotalByPath.get(path) ?? ZERO_TOTAL).valor_servico)}
                   </td>
                 </tr>
               </tfoot>
@@ -344,11 +575,11 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
               <>
                 {report.groups.map((group, index) => renderGroup(group, 0, `group-${index}`))}
                 {/* Total geral */}
-                {report.total && (
+                {filteredTotals.total && (
                   <div className="mt-6 flex items-center justify-between rounded-md border-2 border-slate-300 bg-slate-100 px-4 py-3 text-base font-bold text-slate-900 shadow-sm">
                     <span>TOTAL GERAL</span>
                     <span>
-                      Frete: {formatCurrency(report.total.valor_frete)} · Serviços: {formatCurrency(report.total.valor_servico)} · Total: {formatCurrency(report.total.valor_frete + report.total.valor_servico)}
+                      Frete: {formatCurrency(filteredTotals.total.valor_frete)} · Serviços: {formatCurrency(filteredTotals.total.valor_servico)} · Total: {formatCurrency(filteredTotals.total.valor_frete + filteredTotals.total.valor_servico)}
                     </span>
                   </div>
                 )}
@@ -361,35 +592,39 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
   }
 
   // Renderização sintética (tabela simples)
-  const allRows: Array<{
-    label: string;
-    valor_frete: number;
-    valor_servico: number;
-    total: number;
+  const allRowsWithIds: Array<{
+    id: string;
+    row: { label: string; valor_frete: number; valor_servico: number; total: number };
   }> = [];
 
-  const collectRows = (group: ReportGroup) => {
+  const collectRows = (group: ReportGroup, groupIndex: number) => {
     if (group.subgroups && group.subgroups.length > 0) {
-      group.subgroups.forEach((subgroup) => {
-        allRows.push({
-          label: subgroup.label,
-          valor_frete: subgroup.subtotal.valor_frete,
-          valor_servico: subgroup.subtotal.valor_servico,
-          total: subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico,
+      group.subgroups.forEach((subgroup, subIndex) => {
+        allRowsWithIds.push({
+          id: `sintetico-${groupIndex}-${subIndex}`,
+          row: {
+            label: subgroup.label,
+            valor_frete: subgroup.subtotal.valor_frete,
+            valor_servico: subgroup.subtotal.valor_servico,
+            total: subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico,
+          },
         });
       });
     } else if (group.subtotal) {
-      allRows.push({
-        label: group.label,
-        valor_frete: group.subtotal.valor_frete,
-        valor_servico: group.subtotal.valor_servico,
-        total: group.subtotal.valor_frete + group.subtotal.valor_servico,
+      allRowsWithIds.push({
+        id: `sintetico-${groupIndex}`,
+        row: {
+          label: group.label,
+          valor_frete: group.subtotal.valor_frete,
+          valor_servico: group.subtotal.valor_servico,
+          total: group.subtotal.valor_frete + group.subtotal.valor_servico,
+        },
       });
     }
   };
 
-  report.groups.forEach((group) => {
-    collectRows(group);
+  report.groups.forEach((group, gi) => {
+    collectRows(group, gi);
   });
 
   return (
@@ -401,6 +636,9 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
               <Table className="w-full">
                 <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
                   <TableRow>
+                    <TableHead className="w-12 px-2 py-2 text-center bg-background" title="Incluir na exportação">
+                      Incluir
+                    </TableHead>
                     <TableHead className="min-w-[200px] lg:min-w-[250px] xl:min-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base bg-background">
                       {columnName}
                     </TableHead>
@@ -416,10 +654,11 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading && allRows.length === 0 ? (
+                  {loading && allRowsWithIds.length === 0 ? (
                     <>
                       {Array.from({ length: 5 }).map((_, index) => (
                         <TableRow key={`skeleton-${index}`}>
+                          <TableCell className="px-2 lg:px-3 xl:px-4 w-12" />
                           <TableCell className="px-2 lg:px-3 xl:px-4">
                             <Skeleton className="h-4 w-24 lg:w-32" />
                           </TableCell>
@@ -437,11 +676,19 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
                     </>
                   ) : (
                     <>
-                      {allRows.map((row, index) => (
+                      {allRowsWithIds.map(({ id, row }) => (
                         <TableRow
-                          key={index}
+                          key={id}
                           className="hover:bg-muted/50 transition-all duration-200"
                         >
+                          <TableCell className="w-12 px-2 py-2 text-center">
+                            <Checkbox
+                              checked={selectedRowIds.has(id)}
+                              onCheckedChange={(checked) => onSelectionChange(id, checked === true)}
+                              title="Incluir na exportação"
+                              aria-label="Incluir na exportação"
+                            />
+                          </TableCell>
                           <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-medium">
                             {row.label}
                           </TableCell>
@@ -456,19 +703,20 @@ function ReportTable({ report, columnName, loading, isAnalitico }: ReportTablePr
                           </TableCell>
                         </TableRow>
                       ))}
-                      {report.total && (
+                      {filteredTotals.total && (
                         <TableRow className="bg-slate-100 font-semibold">
+                          <TableCell className="w-12 px-2 py-2" />
                           <TableCell className="px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
                             TOTAL GERAL
                           </TableCell>
                           <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                            {formatCurrency(report.total.valor_frete)}
+                            {formatCurrency(filteredTotals.total.valor_frete)}
                           </TableCell>
                           <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                            {formatCurrency(report.total.valor_servico)}
+                            {formatCurrency(filteredTotals.total.valor_servico)}
                           </TableCell>
                           <TableCell className="px-2 lg:px-3 xl:px-4 text-right text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold">
-                            {formatCurrency(report.total.valor_frete + report.total.valor_servico)}
+                            {formatCurrency(filteredTotals.total.valor_frete + filteredTotals.total.valor_servico)}
                           </TableCell>
                         </TableRow>
                       )}
@@ -506,6 +754,36 @@ export default function Fechamentos() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [processing, setProcessing] = useState<boolean>(false);
   const [dateError, setDateError] = useState<string>('');
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+
+  const isAnalitico = activeTab === 'analitico';
+
+  // Inicializar seleção quando o relatório muda (todos selecionados por padrão)
+  useEffect(() => {
+    if (report) {
+      const ids = getAllRowIds(report, isAnalitico);
+      setSelectedRowIds(new Set(ids));
+    } else {
+      setSelectedRowIds(new Set());
+    }
+  }, [report, isAnalitico]);
+
+  const handleSelectionChange = (id: string, checked: boolean) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const filteredTotals = useMemo(() => {
+    if (!report) return { subtotalByPath: new Map<string, ReportTotals>(), total: { valor_frete: 0, valor_servico: 0 } };
+    return computeFilteredTotalsByPath(report, selectedRowIds, isAnalitico);
+  }, [report, selectedRowIds, isAnalitico]);
 
   const availableOptions = useMemo(() => REPORT_OPTIONS[activeTab], [activeTab]);
 
@@ -690,6 +968,16 @@ export default function Fechamentos() {
       return;
     }
 
+    const filteredReport = filterReportBySelection(report, selectedRowIds, isAnalitico);
+    if (!filteredReport.groups || filteredReport.groups.length === 0) {
+      toast({
+        title: 'Nenhum item selecionado',
+        description: 'Marque ao menos um item para incluir na exportação.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setExportingCsv(true);
     try {
       // Importar papaparse corretamente
@@ -706,7 +994,7 @@ export default function Fechamentos() {
         'Total': 'Total',
       });
 
-      report.groups.forEach((group) => {
+      filteredReport.groups.forEach((group) => {
         if (group.subgroups && group.subgroups.length > 0) {
           group.subgroups.forEach((subgroup) => {
             const total = subgroup.subtotal.valor_frete + subgroup.subtotal.valor_servico;
@@ -728,12 +1016,12 @@ export default function Fechamentos() {
         }
       });
 
-      if (report.total) {
-        const totalGeral = report.total.valor_frete + report.total.valor_servico;
+      if (filteredReport.total) {
+        const totalGeral = filteredReport.total.valor_frete + filteredReport.total.valor_servico;
         csvRows.push({
           [columnName]: 'TOTAL GERAL',
-          'Valor Frete': formatCurrency(report.total.valor_frete),
-          'Valor Serviços': formatCurrency(report.total.valor_servico),
+          'Valor Frete': formatCurrency(filteredReport.total.valor_frete),
+          'Valor Serviços': formatCurrency(filteredReport.total.valor_servico),
           'Total': formatCurrency(totalGeral),
         });
       }
@@ -826,6 +1114,16 @@ export default function Fechamentos() {
       return;
     }
 
+    const filteredReport = filterReportBySelection(report, selectedRowIds, isAnalitico);
+    if (!filteredReport.groups || filteredReport.groups.length === 0) {
+      toast({
+        title: 'Nenhum item selecionado',
+        description: 'Marque ao menos um item para incluir na exportação.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setExportingPdf(true);
     try {
       const jsPDF = await loadJsPDF();
@@ -861,7 +1159,7 @@ export default function Fechamentos() {
       // Título principal centralizado
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      const titleText = report.title || 'Relatório de Fechamentos';
+      const titleText = filteredReport.title || 'Relatório de Fechamentos';
       const titleWidth = doc.getTextWidth(titleText);
       doc.text(titleText, marginLeft + (pageWidth - titleWidth) / 2, cursorY);
 
@@ -875,11 +1173,11 @@ export default function Fechamentos() {
       // Subtítulo com período e status (centralizado)
       doc.setFontSize(9);
       let subtitleText = '';
-      if (report.period_label) {
-        subtitleText = report.period_label;
+      if (filteredReport.period_label) {
+        subtitleText = filteredReport.period_label;
       }
-      if (report.status_label) {
-        subtitleText += (subtitleText ? ' - ' : '') + report.status_label;
+      if (filteredReport.status_label) {
+        subtitleText += (subtitleText ? ' - ' : '') + filteredReport.status_label;
       }
       if (subtitleText) {
         const subtitleWidth = doc.getTextWidth(subtitleText);
@@ -887,9 +1185,9 @@ export default function Fechamentos() {
         cursorY += 3;
       }
 
-      if (report.generated_at) {
+      if (filteredReport.generated_at) {
         doc.setFontSize(8);
-        const emitidoText = `Emitido: ${report.generated_at}`;
+        const emitidoText = `Emitido: ${filteredReport.generated_at}`;
         const emitidoWidth = doc.getTextWidth(emitidoText);
         doc.text(emitidoText, marginLeft + (pageWidth - emitidoWidth) / 2, cursorY);
         cursorY += 3;
@@ -1064,7 +1362,7 @@ export default function Fechamentos() {
       };
 
       // Renderizar todos os grupos
-      report.groups.forEach((group) => {
+      filteredReport.groups.forEach((group) => {
         renderGroupToPdf(group, 0);
       });
 
@@ -1082,7 +1380,7 @@ export default function Fechamentos() {
       cursorY += 5;
 
       // Totais em texto alinhado (sem caixas)
-      const totalGeral = report.total.valor_frete + report.total.valor_servico;
+      const totalGeral = filteredReport.total.valor_frete + filteredReport.total.valor_servico;
       const colLabel = marginLeft;
       const colValue = marginLeft + pageWidth - 30;
 
@@ -1090,13 +1388,13 @@ export default function Fechamentos() {
       doc.setFontSize(8);
       doc.text('Vr.Serviços(sem Frete) (R$):', colLabel, cursorY);
       doc.setFont('courier', 'bold'); // Fonte monoespaçada para números
-      doc.text(formatCurrencyNumber(report.total.valor_servico), colValue, cursorY, { align: 'right' });
+      doc.text(formatCurrencyNumber(filteredReport.total.valor_servico), colValue, cursorY, { align: 'right' });
       cursorY += 4;
 
       doc.setFont('helvetica', 'normal');
       doc.text('(+) Vr.Frete (R$):', colLabel, cursorY);
       doc.setFont('courier', 'bold'); // Fonte monoespaçada para números
-      doc.text(formatCurrencyNumber(report.total.valor_frete), colValue, cursorY, { align: 'right' });
+      doc.text(formatCurrencyNumber(filteredReport.total.valor_frete), colValue, cursorY, { align: 'right' });
       cursorY += 4;
 
       doc.setFont('helvetica', 'normal');
@@ -1347,7 +1645,17 @@ export default function Fechamentos() {
           </CardContent>
         </Card>
       ) : (
-        report && <ReportTable report={report} columnName={getColumnName()} loading={loading} isAnalitico={activeTab === 'analitico'} />
+        report && (
+          <ReportTable
+            report={report}
+            columnName={getColumnName()}
+            loading={loading}
+            isAnalitico={isAnalitico}
+            selectedRowIds={selectedRowIds}
+            onSelectionChange={handleSelectionChange}
+            filteredTotals={filteredTotals}
+          />
+        )
       )}
     </div>
   );
