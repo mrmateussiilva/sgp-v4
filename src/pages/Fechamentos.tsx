@@ -1279,8 +1279,8 @@ export default function Fechamentos() {
           doc.setFontSize(8);
           doc.text('Ficha', colFicha, cursorY);
           doc.text('Descrição Painel', colDescricao, cursorY);
-          doc.text('Vr.Frete (R$)', colFrete, cursorY, { align: 'right' });
-          doc.text('Vr.Serviços (R$)', colServicos, cursorY, { align: 'right' });
+          doc.text('Vr.Frete (R$)', colFrete + colFreteWidth, cursorY, { align: 'right' });
+          doc.text('Vr.Serviços (R$)', colServicos + colServicosWidth, cursorY, { align: 'right' });
           cursorY += 2;
 
           // Linha horizontal separando cabeçalho da tabela
