@@ -1,11 +1,11 @@
 {
-  "version": "1.2.5",
-  "notes": "Emenda e quantidade de emendas passam a aparecer em todas as fichas de impressão.",
+  "version": "1.2.6",
+  "notes": "Checkboxes de exportação no relatório de fechamento",
   "pub_date": "2026-02-05T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.5/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.5_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3FBSllvTnBleFp4bkpOT1VSNTF2bWpOL2plV0VIZ2M2ZWxzZXVrVjVMQ1N4TEZYdHF0ME82aDRtd3NoWnVhOU56UzVnaC9tWWM1RjBsQ3EwUU4zL2dNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcwOTYxMDk2CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjVfeDY0X2VuLVVTLm1zaQo4REJieEE2Nmxlc2VQVmNnbGJQM1MzU3Z6ZlBuTGJKZTJDTDV3UVYxS2R1Q1lNL1I3a1A3dnJBb2pwTUNHL3h2djJlTFk0eUFNbk13UVhieXJ5YkZEdz09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.6_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3FkQzdHNXd5NnEvTWd1aFFtV1BCTlQzamh2Wk9aL3ZOZTc1WktOZHBpMkJJNUlRME4zL1lPbU4yWVRGdThGa0tncyt6bFl4bk9NNUl4K2pPa1hpV0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcxMTUwNjU4CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjZfeDY0X2VuLVVTLm1zaQovVTJWekZ0dnU3cGFBYUg3N25QeGYzQ2E2OVVvWHZyMUVoV3hnSWJKMTB3dEE1VE1DOEthNGZXVitjKzlWemw3L1lBbmJubEhFR3h0MjU2OU11NnNBZz09Cg=="
     }
   }
 }
