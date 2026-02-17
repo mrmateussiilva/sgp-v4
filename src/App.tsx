@@ -8,9 +8,8 @@ import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
 import { Loader2 } from 'lucide-react';
 import { useTauriUpdater } from './hooks/useTauriUpdater';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 import { toast } from '@/hooks/use-toast';
+import { isTauri } from './utils/isTauri';
 import { AlertProvider } from './contexts/AlertContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
@@ -76,6 +75,14 @@ function App() {
 
       if (shouldShow === 'true' && previousVersion) {
         try {
+          // Changelog após update só faz sentido no desktop Tauri
+          if (!isTauri()) {
+            localStorage.removeItem('show_changelog_after_update');
+            localStorage.removeItem('previous_version');
+            return;
+          }
+
+          const { invoke } = await import('@tauri-apps/api/core');
           const currentVersion = await invoke<string>('get_app_version');
 
           logger.debug('[App] Versões:', {
@@ -187,9 +194,9 @@ function App() {
     };
   }, []);
 
-  // Listener para eventos de novo pedido
+  // Listener para eventos de novo pedido (apenas desktop Tauri; web usa WebSocket via API)
   useEffect(() => {
-    if (!apiUrl || !isAuthenticated) {
+    if (!apiUrl || !isAuthenticated || !isTauri()) {
       return;
     }
 
@@ -197,8 +204,8 @@ function App() {
 
     const setupListener = async () => {
       try {
-        unsubscribe = await listen("novo_pedido", (event) => {
-          console.log("[App] Novo pedido recebido:", event);
+        const { listen } = await import('@tauri-apps/api/event');
+        unsubscribe = await listen("novo_pedido", () => {
           toast({
             title: "Novo pedido criado!",
             description: "Um novo pedido foi criado no sistema.",

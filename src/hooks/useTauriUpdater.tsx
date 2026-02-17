@@ -1,16 +1,20 @@
 import { useEffect, useRef } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
 import { useUpdaterStore } from '@/store/updaterStore';
+import { isTauri } from '@/utils/isTauri';
 
 /**
  * Hook que verifica automaticamente atualizações usando o updater oficial do Tauri
- * Executa apenas uma vez por inicialização
+ * Executa apenas uma vez por inicialização. Na web, não faz nada.
  */
 export function useTauriUpdater() {
   const hasCheckedRef = useRef(false);
   const setUpdateAvailable = useUpdaterStore((state) => state.setUpdateAvailable);
 
   useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+
     // Verificar apenas uma vez quando o componente monta
     if (hasCheckedRef.current) {
       return;
@@ -18,6 +22,8 @@ export function useTauriUpdater() {
 
     const checkForUpdates = async () => {
       try {
+        const { check } = await import('@tauri-apps/plugin-updater');
+
         console.info('[Updater] Verificando atualizações...');
 
         const update = await check({

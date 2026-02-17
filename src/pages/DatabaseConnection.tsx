@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
+import { isTauri } from "@/utils/isTauri";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +40,9 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
   }, []);
 
   const loadSavedConfig = async () => {
+    if (!isTauri()) return;
     try {
+      const { invoke } = await import("@tauri-apps/api/core");
       const savedConfig = await invoke<DbConfig | null>("load_db_config");
       if (savedConfig) {
         setForm(savedConfig);
@@ -65,12 +67,14 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
   };
 
   const testConnection = async () => {
+    if (!isTauri()) return;
     const dbUrl = `postgresql://${form.user}:${form.password}@${form.host}:${form.port}/${form.database}`;
     
     setStatus({ type: 'testing', message: 'Testando conexão...' });
     setIsLoading(true);
     
     try {
+      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("test_db_connection", { dbUrl });
       setStatus({ 
         type: 'success', 
@@ -87,9 +91,11 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
   };
 
   const saveConfig = async () => {
+    if (!isTauri()) return;
     setIsLoading(true);
     
     try {
+      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("save_db_config", { config: form });
       setStatus({ 
         type: 'success', 
@@ -99,7 +105,7 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
       // Aguardar um pouco antes de tentar reconectar
       setTimeout(async () => {
         try {
-          // Tentar uma operação que requer banco de dados para verificar se a conexão foi restaurada
+          const { invoke } = await import("@tauri-apps/api/core");
           const dbUrl = `postgresql://${form.user}:${form.password}@${form.host}:${form.port}/${form.database}`;
           await invoke('test_db_connection', { dbUrl });
           
@@ -133,7 +139,9 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
   };
 
   const clearConfig = async () => {
+    if (!isTauri()) return;
     try {
+      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("delete_db_config");
       setForm({
         host: "localhost",
@@ -179,6 +187,22 @@ export default function DatabaseConnection({ onConnectionRestored }: DatabaseCon
         return 'text-gray-600';
     }
   };
+
+  if (!isTauri()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <Card className="w-full max-w-md shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-xl">Apenas versão desktop</CardTitle>
+            <CardDescription>
+              A configuração de banco de dados local está disponível somente na versão desktop do SGP.
+              Na versão web, utilize a configuração da API na tela inicial.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">

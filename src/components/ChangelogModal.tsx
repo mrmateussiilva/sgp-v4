@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Button } from '@/components/ui/button';
+import { isTauri } from '@/utils/isTauri';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,20 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
     setError('');
 
     try {
-      const content = await invoke<string>('fetch_changelog', { version });
+      let content: string;
+
+      if (isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        content = await invoke<string>('fetch_changelog', { version });
+      } else {
+        // Web: tentar fetch de URL configurável
+        const changelogUrl =
+          import.meta.env.VITE_CHANGELOG_URL ||
+          '/changelog.md';
+        const res = await fetch(changelogUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        content = await res.text();
+      }
 
       // Extrair apenas a seção da versão atual
       const versionSection = extractVersionSection(content, version);

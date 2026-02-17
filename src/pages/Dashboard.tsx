@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/utils/isTauri';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -73,11 +73,16 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchVersion = async () => {
       try {
-        const version = await invoke<string>('get_app_version');
-        setAppVersion(version);
+        if (isTauri()) {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const version = await invoke<string>('get_app_version');
+          setAppVersion(version);
+        } else {
+          setAppVersion(import.meta.env.VITE_APP_VERSION || 'web');
+        }
       } catch (error) {
         console.error('Erro ao obter versão:', error);
-        // Não mostrar erro ao usuário, apenas log
+        setAppVersion(import.meta.env.VITE_APP_VERSION || 'web');
       }
     };
     fetchVersion();
@@ -185,8 +190,11 @@ export default function Dashboard() {
   ], []);
 
   // Filtrar menu baseado em permissões (memoizado)
+  // Ocultar "Atualizações" na web - apenas desktop Tauri
   const menuItems = useMemo(() =>
-    allMenuItems.filter(item => !item.adminOnly || isAdmin),
+    allMenuItems.filter(item =>
+      (!item.adminOnly || isAdmin) && !(item.path === '/update-status' && !isTauri())
+    ),
     [isAdmin, allMenuItems]
   );
 

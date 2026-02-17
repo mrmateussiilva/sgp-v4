@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { invoke } from '@tauri-apps/api/core';
 import { Button } from '@/components/ui/button';
+import { isTauri } from '@/utils/isTauri';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Loader2, RefreshCw, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -24,26 +22,40 @@ export default function UpdateStatus() {
   useEffect(() => {
     const loadVersion = async () => {
       try {
-        const version = await invoke<string>('get_app_version');
-        setCurrentVersion(version);
+        if (isTauri()) {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const version = await invoke<string>('get_app_version');
+          setCurrentVersion(version);
+        } else {
+          setCurrentVersion(import.meta.env.VITE_APP_VERSION || 'web');
+        }
       } catch (err) {
         console.error('Erro ao obter versão:', err);
+        setCurrentVersion(import.meta.env.VITE_APP_VERSION || 'web');
       }
     };
     loadVersion();
   }, []);
 
-  // Verificar atualizações ao abrir a página
+  // Verificar atualizações ao abrir a página (apenas desktop)
   useEffect(() => {
-    checkForUpdates();
+    if (isTauri()) {
+      checkForUpdates();
+    } else {
+      setIsChecking(false);
+    }
   }, []);
 
   const checkForUpdates = async () => {
+    if (!isTauri()) return;
+
     setIsChecking(true);
     setError('');
     setUpdateAvailable(false);
 
     try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+
       console.info('[UpdateStatus] Verificando atualizações...');
 
       const update = await check({
@@ -83,12 +95,14 @@ export default function UpdateStatus() {
   };
 
   const handleDownloadAndInstall = async () => {
-    if (!updateAvailable) return;
+    if (!updateAvailable || !isTauri()) return;
 
     setIsInstalling(true);
     setError('');
 
     try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+
       console.info('[UpdateStatus] Verificando atualização novamente...');
 
       const update = await check({
@@ -151,6 +165,7 @@ export default function UpdateStatus() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Reiniciar aplicação
+      const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido ao instalar';

@@ -4,15 +4,18 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, X, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { isTauri } from '@/utils/isTauri';
 
 /**
  * Componente que exibe um banner no topo da aplicação quando uma nova versão está disponível.
- * Design premium e funcional, seguindo a estética ERP do SGP.
+ * Apenas na versão desktop Tauri.
  */
 export function UpdateBanner() {
     const navigate = useNavigate();
     const location = useLocation();
     const { isUpdateAvailable, updateVersion } = useUpdaterStore();
+
+    if (!isTauri()) return null;
     const [isVisible, setIsVisible] = useState(true);
 
     // Se o usuário fechar o banner, ele fica oculto apenas nesta sessão
