@@ -21,6 +21,7 @@ import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
 import { api } from '../services/api';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { PwaLayout } from '@/components/layouts/PwaLayout';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -205,6 +206,25 @@ export default function Dashboard() {
     return location.pathname.startsWith(path);
   }, [location.pathname]);
 
+  // Web/PWA: layout simplificado sem sidebar
+  if (!isTauri()) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <PwaLayout>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<DashboardOverview />} />
+              <Route path="orders" element={<OrderList />} />
+              <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
+        </PwaLayout>
+      </TooltipProvider>
+    );
+  }
+
+  // Desktop Tauri: layout com sidebar
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-screen bg-background overflow-hidden">
