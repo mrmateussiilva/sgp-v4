@@ -179,17 +179,17 @@ export default function RelatoriosEnvios() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Relatório de Envios</h1>
-          <p className="text-muted-foreground">Gere relatórios de envios por data de entrega</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatório de Envios</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Gere relatórios de envios por data de entrega</p>
         </div>
         {isAdmin && (
           <Button
             variant="outline"
             onClick={() => navigate('/dashboard/admin/template-relatorios')}
-            className="gap-2"
+            className="gap-2 min-h-[44px] shrink-0"
           >
             <Settings className="h-4 w-4" />
             Editar Template
@@ -197,7 +197,7 @@ export default function RelatoriosEnvios() {
         )}
       </div>
 
-      <Card>
+      <Card className="pwa-card">
         <CardHeader>
           <CardTitle>Filtros do Relatório</CardTitle>
         </CardHeader>
@@ -210,7 +210,7 @@ export default function RelatoriosEnvios() {
                 type="date"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
-                className="max-w-xs"
+                className="w-full sm:max-w-xs min-h-[44px]"
               />
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">até</span>
@@ -219,7 +219,7 @@ export default function RelatoriosEnvios() {
                   type="date"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="max-w-xs"
+                  className="w-full sm:max-w-xs min-h-[44px]"
                   min={dataInicio || undefined}
                 />
               </div>
@@ -244,6 +244,7 @@ export default function RelatoriosEnvios() {
             <Button
               onClick={gerarRelatorio}
               disabled={loading}
+              className="min-h-[44px]"
             >
               {loading ? 'Gerando...' : 'Gerar Relatório'}
             </Button>
@@ -257,6 +258,7 @@ export default function RelatoriosEnvios() {
                 !relatorio.length ||
                 !dataInicio
               }
+              className="min-h-[44px]"
             >
               {exporting ? 'Exportando...' : 'Exportar PDF'}
             </Button>
@@ -271,7 +273,7 @@ export default function RelatoriosEnvios() {
       </Card>
 
       {relatorio.length > 0 && (
-        <Card>
+        <Card className="pwa-card">
           <CardHeader>
             <CardTitle>
               Relatório de Envios - {formatarIntervalo(dataInicio, dataFim)}
