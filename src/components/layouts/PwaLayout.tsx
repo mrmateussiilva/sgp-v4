@@ -51,7 +51,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
       {/* Header fixo no topo */}
       <header
         className={cn(
-          'flex-shrink-0 h-14 px-4 flex items-center justify-between',
+          'flex-shrink-0 h-14 px-3 sm:px-4 flex items-center justify-between',
           'bg-card border-b border-border shadow-sm',
           'sticky top-0 z-50'
         )}
@@ -59,7 +59,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
         {/* Logo */}
         <Link
           to="/dashboard"
-          className="flex items-center gap-2 font-bold text-primary text-xl hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 font-bold text-primary text-lg hover:opacity-90 transition-opacity min-h-[44px] items-center"
           aria-label="SGP - Início"
         >
           SGP
@@ -74,7 +74,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
                 key={path}
                 to={path}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                  'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[44px]',
                   active
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -91,7 +91,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
         <div className="flex sm:hidden items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Abrir menu">
+              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" aria-label="Abrir menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -125,7 +125,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
           <Button
             variant="outline"
             size="sm"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px]"
             onClick={handleLogout}
             aria-label="Sair"
           >
@@ -136,7 +136,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
       </header>
 
       {/* Área de conteúdo */}
-      <main className="flex-1 overflow-auto p-4 md:p-6" role="main">
+      <main className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar max-w-4xl mx-auto w-full" role="main">
         {children}
       </main>
     </div>
