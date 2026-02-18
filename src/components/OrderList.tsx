@@ -62,10 +62,11 @@ import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 import { ShortcutsHelp } from './ShortcutsHelp';
 
-// import { cn } from '@/lib/utils'; // Não usado mais (painel lateral desabilitado)
+import { cn } from '@/lib/utils';
 
 export default function OrderList() {
   const navigate = useNavigate();
+  const isPwa = !isTauri();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin } = useUser();
@@ -1855,14 +1856,16 @@ export default function OrderList() {
                   </TooltipTrigger>
                   <TooltipContent>Atalhos de teclado (?)</TooltipContent>
                 </Tooltip>
-                <Button
-                  size="sm"
-                  className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm shadow-primary/20"
-                  onClick={() => navigate('/dashboard/pedido/novo')}
-                >
-                  <FileText className="h-4 w-4" />
-                  Novo Pedido
-                </Button>
+                {!isPwa && (
+                  <Button
+                    size="sm"
+                    className="h-9 px-4 text-xs font-semibold gap-2 shadow-sm shadow-primary/20"
+                    onClick={() => navigate('/dashboard/pedido/novo')}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Novo Pedido
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1934,7 +1937,7 @@ export default function OrderList() {
               </div>
             </div>
             {/* Barra de Filtros Principais - Sempre Visível */}
-            <Card className="border-2">
+            <Card className={cn("border-2", isPwa && "pwa-card")}>
               <CardContent className="pt-6">
                 <div className="flex flex-col gap-4">
                   {/* Linha 1: Busca e Status */}
@@ -1953,13 +1956,13 @@ export default function OrderList() {
                               handleSearch();
                             }
                           }}
-                          className="pl-10 h-10"
+                          className={cn("pl-10 h-10", isPwa && "min-h-[44px]")}
                         />
                       </div>
                       <Button
                         type="button"
                         onClick={handleSearch}
-                        className="h-10 px-4 whitespace-nowrap"
+                        className={cn("h-10 px-4 whitespace-nowrap", isPwa && "min-h-[44px]")}
                         variant="default"
                       >
                         <Search className="h-4 w-4 mr-2" />
@@ -2245,7 +2248,7 @@ export default function OrderList() {
               </div>
             )}
 
-            <Card className="flex-1 flex flex-col min-h-0 flex-grow">
+            <Card className={cn("flex-1 flex flex-col min-h-0 flex-grow", isPwa && "pwa-card border-0")}>
               <CardContent className="p-0 flex-1 flex flex-col min-h-0">
                 <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
                   {/* Indicador de loading sutil */}
@@ -2255,6 +2258,88 @@ export default function OrderList() {
                     </div>
                   )}
 
+                  {/* PWA: layout em cards */}
+                  {isPwa ? (
+                    <div className="p-4 space-y-3">
+                      {loading && paginatedOrders.length === 0 ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <Card key={`skeleton-${i}`} className="p-4">
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="space-y-2 flex-1">
+                                <Skeleton className="h-5 w-20" />
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-24" />
+                              </div>
+                              <Skeleton className="h-9 w-20" />
+                            </div>
+                          </Card>
+                        ))
+                      ) : paginatedOrders.length === 0 ? (
+                        <div className="flex flex-col items-center gap-3 py-12">
+                          <Inbox className="h-12 w-12 text-muted-foreground" />
+                          <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
+                          <p className="text-sm text-muted-foreground text-center max-w-sm">
+                            {activeSearchTerm || dateFrom || dateTo || selectedStatuses.length > 0 || selectedVendedor || selectedDesigner || selectedCidade || selectedFormaEnvio
+                              ? 'Tente ajustar seus filtros de busca.'
+                              : 'Ainda não há pedidos.'}
+                          </p>
+                        </div>
+                      ) : (
+                        paginatedOrders.map((order: OrderWithItems) => {
+                          const urgency = getOrderUrgency(order.data_entrega);
+                          const isDelayed = urgency.type === 'overdue' && !order.pronto;
+                          const statusLabel = order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento';
+                          return (
+                            <Card
+                              key={order.id}
+                              className={cn(
+                                "p-4 transition-colors",
+                                isDelayed && "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20"
+                              )}
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-base">
+                                      #{formatOrderNumber(order.numero, order.id)}
+                                    </span>
+                                    {order.prioridade === 'ALTA' && (
+                                      <Badge variant="destructive" className="text-xs">ALTA</Badge>
+                                    )}
+                                    {isDelayed && (
+                                      <Badge variant="destructive" className="text-xs">Atrasado</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground truncate mt-0.5">
+                                    {order.cliente || order.customer_name}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                                    {formatDateForDisplay(order.data_entrega, '-')}
+                                  </div>
+                                  <Badge
+                                    variant={order.pronto ? 'default' : isDelayed ? 'destructive' : 'secondary'}
+                                    className="mt-2 text-xs"
+                                  >
+                                    {statusLabel}
+                                  </Badge>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="min-h-[44px] shrink-0"
+                                  onClick={() => handleViewOrder(order)}
+                                >
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Ver
+                                </Button>
+                              </div>
+                            </Card>
+                          );
+                        })
+                      )}
+                    </div>
+                  ) : (
                   <SmoothTableWrapper>
                     <Table className="w-full">
                       <TableHeader>
@@ -2388,14 +2473,16 @@ export default function OrderList() {
                                     ? 'Tente ajustar seus filtros de busca.'
                                     : 'Ainda não há pedidos. Crie o primeiro para começar.'}
                                 </p>
-                                <Button
-                                  type="button"
-                                  onClick={() => navigate('/dashboard/pedido/novo')}
-                                  className="mt-1 gap-2"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  Novo pedido
-                                </Button>
+                                {!isPwa && (
+                                  <Button
+                                    type="button"
+                                    onClick={() => navigate('/dashboard/pedido/novo')}
+                                    className="mt-1 gap-2"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    Novo pedido
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2698,6 +2785,7 @@ export default function OrderList() {
                       </TableBody>
                     </Table>
                   </SmoothTableWrapper>
+                  )}
                 </div>
               </CardContent>
             </Card>
