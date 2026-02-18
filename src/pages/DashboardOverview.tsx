@@ -30,6 +30,7 @@ import { formatDateForDisplay } from '@/utils/date';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { isTauri } from '@/utils/isTauri';
 
 interface DashboardStats {
   totalOrders: number;
@@ -51,6 +52,7 @@ interface RecentOrder extends OrderWithItems {
 
 export default function DashboardOverview() {
   const navigate = useNavigate();
+  const isPwa = !isTauri();
   const { orders, setOrders } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { toast } = useToast();
@@ -508,11 +510,11 @@ export default function DashboardOverview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-4", !isPwa && "sm:space-y-6")}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
             Visão geral do sistema de gerenciamento de pedidos
           </p>
@@ -529,21 +531,25 @@ export default function DashboardOverview() {
             variant="outline"
             size="sm"
             disabled={isRefreshing}
+            className="min-h-[44px]"
             aria-label="Atualizar dashboard"
           >
             <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
             Atualizar
           </Button>
-          <Button
-            onClick={() => navigate('/dashboard/orders/new')}
-            aria-label="Criar novo pedido"
-          >
-            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-            Novo Pedido
-          </Button>
+          {!isPwa && (
+            <Button
+              onClick={() => navigate('/dashboard/orders/new')}
+              aria-label="Criar novo pedido"
+            >
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+              Novo Pedido
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => navigate('/dashboard/orders')}
+            className="min-h-[44px]"
             aria-label="Ver todos os pedidos"
           >
             <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
@@ -583,16 +589,19 @@ export default function DashboardOverview() {
           placeholder="Buscar pedidos por número ou cliente..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9"
+          className={cn("pl-9", isPwa && "min-h-[44px]")}
           aria-label="Buscar pedidos"
           noUppercase
         />
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={cn("grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4", isPwa && "gap-3")}>
         <Card
-          className="cursor-pointer hover:bg-accent transition-colors"
+          className={cn(
+            "cursor-pointer hover:bg-accent transition-colors",
+            isPwa && "pwa-card"
+          )}
           onClick={() => handleCardClick('all')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -600,7 +609,7 @@ export default function DashboardOverview() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
+            <div className="text-xl sm:text-2xl font-bold">{stats.totalOrders}</div>
             <p className="text-xs text-muted-foreground">
               {stats.todayOrders} pedidos hoje
             </p>
@@ -608,7 +617,10 @@ export default function DashboardOverview() {
         </Card>
 
         <Card
-          className="cursor-pointer hover:bg-accent transition-colors"
+          className={cn(
+            "cursor-pointer hover:bg-accent transition-colors",
+            isPwa && "pwa-card"
+          )}
           onClick={() => handleCardClick('pending')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -616,7 +628,7 @@ export default function DashboardOverview() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.pendingOrders}</div>
+            <div className="text-xl sm:text-2xl font-bold text-orange-600">{stats.pendingOrders}</div>
             <p className="text-xs text-muted-foreground">
               Em produção
             </p>
@@ -624,7 +636,10 @@ export default function DashboardOverview() {
         </Card>
 
         <Card
-          className="cursor-pointer hover:bg-accent transition-colors"
+          className={cn(
+            "cursor-pointer hover:bg-accent transition-colors",
+            isPwa && "pwa-card"
+          )}
           onClick={() => handleCardClick('completed')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -632,7 +647,7 @@ export default function DashboardOverview() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completedOrders}</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.completedOrders}</div>
             <p className="text-xs text-muted-foreground">
               Prontos para entrega
             </p>
@@ -640,7 +655,10 @@ export default function DashboardOverview() {
         </Card>
 
         <Card
-          className="cursor-pointer hover:bg-accent transition-colors"
+          className={cn(
+            "cursor-pointer hover:bg-accent transition-colors",
+            isPwa && "pwa-card"
+          )}
           onClick={() => handleCardClick('overdue')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -648,7 +666,7 @@ export default function DashboardOverview() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.overdueOrders}</div>
+            <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.overdueOrders}</div>
             <p className="text-xs text-muted-foreground">
               Fora do prazo
             </p>
@@ -658,7 +676,7 @@ export default function DashboardOverview() {
 
       {/* Shipping Methods Distribution */}
       {stats.shippingMethods.length > 0 && (
-        <Card>
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Truck className="h-5 w-5 text-blue-500" />
@@ -696,40 +714,40 @@ export default function DashboardOverview() {
       )}
 
       {/* Time-based Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tempo Médio de Produção</CardTitle>
             <Timer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatDays(stats.avgProductionTime)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">{formatDays(stats.avgProductionTime)}</div>
             <p className="text-xs text-muted-foreground">
               Do início ao fim
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Atraso Médio</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatDays(stats.avgDelayTime)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-red-600">{formatDays(stats.avgDelayTime)}</div>
             <p className="text-xs text-muted-foreground">
               Pedidos atrasados
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Taxa de Eficiência</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.efficiencyRate}%</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.efficiencyRate}%</div>
             <p className="text-xs text-muted-foreground">
               Entregas no prazo
             </p>
@@ -738,7 +756,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Production Efficiency */}
-      <Card>
+      <Card className={isPwa ? "pwa-card" : undefined}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-yellow-500" />
@@ -749,7 +767,7 @@ export default function DashboardOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{productionEfficiency.financeiro}%</div>
               <div className="text-sm text-muted-foreground">Financeiro</div>
@@ -829,9 +847,9 @@ export default function DashboardOverview() {
       </Card>
 
       {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={cn("grid gap-4 lg:grid-cols-2", isPwa ? "gap-4" : "lg:gap-6")}>
         {/* Urgent Orders */}
-        <Card>
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -871,38 +889,40 @@ export default function DashboardOverview() {
                           {getProductionStatus(order)}
                         </Badge>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewOrder(order);
-                          }}
-                          aria-label="Visualizar pedido"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditOrder(order);
-                          }}
-                          aria-label="Editar pedido"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {!isPwa && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewOrder(order);
+                            }}
+                            aria-label="Visualizar pedido"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditOrder(order);
+                            }}
+                            aria-label="Editar pedido"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
                 <Button
                   variant="outline"
-                  className="w-full mt-4"
+                  className="w-full mt-4 min-h-[44px]"
                   onClick={() => navigate('/dashboard/orders')}
                   aria-label="Ver todos os pedidos urgentes"
                 >
@@ -914,7 +934,7 @@ export default function DashboardOverview() {
         </Card>
 
         {/* Recent Orders */}
-        <Card>
+        <Card className={isPwa ? "pwa-card" : undefined}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-500" />
@@ -961,40 +981,42 @@ export default function DashboardOverview() {
                           {getProductionStatus(order)}
                         </Badge>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewOrder(order);
-                          }}
-                          aria-label="Visualizar pedido"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditOrder(order);
-                          }}
-                          aria-label="Editar pedido"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {!isPwa && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewOrder(order);
+                            }}
+                            aria-label="Visualizar pedido"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 min-h-[44px] min-w-[44px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditOrder(order);
+                            }}
+                            aria-label="Editar pedido"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
                 <Button
                   variant="outline"
-                  className="w-full mt-4"
+                  className="w-full mt-4 min-h-[44px]"
                   onClick={() => navigate('/dashboard/orders')}
-                  aria-label="Ver todos os pedidos urgentes"
+                  aria-label="Ver todos os pedidos recentes"
                 >
                   Ver Todos os Pedidos
                 </Button>
@@ -1005,7 +1027,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      <Card className={isPwa ? "pwa-card" : undefined}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-green-500" />
@@ -1016,37 +1038,44 @@ export default function DashboardOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/dashboard/orders/new')}
-            >
-              <Plus className="h-6 w-6" />
-              <span>Novo Pedido</span>
-            </Button>
+          <div className={cn(
+            "grid gap-4",
+            isPwa ? "grid-cols-2" : "md:grid-cols-2 lg:grid-cols-4"
+          )}>
+            {!isPwa && (
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2 min-h-[44px]"
+                onClick={() => navigate('/dashboard/orders/new')}
+              >
+                <Plus className="h-6 w-6" />
+                <span>Novo Pedido</span>
+              </Button>
+            )}
 
             <Button
               variant="outline"
-              className="h-20 flex flex-col gap-2"
+              className="h-20 flex flex-col gap-2 min-h-[44px]"
               onClick={() => navigate('/dashboard/orders')}
             >
               <ShoppingCart className="h-6 w-6" />
               <span>Gerenciar Pedidos</span>
             </Button>
 
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate('/dashboard/clientes')}
-            >
-              <Users className="h-6 w-6" />
-              <span>Clientes</span>
-            </Button>
+            {!isPwa && (
+              <Button
+                variant="outline"
+                className="h-20 flex flex-col gap-2 min-h-[44px]"
+                onClick={() => navigate('/dashboard/clientes')}
+              >
+                <Users className="h-6 w-6" />
+                <span>Clientes</span>
+              </Button>
+            )}
 
             <Button
               variant="outline"
-              className="h-20 flex flex-col gap-2"
+              className="h-20 flex flex-col gap-2 min-h-[44px]"
               onClick={() => navigate('/dashboard/relatorios-envios')}
             >
               <Truck className="h-6 w-6" />
