@@ -15,7 +15,8 @@ import {
   Truck,
   RefreshCw,
   Loader2,
-  Printer
+  Printer,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -26,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
+import { ChatBubble } from '@/components/chat/ChatBubble';
 import { cn } from '@/lib/utils';
 
 // Lazy load de todas as rotas para code-splitting
@@ -143,6 +145,13 @@ export default function Dashboard() {
       icon: Truck,
       label: 'Envios',
       path: '/dashboard/relatorios-envios',
+      adminOnly: false,
+      section: 'OPERACIONAL'
+    },
+    {
+      icon: MessageCircle,
+      label: 'Chat',
+      path: '/dashboard/chat',
       adminOnly: false,
       section: 'OPERACIONAL'
     },
@@ -483,6 +492,7 @@ export default function Dashboard() {
           </main>
         </div>
       </div>
+      <ChatBubble />
     </TooltipProvider>
   );
 }
