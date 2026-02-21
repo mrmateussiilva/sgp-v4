@@ -27,7 +27,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
-import { ChatBubble } from '@/components/chat/ChatBubble';
 import { cn } from '@/lib/utils';
 
 // Lazy load de todas as rotas para code-splitting
@@ -53,6 +52,7 @@ const PrintLogs = lazy(() => import('./PrintLogs'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
+const ChatPage = lazy(() => import('./ChatPage'));
 
 // Componente de loading para rotas lazy
 const RouteLoadingFallback = () => (
@@ -487,12 +487,12 @@ export default function Dashboard() {
                   }
                 />
                 <Route path="print-logs" element={<PrintLogs />} />
+                <Route path="chat" element={<ChatPage />} />
               </Routes>
             </Suspense>
           </main>
         </div>
       </div>
-      <ChatBubble />
     </TooltipProvider>
   );
 }
