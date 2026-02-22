@@ -46,7 +46,7 @@ class OrderEventsManager {
     // Type guard para acessar propriedades dinâmicas
     const messageWithOrder = message as OrderEventMessage & { order?: unknown; pedido_id?: number };
     const orderPayload = messageWithOrder.order as { id?: number; order_id?: number; pedido_id?: number } | undefined;
-    
+
     if (import.meta.env.DEV) {
       logger.debug('📡 [OrderEventsManager] Evento WebSocket recebido:', {
         type: message.type,
@@ -55,7 +55,7 @@ class OrderEventsManager {
         handlers_count: this.handlers.size,
       });
     }
-    
+
     const type = message.type;
     if (!type) {
       if (import.meta.env.DEV) {
@@ -137,15 +137,17 @@ class OrderEventsManager {
     return {
       id,
       unsubscribe: () => {
-        this.handlers.delete(id);
-        this.subscriptionCount--;
+        if (this.handlers.has(id)) {
+          this.handlers.delete(id);
+          this.subscriptionCount--;
 
-        // Se não houver mais handlers, fazer unsubscribe
-        if (this.subscriptionCount === 0 && this.globalSubscription) {
-          this.globalSubscription();
-          this.globalSubscription = null;
-          if (import.meta.env.DEV) {
-            logger.debug('✅ [OrderEventsManager] Assinatura WebSocket global removida (sem mais handlers)');
+          // Se não houver mais handlers, fazer unsubscribe
+          if (this.subscriptionCount === 0 && this.globalSubscription) {
+            this.globalSubscription();
+            this.globalSubscription = null;
+            if (import.meta.env.DEV) {
+              logger.debug('✅ [OrderEventsManager] Assinatura WebSocket global removida (sem mais handlers)');
+            }
           }
         }
       },
@@ -192,7 +194,7 @@ export const useOrderEvents = ({
   useEffect(() => {
     // Registrar handlers no manager singleton
     const { id, unsubscribe } = orderEventsManager.subscribe(handlersRef.current);
-    
+
     // Armazenar o ID para atualizações futuras
     handlerIdRef.current = id;
 
@@ -219,7 +221,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   // Usar ref para sempre ter acesso ao estado mais recente (evita closure stale)
   const ordersRef = useRef(orders);
   ordersRef.current = orders;
-  
+
   // Usar ref para loadOrders para evitar recriação de callbacks quando loadOrders muda
   // Isso previne múltiplas assinaturas WebSocket
   const loadOrdersRef = useRef(loadOrders);
@@ -288,10 +290,10 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
       try {
         logger.debug('🆕 [useOrderAutoSync] Pedido criado, buscando dados:', orderId);
         const newOrder = await api.getOrderById(orderId);
-        
+
         // 1. Sempre atualizar no store global primeiro
         updateOrder(newOrder);
-        
+
         // 2. Atualizar na lista local se não existir
         setOrders((currentOrders) => {
           const exists = currentOrders.some((order) => order.id === newOrder.id);
@@ -302,7 +304,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           logger.debug('✅ [useOrderAutoSync] Adicionando novo pedido à lista');
           return [newOrder, ...currentOrders];
         });
-        
+
         // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
         // Recarregar apenas quando necessário (ex: quando modal fecha)
         // Isso evita loops infinitos e múltiplas conexões WebSocket
@@ -318,11 +320,11 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
       try {
         logger.debug('🔄 [useOrderAutoSync] handleOrderUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        
+
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);
         logger.debug('✅ [useOrderAutoSync] Pedido atualizado no store global:', orderId);
-        
+
         // 2. Atualizar na lista local se existir
         setOrders((currentOrders) => {
           const oldOrder = currentOrders.find(o => o.id === orderId);
@@ -347,7 +349,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
             return currentOrders;
           }
         });
-        
+
         // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
         // Isso evita loops infinitos e múltiplas conexões WebSocket
         // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
@@ -363,7 +365,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     (orderId: number) => {
       logger.debug('🗑️ [useOrderAutoSync] Removendo pedido:', orderId);
       removeOrder(orderId);
-      
+
       // NÃO recarregar lista automaticamente - apenas remover da lista atual
       // Isso evita loops infinitos e múltiplas conexões WebSocket
     },
@@ -375,11 +377,11 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
       try {
         logger.debug('🔄 [useOrderAutoSync] handleOrderStatusUpdated chamado para pedido:', orderId);
         const updatedOrder = await api.getOrderById(orderId);
-        
+
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);
         logger.debug('✅ [useOrderAutoSync] Status do pedido atualizado no store global:', orderId);
-        
+
         // 2. Atualizar na lista local se existir
         setOrders((currentOrders) => {
           const oldOrder = currentOrders.find(o => o.id === orderId);
@@ -409,7 +411,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
             return currentOrders;
           }
         });
-        
+
         // 3. NÃO recarregar lista automaticamente - apenas atualizar o que já temos
         // Isso evita loops infinitos e múltiplas conexões WebSocket
         // Se o pedido mudou de status e deveria aparecer/desaparecer da lista filtrada,
