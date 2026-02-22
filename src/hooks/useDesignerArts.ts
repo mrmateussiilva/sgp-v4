@@ -30,7 +30,7 @@ interface UseDesignerArtsResult {
 export function useDesignerArts(options: UseDesignerArtsOptions = {}): UseDesignerArtsResult {
   const { username } = useUser();
   const { designerName: targetDesigner, filterByDesigner = true } = options;
-  
+
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,33 @@ export function useDesignerArts(options: UseDesignerArtsOptions = {}): UseDesign
   };
 
   useEffect(() => {
-    loadOrders();
+    let isMounted = true;
+
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const allOrders = await api.getOrders();
+        if (isMounted) {
+          setOrders(allOrders);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar pedidos:', err);
+        if (isMounted) {
+          setError('Erro ao carregar pedidos. Tente novamente.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchOrders();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Filtrar e processar artes
@@ -67,14 +93,14 @@ export function useDesignerArts(options: UseDesignerArtsOptions = {}): UseDesign
       const itemsWithArt = order.items.filter((item) => {
         const hasImage = item.imagem && item.imagem.trim().length > 0;
         const hasValidImage = hasImage && isValidImagePath(item.imagem || '');
-        
+
         // Filtrar por designer se necessário
         if (filterByDesigner && designerName) {
           const itemDesigner = item.designer?.trim() || '';
           const matchesDesigner = itemDesigner.toLowerCase() === designerName.toLowerCase();
           return hasValidImage && matchesDesigner;
         }
-        
+
         return hasValidImage;
       });
 
