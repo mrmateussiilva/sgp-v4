@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 // import { invoke } from '@tauri-apps/api/core';
 // import { listen } from '@tauri-apps/api/event';
 
@@ -38,50 +38,43 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     clientId: '',
   });
 
-  // Gerar ID único para este cliente
-  const generateClientId = useCallback(() => {
-    return `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }, []);
+  // Ref para o ID do cliente (evita re-renders e loops)
+  const internalClientIdRef = useRef<string>(`client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   // Conectar ao sistema de notificações
   const subscribe = useCallback(async (clientId?: string) => {
     try {
-      const id = clientId || generateClientId();
-      
-      // MOCK: Sem backend Rust, não há sistema de notificações em tempo real
-      // await invoke('subscribe_to_notifications', { clientId: id });
-      
+      const id = clientId || internalClientIdRef.current;
+      internalClientIdRef.current = id;
+
       setStatus(prev => ({
         ...prev,
         isConnected: false, // Mock: sempre desconectado
         clientId: id,
       }));
-      
+
       console.log('⚠️ Sistema de broadcast desabilitado (usando HTTP direto)');
     } catch (error) {
       console.error('❌ Erro ao conectar ao broadcast:', error);
     }
-  }, [generateClientId]);
+  }, []);
 
   // Desconectar do sistema de notificações
   const unsubscribe = useCallback(async () => {
     try {
-      if (status.clientId) {
-        // MOCK: Sem backend Rust
-        // await invoke('unsubscribe_from_notifications', { clientId: status.clientId });
-        
+      if (internalClientIdRef.current) {
         setStatus(prev => ({
           ...prev,
           isConnected: false,
           clientId: '',
         }));
-        
+
         console.log('🔌 Sistema de broadcast não está ativo');
       }
     } catch (error) {
       console.error('❌ Erro ao desconectar do broadcast:', error);
     }
-  }, [status.clientId]);
+  }, []);
 
   // Enviar heartbeat
   const sendHeartbeat = useCallback(async () => {
@@ -124,14 +117,6 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     details: string
   ) => {
     try {
-      // MOCK: Sem backend Rust
-      // await invoke('broadcast_status_update', {
-      //   orderId,
-      //   orderNumero,
-      //   userId,
-      //   statusDetails: details,
-      //   clientId: status.clientId,
-      // });
       console.log('🌐 Broadcast de status enviado (mock):', {
         orderId,
         orderNumero,
@@ -141,7 +126,7 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
     } catch (error) {
       console.error('❌ Erro no broadcast de status:', error);
     }
-  }, [status.clientId]);
+  }, []);
 
   // Heartbeat automático a cada 30 segundos
   useEffect(() => {
@@ -159,11 +144,11 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
   // Conectar automaticamente quando o componente monta
   useEffect(() => {
     subscribe();
-    
+
     return () => {
       unsubscribe();
     };
-  }, [subscribe, unsubscribe]);
+  }, []); // Executar apenas uma vez no mount/unmount
 
   return {
     status,
