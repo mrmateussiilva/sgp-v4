@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useOrderStore } from '../store/orderStore';
 import { OrderAuditLogEntry, OrderItem, OrderStatus } from '../types';
 import { api } from '@/services/api';
-import { subscribeToOrderEvents, fetchOrderAfterEvent } from '@/services/orderEvents';
+import { ordersSocket, OrderEventMessage } from '@/lib/realtimeOrders';
 import {
   Dialog,
   DialogContent,
@@ -88,46 +88,44 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
       return;
     }
 
+    let isMounted = true;
+
     const { updateOrder: updateOrderInStore } = useOrderStore.getState();
-    
-    const unsubscribe = subscribeToOrderEvents({
-      onOrderUpdated: async (orderId) => {
-        // Se o pedido sendo visualizado foi atualizado, recarregar dados
-        if (orderId === selectedOrder.id) {
-          try {
-            const updatedOrder = await fetchOrderAfterEvent(orderId);
-            if (updatedOrder) {
-              // Atualizar no store
-              updateOrderInStore(updatedOrder);
-              // Recarregar histórico
-              try {
-                const entries = await api.getOrderHistory(orderId);
-                setHistory(entries);
-              } catch (error) {
-                console.error('Erro ao recarregar histórico:', error);
-              }
+
+    const handleMessage = async (message: OrderEventMessage) => {
+      if (!isMounted) return;
+
+      const orderId = message.order_id || (message as any).pedido_id;
+      if (!orderId || orderId !== selectedOrder.id) return;
+
+      // Mapear tipos de eventos
+      const type = message.type;
+      const isUpdate = type === 'order_updated' || type === 'order_status_updated' || type === 'pedido_atualizado';
+      const isCancel = type === 'order_deleted' || type === 'order_canceled' || type === 'pedido_cancelado';
+
+      if (isUpdate || isCancel) {
+        try {
+          const updatedOrder = await api.getOrderById(orderId);
+          if (updatedOrder && isMounted) {
+            updateOrderInStore(updatedOrder);
+            // Recarregar histórico se for update
+            if (isUpdate) {
+              const entries = await api.getOrderHistory(orderId);
+              if (isMounted) setHistory(entries);
             }
-          } catch (error) {
-            console.error('Erro ao recarregar pedido após evento:', error);
           }
+        } catch (error) {
+          console.error('Erro ao recarregar pedido após evento:', error);
         }
-      },
-      onOrderCanceled: async (orderId) => {
-        // Se o pedido sendo visualizado foi cancelado, atualizar status
-        if (orderId === selectedOrder.id) {
-          try {
-            const updatedOrder = await fetchOrderAfterEvent(orderId);
-            if (updatedOrder) {
-              updateOrderInStore(updatedOrder);
-            }
-          } catch (error) {
-            console.error('Erro ao recarregar pedido cancelado:', error);
-          }
-        }
-      },
-    }, false); // Não mostrar toast automático na tela de detalhes
-    
-    return unsubscribe;
+      }
+    };
+
+    const unsubscribe = ordersSocket.subscribe(handleMessage);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [open, selectedOrder?.id]);
 
   const getStatusVariant = (status: OrderStatus) => {
@@ -201,11 +199,11 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
         extras.push(`Emenda: ${item.emenda}${item.emenda_qtd ? ` (${item.emenda_qtd})` : ''}`);
       }
 
-    if (tipo === 'generica') {
-      pushIf('Zíper', item.ziper);
-      pushIf('Cordinha extra', item.cordinha_extra);
-      pushIf('Alcinha', item.alcinha);
-      pushIf('Toalha pronta', item.toalha_pronta);
+      if (tipo === 'generica') {
+        pushIf('Zíper', item.ziper);
+        pushIf('Cordinha extra', item.cordinha_extra);
+        pushIf('Alcinha', item.alcinha);
+        pushIf('Toalha pronta', item.toalha_pronta);
       }
     }
 
@@ -477,27 +475,27 @@ function formatDate(value?: string | null): string {
   if (!value) {
     return 'Não informado';
   }
-  
+
   // Se é formato YYYY-MM-DD, formatar diretamente sem Date (evita deslocamento de fuso)
   if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
     const [y, m, d] = value.split('-');
     return `${d}/${m}/${y}`;
   }
-  
+
   // Se tem timestamp, extrair apenas a parte da data
   if (value.match(/^\d{4}-\d{2}-\d{2}T/)) {
     const dateOnly = value.split('T')[0];
     const [y, m, d] = dateOnly.split('-');
     return `${d}/${m}/${y}`;
   }
-  
+
   // Tentar extrair data do início
   const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (dateMatch) {
     const [, y, m, d] = dateMatch;
     return `${d}/${m}/${y}`;
   }
-  
+
   return value;
 }
 
@@ -505,7 +503,7 @@ function formatDateTime(value?: string | null): string {
   if (!value) {
     return 'Não informado';
   }
-  
+
   try {
     // Se tem timestamp ISO, extrair data e hora separadamente
     if (value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
@@ -513,17 +511,17 @@ function formatDateTime(value?: string | null): string {
       const [y, m, d] = datePart.split('-');
       const time = timePart.split('.')[0]; // Remove milissegundos se houver
       const [h, min, s] = time.split(':');
-      
+
       // Formatar data como DD/MM/YYYY HH:mm:ss
       return `${d}/${m}/${y} ${h}:${min}${s ? ':' + s : ''}`;
     }
-    
+
     // Se é apenas data YYYY-MM-DD, formatar como data
     if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const [y, m, d] = value.split('-');
       return `${d}/${m}/${y}`;
     }
-    
+
     // Fallback: tentar parsear como data local
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
