@@ -77,6 +77,11 @@ export function useLazyImage(
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef(false);
 
+  const imageSrcRef = useRef(imageSrc);
+  useEffect(() => {
+    imageSrcRef.current = imageSrc;
+  }, [imageSrc]);
+
   useEffect(() => {
     // Se não há caminho de imagem, resetar estado
     if (!imagePath) {
@@ -104,7 +109,7 @@ export function useLazyImage(
     // Função para carregar a imagem
     const loadImage = async () => {
       if (loadingRef.current) return; // Evitar carregamentos duplicados
-      
+
       loadingRef.current = true;
       setIsLoading(true);
       setError(false);
@@ -142,7 +147,7 @@ export function useLazyImage(
       observerRef.current = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (entry.isIntersecting && !loadingRef.current && !imageSrc) {
+            if (entry.isIntersecting && !loadingRef.current && !imageSrcRef.current) {
               loadImage();
               // Desconectar após começar a carregar
               if (observerRef.current && element) {
@@ -171,7 +176,7 @@ export function useLazyImage(
       // Resetar estado de loading para permitir recarregamento se necessário
       loadingRef.current = false;
     };
-  }, [imagePath, eager, threshold, rootMargin, imageSrc]);
+  }, [imagePath, eager, threshold, rootMargin]);
 
   return {
     imageSrc,
