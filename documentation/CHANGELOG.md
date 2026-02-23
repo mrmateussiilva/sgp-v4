@@ -2,20 +2,19 @@
 
 ## [1.2.7] - 2026-02-23
 
-### ✨ Adicionado
-- **Atribuição Única de Frete**: Novo modo de distribuição onde o frete total é atribuído apenas à primeira linha de cada pedido nos relatórios. Isso garante que a soma visual das colunas de frete seja 100% fiel ao Total Geral, eliminando duplicações visuais.
+### ✨ Novas Funcionalidades
+- **Consolidação de Frete por Pedido**: Implementada a atribuição única de frete por ficha nos relatórios. Esta mudança garante que o valor total do frete não seja duplicado visualmente em pedidos com múltiplos itens, assegurando que o somatório das colunas seja idêntico ao Total Geral.
 
-### 🐛 Corrigido
-- **Corrupção de Valores Altos**: Corrigido bug crítico onde valores acima de R$ 1.000,00 eram divididos por 100 indevidamente devido a uma heurística de centavos obsoleta.
-- **Valores de Produção na Edição**: Resolvido desaparecimento de valores e quantidades em itens de tipos específicos (Canga, Lona, Adesivo, Impressão 3D, etc.) ao abrir o formulário de edição.
-- **Erro de Referência (Icon Play)**: Resolvido `ReferenceError` ao tentar renderizar o botão de geração de relatório após simplificação da interface.
+### 🐛 Correções de Estabilidade
+- **Integridade de Valores Monetários**: Corrigida uma inconsistência no processamento de valores acima de R$ 1.000,00, garantindo precisão total em transações de alto volume.
+- **Persistência de Atributos de Produção**: Resolvido o problema de exibição de dados técnicos e quantidades em tipos específicos de produtos durante a edição, garantindo que todas as especificações sejam preservadas.
+- **Estabilidade da Interface**: Corrigidos erros de carregamento e visualização que ocorriam em cenários específicos após a atualização dos filtros de relatórios.
 
-### 🔧 Melhorado
-- **Interface de Fechamentos Simplificada**: Removidos seletores redundantes de distribuição de frete e o filtro de Status, consolidando os botões de ação e restaurando a aparência limpa e focada da página.
-- **Identidade Visual**: Restaurado o padrão visual azul (`primary`) no botão de geração de relatório após a reestruturação da interface.
-- **Robustez de Mapeamento**: Implementados fallbacks universais no carregamento de itens, garantindo que o sistema use o preço unitário base caso campos específicos do tipo de produção estejam ausentes na API.
-- **Tipagem de Produção**: Sincronização completa de interfaces TypeScript para campos técnicos como `baininha`, `quantidade_canga`, `material_gasto`, etc.
-- **Suíte de Testes**: Adicionada suíte de testes de regressão automatizados para mappers, utilitários monetários e distribuição de frete, garantindo a integridade dos cálculos.
+### 🔧 Melhorias de Experiência e Performance
+- **Interface de Relatórios Otimizada**: Reestruturação da tela de Fechamentos para um design mais limpo e produtivo. Filtros menos utilizados foram ocultados e os botões de ação foram consolidados para agilizar o fluxo de trabalho.
+- **Padronização Visual**: Restauração da identidade visual primária em elementos de ação para manter a consistência com o restante do ecossistema FinderBit.
+- **Robustez de Dados**: Implementação de mecanismos de segurança no carregamento de informações, garantindo a exibição correta dos dados mesmo em casos de inconsistências na fonte original.
+- **Garantia de Qualidade**: Ampliação da suíte de validação automatizada, focando na integridade de cálculos financeiros e na prevenção de regressões em atualizações futuras.
 
 ## [1.2.6] - 2026-02-15
 
