@@ -1,6 +1,6 @@
 {
   "name": "sgp-v4",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Sistema de Gerenciamento de Pedidos - Desktop App",
   "type": "module",
   "scripts": {

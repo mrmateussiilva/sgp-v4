@@ -1,5 +1,16 @@
 # Changelog - SGP v4
 
+## [1.2.7] - 2026-02-23
+
+### 🐛 Corrigido
+- **Corrupção de Valores Altos**: Corrigido bug crítico onde valores acima de R$ 1.000,00 eram divididos por 100 indevidamente devido a uma heurística de centavos obsoleta.
+- **Valores de Produção na Edição**: Resolvido desaparecimento de valores e quantidades em itens de tipos específicos (Canga, Lona, Adesivo, Impressão 3D, etc.) ao abrir o formulário de edição.
+
+### 🔧 Melhorado
+- **Robustez de Mapeamento**: Implementados fallbacks universais no carregamento de itens, garantindo que o sistema use o preço unitário base caso campos específicos do tipo de produção estejam ausentes na API.
+- **Tipagem de Produção**: Sincronização completa de interfaces TypeScript para campos técnicos como `baininha`, `quantidade_canga`, `material_gasto`, etc.
+- **Suíte de Testes**: Adicionada suíte de testes de regressão automatizados para mappers e utilitários monetários, garantindo a integridade dos cálculos em versões futuras.
+
 ## [1.2.6] - 2026-02-15
 
 ### ✨ Adicionado
