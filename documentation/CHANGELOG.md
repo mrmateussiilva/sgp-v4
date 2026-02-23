@@ -11,7 +11,8 @@
 - **Erro de Referência (Icon Play)**: Resolvido `ReferenceError` ao tentar renderizar o botão de geração de relatório após simplificação da interface.
 
 ### 🔧 Melhorado
-- **Interface de Fechamentos Simplificada**: Removidos seletores redundantes de distribuição de frete e filtros de status pouco utilizados, focando na produtividade e clareza visual.
+- **Interface de Fechamentos Simplificada**: Removidos seletores redundantes de distribuição de frete e o filtro de Status, consolidando os botões de ação e restaurando a aparência limpa e focada da página.
+- **Identidade Visual**: Restaurado o padrão visual azul (`primary`) no botão de geração de relatório após a reestruturação da interface.
 - **Robustez de Mapeamento**: Implementados fallbacks universais no carregamento de itens, garantindo que o sistema use o preço unitário base caso campos específicos do tipo de produção estejam ausentes na API.
 - **Tipagem de Produção**: Sincronização completa de interfaces TypeScript para campos técnicos como `baininha`, `quantidade_canga`, `material_gasto`, etc.
 - **Suíte de Testes**: Adicionada suíte de testes de regressão automatizados para mappers, utilitários monetários e distribuição de frete, garantindo a integridade dos cálculos.
