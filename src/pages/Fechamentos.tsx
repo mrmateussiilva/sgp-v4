@@ -141,12 +141,24 @@ function getAllRowIds(report: ReportResponse, isAnalitico: boolean): string[] {
 }
 
 /** Soma totais deduplicando frete por ficha (frete é por pedido, não por item) */
-function sumTotalsDedupFrete(rows: ReportRowData[]): ReportTotals {
+function sumTotalsDedupFrete(rows: ReportRowData[], distribution?: 'por_pedido' | 'proporcional'): ReportTotals {
+  if (distribution === 'proporcional') {
+    // No modo proporcional, o frete já é fatiado individualmente em cada linha.
+    // Somar tudo diretamente, sem deduplicar, para não perder os centavos.
+    let valor_frete = 0;
+    let valor_servico = 0;
+    rows.forEach((r) => {
+      valor_frete += r.valor_frete ?? 0;
+      valor_servico += r.valor_servico ?? 0;
+    });
+    return { valor_frete, valor_servico };
+  }
+
+  // Modo 'por_pedido' (padrão): deduplicar por orderId para não somar o frete cheio múltiplas vezes
   const fretesPorPedido = new Map<number | string, number>();
   let valor_servico = 0;
   rows.forEach((r) => {
     valor_servico += r.valor_servico ?? 0;
-    // Usar orderId para deduplicação robusta; fallback para ficha se não existir
     const key = r.orderId ?? r.ficha;
     if (!fretesPorPedido.has(key)) {
       fretesPorPedido.set(key, r.valor_frete ?? 0);
@@ -194,7 +206,7 @@ function filterReportBySelection(
         return {
           ...group,
           rows: filteredRows,
-          subtotal: sumTotalsDedupFrete(filteredRows),
+          subtotal: sumTotalsDedupFrete(filteredRows, report.frete_distribution),
         };
       }
       return null;
@@ -216,7 +228,7 @@ function filterReportBySelection(
       }
     };
     filteredGroups.forEach(collectRows);
-    const total = sumTotalsDedupFrete(allRows);
+    const total = sumTotalsDedupFrete(allRows, report.frete_distribution);
 
     return {
       ...report,
@@ -246,7 +258,7 @@ function filterReportBySelection(
       filteredGroups.push({
         ...group,
         subgroups: filteredSubs,
-        subtotal: sumTotalsDedupFrete(subRows),
+        subtotal: sumTotalsDedupFrete(subRows, report.frete_distribution),
       });
     } else if (selectedIds.has(`sintetico-${gi}`)) {
       if (group.rows) allSelectedRows.push(...group.rows);
@@ -257,7 +269,7 @@ function filterReportBySelection(
   return {
     ...report,
     groups: filteredGroups,
-    total: sumTotalsDedupFrete(allSelectedRows),
+    total: sumTotalsDedupFrete(allSelectedRows, report.frete_distribution),
   };
 }
 
@@ -290,7 +302,7 @@ function computeFilteredTotalsByPath(
         currentRows = selected;
       }
 
-      const totals = sumTotalsDedupFrete(currentRows);
+      const totals = sumTotalsDedupFrete(currentRows, report.frete_distribution);
       subtotalByPath.set(path, totals);
       return { totals, rows: currentRows };
     };
@@ -301,7 +313,7 @@ function computeFilteredTotalsByPath(
       allVisibleRows.push(...res.rows);
     });
 
-    const totalGeral = sumTotalsDedupFrete(allVisibleRows);
+    const totalGeral = sumTotalsDedupFrete(allVisibleRows, report.frete_distribution);
     return { subtotalByPath, total: totalGeral };
   }
 
@@ -322,7 +334,7 @@ function computeFilteredTotalsByPath(
     }
   });
 
-  return { subtotalByPath, total: sumTotalsDedupFrete(allRows) };
+  return { subtotalByPath, total: sumTotalsDedupFrete(allRows, report.frete_distribution) };
 }
 
 // Componente de Tabela de Resultados

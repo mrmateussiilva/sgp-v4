@@ -1119,9 +1119,7 @@ export const generateFechamentoReport = (
   // quando um pedido aparece em múltiplos grupos (vendedor/designer diferentes)
   const reportType = payload.report_type;
   const defaultFreteDistribution = payload.frete_distribution ?? 'por_pedido';
-  const freteDistributionForRows = (reportType === 'sintetico_vendedor_designer')
-    ? 'proporcional'
-    : defaultFreteDistribution;
+  const freteDistributionForRows = defaultFreteDistribution;
 
   const baseRowsAll = filteredOrders.flatMap((order) =>
     buildRowsFromOrder(order, dateMode, freteDistributionForRows)
@@ -1256,14 +1254,13 @@ export const generateFechamentoReport = (
           freteDistribution
         );
       case 'sintetico_vendedor_designer':
-        // Usar distribuição proporcional para evitar duplicação de frete
-        // quando pedidos aparecem em múltiplos grupos (vendedor/designer diferentes)
+        // Usar a distribuição escolhida pelo usuário (agora flexível)
         return buildSingleLevelAggregate(
           baseRows,
           (row) => `${row.vendedor} / ${row.designer}`,
           (value) => `Vendedor/Designer: ${value}`,
           ordersMap,
-          'proporcional'
+          freteDistribution
         );
       case 'sintetico_cliente':
         return buildSingleLevelAggregate(
@@ -1304,5 +1301,6 @@ export const generateFechamentoReport = (
     report_type: reportType,
     groups,
     total: totals,
+    frete_distribution: freteDistributionForTotals,
   };
 };

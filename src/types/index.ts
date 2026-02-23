@@ -561,6 +561,7 @@ export interface ReportResponse {
   report_type: string;
   groups: ReportGroup[];
   total: ReportTotals;
+  frete_distribution?: 'por_pedido' | 'proporcional';
 }
 
 // ========================================
