@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, RefreshCcw, FileDown, FileText, X, ArrowUpDown, ArrowUp, ArrowDown, Play, RotateCcw } from 'lucide-react';
+import { Loader2, FileDown, FileText, X, ArrowUpDown, ArrowUp, ArrowDown, Play } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ const REPORT_OPTIONS: Record<
   ],
 };
 
-const STATUS_OPTIONS = ['Todos', 'Pendente', 'Em Processamento', 'Concluido', 'Cancelado'] as const;
+
 
 // Quick ranges para datas
 const QUICK_RANGES = [
@@ -840,10 +840,6 @@ export default function Fechamentos() {
       setReportType(value);
     } else if (key === 'dateMode') {
       setDateMode(value);
-    } else if (key === 'status') {
-      setStatus(value);
-    } else if (key === 'freteDistribution') {
-      setFreteDistribution(value);
     } else if (key === 'cliente') {
       setCliente(value);
     }
