@@ -182,6 +182,78 @@ describe('fechamentoReport', () => {
       expect(result.total.valor_servico).toBe(300);
     });
 
+    it('deve distribuir frete proporcionalmente arredondado (inteiro) sem sobras', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-997',
+          valor_frete: 10,
+          total_value: 110,
+          status: OrderStatus.Concluido,
+          items: [
+            { id: 1, subtotal: 33.33, quantity: 1, unit_price: 33.33, designer: 'A', vendedor: 'V', id_order: 1 },
+            { id: 2, subtotal: 33.33, quantity: 1, unit_price: 33.33, designer: 'B', vendedor: 'V', id_order: 1 },
+            { id: 3, subtotal: 33.34, quantity: 1, unit_price: 33.34, designer: 'C', vendedor: 'V', id_order: 1 },
+          ],
+        } as any,
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_designer',
+        frete_distribution: 'proporcional_inteiro',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+      };
+
+      const result = generateFechamentoReport(orders as any, payload);
+
+      // A soma dos fretes nas linhas deve ser exatamente 10
+      // No modo proporcional_inteiro, somamos os subtotais diretamente
+      const sumFreteRows = result.groups.reduce((a, g) => a + g.subtotal.valor_frete, 0);
+      expect(sumFreteRows).toBe(10);
+
+      // Cada frete individual deve ser inteiro
+      result.groups.forEach((g) => {
+        expect(Number.isInteger(g.subtotal.valor_frete)).toBe(true);
+      });
+    });
+
+    it('deve atribuir frete apenas ao primeiro item no modo atribuicao_unica', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-996',
+          valor_frete: 100,
+          total_value: 300,
+          status: OrderStatus.Concluido,
+          items: [
+            { id: 1, subtotal: 100, quantity: 1, unit_price: 100, designer: 'A', vendedor: 'V', id_order: 1 },
+            { id: 2, subtotal: 100, quantity: 1, unit_price: 100, designer: 'A', vendedor: 'V', id_order: 1 },
+          ],
+        } as any,
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'analitico_designer_cliente', // Usar analítico para ver todas as linhas
+        frete_distribution: 'atribuicao_unica',
+        start_date: '2024-01-01',
+        end_date: '2024-12-31',
+      };
+
+      const result = generateFechamentoReport(orders as any, payload);
+
+      // No relatório analitico_designer_cliente, temos Designer -> Cliente -> Rows
+      const designerGroup = result.groups[0];
+      const clienteSubgroup = designerGroup.subgroups![0];
+      const rows = clienteSubgroup.rows!;
+
+      expect(rows[0].valor_frete).toBe(100);
+      expect(rows[1].valor_frete).toBe(0);
+
+      // Total de frete deve continuar sendo 100
+      expect(result.total.valor_frete).toBe(100);
+    });
+
     it('deve calcular desconto quando houver diferença entre total e (itens + frete)', () => {
       const orders: OrderWithItems[] = [
         {

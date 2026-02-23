@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2, RefreshCcw, FileDown, FileText, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, RefreshCcw, FileDown, FileText, X, ArrowUpDown, ArrowUp, ArrowDown, Play, RotateCcw } from 'lucide-react';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -141,10 +141,10 @@ function getAllRowIds(report: ReportResponse, isAnalitico: boolean): string[] {
 }
 
 /** Soma totais deduplicando frete por ficha (frete é por pedido, não por item) */
-function sumTotalsDedupFrete(rows: ReportRowData[], distribution?: 'por_pedido' | 'proporcional'): ReportTotals {
-  if (distribution === 'proporcional') {
-    // No modo proporcional, o frete já é fatiado individualmente em cada linha.
-    // Somar tudo diretamente, sem deduplicar, para não perder os centavos.
+function sumTotalsDedupFrete(rows: ReportRowData[], distribution?: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica'): ReportTotals {
+  if (distribution === 'proporcional' || distribution === 'proporcional_inteiro' || distribution === 'atribuicao_unica') {
+    // No modo proporcional ou atribuição única, o frete já está distribuído corretamente nas linhas (uma ou várias).
+    // Somar tudo diretamente, sem deduplicar, para manter a fidelidade com o que o backend enviou.
     let valor_frete = 0;
     let valor_servico = 0;
     rows.forEach((r) => {
@@ -763,7 +763,7 @@ export default function Fechamentos() {
   const [startDate, setStartDate] = useState<string>(formatInputDate(firstDayOfMonth));
   const [endDate, setEndDate] = useState<string>(formatInputDate(today));
   const [dateMode, setDateMode] = useState<'entrada' | 'entrega'>('entrega');
-  const [status, setStatus] = useState<string>(STATUS_OPTIONS[0]);
+  const [freteDistribution, setFreteDistribution] = useState<'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica'>('atribuicao_unica');
   const [cliente, setCliente] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReportResponse | null>(null);
@@ -842,6 +842,8 @@ export default function Fechamentos() {
       setDateMode(value);
     } else if (key === 'status') {
       setStatus(value);
+    } else if (key === 'freteDistribution') {
+      setFreteDistribution(value);
     } else if (key === 'cliente') {
       setCliente(value);
     }
@@ -861,7 +863,7 @@ export default function Fechamentos() {
     setReportType(REPORT_OPTIONS.analitico[0].value);
     setStartDate(formatInputDate(firstDayOfMonth));
     setEndDate(formatInputDate(today));
-    setStatus(STATUS_OPTIONS[0]);
+    setFreteDistribution('atribuicao_unica');
     setDateMode('entrega');
     setCliente('');
     setDateError('');
@@ -902,11 +904,11 @@ export default function Fechamentos() {
     try {
       const payload: ReportRequestPayload = {
         report_type: reportType,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
         date_mode: dateMode,
-        status: status !== 'Todos' ? status : undefined,
-        cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
+        cliente: cliente || undefined,
+        frete_distribution: freteDistribution,
       };
 
       const response = await api.getRelatorioSemanal({
@@ -1645,9 +1647,18 @@ export default function Fechamentos() {
               {processing ? 'Processando...' : 'Processar Prontos'}
             </Button>
 
-            <Button className="gap-2" onClick={handleGenerate} disabled={loading || !!dateError}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-              {loading ? 'Gerando...' : 'Gerar Relatório'}
+            <Button
+              variant="default"
+              className="gap-2 h-10 shadow-sm"
+              onClick={handleGenerate}
+              disabled={loading || !!dateError}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Gerar Relatório
             </Button>
           </div>
         </CardContent>
@@ -1675,6 +1686,6 @@ export default function Fechamentos() {
           />
         )
       )}
-    </div>
+    </div >
   );
 }

@@ -526,7 +526,7 @@ export interface ReportRequestPayload {
    * - 'por_pedido': cada item mostra o frete total do pedido (padrão)
    * - 'proporcional': frete é distribuído proporcionalmente entre os itens
    */
-  frete_distribution?: 'por_pedido' | 'proporcional';
+  frete_distribution?: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica';
 }
 
 export interface ReportTotals {
@@ -561,7 +561,7 @@ export interface ReportResponse {
   report_type: string;
   groups: ReportGroup[];
   total: ReportTotals;
-  frete_distribution?: 'por_pedido' | 'proporcional';
+  frete_distribution?: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica';
 }
 
 // ========================================

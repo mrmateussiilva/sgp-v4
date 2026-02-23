@@ -2,14 +2,19 @@
 
 ## [1.2.7] - 2026-02-23
 
+### ✨ Adicionado
+- **Atribuição Única de Frete**: Novo modo de distribuição onde o frete total é atribuído apenas à primeira linha de cada pedido nos relatórios. Isso garante que a soma visual das colunas de frete seja 100% fiel ao Total Geral, eliminando duplicações visuais.
+
 ### 🐛 Corrigido
 - **Corrupção de Valores Altos**: Corrigido bug crítico onde valores acima de R$ 1.000,00 eram divididos por 100 indevidamente devido a uma heurística de centavos obsoleta.
 - **Valores de Produção na Edição**: Resolvido desaparecimento de valores e quantidades em itens de tipos específicos (Canga, Lona, Adesivo, Impressão 3D, etc.) ao abrir o formulário de edição.
+- **Erro de Referência (Icon Play)**: Resolvido `ReferenceError` ao tentar renderizar o botão de geração de relatório após simplificação da interface.
 
 ### 🔧 Melhorado
+- **Interface de Fechamentos Simplificada**: Removidos seletores redundantes de distribuição de frete e filtros de status pouco utilizados, focando na produtividade e clareza visual.
 - **Robustez de Mapeamento**: Implementados fallbacks universais no carregamento de itens, garantindo que o sistema use o preço unitário base caso campos específicos do tipo de produção estejam ausentes na API.
 - **Tipagem de Produção**: Sincronização completa de interfaces TypeScript para campos técnicos como `baininha`, `quantidade_canga`, `material_gasto`, etc.
-- **Suíte de Testes**: Adicionada suíte de testes de regressão automatizados para mappers e utilitários monetários, garantindo a integridade dos cálculos em versões futuras.
+- **Suíte de Testes**: Adicionada suíte de testes de regressão automatizados para mappers, utilitários monetários e distribuição de frete, garantindo a integridade dos cálculos.
 
 ## [1.2.6] - 2026-02-15
 

@@ -288,15 +288,15 @@ const calculateOrderDiscount = (order: OrderWithItems): number => {
 const computeTotalsFromRows = (
   rows: NormalizedRow[],
   ordersMap?: Map<number, OrderWithItems>,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): ReportTotals => {
   const descontoPorPedido = new Map<number, number>();
   let totalServico = 0;
   let totalFrete = 0;
 
-  if (freteDistribution === 'proporcional') {
-    // Quando proporcional, somar diretamente todos os valores de frete
-    // (cada linha já tem sua parte proporcional)
+  if (freteDistribution === 'proporcional' || freteDistribution === 'proporcional_inteiro' || freteDistribution === 'atribuicao_unica') {
+    // Quando proporcional ou atribuição única, somar diretamente todos os valores de frete
+    // (no proporcional cada linha tem sua fatia, na única apenas uma linha tem o valor cheio)
     rows.forEach((row) => {
       totalServico = roundToTwoDecimals(totalServico + row.valorServico);
       totalFrete = roundToTwoDecimals(totalFrete + row.valorFrete);
@@ -381,7 +381,7 @@ const createLeafGroup = (
   key: string,
   rows: NormalizedRow[],
   ordersMap?: Map<number, OrderWithItems>,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): ReportGroup => ({
   key,
   label,
@@ -395,7 +395,7 @@ const createAggregateGroupRow = (
   rows: NormalizedRow[],
   description: string,
   ordersMap?: Map<number, OrderWithItems>,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): ReportGroup => {
   const totals = computeTotalsFromRows(rows, ordersMap, freteDistribution);
   return {
@@ -514,7 +514,7 @@ const getOrderReferenceDate = (
 const buildRowsFromOrder = (
   order: OrderWithItems,
   dateMode: DateReferenceMode,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): NormalizedRow[] => {
   const items = order.items ?? [];
 
@@ -545,14 +545,18 @@ const buildRowsFromOrder = (
   }
 
   // Calcular total de itens para distribuição proporcional
-  const totalItensValue = freteDistribution === 'proporcional'
+  const totalItensValue = (freteDistribution === 'proporcional' || freteDistribution === 'proporcional_inteiro')
     ? items.reduce((sum, item) => sum + getSubtotalValue(item), 0)
     : 0;
 
   // Se distribuição proporcional mas total é zero, usar por_pedido
   const useProportional = freteDistribution === 'proporcional' && totalItensValue > 0;
+  const useProportionalInteiro = freteDistribution === 'proporcional_inteiro' && totalItensValue > 0;
 
-  const rows: NormalizedRow[] = items.map((item) => {
+  let remainingFreteInteiro = valorFreteTotal;
+  const itemsCount = items.length;
+
+  const rows: NormalizedRow[] = items.map((item, index) => {
     const designer = safeLabel(item.designer, 'Sem designer');
     const vendedor = safeLabel(item.vendedor, 'Sem vendedor');
     const tipo = safeLabel(item.tipo_producao, 'Sem tipo');
@@ -561,11 +565,22 @@ const buildRowsFromOrder = (
 
     // Distribuir frete conforme opção escolhida
     let valorFrete: number;
-    if (useProportional) {
+    if (freteDistribution === 'atribuicao_unica') {
+      // Primeira linha ganha o frete total, as demais zero
+      valorFrete = index === 0 ? valorFreteTotal : 0;
+    } else if (useProportionalInteiro) {
+      if (index === itemsCount - 1) {
+        valorFrete = Math.max(0, remainingFreteInteiro);
+      } else {
+        const proporcao = valorServico / totalItensValue;
+        valorFrete = Math.round(valorFreteTotal * proporcao);
+        remainingFreteInteiro -= valorFrete;
+      }
+    } else if (useProportional) {
       const proporcao = valorServico / totalItensValue;
       valorFrete = roundToTwoDecimals(valorFreteTotal * proporcao);
     } else {
-      // Por padrão, cada item mostra o frete TOTAL do pedido
+      // Por padrão ('por_pedido'), cada item mostra o frete TOTAL do pedido
       valorFrete = valorFreteTotal;
     }
 
@@ -648,7 +663,7 @@ const buildTwoLevelGroups = (
   getSubKey: (row: NormalizedRow) => string,
   getSubLabel: (key: string) => string,
   ordersMap?: Map<number, OrderWithItems>,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): ReportGroup[] => {
   const topMap = new Map<string, Map<string, NormalizedRow[]>>();
 
@@ -693,7 +708,7 @@ const buildSingleLevelAggregate = (
   getKey: (row: NormalizedRow) => string,
   getLabel: (key: string) => string,
   ordersMap?: Map<number, OrderWithItems>,
-  freteDistribution: 'por_pedido' | 'proporcional' = 'por_pedido'
+  freteDistribution: 'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica' = 'por_pedido'
 ): ReportGroup[] => {
   const map = new Map<string, NormalizedRow[]>();
 
