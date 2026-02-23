@@ -142,15 +142,17 @@ function getAllRowIds(report: ReportResponse, isAnalitico: boolean): string[] {
 
 /** Soma totais deduplicando frete por ficha (frete é por pedido, não por item) */
 function sumTotalsDedupFrete(rows: ReportRowData[]): ReportTotals {
-  const fretesPorFicha = new Map<string, number>();
+  const fretesPorPedido = new Map<number | string, number>();
   let valor_servico = 0;
   rows.forEach((r) => {
     valor_servico += r.valor_servico ?? 0;
-    if (!fretesPorFicha.has(r.ficha)) {
-      fretesPorFicha.set(r.ficha, r.valor_frete ?? 0);
+    // Usar orderId para deduplicação robusta; fallback para ficha se não existir
+    const key = r.orderId ?? r.ficha;
+    if (!fretesPorPedido.has(key)) {
+      fretesPorPedido.set(key, r.valor_frete ?? 0);
     }
   });
-  const valor_frete = Array.from(fretesPorFicha.values()).reduce((a, v) => a + v, 0);
+  const valor_frete = Array.from(fretesPorPedido.values()).reduce((a, v) => a + v, 0);
   return { valor_frete, valor_servico };
 }
 
@@ -169,12 +171,19 @@ function filterReportBySelection(
           .map((sg, i) => visit(sg, `${path}-${i}`))
           .filter((g): g is ReportGroup => g !== null);
         if (filteredSubs.length === 0) return null;
-        const valor_frete = filteredSubs.reduce((a, g) => a + (g.subtotal.valor_frete || 0), 0);
-        const valor_servico = filteredSubs.reduce((a, g) => a + (g.subtotal.valor_servico || 0), 0);
+
+        // Coletar todas as rows dos subgrupos filtrados para o subtotal do pai
+        const subRows: ReportRowData[] = [];
+        const collectSubRows = (g: ReportGroup) => {
+          if (g.subgroups?.length) g.subgroups.forEach(collectSubRows);
+          else if (g.rows) subRows.push(...g.rows);
+        };
+        filteredSubs.forEach(collectSubRows);
+
         return {
           ...group,
           subgroups: filteredSubs,
-          subtotal: { valor_frete, valor_servico },
+          subtotal: sumTotalsDedupFrete(subRows),
         };
       }
       if (group.rows && group.rows.length > 0) {
@@ -195,13 +204,19 @@ function filterReportBySelection(
       .map((g, i) => visit(g, `group-${i}`))
       .filter((g): g is ReportGroup => g !== null);
 
-    const total = filteredGroups.reduce(
-      (acc, g) => ({
-        valor_frete: acc.valor_frete + (g.subtotal.valor_frete || 0),
-        valor_servico: acc.valor_servico + (g.subtotal.valor_servico || 0),
-      }),
-      { valor_frete: 0, valor_servico: 0 }
-    );
+    // Para o total geral, coletar todas as rows de todos os grupos filtrados
+    // e aplicar a deduplicação global. Somar subtotais de grupos duplicaria frete
+    // se um pedido estivesse presente em múltiplos grupos.
+    const allRows: ReportRowData[] = [];
+    const collectRows = (g: ReportGroup) => {
+      if (g.subgroups?.length) {
+        g.subgroups.forEach(collectRows);
+      } else if (g.rows?.length) {
+        allRows.push(...g.rows);
+      }
+    };
+    filteredGroups.forEach(collectRows);
+    const total = sumTotalsDedupFrete(allRows);
 
     return {
       ...report,
@@ -212,8 +227,7 @@ function filterReportBySelection(
 
   // Sintético: filtrar groups/subgroups
   const filteredGroups: ReportGroup[] = [];
-  let totalFrete = 0;
-  let totalServico = 0;
+  const allSelectedRows: ReportRowData[] = [];
 
   report.groups.forEach((group, gi) => {
     if (group.subgroups && group.subgroups.length > 0) {
@@ -221,26 +235,29 @@ function filterReportBySelection(
         selectedIds.has(`sintetico-${gi}-${si}`)
       );
       if (filteredSubs.length === 0) return;
-      const valor_frete = filteredSubs.reduce((a, sg) => a + (sg.subtotal.valor_frete || 0), 0);
-      const valor_servico = filteredSubs.reduce((a, sg) => a + (sg.subtotal.valor_servico || 0), 0);
+
+      // Coletar todas as rows dos subgrupos selecionados
+      const subRows: ReportRowData[] = [];
+      filteredSubs.forEach(sg => {
+        if (sg.rows) subRows.push(...sg.rows);
+      });
+      allSelectedRows.push(...subRows);
+
       filteredGroups.push({
         ...group,
         subgroups: filteredSubs,
-        subtotal: { valor_frete, valor_servico },
+        subtotal: sumTotalsDedupFrete(subRows),
       });
-      totalFrete += valor_frete;
-      totalServico += valor_servico;
     } else if (selectedIds.has(`sintetico-${gi}`)) {
+      if (group.rows) allSelectedRows.push(...group.rows);
       filteredGroups.push(group);
-      totalFrete += group.subtotal.valor_frete || 0;
-      totalServico += group.subtotal.valor_servico || 0;
     }
   });
 
   return {
     ...report,
     groups: filteredGroups,
-    total: { valor_frete: totalFrete, valor_servico: totalServico },
+    total: sumTotalsDedupFrete(allSelectedRows),
   };
 }
 
@@ -258,65 +275,54 @@ function computeFilteredTotalsByPath(
   }
 
   if (isAnalitico) {
-    const visit = (group: ReportGroup, path: string): ReportTotals => {
+    const visit = (group: ReportGroup, path: string): { totals: ReportTotals, rows: ReportRowData[] } => {
+      let currentRows: ReportRowData[] = [];
+
       if (group.subgroups?.length) {
-        let vf = 0;
-        let vs = 0;
         group.subgroups.forEach((sg, i) => {
-          const st = visit(sg, `${path}-${i}`);
-          vf += st.valor_frete ?? 0;
-          vs += st.valor_servico ?? 0;
+          const res = visit(sg, `${path}-${i}`);
+          currentRows.push(...res.rows);
         });
-        const t = { valor_frete: vf, valor_servico: vs };
-        subtotalByPath.set(path, t);
-        return t;
-      }
-      if (group.rows?.length) {
-        const filteredRows = group.rows.filter((_, rowIndex) =>
+      } else if (group.rows?.length) {
+        const selected = group.rows.filter((_, rowIndex) =>
           selectedIds.has(`analitico-${path}-row-${rowIndex}`)
         );
-        const t = sumTotalsDedupFrete(filteredRows);
-        subtotalByPath.set(path, t);
-        return t;
+        currentRows = selected;
       }
-      subtotalByPath.set(path, zeroTotal);
-      return zeroTotal;
+
+      const totals = sumTotalsDedupFrete(currentRows);
+      subtotalByPath.set(path, totals);
+      return { totals, rows: currentRows };
     };
 
-    let totalVf = 0;
-    let totalVs = 0;
+    const allVisibleRows: ReportRowData[] = [];
     report.groups.forEach((g, i) => {
-      const st = visit(g, `group-${i}`);
-      totalVf += st.valor_frete ?? 0;
-      totalVs += st.valor_servico ?? 0;
+      const res = visit(g, `group-${i}`);
+      allVisibleRows.push(...res.rows);
     });
-    return { subtotalByPath, total: { valor_frete: totalVf, valor_servico: totalVs } };
+
+    const totalGeral = sumTotalsDedupFrete(allVisibleRows);
+    return { subtotalByPath, total: totalGeral };
   }
 
   // Sintético
-  let totalVf = 0;
-  let totalVs = 0;
+  const allRows: ReportRowData[] = [];
   report.groups.forEach((group, gi) => {
     if (group.subgroups?.length) {
       group.subgroups.forEach((subgroup, si) => {
         const id = `sintetico-${gi}-${si}`;
         if (selectedIds.has(id)) {
-          const vf = subgroup.subtotal.valor_frete ?? 0;
-          const vs = subgroup.subtotal.valor_servico ?? 0;
-          subtotalByPath.set(`sintetico-${gi}-${si}`, { valor_frete: vf, valor_servico: vs });
-          totalVf += vf;
-          totalVs += vs;
+          if (subgroup.rows) allRows.push(...subgroup.rows);
+          subtotalByPath.set(id, subgroup.subtotal);
         }
       });
     } else if (selectedIds.has(`sintetico-${gi}`)) {
-      const vf = group.subtotal.valor_frete ?? 0;
-      const vs = group.subtotal.valor_servico ?? 0;
-      subtotalByPath.set(`sintetico-${gi}`, { valor_frete: vf, valor_servico: vs });
-      totalVf += vf;
-      totalVs += vs;
+      if (group.rows) allRows.push(...group.rows);
+      subtotalByPath.set(`sintetico-${gi}`, group.subtotal);
     }
   });
-  return { subtotalByPath, total: { valor_frete: totalVf, valor_servico: totalVs } };
+
+  return { subtotalByPath, total: sumTotalsDedupFrete(allRows) };
 }
 
 // Componente de Tabela de Resultados
@@ -508,27 +514,27 @@ function ReportTable({ report, columnName, loading, isAnalitico, selectedRowIds,
                 {sortedRows.map((row, index) => {
                   const rowId = `analitico-${path}-row-${rows.indexOf(row)}`;
                   return (
-                  <tr
-                    key={`${path}-row-${index}`}
-                    className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
-                  >
-                    <td className="w-12 px-2 py-2 text-center">
-                      <Checkbox
-                        checked={selectedRowIds.has(rowId)}
-                        onCheckedChange={(checked) => onSelectionChange(rowId, checked === true)}
-                        title="Incluir na exportação"
-                        aria-label="Incluir na exportação"
-                      />
-                    </td>
-                    <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
-                    <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
-                    <td className="px-4 py-2 text-right text-slate-600">
-                      {formatCurrency(row.valor_frete)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                      {formatCurrency(row.valor_servico)}
-                    </td>
-                  </tr>
+                    <tr
+                      key={`${path}-row-${index}`}
+                      className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}
+                    >
+                      <td className="w-12 px-2 py-2 text-center">
+                        <Checkbox
+                          checked={selectedRowIds.has(rowId)}
+                          onCheckedChange={(checked) => onSelectionChange(rowId, checked === true)}
+                          title="Incluir na exportação"
+                          aria-label="Incluir na exportação"
+                        />
+                      </td>
+                      <td className="px-4 py-2 font-medium text-slate-800">{row.ficha}</td>
+                      <td className="px-4 py-2 text-slate-700">{row.descricao}</td>
+                      <td className="px-4 py-2 text-right text-slate-600">
+                        {formatCurrency(row.valor_frete)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                        {formatCurrency(row.valor_servico)}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>

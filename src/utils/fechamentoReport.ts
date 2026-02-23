@@ -369,6 +369,7 @@ const computeTotalsFromRows = (
 
 const convertRowsToReportRows = (rows: NormalizedRow[]) =>
   rows.map((row) => ({
+    orderId: row.orderId,
     ficha: row.ficha,
     descricao: row.descricao,
     valor_frete: roundToTwoDecimals(row.valorFrete),
@@ -613,7 +614,7 @@ const buildRowsFromOrder = (
         data: ordemDataRef ?? '',
         dataLabel,
         descricao: 'Complemento de valor (Diferença Pedido x Itens)',
-        valorFrete: valorFreteTotal,
+        valorFrete: 0, // Ajuste não carrega frete — o frete já está nos itens reais
         valorServico: adjustment,
       });
     }
@@ -671,24 +672,12 @@ const buildTwoLevelGroups = (
       const subgroups = Array.from(subMap.entries())
         .sort((a, b) => getSubLabel(a[0]).localeCompare(getSubLabel(b[0]), 'pt-BR'))
         .map(([subKey, subRows]) => createLeafGroup(getSubLabel(subKey), slugify(`${topKey}-${subKey}`), subRows, ordersMap, freteDistribution));
-      const subtotal = subgroups.reduce<ReportTotals>(
-        (acc, group) => {
-          const result: ReportTotals = {
-            valor_frete: roundToTwoDecimals(acc.valor_frete + (group.subtotal.valor_frete ?? 0)),
-            valor_servico: roundToTwoDecimals(acc.valor_servico + (group.subtotal.valor_servico ?? 0)),
-          };
 
-          // Somar descontos
-          const totalDesconto = roundToTwoDecimals((acc.desconto ?? 0) + (group.subtotal.desconto ?? 0));
-          if (totalDesconto > 0) {
-            result.desconto = totalDesconto;
-            result.valor_liquido = roundToTwoDecimals(result.valor_frete + result.valor_servico - totalDesconto);
-          }
-
-          return result;
-        },
-        { valor_frete: 0, valor_servico: 0 },
-      );
+      // Calcular subtotal do grupo pai deduplicando frete por orderId
+      // (ao invés de somar subtotais dos subgrupos, que duplicaria frete
+      // quando itens do mesmo pedido estão em subgrupos diferentes)
+      const allTopRows = Array.from(subMap.values()).flat();
+      const subtotal = computeTotalsFromRows(allTopRows, ordersMap, freteDistribution);
 
       return {
         key: slugify(topKey),

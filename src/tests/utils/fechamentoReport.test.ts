@@ -891,5 +891,117 @@ describe('fechamentoReport', () => {
       expect(result.total.valor_frete).toBe(50);
       expect(result.total.valor_servico).toBe(300);
     });
+
+    it('deve deduplicar frete no subtotal do grupo pai quando itens do mesmo pedido estão em subgrupos diferentes', () => {
+      // Bug fix: buildTwoLevelGroups somava subtotais dos subgrupos,
+      // duplicando o frete quando itens do mesmo pedido caem em subgrupos distintos.
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-001',
+          cliente: 'Cliente A',
+          data_entrada: '2024-01-15',
+          data_entrega: '2024-01-20',
+          valor_frete: 40,
+          total_value: 340,
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Item 1',
+              subtotal: 150,
+              quantity: 1,
+              unit_price: 150,
+              designer: 'João',
+              vendedor: 'Maria',
+              tipo_producao: 'painel',
+            },
+            {
+              id: 2,
+              descricao: 'Item 2',
+              subtotal: 150,
+              quantity: 1,
+              unit_price: 150,
+              designer: 'Pedro', // Designer diferente → subgrupo diferente
+              vendedor: 'Maria',
+              tipo_producao: 'banner',
+            },
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'analitico_cliente_designer',
+        start_date: '2024-01-15',
+        end_date: '2024-01-20',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // Total geral: frete deduplicado = R$40 (não R$80)
+      expect(result.total.valor_frete).toBe(40);
+      expect(result.total.valor_servico).toBe(300);
+
+      // Grupo pai "Cliente A" deve ter 2 subgrupos (João, Pedro)
+      expect(result.groups.length).toBe(1);
+      const clienteGroup = result.groups[0];
+      expect(clienteGroup.subgroups).toBeDefined();
+      expect(clienteGroup.subgroups!.length).toBe(2);
+
+      // CRÍTICO: Subtotal do grupo pai deve ser R$40 de frete (não R$80)
+      // Antes do fix, buildTwoLevelGroups somava R$40 (João) + R$40 (Pedro) = R$80
+      expect(clienteGroup.subtotal.valor_frete).toBe(40);
+      expect(clienteGroup.subtotal.valor_servico).toBe(300);
+    });
+
+    it('deve não carregar frete na linha de ajuste', () => {
+      const orders: OrderWithItems[] = [
+        {
+          id: 1,
+          numero: 'PED-001',
+          cliente: 'Cliente A',
+          data_entrada: '2024-01-15',
+          data_entrega: '2024-01-20',
+          valor_frete: 30,
+          total_value: 280, // total > soma itens (200) + frete (30) = 230 → ajuste de 50
+          status: OrderStatus.Concluido,
+          items: [
+            {
+              id: 1,
+              descricao: 'Item 1',
+              subtotal: 100,
+              quantity: 1,
+              unit_price: 100,
+              designer: 'João',
+              vendedor: 'Maria',
+              tipo_producao: 'painel',
+            },
+            {
+              id: 2,
+              descricao: 'Item 2',
+              subtotal: 100,
+              quantity: 1,
+              unit_price: 100,
+              designer: 'João',
+              vendedor: 'Maria',
+              tipo_producao: 'banner',
+            },
+          ],
+        },
+      ];
+
+      const payload: ReportRequestPayload = {
+        report_type: 'sintetico_designer',
+        start_date: '2024-01-15',
+        end_date: '2024-01-20',
+      };
+
+      const result = generateFechamentoReport(orders, payload);
+
+      // Frete deve ser apenas R$30 (não duplicado pelo ajuste)
+      expect(result.total.valor_frete).toBe(30);
+      // Serviço = 100 + 100 + 50 (ajuste) = 250
+      expect(result.total.valor_servico).toBe(250);
+    });
   });
 });

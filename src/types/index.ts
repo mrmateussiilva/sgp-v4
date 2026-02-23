@@ -537,6 +537,7 @@ export interface ReportTotals {
 }
 
 export interface ReportRowData {
+  orderId?: number; // Para deduplicação no frontend
   ficha: string;
   descricao: string;
   valor_frete: number;
