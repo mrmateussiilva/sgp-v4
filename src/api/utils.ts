@@ -34,14 +34,7 @@ export const normalizeApiMoney = (value: string | number | null | undefined): st
         return undefined;
     }
 
-    // Heurística: se o valor for maior ou igual a 1000 e inteiro,
-    // consideramos que está em centavos e dividimos por 100.
-    const adjusted =
-        numeric >= 1000 && Number.isInteger(numeric)
-            ? numeric / 100
-            : numeric;
-
-    return adjusted.toFixed(2);
+    return numeric.toFixed(2);
 };
 
 export const safeString = (value: unknown, fallback = ''): string => {

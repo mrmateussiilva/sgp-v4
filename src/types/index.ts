@@ -54,6 +54,7 @@ export interface OrderItem {
   cordinha_extra?: boolean;
   alcinha?: boolean;
   toalha_pronta?: boolean;
+  baininha?: boolean;
   acabamento_totem?: string;
   acabamento_totem_outro?: string;
   valor_totem?: string;
@@ -62,6 +63,11 @@ export interface OrderItem {
   tipo_alcinha?: string;
   valor_mochilinha?: string;
   quantidade_mochilinha?: string;
+  valor_canga?: string;
+  quantidade_canga?: string;
+  material_gasto?: string;
+  valor_impressao_3d?: string;
+  quantidade_impressao_3d?: string;
   data_impressao?: string | null;
   rip_maquina?: string | null;
   perfil_cor?: string | null;

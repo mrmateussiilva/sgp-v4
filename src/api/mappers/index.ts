@@ -123,7 +123,7 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         (typeof anyItem.tecidoFornecedor === 'string' ? anyItem.tecidoFornecedor : undefined) ??
         null;
 
-    return {
+    const result: OrderItem = {
         id: fallbackId,
         order_id: orderId,
         item_name: safeString(item.descricao ?? item.tipo_producao ?? 'Item'),
@@ -174,6 +174,14 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         quantidade_totem: item.quantidade_totem ?? undefined,
         valor_totem: item.valor_totem != null ? toCurrencyString(item.valor_totem) : undefined,
         outros_valores_totem: item.outros_valores_totem != null ? toCurrencyString(item.outros_valores_totem) : undefined,
+        baininha: Boolean(anyItem.baininha),
+        valor_canga: item.valor_canga != null ? toCurrencyString(item.valor_canga) : undefined,
+        quantidade_canga: item.quantidade_canga ?? undefined,
+        material_gasto: anyItem.material_gasto as string ?? undefined,
+        valor_impressao_3d: item.valor_impressao_3d != null ? toCurrencyString(item.valor_impressao_3d) : undefined,
+        quantidade_impressao_3d: item.quantidade_impressao_3d ?? undefined,
+        valor_mochilinha: item.valor_mochilinha != null ? toCurrencyString(item.valor_mochilinha) : undefined,
+        quantidade_mochilinha: item.quantidade_mochilinha ?? undefined,
         composicao_tecidos: item.composicao_tecidos ?? undefined,
         machine_id: machineIdCandidate as number | null,
         rip_maquina: ripMaquinaCandidate as string | null,
@@ -181,6 +189,7 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         perfil_cor: perfilCorCandidate,
         tecido_fornecedor: tecidoFornecedorCandidate,
     };
+    return result;
 };
 
 export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
@@ -451,7 +460,8 @@ export const buildTipoProducaoUpdatePayload = (payload: Partial<TipoProducaoPayl
 
 export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
     const tipo = inferTipoProducao(item);
-    const canon = canonicalizeFromItemRequest(item as CreateOrderItemRequest);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const canon = canonicalizeFromItemRequest(item as CreateOrderItemRequest) as any;
 
     const payload: Record<string, any> = {
         tipo_producao: tipo,
@@ -467,10 +477,44 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         emenda_qtd: canon.emenda_qtd ?? undefined,
         observacao: canon.observacao ?? '',
         valor_unitario: toCurrencyString(
-            (canon.tipo_producao === 'totem' ? canon.valor_unitario : undefined) ??
-            item?.valor_unitario ??
-            item?.unit_price ??
-            0
+            (() => {
+                // Para totem, valor_unitario é explícito no canon
+                if (tipo === 'totem') {
+                    const p = canon.valor_unitario ?? item?.valor_totem ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Para lona: deriva do valor_lona
+                if (tipo === 'lona') {
+                    const p = item?.valor_lona ?? canon.valor_lona ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Para adesivo: deriva do valor_adesivo
+                if (tipo === 'adesivo') {
+                    const p = item?.valor_adesivo ?? canon.valor_adesivo ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Para canga: deriva do valor_canga
+                if (tipo === 'canga') {
+                    const p = item?.valor_canga ?? canon.valor_canga ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Para impressao_3d: deriva do valor_impressao_3d
+                if (tipo === 'impressao_3d') {
+                    const p = item?.valor_impressao_3d ?? canon.valor_impressao_3d ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Para mochilinha/bolsinha: usa valor_mochilinha ou valor_unitario
+                if (tipo === 'mochilinha' || tipo === 'bolsinha') {
+                    const p = item?.valor_mochilinha ?? canon.valor_mochilinha ?? item?.valor_unitario ?? item?.unit_price;
+                    if (p != null && parseDecimal(p) > 0) return p;
+                }
+                // Fallback genérico: usa valor_painel, valor_unitario ou unit_price
+                const itemStrPrice = item?.valor_painel ?? item?.valor_unitario;
+                if (itemStrPrice != null && parseDecimal(itemStrPrice) > 0) return itemStrPrice;
+                const itemNumPrice = item?.unit_price;
+                if (itemNumPrice != null && parseDecimal(itemNumPrice) > 0) return itemNumPrice;
+                return 0;
+            })()
         ),
         imagem: canon.imagem ?? null,
         legenda_imagem: normalizeNullableString(canon.legenda_imagem ?? undefined),
@@ -493,19 +537,18 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         machine_id: parseNumericId(item?.machine_id),
     };
 
-    if ((tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') &&
-        (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica' || canon.tipo_producao === 'mesa_babado')) {
-        payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
-        payload.quantidade_paineis = canon.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
-        payload.valor_painel = canon.valor_painel != null ? toCurrencyString(canon.valor_painel) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
-    } else if (tipo === 'totem' && canon.tipo_producao === 'totem') {
-        payload.quantidade_totem = canon.quantidade_totem ?? undefined;
-        payload.valor_totem = canon.valor_totem != null ? toCurrencyString(canon.valor_totem) : undefined;
-        payload.outros_valores_totem = canon.outros_valores_totem != null ? toCurrencyString(canon.outros_valores_totem) : undefined;
-        payload.acabamento_totem = canon.acabamento_totem ?? undefined;
-        payload.acabamento_totem_outro = canon.acabamento_totem_outro ?? undefined;
-    } else if (tipo === 'lona' && canon.tipo_producao === 'lona') {
+    if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
+        payload.tipo_acabamento = canon.tipo_acabamento ?? item?.tipo_acabamento ?? 'nenhum';
+        payload.quantidade_paineis = canon.quantidade_paineis ?? item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
+        payload.valor_painel = (canon.valor_painel ?? item?.valor_painel) != null ? toCurrencyString(canon.valor_painel ?? item?.valor_painel) : undefined;
+        payload.valores_adicionais = (canon.valores_adicionais ?? item?.valores_adicionais) != null ? toCurrencyString(canon.valores_adicionais ?? item?.valores_adicionais) : undefined;
+    } else if (tipo === 'totem') {
+        payload.quantidade_totem = canon.quantidade_totem ?? item?.quantidade_totem ?? undefined;
+        payload.valor_totem = (canon.valor_totem ?? item?.valor_totem) != null ? toCurrencyString(canon.valor_totem ?? item?.valor_totem) : undefined;
+        payload.outros_valores_totem = (canon.outros_valores_totem ?? item?.outros_valores_totem) != null ? toCurrencyString(canon.outros_valores_totem ?? item?.outros_valores_totem) : undefined;
+        payload.acabamento_totem = canon.acabamento_totem ?? item?.acabamento_totem ?? undefined;
+        payload.acabamento_totem_outro = canon.acabamento_totem_outro ?? item?.acabamento_totem_outro ?? undefined;
+    } else if (tipo === 'lona') {
         payload.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
         payload.acabamento_lona = canon.acabamento_lona ?? undefined;
         payload.quantidade_lona = canon.quantidade_lona ?? undefined;
@@ -517,23 +560,28 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         payload.quantidade_cordinha = canon.quantidade_cordinha ?? undefined;
         payload.espaco_cordinha = canon.espaco_cordinha ?? undefined;
         payload.valor_cordinha = canon.valor_cordinha ?? undefined;
-    } else if (tipo === 'adesivo' && canon.tipo_producao === 'adesivo') {
-        payload.tipo_adesivo = canon.tipo_adesivo ?? undefined;
-        payload.quantidade_adesivo = canon.quantidade_adesivo ?? undefined;
-        payload.valor_adesivo = canon.valor_adesivo != null ? toCurrencyString(canon.valor_adesivo) : undefined;
-        payload.outros_valores_adesivo = canon.outros_valores_adesivo != null
-            ? toCurrencyString(canon.outros_valores_adesivo)
+    } else if (tipo === 'adesivo') {
+        payload.tipo_adesivo = canon.tipo_adesivo ?? item?.tipo_adesivo ?? undefined;
+        payload.quantidade_adesivo = canon.quantidade_adesivo ?? item?.quantidade_adesivo ?? undefined;
+        payload.valor_adesivo = (canon.valor_adesivo ?? item?.valor_adesivo) != null ? toCurrencyString(canon.valor_adesivo ?? item?.valor_adesivo) : undefined;
+        payload.outros_valores_adesivo = (canon.outros_valores_adesivo ?? item?.outros_valores_adesivo) != null
+            ? toCurrencyString(canon.outros_valores_adesivo ?? item?.outros_valores_adesivo)
             : undefined;
-    } else if (tipo === 'canga' && canon.tipo_producao === 'canga') {
-        payload.baininha = canon.baininha ?? false;
-        payload.quantidade_canga = canon.quantidade_canga ?? undefined;
-        payload.valor_canga = canon.valor_canga != null ? toCurrencyString(canon.valor_canga) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
-    } else if (tipo === 'impressao_3d' && canon.tipo_producao === 'impressao_3d') {
-        payload.material_gasto = canon.material_gasto ?? undefined;
-        payload.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? undefined;
-        payload.valor_impressao_3d = canon.valor_impressao_3d != null ? toCurrencyString(canon.valor_impressao_3d) : undefined;
-        payload.valores_adicionais = canon.valores_adicionais != null ? toCurrencyString(canon.valores_adicionais) : undefined;
+    } else if (tipo === 'canga') {
+        payload.baininha = canon.baininha ?? item?.baininha ?? false;
+        payload.quantidade_canga = canon.quantidade_canga ?? item?.quantidade_canga ?? undefined;
+        payload.valor_canga = (canon.valor_canga ?? item?.valor_canga) != null ? toCurrencyString(canon.valor_canga ?? item?.valor_canga) : undefined;
+        payload.valores_adicionais = (canon.valores_adicionais ?? item?.valores_adicionais) != null ? toCurrencyString(canon.valores_adicionais ?? item?.valores_adicionais) : undefined;
+    } else if (tipo === 'impressao_3d') {
+        payload.material_gasto = canon.material_gasto ?? item?.material_gasto ?? undefined;
+        payload.quantidade_impressao_3d = canon.quantidade_impressao_3d ?? item?.quantidade_impressao_3d ?? undefined;
+        payload.valor_impressao_3d = (canon.valor_impressao_3d ?? item?.valor_impressao_3d) != null ? toCurrencyString(canon.valor_impressao_3d ?? item?.valor_impressao_3d) : undefined;
+        payload.valores_adicionais = (canon.valores_adicionais ?? item?.valores_adicionais) != null ? toCurrencyString(canon.valores_adicionais ?? item?.valores_adicionais) : undefined;
+    } else if (tipo === 'mochilinha' || tipo === 'bolsinha') {
+        payload.valor_mochilinha = (canon.valor_mochilinha ?? item?.valor_mochilinha) != null ? toCurrencyString(canon.valor_mochilinha ?? item?.valor_mochilinha) : undefined;
+        payload.quantidade_mochilinha = canon.quantidade_mochilinha ?? item?.quantidade_mochilinha ?? undefined;
+        payload.valores_adicionais = (canon.valores_adicionais ?? item?.valores_adicionais) != null ? toCurrencyString(canon.valores_adicionais ?? item?.valores_adicionais) : undefined;
+        payload.tipo_acabamento = canon.tipo_acabamento ?? item?.tipo_acabamento ?? undefined;
     } else {
         payload.quantidade_paineis = item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);
         payload.valor_painel = item?.valor_painel != null ? toCurrencyString(item.valor_painel) : undefined;

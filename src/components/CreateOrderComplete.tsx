@@ -375,6 +375,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   function mapItemToTab(item: OrderItem, tabId: string): TabItem {
     const anyItem = item as Record<string, any>;
+    // Preço unitário universal: valor_unitario ou unit_price (fallback para todos os tipos)
+    const precoBase = anyItem.valor_unitario ?? item.unit_price;
+    // Quantidade universal: quantity (fallback para todos os tipos)
+    const qtdBase = item.quantity ? item.quantity.toString() : '1';
     // Fallback seguro: pedidos antigos podem não ter tipo_acabamento salvo.
     // Inferir a partir de quantidade_ilhos/quantidade_cordinha para manter checkboxes coerentes.
     const inferTipoAcabamento = (): string => {
@@ -399,7 +403,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const acabamentoTotem =
       (anyItem.acabamento_totem as TabItem['acabamento_totem'] | undefined) ?? 'com_pe';
 
-    return {
+    const tabResult: TabItem = {
       id: tabId,
       orderItemId: item.id,
       tipo_producao: item.tipo_producao ?? '',
@@ -432,29 +436,29 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       valor_unitario: formatCurrencyValue(anyItem.valor_unitario ?? item.unit_price),
       terceirizado: Boolean(anyItem.terceirizado),
       acabamento_lona: acabamentoLona,
-      valor_lona: formatCurrencyValue(anyItem.valor_lona ?? '0,00'),
-      quantidade_lona: anyItem.quantidade_lona ?? '1',
+      valor_lona: formatCurrencyValue(anyItem.valor_lona ?? precoBase ?? '0,00'),
+      quantidade_lona: anyItem.quantidade_lona ?? qtdBase,
       outros_valores_lona: formatCurrencyValue(anyItem.outros_valores_lona ?? '0,00'),
       acabamento_totem: acabamentoTotem,
       acabamento_totem_outro: anyItem.acabamento_totem_outro ?? '',
-      valor_totem: formatCurrencyValue(anyItem.valor_totem ?? '0,00'),
-      quantidade_totem: anyItem.quantidade_totem ?? '1',
+      valor_totem: formatCurrencyValue(anyItem.valor_totem ?? precoBase ?? '0,00'),
+      quantidade_totem: anyItem.quantidade_totem ?? qtdBase,
       outros_valores_totem: formatCurrencyValue(anyItem.outros_valores_totem ?? '0,00'),
       emendaQtd: anyItem.emenda_qtd ?? anyItem.emendaQtd ?? '',
       tipo_adesivo: anyItem.tipo_adesivo ?? '',
-      valor_adesivo: formatCurrencyValue(anyItem.valor_adesivo ?? '0,00'),
-      quantidade_adesivo: anyItem.quantidade_adesivo ?? '1',
+      valor_adesivo: formatCurrencyValue(anyItem.valor_adesivo ?? precoBase ?? '0,00'),
+      quantidade_adesivo: anyItem.quantidade_adesivo ?? qtdBase,
       outros_valores_adesivo: formatCurrencyValue(anyItem.outros_valores_adesivo ?? '0,00'),
       ziper: Boolean(anyItem.ziper),
       cordinha_extra: Boolean(anyItem.cordinha_extra),
       alcinha: Boolean(anyItem.alcinha),
       toalha_pronta: Boolean(anyItem.toalha_pronta),
       baininha: Boolean(anyItem.baininha),
-      valor_canga: formatCurrencyValue(anyItem.valor_canga ?? '0,00'),
-      quantidade_canga: anyItem.quantidade_canga ?? '1',
+      valor_canga: formatCurrencyValue(anyItem.valor_canga ?? precoBase ?? '0,00'),
+      quantidade_canga: anyItem.quantidade_canga ?? qtdBase,
       material_gasto: anyItem.material_gasto ?? '',
-      valor_impressao_3d: formatCurrencyValue(anyItem.valor_impressao_3d ?? '0,00'),
-      quantidade_impressao_3d: anyItem.quantidade_impressao_3d ?? '1',
+      valor_impressao_3d: formatCurrencyValue(anyItem.valor_impressao_3d ?? precoBase ?? '0,00'),
+      quantidade_impressao_3d: anyItem.quantidade_impressao_3d ?? qtdBase,
       tipo_alcinha: (anyItem.tipo_alcinha as TabItem['tipo_alcinha'] | undefined) ?? 'nenhum',
       valor_mochilinha: formatCurrencyValue(
         anyItem.valor_mochilinha ?? anyItem.valor_unitario ?? item.unit_price
@@ -466,6 +470,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       perfil_cor: anyItem.perfil_cor ?? '',
       tecido_fornecedor: anyItem.tecido_fornecedor ?? '',
     };
+    return tabResult;
   }
 
   function populateFormFromOrder(order: OrderWithItems) {
@@ -1638,14 +1643,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     // Apenas se a legenda estiver preenchida (não é obrigatória)
     if (item.legenda_imagem && item.legenda_imagem.trim().length > 0) {
       let materialPrincipal = '';
-      
+
       // Determinar qual campo de material usar baseado no tipo_producao
       if (item.tipo_producao === 'adesivo') {
         materialPrincipal = item.tipo_adesivo || '';
       } else {
         materialPrincipal = item.tecido || '';
       }
-      
+
       // Se o material principal estiver preenchido e não estiver contido na legenda, adicionar erro
       if (materialPrincipal && materialPrincipal.trim().length > 0) {
         const legendaUpper = item.legenda_imagem.toUpperCase();
