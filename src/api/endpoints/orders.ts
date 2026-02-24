@@ -21,6 +21,7 @@ import {
     buildItemPayloadFromRequest,
 } from '../mappers';
 import { logger } from '../../utils/logger';
+import { normalizeItemFieldsByTipo } from '../../utils/order-item-display';
 import { ordersSocket } from '../../lib/realtimeOrders';
 import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
@@ -424,6 +425,8 @@ export const ordersApi = {
             perfil_cor: item.perfil_cor,
             tecido_fornecedor: item.tecido_fornecedor,
         }));
+
+        newItems.forEach((item) => normalizeItemFieldsByTipo(item as Record<string, unknown>, item.tipo_producao ?? ''));
 
         // Cria o novo pedido
         const createRequest: CreateOrderRequest = {

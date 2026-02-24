@@ -6,7 +6,7 @@ import { Separator } from './ui/separator';
 import { ChevronDown, Printer, Loader2, Save, Monitor, Edit2, X } from 'lucide-react';
 import { OrderItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
-import { getItemDisplayEntries } from '@/utils/order-item-display';
+import { getItemDisplayEntries, FIELD_ALLOWED_TYPES } from '@/utils/order-item-display';
 import { logger } from '@/utils/logger';
 import { isValidImagePath } from '@/utils/path';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
@@ -511,6 +511,11 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     const sections: DetailEntry[] = [];
     const omitKeys = new Set<string>();
     const tipoProducao = normalizeText(item.tipo_producao).toLowerCase();
+    const fieldAllowedForTipo = (fieldKey: string): boolean => {
+      const allowed = FIELD_ALLOWED_TYPES[fieldKey];
+      if (!allowed) return true;
+      return allowed.some((t) => t.toLowerCase() === tipoProducao);
+    };
     const isLona = tipoProducao === 'lona';
     const isTotem = tipoProducao === 'totem';
     const isAdesivo = tipoProducao === 'adesivo';
@@ -923,8 +928,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         .join(' ')
       : '';
 
-    const hasEmendaByType = isPainel || isLona || tipoProducao === 'generica';
-    if (hasEmendaByType && emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
+    if (fieldAllowedForTipo('emenda') && emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
       const emendaQuantidade = normalizeText((item as any).emenda_qtd ?? (item as any).emendaQtd);
       let emendaValue: React.ReactNode = emendaTipo;
       if (emendaQuantidade) {
@@ -959,7 +963,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     ];
 
     extraFlags.forEach(([key, label]) => {
-      if ((item as any)[key]) {
+      if (fieldAllowedForTipo(key) && (item as any)[key]) {
         sections.push({
           label,
           value: 'Sim',

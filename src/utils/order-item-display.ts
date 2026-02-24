@@ -95,6 +95,67 @@ export const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   valores_adicionais: ['mochilinha', 'bolsinha', 'mochilinha/bolsinha', 'painel', 'generica', 'mesa_babado'],
 };
 
+/** Valores padrão para campos que dependem do tipo. Usado ao normalizar item por tipo (duplicação, troca de tipo, payload). */
+export const TYPE_SPECIFIC_FIELD_DEFAULTS: Record<string, string | boolean> = {
+  quantidade_paineis: '1',
+  valor_painel: '0,00',
+  tipo_acabamento: 'nenhum',
+  quantidade_ilhos: '',
+  espaco_ilhos: '',
+  valor_ilhos: '0,00',
+  quantidade_cordinha: '',
+  espaco_cordinha: '',
+  valor_cordinha: '0,00',
+  emenda: 'sem-emenda',
+  emenda_qtd: '',
+  overloque: false,
+  elastico: false,
+  ziper: false,
+  cordinha_extra: false,
+  alcinha: false,
+  toalha_pronta: false,
+  terceirizado: false,
+  acabamento_lona: 'refilar',
+  valor_lona: '0,00',
+  quantidade_lona: '1',
+  outros_valores_lona: '0,00',
+  tipo_adesivo: '',
+  valor_adesivo: '0,00',
+  quantidade_adesivo: '1',
+  outros_valores_adesivo: '0,00',
+  acabamento_totem: 'com_pe',
+  acabamento_totem_outro: '',
+  valor_totem: '0,00',
+  quantidade_totem: '1',
+  outros_valores_totem: '0,00',
+  valores_adicionais: '0,00',
+};
+
+/**
+ * Normaliza um item (mutável) limpando campos que não se aplicam ao tipo de produção.
+ * Usar após duplicar item/pedido, ao trocar tipo ou ao carregar para edição.
+ * Aceita unknown para evitar erros TS2352 ao passar TabItem em ambientes estritos.
+ */
+export function normalizeItemFieldsByTipo(item: unknown, tipo: string): unknown {
+  const obj = item as Record<string, unknown>;
+  if (obj == null || typeof obj !== 'object') return item;
+
+  const normalizedTipo = (tipo ?? '').toLowerCase().trim();
+  if (!normalizedTipo) return item;
+
+  for (const fieldKey of Object.keys(FIELD_ALLOWED_TYPES)) {
+    const allowedTypes = FIELD_ALLOWED_TYPES[fieldKey];
+    const allowed = allowedTypes.some((t) => t.toLowerCase() === normalizedTipo);
+    if (!allowed && fieldKey in TYPE_SPECIFIC_FIELD_DEFAULTS) {
+      obj[fieldKey] = TYPE_SPECIFIC_FIELD_DEFAULTS[fieldKey];
+      if (fieldKey === 'emenda_qtd') {
+        obj.emendaQtd = '';
+      }
+    }
+  }
+  return item;
+}
+
 const CURRENCY_FIELDS = new Set([
   'valor_unitario',
   'valor_painel',

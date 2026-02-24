@@ -41,43 +41,7 @@ import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
 import { parseMonetary, formatMonetary } from '@/utils/currency';
-import { FIELD_ALLOWED_TYPES } from '@/utils/order-item-display';
-
-/** Valores padrão para campos que dependem do tipo de produção. Usado ao trocar o tipo para não herdar dados de outro tipo. */
-const TYPE_SPECIFIC_FIELD_DEFAULTS: Record<string, string | boolean> = {
-  quantidade_paineis: '1',
-  valor_painel: '0,00',
-  tipo_acabamento: 'nenhum',
-  quantidade_ilhos: '',
-  espaco_ilhos: '',
-  valor_ilhos: '0,00',
-  quantidade_cordinha: '',
-  espaco_cordinha: '',
-  valor_cordinha: '0,00',
-  emenda: 'sem-emenda',
-  emenda_qtd: '',
-  overloque: false,
-  elastico: false,
-  ziper: false,
-  cordinha_extra: false,
-  alcinha: false,
-  toalha_pronta: false,
-  terceirizado: false,
-  acabamento_lona: 'refilar',
-  valor_lona: '0,00',
-  quantidade_lona: '1',
-  outros_valores_lona: '0,00',
-  tipo_adesivo: '',
-  valor_adesivo: '0,00',
-  quantidade_adesivo: '1',
-  outros_valores_adesivo: '0,00',
-  acabamento_totem: 'com_pe',
-  acabamento_totem_outro: '',
-  valor_totem: '0,00',
-  quantidade_totem: '1',
-  outros_valores_totem: '0,00',
-  valores_adicionais: '0,00',
-};
+import { normalizeItemFieldsByTipo } from '@/utils/order-item-display';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -507,21 +471,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       perfil_cor: anyItem.perfil_cor ?? '',
       tecido_fornecedor: anyItem.tecido_fornecedor ?? '',
     };
-    // Normalizar: limpar campos que não se aplicam ao tipo (ex.: totem não deve ter emenda)
-    const currentTipo = (tabResult.tipo_producao ?? '').toLowerCase().trim();
-    if (currentTipo) {
-      const item = tabResult as Record<string, unknown>;
-      for (const fieldKey of Object.keys(FIELD_ALLOWED_TYPES)) {
-        const allowedTypes = FIELD_ALLOWED_TYPES[fieldKey];
-        const allowed = allowedTypes.some(t => t.toLowerCase() === currentTipo);
-        if (!allowed && fieldKey in TYPE_SPECIFIC_FIELD_DEFAULTS) {
-          item[fieldKey] = TYPE_SPECIFIC_FIELD_DEFAULTS[fieldKey];
-          if (fieldKey === 'emenda_qtd') {
-            item.emendaQtd = '';
-          }
-        }
-      }
-    }
+    normalizeItemFieldsByTipo(tabResult, tabResult.tipo_producao ?? '');
     return tabResult;
   }
 
@@ -1399,20 +1349,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       };
 
       // Ao mudar o tipo de produção, limpar campos que não se aplicam ao novo tipo
-      // (ex.: emenda é de tecido/lona; ao trocar para totem, emenda deve ser resetada)
       if (field === 'tipo_producao' && value) {
-        const newTipo = String(value).toLowerCase().trim();
-        const item = nextItem as Record<string, unknown>;
-        for (const fieldKey of Object.keys(FIELD_ALLOWED_TYPES)) {
-          const allowedTypes = FIELD_ALLOWED_TYPES[fieldKey];
-          const allowed = allowedTypes.some(t => t.toLowerCase() === newTipo);
-          if (!allowed && fieldKey in TYPE_SPECIFIC_FIELD_DEFAULTS) {
-            item[fieldKey] = TYPE_SPECIFIC_FIELD_DEFAULTS[fieldKey];
-            if (fieldKey === 'emenda_qtd') {
-              item.emendaQtd = '';
-            }
-          }
-        }
+        normalizeItemFieldsByTipo(nextItem, String(value));
       }
 
       return {
@@ -1484,12 +1422,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       newTabs.push(newTabId);
 
       // Duplicar todos os dados, opcionalmente manter a imagem
-      newTabsDataEntries[newTabId] = {
+      const entry: TabItem = {
         ...sourceData,
         id: newTabId,
         orderItemId: undefined, // Novo item, sem ID do banco
         imagem: keepImage ? sourceData.imagem : '', // Manter ou limpar imagem
       };
+      normalizeItemFieldsByTipo(entry, sourceData.tipo_producao ?? '');
+      newTabsDataEntries[newTabId] = entry;
     }
 
     setTabs([...tabs, ...newTabs]);

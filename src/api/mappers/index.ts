@@ -49,6 +49,7 @@ import {
     buildAcabamento,
 } from '../utils';
 import { canonicalizeFromItemRequest } from '../../mappers/productionItems';
+import { FIELD_ALLOWED_TYPES, TYPE_SPECIFIC_FIELD_DEFAULTS } from '../../utils/order-item-display';
 
 const APP_STATUS_TO_API: Record<OrderStatus, ApiOrderStatus> = {
     [OrderStatus.Pendente]: 'pendente',
@@ -537,10 +538,14 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         machine_id: parseNumericId(item?.machine_id),
     };
 
-    const emendaAllowedTypes = ['painel', 'generica', 'lona'];
-    if (!emendaAllowedTypes.includes(tipo)) {
-        payload.emenda = 'sem-emenda';
-        payload.emenda_qtd = undefined;
+    const normalizedTipo = (tipo ?? '').toLowerCase().trim();
+    for (const fieldKey of Object.keys(FIELD_ALLOWED_TYPES)) {
+        const allowedTypes = FIELD_ALLOWED_TYPES[fieldKey];
+        const allowed = normalizedTipo && allowedTypes.some((t) => t.toLowerCase() === normalizedTipo);
+        if (!allowed && fieldKey in TYPE_SPECIFIC_FIELD_DEFAULTS) {
+            const def = TYPE_SPECIFIC_FIELD_DEFAULTS[fieldKey];
+            payload[fieldKey] = def === '' ? undefined : def;
+        }
     }
 
     if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
