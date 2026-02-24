@@ -59,7 +59,8 @@ const LABELS: Record<string, string> = {
   data_impressao: 'Data de impressão',
 };
 
-const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
+/** Campos que só se aplicam a certos tipos de produção. Usado para limpar campos ao trocar o tipo do item. */
+export const FIELD_ALLOWED_TYPES: Record<string, readonly string[]> = {
   quantidade_paineis: ['painel', 'generica', 'mesa_babado'],
   valor_painel: ['painel', 'generica', 'mesa_babado'],
   tipo_acabamento: ['painel', 'generica', 'lona', 'mochilinha', 'bolsinha', 'mesa_babado'],
