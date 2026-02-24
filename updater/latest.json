@@ -1,11 +1,11 @@
 {
-  "version": "1.2.7",
-  "notes": "Frete corrigido no fechamento de múltiplos niveis.",
-  "pub_date": "2026-02-23T01:00:00Z",
+  "version": "1.2.8",
+  "notes": "Correção da duplicação de items",
+  "pub_date": "2026-02-24T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.7/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.7_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3UzZ3JLb1kwVk5tZ0xzNXBiM3BNU1NsN3VtSWZmUVM0d2NlR1VrRXljeHdDSlFjRnE4cElIZ0IyQVRQSU1LQllnYzRQcFNBUDZBV1FmMDEycFZKdHdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcxODU2Nzk4CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjdfeDY0X2VuLVVTLm1zaQpNdFA1a2tmc0tHUmZaZWdRMStZczNDdEhwQVdDK3FockVSRTkxTXUyY3pIbk5IR2NPSVlIMXpvNkVxa01lZFV2ZE11WGwrM0cxb0syMncyYWVWSHpCZz09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.8/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.8_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3Y5Nm1PZUtCSHlpL1A1cVJRSTJ3QjN2T2k1dTFZcFdLNWZEZ0NPb2JMdmhncVVyRkE5T2RWUCtPLzdjMm5vU0g3bUJDRWQvUWUybFU0OHNkemN1WndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcxOTQ3MjgwCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjhfeDY0X2VuLVVTLm1zaQo5bEhzVWY3bVNJMHFaazRLVEE1Z1JYczhqU2p1dWNONHRqV2FtM0VPRldVTWlMVkh1bmhoM24xaDJGeE9rQjBSZkJqOFp6TmJJbGsxMnBSejNPWThCdz09Cg=="
     }
   }
 }
