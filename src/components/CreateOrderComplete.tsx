@@ -507,6 +507,21 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       perfil_cor: anyItem.perfil_cor ?? '',
       tecido_fornecedor: anyItem.tecido_fornecedor ?? '',
     };
+    // Normalizar: limpar campos que não se aplicam ao tipo (ex.: totem não deve ter emenda)
+    const currentTipo = (tabResult.tipo_producao ?? '').toLowerCase().trim();
+    if (currentTipo) {
+      const item = tabResult as Record<string, unknown>;
+      for (const fieldKey of Object.keys(FIELD_ALLOWED_TYPES)) {
+        const allowedTypes = FIELD_ALLOWED_TYPES[fieldKey];
+        const allowed = allowedTypes.some(t => t.toLowerCase() === currentTipo);
+        if (!allowed && fieldKey in TYPE_SPECIFIC_FIELD_DEFAULTS) {
+          item[fieldKey] = TYPE_SPECIFIC_FIELD_DEFAULTS[fieldKey];
+          if (fieldKey === 'emenda_qtd') {
+            item.emendaQtd = '';
+          }
+        }
+      }
+    }
     return tabResult;
   }
 

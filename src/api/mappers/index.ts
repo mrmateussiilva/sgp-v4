@@ -537,6 +537,12 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         machine_id: parseNumericId(item?.machine_id),
     };
 
+    const emendaAllowedTypes = ['painel', 'generica', 'lona'];
+    if (!emendaAllowedTypes.includes(tipo)) {
+        payload.emenda = 'sem-emenda';
+        payload.emenda_qtd = undefined;
+    }
+
     if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
         payload.tipo_acabamento = canon.tipo_acabamento ?? item?.tipo_acabamento ?? 'nenhum';
         payload.quantidade_paineis = canon.quantidade_paineis ?? item?.quantidade_paineis ?? (item?.quantity ? String(item.quantity) : undefined);

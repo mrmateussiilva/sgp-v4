@@ -923,7 +923,8 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
         .join(' ')
       : '';
 
-    if (emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
+    const hasEmendaByType = isPainel || isLona || tipoProducao === 'generica';
+    if (hasEmendaByType && emendaTipoRaw && emendaTipoRaw !== "sem-emenda") {
       const emendaQuantidade = normalizeText((item as any).emenda_qtd ?? (item as any).emendaQtd);
       let emendaValue: React.ReactNode = emendaTipo;
       if (emendaQuantidade) {

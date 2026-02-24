@@ -1,5 +1,10 @@
 # Changelog - SGP v4
 
+## [1.2.9] - 2026-02-24
+
+### 🐛 Correções
+- **Emenda em totem e outros tipos**: Ajustes no frontend para que emenda (e outros campos por tipo) não apareçam nem sejam persistidos para tipos que não suportam. (1) Na tela de detalhe do pedido, a seção "Emenda" só é exibida para itens dos tipos painel, genérica e lona; totem, adesivo e demais tipos não mostram mais emenda mesmo quando havia dado antigo. (2) Ao salvar, o payload não envia mais emenda/emenda_qtd para tipos fora de painel/genérica/lona, evitando gravar dado incorreto. (3) Ao abrir um pedido para edição, itens carregados do backend são normalizados: campos que não se aplicam ao tipo do item (ex.: emenda em totem) são limpos no formulário, alinhando exibição e persistência ao tipo sem alterações no backend.
+
 ## [1.2.8] - 2026-02-24
 
 ### 🐛 Correções
