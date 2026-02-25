@@ -1343,14 +1343,36 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const handleTabDataChange = (tabId: string, field: string, value: any) => {
     setTabsData(prev => {
-      const nextItem = {
-        ...prev[tabId],
-        [field]: value
-      };
+      const current = prev[tabId];
+      let nextItem: TabItem;
 
-      // Ao mudar o tipo de produção, limpar campos que não se aplicam ao novo tipo
       if (field === 'tipo_producao' && value) {
+        const newTipo = String(value).toLowerCase().trim();
+        const previousTipo = (current.tipo_producao ?? '').toLowerCase().trim();
+        const tipoChanged = newTipo !== previousTipo;
+
+        if (tipoChanged) {
+          // Tipo diferente: manter apenas descrição, medida, designer, vendedor e imagem
+          const empty = createEmptyTab(tabId);
+          nextItem = {
+            ...empty,
+            id: current.id,
+            orderItemId: current.orderItemId,
+            tipo_producao: String(value),
+            descricao: current.descricao ?? '',
+            largura: current.largura ?? '',
+            altura: current.altura ?? '',
+            metro_quadrado: current.metro_quadrado ?? '',
+            vendedor: current.vendedor ?? '',
+            designer: current.designer ?? '',
+            imagem: current.imagem ?? '',
+          };
+        } else {
+          nextItem = { ...current, [field]: value };
+        }
         normalizeItemFieldsByTipo(nextItem, String(value));
+      } else {
+        nextItem = { ...current, [field]: value };
       }
 
       return {
