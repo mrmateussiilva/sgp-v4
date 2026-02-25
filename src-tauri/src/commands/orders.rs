@@ -106,8 +106,7 @@ pub async fn get_pending_orders_paginated(
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
         // Usar array PostgreSQL para melhor performance
-        sqlx::query_as!(
-            OrderItem,
+        sqlx::query_as::<_, OrderItem>(
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
                     tipo_producao, descricao, largura, altura, metro_quadrado, 
                     vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
@@ -119,8 +118,8 @@ pub async fn get_pending_orders_paginated(
              FROM order_items 
              WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids as &[i32]
         )
+        .bind(&order_ids as &[i32])
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
@@ -256,8 +255,7 @@ pub async fn get_ready_orders_paginated(
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
         // Usar array PostgreSQL para melhor performance
-        sqlx::query_as!(
-            OrderItem,
+        sqlx::query_as::<_, OrderItem>(
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
                     tipo_producao, descricao, largura, altura, metro_quadrado, 
                     vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
@@ -269,8 +267,8 @@ pub async fn get_ready_orders_paginated(
              FROM order_items 
              WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids as &[i32]
         )
+        .bind(&order_ids as &[i32])
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
@@ -375,8 +373,7 @@ pub async fn get_pending_orders_light(
     let order_ids: Vec<i32> = orders.iter().map(|o| o.id).collect();
     let items: Vec<OrderItem> = if !order_ids.is_empty() {
         // Usar array PostgreSQL para melhor performance
-        sqlx::query_as!(
-            OrderItem,
+        sqlx::query_as::<_, OrderItem>(
             "SELECT id, order_id, item_name, quantity, unit_price, subtotal, 
                     tipo_producao, descricao, largura, altura, metro_quadrado, 
                     vendedor, designer, tecido, overloque, elastico, tipo_acabamento,
@@ -388,8 +385,8 @@ pub async fn get_pending_orders_light(
              FROM order_items 
              WHERE order_id = ANY($1::int[])
              ORDER BY order_id, id",
-            &order_ids as &[i32]
         )
+        .bind(&order_ids as &[i32])
         .fetch_all(pool.inner())
         .await
         .map_err(|e| {
@@ -497,6 +494,7 @@ pub async fn create_order(
     app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
     session_token: String,
     request: CreateOrderRequest,
 ) -> Result<OrderWithItems, String> {
@@ -507,8 +505,9 @@ pub async fn create_order(
     
     let result = create_order_internal(pool.inner(), request).await;
     
-    // Se o pedido foi criado com sucesso, emitir evento simples
+    // Se o pedido foi criado com sucesso, emitir evento simples e invalidar cache de materiais
     if let Ok(ref order) = result {
+        cache.invalidate_pattern("materiais_cache_").await;
         notify_order_created(&app_handle, order.id).await;
     }
     
@@ -1023,6 +1022,7 @@ pub async fn update_order(
     app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
     session_token: String,
     request: UpdateOrderRequest,
 ) -> Result<OrderWithItems, String> {
@@ -1030,6 +1030,9 @@ pub async fn update_order(
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
+    
+    // Invalida cache de materiais
+    cache.invalidate_pattern("materiais_cache_").await;
     info!("Atualizando pedido ID: {}", request.id);
 
     // Calcular novo total (itens + frete)
@@ -1314,6 +1317,7 @@ pub async fn delete_order(
     app_handle: AppHandle,
     pool: State<'_, DbPool>,
     sessions: State<'_, SessionManager>,
+    cache: State<'_, CacheManager>,
     session_token: String,
     order_id: i32,
 ) -> Result<bool, String> {
@@ -1321,6 +1325,9 @@ pub async fn delete_order(
         .require_authenticated(&session_token)
         .await
         .map_err(|e| e.to_string())?;
+    
+    // Invalida cache de materiais
+    cache.invalidate_pattern("materiais_cache_").await;
     
     info!("Deletando pedido ID: {}", order_id);
 
@@ -1723,8 +1730,7 @@ pub async fn get_order_ficha(
     })?;
 
     // Buscar itens do pedido
-    let items = sqlx::query_as!(
-        OrderItemFicha,
+    let items = sqlx::query_as::<_, OrderItemFicha>(
         r#"
         SELECT id, order_id, item_name, quantity, unit_price, subtotal,
                tipo_producao, descricao, largura, altura, metro_quadrado,
@@ -1734,15 +1740,15 @@ pub async fn get_order_ficha(
                emenda, emenda_qtd, ziper, cordinha_extra, alcinha, toalha_pronta, 
                acabamento_lona, valor_lona, quantidade_lona, outros_valores_lona, 
                tipo_adesivo, valor_adesivo, quantidade_adesivo, outros_valores_adesivo,
-               NULL as acabamento_totem, NULL as acabamento_totem_outro, 
-               NULL as valor_totem, NULL as quantidade_totem, 
-               NULL as outros_valores_totem
+               NULL::text as acabamento_totem, NULL::text as acabamento_totem_outro, 
+               NULL::text as valor_totem, NULL::text as quantidade_totem, 
+               NULL::text as outros_valores_totem
         FROM order_items 
         WHERE order_id = $1
         ORDER BY id
-        "#,
-        order_id
+        "#
     )
+    .bind(order_id)
     .fetch_all(pool.inner())
     .await
     .map_err(|e| {

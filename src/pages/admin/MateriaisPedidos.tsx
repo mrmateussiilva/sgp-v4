@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Search, ArrowUp, ArrowDown, FileDown, Package, Ruler, TrendingUp, Info, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import {
@@ -8,17 +8,14 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  PieChart,
   Pie,
   Cell,
   AreaChart,
   Area,
+  PieChart,
 } from 'recharts';
-import { api } from '@/services/api';
 import { cn } from '@/lib/utils';
-import { OrderWithItems, OrderItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +33,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible } from '@/components/ui/collapsible';
 import { formatDateForDisplay, isDateExpired } from '@/utils/date';
+import { ordersApi } from '@/api/endpoints/orders';
+import { OrderWithItems } from '@/api/types';
 
 const ROWS_PER_PAGE = 50;
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -52,70 +51,24 @@ export interface MaterialRow {
   medida: string;
   dataEntrada: string;
   dataEntrega: string;
-  /** Metros lineares (comprimento × quantidade) para acumuladora */
   linearMeters: number;
 }
 
-function parseDimension(s: string | undefined): number {
-  if (!s || typeof s !== 'string') return 0;
-  const n = parseFloat(String(s).trim().replace(',', '.'));
-  return Number.isFinite(n) ? n : 0;
-}
-
-/** Metros lineares do item: usa altura ou largura como comprimento × quantidade */
-function getLinearMetersFromItem(item: OrderItem): number {
-  const qty = Math.max(1, Number(item.quantity) || 1);
-  const comprimento = parseDimension(item.altura) || parseDimension(item.largura);
-  return comprimento * qty;
-}
-
-function getMaterialFromItem(item: OrderItem): string {
-  const v =
-    item.tecido ||
-    item.tipo_producao ||
-    item.material_gasto ||
-    item.composicao_tecidos;
-  return (v && String(v).trim()) || '—';
-}
-
-function getMedidaFromItem(item: OrderItem): string {
-  const largura = (item.largura && String(item.largura).trim()) || '';
-  const altura = (item.altura && String(item.altura).trim()) || '';
-  const m2 = (item.metro_quadrado && String(item.metro_quadrado).trim()) || '';
-  const parts: string[] = [];
-  if (largura && altura) {
-    parts.push(`${largura} x ${altura}`);
-  }
-  if (m2) {
-    parts.push(parts.length ? `= ${m2} m²` : `${m2} m²`);
-  }
-  return parts.length ? parts.join(' ') : '—';
-}
-
-function ordersToRows(orders: OrderWithItems[]): MaterialRow[] {
-  const rows: MaterialRow[] = [];
-  for (const order of orders) {
-    const numero = order.numero ?? String(order.id);
-    const cliente = order.cliente ?? order.customer_name ?? '—';
-    const dataEntrada = order.data_entrada ?? '';
-    const dataEntrega = order.data_entrega ?? '';
-    const items = order.items ?? [];
-    for (const item of items) {
-      rows.push({
-        orderId: order.id,
-        numero,
-        cliente,
-        tipoProducao: (item.tipo_producao && String(item.tipo_producao).trim()) || '—',
-        material: getMaterialFromItem(item),
-        descricao: (item.descricao && String(item.descricao).trim()) || item.item_name || '—',
-        medida: getMedidaFromItem(item),
-        dataEntrada,
-        dataEntrega,
-        linearMeters: getLinearMetersFromItem(item),
-      });
-    }
-  }
-  return rows;
+export interface MateriaisCacheData {
+  rows: MaterialRow[];
+  metrics: {
+    totalMeters: number;
+    uniqueOrders: number;
+    uniqueCustomers: number;
+    totalItems: number;
+    topMaterialName: string | null;
+    topMaterialValue: number | null;
+  };
+  barChart: { name: string; value: number }[];
+  pieChart: { name: string; value: number }[];
+  areaChart: { name: string; value: number }[];
+  materialsList: string[];
+  lastUpdated: string;
 }
 
 function toYYYYMMDD(d: Date): string {
@@ -146,6 +99,15 @@ const QUICK_RANGES = [
   },
 ];
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 function escapeCsvCell(s: string): string {
   if (/[",\n\r]/.test(s)) {
     return `"${s.replace(/"/g, '""')}"`;
@@ -153,75 +115,193 @@ function escapeCsvCell(s: string): string {
   return s;
 }
 
+/** Processa os pedidos da API e gera os dados necessários para a tela */
+function processOrdersToCache(orders: OrderWithItems[], dateFrom: string, dateTo: string, search: string): MateriaisCacheData {
+  const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+  const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+  const searchLower = search.toLowerCase();
+
+  const rows: MaterialRow[] = [];
+  const materialMeters: Record<string, number> = {};
+  const monthMeters: Record<string, number> = {};
+  const orderIds = new Set<number>();
+  const customerNames = new Set<string>();
+
+  for (const order of orders) {
+    // Filtrar por data de entrada
+    if (order.data_entrada) {
+      const dataEntrada = new Date(order.data_entrada + 'T00:00:00');
+      if (fromDate && dataEntrada < fromDate) continue;
+      if (toDate && dataEntrada > toDate) continue;
+    }
+
+    orderIds.add(order.id);
+    if (order.cliente) customerNames.add(order.cliente);
+
+    for (const item of order.items) {
+      const tipoProducao = item.tipo_producao || '';
+      const material = item.tecido || tipoProducao || 'Sem material';
+      const descricao = item.descricao || item.item_name || '';
+      const largura = item.largura ? parseFloat(item.largura) : 0;
+      const altura = item.altura ? parseFloat(item.altura) : 0;
+      const qty = item.quantity || 1;
+
+      // Calcular metros: largura (metros) × quantidade
+      const widthM = largura > 10 ? largura / 100 : largura; // converter cm para m se necessário
+      const linearMeters = widthM * qty;
+
+      // Filtro de busca
+      const searchMatch = !searchLower ||
+        (order.cliente || '').toLowerCase().includes(searchLower) ||
+        tipoProducao.toLowerCase().includes(searchLower) ||
+        material.toLowerCase().includes(searchLower) ||
+        descricao.toLowerCase().includes(searchLower) ||
+        (order.numero || '').toLowerCase().includes(searchLower);
+
+      if (!searchMatch) continue;
+
+      // Medida formatada
+      const medida = largura && altura
+        ? `${largura}×${altura}`
+        : largura ? `${largura}m` : '';
+
+      rows.push({
+        orderId: order.id,
+        numero: order.numero || String(order.id),
+        cliente: order.cliente || '',
+        tipoProducao,
+        material,
+        descricao,
+        medida,
+        dataEntrada: order.data_entrada || '',
+        dataEntrega: order.data_entrega || '',
+        linearMeters,
+      });
+
+      // Acumular para gráficos
+      materialMeters[material] = (materialMeters[material] || 0) + linearMeters;
+
+      // Gráfico de área por mês
+      if (order.data_entrada) {
+        const monthKey = order.data_entrada.substring(0, 7); // YYYY-MM
+        monthMeters[monthKey] = (monthMeters[monthKey] || 0) + linearMeters;
+      }
+    }
+  }
+
+  // Ordenar materiais por metros (top)
+  const sortedMaterials = Object.entries(materialMeters).sort((a, b) => b[1] - a[1]);
+  const topMaterial = sortedMaterials[0];
+
+  // Bar chart: top 7 materiais
+  const barChart = sortedMaterials.slice(0, 7).map(([name, value]) => ({
+    name: name.length > 15 ? name.substring(0, 13) + '…' : name,
+    value: Math.round(value * 100) / 100,
+  }));
+
+  // Pie chart: top 6 + outros
+  const pieTop = sortedMaterials.slice(0, 6);
+  const pieOther = sortedMaterials.slice(6).reduce((acc, [, v]) => acc + v, 0);
+  const pieChart = [
+    ...pieTop.map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 })),
+    ...(pieOther > 0 ? [{ name: 'Outros', value: Math.round(pieOther * 100) / 100 }] : []),
+  ];
+
+  // Area chart: por mês ordenado
+  const areaChart = Object.entries(monthMeters)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
+
+  const totalMeters = Object.values(materialMeters).reduce((a, b) => a + b, 0);
+
+  return {
+    rows,
+    metrics: {
+      totalMeters: Math.round(totalMeters * 100) / 100,
+      uniqueOrders: orderIds.size,
+      uniqueCustomers: customerNames.size,
+      totalItems: rows.length,
+      topMaterialName: topMaterial?.[0] || null,
+      topMaterialValue: topMaterial ? Math.round(topMaterial[1] * 100) / 100 : null,
+    },
+    barChart,
+    pieChart,
+    areaChart,
+    materialsList: ['Todos', ...Object.keys(materialMeters).sort()],
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
 export default function MateriaisPedidos() {
+  const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [cacheData, setCacheData] = useState<MateriaisCacheData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Filtro padrão: Últimos 30 dias
+  const [dateFrom, setDateFrom] = useState(() => toYYYYMMDD(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
+  const [dateTo, setDateTo] = useState(() => toYYYYMMDD(new Date()));
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(0);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeMaterialTab, setActiveMaterialTab] = useState<string>('Todos');
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      let all: OrderWithItems[] = [];
-      if (dateFrom || dateTo) {
-        const dataInicio = dateFrom || undefined;
-        const dataFim = dateTo || undefined;
-        let currentPage = 1;
-        const pageSize = 100;
-        while (true) {
-          const result = await api.getOrdersPaginated(currentPage, pageSize, undefined, undefined, dataInicio, dataFim);
-          all = [...all, ...result.orders];
-          if (currentPage >= result.total_pages || result.orders.length === 0) break;
-          currentPage++;
-        }
-        setOrders(all);
-      } else {
-        const data = await api.getOrders();
-        setOrders(Array.isArray(data) ? data : []);
+      const token = localStorage.getItem('session_token');
+      if (!token) {
+        navigate('/login');
+        return;
       }
-      setLastUpdated(new Date());
+
+      // Busca pedidos via API Python com filtro de data
+      const orders = await ordersApi.getOrders();
+
+      startTransition(() => {
+        const processed = processOrdersToCache(orders, dateFrom, dateTo, debouncedSearchTerm);
+        setCacheData(processed);
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar pedidos.';
+      const message = err instanceof Error ? err.message : 'Erro ao carregar dados.';
       setError(message);
       toast({
-        title: 'Erro',
+        title: 'Erro ao Carregar',
         description: message,
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  }, [toast, dateFrom, dateTo]);
+  }, [toast, navigate, dateFrom, dateTo, debouncedSearchTerm]);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  const allRows = useMemo(() => ordersToRows(orders), [orders]);
+  // Simplificação: Agora os dados já vêm pré-processados do Rust
+  const allRows = useMemo(() => cacheData?.rows || [], [cacheData]);
+  const materialsList = useMemo(() => cacheData?.materialsList || [], [cacheData]);
+  const dashboardMetrics = useMemo(() => cacheData?.metrics || {
+    totalMeters: 0,
+    uniqueOrders: 0,
+    uniqueCustomers: 0,
+    totalItems: 0,
+    topMaterialName: null,
+    topMaterialValue: null
+  }, [cacheData]);
+
+  const barChartData = useMemo(() => cacheData?.barChart || [], [cacheData]);
+  const pieChartData = useMemo(() => cacheData?.pieChart || [], [cacheData]);
+  const areaChartData = useMemo(() => cacheData?.areaChart || [], [cacheData]);
 
   const filteredRows = useMemo(() => {
     let list = allRows;
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      list = list.filter(
-        (r) =>
-          r.material.toLowerCase().includes(term) ||
-          r.descricao.toLowerCase().includes(term) ||
-          r.cliente.toLowerCase().includes(term) ||
-          r.numero.toLowerCase().includes(term) ||
-          r.tipoProducao.toLowerCase().includes(term)
-      );
-    }
     if (sortColumn) {
       list = [...list].sort((a, b) => {
         const aVal = a[sortColumn] ?? '';
@@ -231,14 +311,7 @@ export default function MateriaisPedidos() {
       });
     }
     return list;
-  }, [allRows, searchTerm, sortColumn, sortDirection]);
-
-  /** Lista de materiais únicos (para abas), ordenada, sem "—" no início */
-  const materialsList = useMemo(() => {
-    const set = new Set<string>();
-    allRows.forEach((r) => { if (r.material && r.material !== '—') set.add(r.material); });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-  }, [allRows]);
+  }, [allRows, sortColumn, sortDirection]);
 
   /** Linhas da aba atual (Todos ou um material) */
   const rowsForTab = useMemo(() => {
@@ -246,77 +319,11 @@ export default function MateriaisPedidos() {
     return filteredRows.filter((r) => r.material === activeMaterialTab);
   }, [filteredRows, activeMaterialTab]);
 
-  /** Total de metros lineares na aba atual */
-  const totalLinearMetersTab = useMemo(
-    () => rowsForTab.reduce((s, r) => s + r.linearMeters, 0),
-    [rowsForTab]
-  );
-
   const totalPages = Math.max(1, Math.ceil(rowsForTab.length / ROWS_PER_PAGE));
   const paginatedRows = useMemo(
     () => rowsForTab.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE),
     [rowsForTab, page]
   );
-
-  /** Métricas para o Dashboard */
-  const dashboardMetrics = useMemo(() => {
-    const list = rowsForTab;
-    const totalMeters = list.reduce((s, r) => s + r.linearMeters, 0);
-    const uniqueOrders = new Set(list.map((r) => r.orderId)).size;
-    const uniqueCustomers = new Set(list.map((r) => r.cliente)).size;
-    const totalItems = list.length;
-
-    // Material mais usado
-    const materialCounts: Record<string, number> = {};
-    list.forEach((r) => {
-      materialCounts[r.material] = (materialCounts[r.material] || 0) + r.linearMeters;
-    });
-    const topMaterial = Object.entries(materialCounts).sort((a, b) => b[1] - a[1])[0];
-
-    return {
-      totalMeters,
-      uniqueOrders,
-      uniqueCustomers,
-      totalItems,
-      topMaterial: topMaterial ? { name: topMaterial[0], value: topMaterial[1] } : null,
-    };
-  }, [rowsForTab]);
-
-  /** Dados para Gráfico de Barras: Consumo por Material */
-  const barChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    rowsForTab.forEach((r) => {
-      counts[r.material] = (counts[r.material] || 0) + r.linearMeters;
-    });
-    return Object.entries(counts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-  }, [rowsForTab]);
-
-  /** Dados para Gráfico Donut: Distribuição por Tipo */
-  const pieChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    rowsForTab.forEach((r) => {
-      counts[r.tipoProducao] = (counts[r.tipoProducao] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 7);
-  }, [rowsForTab]);
-
-  /** Dados para Gráfico de Linha: Consumo por Dia */
-  const lineChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    rowsForTab.forEach((r) => {
-      const date = r.dataEntrada ? r.dataEntrada.split('T')[0] : 'Indefinida';
-      counts[date] = (counts[date] || 0) + r.linearMeters;
-    });
-    return Object.entries(counts)
-      .map(([date, value]) => ({ date, value }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [rowsForTab]);
 
   /** Resetar para primeira página ao trocar de aba */
   const handleTabChange = (value: string) => {
@@ -373,7 +380,7 @@ export default function MateriaisPedidos() {
   };
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className={cn("space-y-6 pb-10 transition-opacity duration-300", isPending && "opacity-60 pointer-events-none")}>
       {/* Header Inline Compacto */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
@@ -403,7 +410,13 @@ export default function MateriaisPedidos() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+              onChange={(e) => {
+                const val = e.target.value;
+                startTransition(() => {
+                  setDateFrom(val);
+                  setPage(0);
+                });
+              }}
               className="text-xs border-none focus:ring-0 p-0 w-28"
             />
             <div className="h-4 w-[1px] bg-slate-200 mx-1" />
@@ -411,7 +424,13 @@ export default function MateriaisPedidos() {
             <input
               type="date"
               value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+              onChange={(e) => {
+                const val = e.target.value;
+                startTransition(() => {
+                  setDateTo(val);
+                  setPage(0);
+                });
+              }}
               className="text-xs border-none focus:ring-0 p-0 w-28"
             />
           </div>
@@ -421,7 +440,11 @@ export default function MateriaisPedidos() {
             <Input
               placeholder="Buscar..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchTerm(val);
+                startTransition(() => setPage(0));
+              }}
               className="pl-9 h-9 w-[200px] bg-white border-slate-200 shadow-sm"
             />
           </div>
@@ -458,7 +481,7 @@ export default function MateriaisPedidos() {
                 { label: 'Total m Lineares', value: `${dashboardMetrics.totalMeters.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}m`, icon: Ruler, color: 'text-blue-600', bg: 'bg-blue-50' },
                 { label: 'Pedidos Únicos', value: dashboardMetrics.uniqueOrders, icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                 { label: 'Clientes Atendidos', value: dashboardMetrics.uniqueCustomers, icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
-                { label: 'Top Material', value: dashboardMetrics.topMaterial?.name || '—', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50', sub: `${dashboardMetrics.topMaterial?.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}m totais` },
+                { label: 'Top Material', value: dashboardMetrics.topMaterialName || '—', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
               ].map((kpi, i) => (
                 <div key={i} className={cn("p-4 flex flex-col gap-1 rounded-xl transition-all hover:bg-slate-50", i !== 3 && "border-b border-slate-50")}>
                   <div className="flex items-center justify-between">
@@ -467,7 +490,9 @@ export default function MateriaisPedidos() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xl font-black text-slate-800 tracking-tight">{kpi.value}</span>
-                    {kpi.sub && <span className="text-[10px] text-slate-400 font-medium">{kpi.sub}</span>}
+                    {kpi.label === 'Top Material' && dashboardMetrics.topMaterialValue !== null && (
+                      <span className="text-[10px] text-slate-400 font-medium">{dashboardMetrics.topMaterialValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}m totais</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -570,7 +595,7 @@ export default function MateriaisPedidos() {
             <CardContent className="px-1 pt-6 pb-2">
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={lineChartData} margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
+                  <AreaChart data={areaChartData} margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />

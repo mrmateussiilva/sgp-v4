@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Emitter};
 use tracing::{error, info, debug};
 use sqlx::PgPool;
 
@@ -182,7 +182,7 @@ async fn emit_order_status_changed(app_handle: &AppHandle, order: &OrderStatus) 
     info!("🚀 Tentando emitir evento order_status_changed para pedido {}", order.id);
     info!("📋 Dados do evento: {:?}", notification);
     
-    match app_handle.emit_all("order_status_changed", &notification) {
+    match app_handle.emit("order_status_changed", &notification) {
         Ok(_) => {
             info!("✅ Evento order_status_changed emitido com SUCESSO para pedido {}: {}", order.id, order.status);
             info!("📡 Evento enviado para todos os listeners conectados");
@@ -236,7 +236,7 @@ pub async fn test_order_polling(app_handle: AppHandle) -> Result<String, String>
     info!("🚀 [BACKEND] Tentando emitir evento de teste...");
     info!("📋 [BACKEND] Dados do teste: {:?}", test_notification);
     
-    match app_handle.emit_all("order_status_changed", &test_notification) {
+    match app_handle.emit("order_status_changed", &test_notification) {
         Ok(_) => {
             info!("✅ [BACKEND] Teste executado com SUCESSO!");
             info!("📡 [BACKEND] Evento enviado para todos os listeners");

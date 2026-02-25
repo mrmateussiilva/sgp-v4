@@ -58,7 +58,6 @@ fn main() {
             generate_production_pdf,
         ])
         .setup(|app| {
-            // Atualizar título da janela com a versão
             let version = env!("CARGO_PKG_VERSION");
             let title = format!("SGP - Sistema de Gerenciamento de Pedidos v{}", version);
             
@@ -67,7 +66,6 @@ fn main() {
                     warn!("Erro ao definir título da janela: {}", e);
                 });
                 
-                // Maximizar a janela ao abrir
                 window.maximize().unwrap_or_else(|e| {
                     warn!("Erro ao maximizar janela: {}", e);
                 });
@@ -76,7 +74,7 @@ fn main() {
             }
             
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
-            info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");
+            info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend via API Python.");
             Ok(())
         })
         .run(tauri::generate_context!())

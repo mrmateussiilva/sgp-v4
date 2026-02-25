@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Emitter};
 use tracing::{error, info};
 
 // ========================================
@@ -27,7 +27,7 @@ pub async fn notify_order_created(app_handle: &AppHandle, order_id: i32) {
         timestamp: chrono::Utc::now(),
     };
     
-    if let Err(e) = app_handle.emit_all("order_created", &notification) {
+    if let Err(e) = app_handle.emit("order_created", &notification) {
         error!("Erro ao emitir notificação de criação: {}", e);
     } else {
         info!("✅ Notificação de criação enviada para pedido {}", order_id);
@@ -43,7 +43,7 @@ pub async fn notify_order_updated(app_handle: &AppHandle, order_id: i32) {
         timestamp: chrono::Utc::now(),
     };
     
-    if let Err(e) = app_handle.emit_all("order_updated", &notification) {
+    if let Err(e) = app_handle.emit("order_updated", &notification) {
         error!("Erro ao emitir notificação de atualização: {}", e);
     } else {
         info!("✅ Notificação de atualização enviada para pedido {}", order_id);
@@ -59,7 +59,7 @@ pub async fn notify_order_deleted(app_handle: &AppHandle, order_id: i32) {
         timestamp: chrono::Utc::now(),
     };
     
-    if let Err(e) = app_handle.emit_all("order_deleted", &notification) {
+    if let Err(e) = app_handle.emit("order_deleted", &notification) {
         error!("Erro ao emitir notificação de exclusão: {}", e);
     } else {
         info!("✅ Notificação de exclusão enviada para pedido {}", order_id);
@@ -75,7 +75,7 @@ pub async fn notify_order_status_changed(app_handle: &AppHandle, order_id: i32, 
         timestamp: chrono::Utc::now(),
     };
     
-    if let Err(e) = app_handle.emit_all("order_status_changed", &notification) {
+    if let Err(e) = app_handle.emit("order_status_changed", &notification) {
         error!("Erro ao emitir notificação de status: {}", e);
     } else {
         info!("✅ Notificação de status enviada para pedido {}", order_id);
@@ -97,7 +97,7 @@ pub async fn test_simple_notification(app_handle: AppHandle) -> Result<String, S
         timestamp: chrono::Utc::now(),
     };
     
-    match app_handle.emit_all("test_notification", &notification) {
+    match app_handle.emit("test_notification", &notification) {
         Ok(_) => Ok("✅ Notificação de teste enviada com sucesso".to_string()),
         Err(e) => Err(format!("❌ Erro ao enviar notificação: {}", e)),
     }
