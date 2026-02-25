@@ -2401,12 +2401,66 @@ export default function OrderList() {
                               {getSortIcon('cidade')}
                             </div>
                           </TableHead>
-                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Fin.</TableHead>
-                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Conf.</TableHead>
-                          <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Subl.</TableHead>
-                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Cost.</TableHead>
-                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">Exp.</TableHead>
-                          <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Status</TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Fin.</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Financeiro</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Conf.</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Conferência</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Imp.</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Impressão</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Cost.</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Costura</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Exp.</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Expedição</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-default">Status</span>
+                                </TooltipTrigger>
+                                <TooltipContent>Status do pedido (Pronto / Em andamento)</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
                           <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2607,33 +2661,50 @@ export default function OrderList() {
                                           />
                                         </div>
                                       </TooltipTrigger>
-                                      {!isAdmin && (
-                                        <TooltipContent>
-                                          <p>Somente administradores podem executar esta ação.</p>
-                                        </TooltipContent>
-                                      )}
+                                      <TooltipContent>
+                                        <p>Financeiro</p>
+                                        {!isAdmin && <p className="text-xs mt-0.5">Somente administradores podem alterar.</p>}
+                                      </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 </TableCell>
 
                                 {/* Conferência - Só habilitado se Financeiro estiver marcado */}
                                 <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                                  <Checkbox
-                                    checked={order.conferencia === true}
-                                    disabled={!order.financeiro}
-                                    onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
-                                    className="transition-all duration-150 data-[state=checked]:scale-110"
-                                  />
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                          <Checkbox
+                                            checked={order.conferencia === true}
+                                            disabled={!order.financeiro}
+                                            onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
+                                            className="transition-all duration-150 data-[state=checked]:scale-110"
+                                          />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Conferência</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </TableCell>
 
-                                {/* Sublimação - Só habilitado se Financeiro estiver marcado */}
+                                {/* Impressão - Só habilitado se Financeiro estiver marcado */}
                                 <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                                  <Checkbox
-                                    checked={order.sublimacao === true}
-                                    disabled={!order.financeiro}
-                                    onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Sublimação')}
-                                    className="transition-all duration-150 data-[state=checked]:scale-110"
-                                  />
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                          <Checkbox
+                                            checked={order.sublimacao === true}
+                                            disabled={!order.financeiro}
+                                            onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Impressão')}
+                                            className="transition-all duration-150 data-[state=checked]:scale-110"
+                                          />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Impressão</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
                                     <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
                                       {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
@@ -2646,40 +2717,67 @@ export default function OrderList() {
 
                                 {/* Costura - Só habilitado se Financeiro estiver marcado */}
                                 <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                                  <Checkbox
-                                    checked={order.costura === true}
-                                    disabled={!order.financeiro}
-                                    onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
-                                    className="transition-all duration-150 data-[state=checked]:scale-110"
-                                  />
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                          <Checkbox
+                                            checked={order.costura === true}
+                                            disabled={!order.financeiro}
+                                            onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
+                                            className="transition-all duration-150 data-[state=checked]:scale-110"
+                                          />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Costura</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </TableCell>
 
                                 {/* Expedição - Só habilitado se Financeiro estiver marcado */}
                                 <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
-                                  <Checkbox
-                                    checked={order.expedicao === true}
-                                    disabled={!order.financeiro}
-                                    onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
-                                    className="transition-all duration-150 data-[state=checked]:scale-110"
-                                  />
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="inline-block">
+                                          <Checkbox
+                                            checked={order.expedicao === true}
+                                            disabled={!order.financeiro}
+                                            onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
+                                            className="transition-all duration-150 data-[state=checked]:scale-110"
+                                          />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Expedição</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </TableCell>
 
                                 {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
                                 <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    {order.pronto && (
-                                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
-                                    )}
-                                    <Badge
-                                      variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
-                                      className={`
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center justify-center gap-1.5">
+                                          {order.pronto && (
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
+                                          )}
+                                          <Badge
+                                            variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
+                                            className={`
                                 text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
                                 ${order.pronto ? '' : isDelayed ? 'animate-pulse' : ''}
                               `}
-                                    >
-                                      {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
-                                    </Badge>
-                                  </div>
+                                          >
+                                            {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                                          </Badge>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </TableCell>
                                 <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
                                   <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
@@ -2966,7 +3064,7 @@ export default function OrderList() {
                       </div>
                       {statusConfirmModal.campo === 'financeiro' && (
                         <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Sublimação, Costura e Expedição) também serão desmarcados!
+                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Impressão, Costura e Expedição) também serão desmarcados!
                         </div>
                       )}
                     </div>
