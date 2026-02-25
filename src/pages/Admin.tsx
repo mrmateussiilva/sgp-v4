@@ -1,4 +1,4 @@
-import { Package, Palette, Users, Truck, CreditCard, Settings, FileText, Monitor } from 'lucide-react';
+import { Package, Palette, Users, Truck, CreditCard, Settings, FileText, Monitor, Plug } from 'lucide-react';
 import { AdminStatusBanner } from '@/components/admin/AdminStatusBanner';
 import { AdminModuleSection } from '@/components/admin/AdminModuleSection';
 import { AdminModule } from '@/components/admin/AdminModuleCard';
@@ -85,6 +85,14 @@ export default function Admin() {
       color: 'text-teal-600',
       stats: 'padrão',
       status: 'ok',
+    },
+    {
+      title: 'Integrar com sistema de estoque de terceiros',
+      icon: Plug,
+      path: '/dashboard/admin/integracao-estoque',
+      color: 'text-sky-600',
+      stats: 'integração',
+      status: 'attention',
     },
   ];
 

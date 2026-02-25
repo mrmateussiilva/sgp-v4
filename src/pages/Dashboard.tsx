@@ -15,7 +15,8 @@ import {
   Truck,
   RefreshCw,
   Loader2,
-  Printer
+  Printer,
+  Package
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -51,6 +52,8 @@ const PrintLogs = lazy(() => import('./PrintLogs'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
+const IntegracaoEstoque = lazy(() => import('./admin/IntegracaoEstoque'));
+const MateriaisPedidos = lazy(() => import('./admin/MateriaisPedidos'));
 
 // Componente de loading para rotas lazy
 const RouteLoadingFallback = () => (
@@ -171,6 +174,13 @@ export default function Dashboard() {
       icon: FileText,
       label: 'Fechamentos',
       path: '/dashboard/fechamentos',
+      adminOnly: true,
+      section: 'GESTÃO'
+    },
+    {
+      icon: Package,
+      label: 'Materiais',
+      path: '/dashboard/materiais-pedidos',
       adminOnly: true,
       section: 'GESTÃO'
     },
@@ -389,6 +399,14 @@ export default function Dashboard() {
                   }
                 />
                 <Route
+                  path="/materiais-pedidos"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <MateriaisPedidos />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/admin"
                   element={
                     <ProtectedRoute requireAdmin={true}>
@@ -474,6 +492,14 @@ export default function Dashboard() {
                   element={
                     <ProtectedRoute requireAdmin={true}>
                       <GestaoMaquinas />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/integracao-estoque"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <IntegracaoEstoque />
                     </ProtectedRoute>
                   }
                 />
