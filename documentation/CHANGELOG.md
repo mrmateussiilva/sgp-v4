@@ -4,6 +4,12 @@
 
 ### 🐛 Correções
 - **Emenda em totem e outros tipos**: Ajustes no frontend para que emenda (e outros campos por tipo) não apareçam nem sejam persistidos para tipos que não suportam. (1) Na tela de detalhe do pedido, a seção "Emenda" só é exibida para itens dos tipos painel, genérica e lona; totem, adesivo e demais tipos não mostram mais emenda mesmo quando havia dado antigo. (2) Ao salvar, o payload não envia mais emenda/emenda_qtd para tipos fora de painel/genérica/lona, evitando gravar dado incorreto. (3) Ao abrir um pedido para edição, itens carregados do backend são normalizados: campos que não se aplicam ao tipo do item (ex.: emenda em totem) são limpos no formulário, alinhando exibição e persistência ao tipo sem alterações no backend.
+- **Duplicação de itens ao trocar tipo**: Ao alterar o tipo de produção de um item para um tipo **diferente**, o item passa a ser resetado mantendo apenas descrição, medida (largura, altura, m²), designer, vendedor e imagem; valores e demais campos são limpos. Quando o tipo é o **mesmo** (ex.: ao duplicar item sem mudar tipo), todas as informações são mantidas, inclusive valor.
+
+### ✨ Melhorias
+- **Status de produção – Impressão**: Coluna "Subl." renomeada para "Imp." (Impressão). Modal de confirmação e avisos passam a exibir "Impressão" em vez de "Sublimação" (ex.: "Deseja desmarcar Impressão para o pedido #2?").
+- **Tooltips nos status**: Cabeçalhos das colunas (Fin., Conf., Imp., Cost., Exp., Status) e cada checkbox/badge de status exibem tooltip com o nome completo ao passar o mouse (Financeiro, Conferência, Impressão, Costura, Expedição, Status do pedido).
+- **Prioridade para usuário impressao**: Quando o usuário logado é "impressao", a lista de pedidos ordena primeiro os pedidos **sem** status Impressão marcado, depois prioridade ALTA e ID descendente, facilitando o dia a dia do setor de impressão sem alterações no backend.
 
 ## [1.2.8] - 2026-02-24
 

@@ -1,5 +1,16 @@
 # Changelog - SGP v4
 
+## [1.2.9] - 2026-02-24
+
+### 🐛 Correções
+- **Emenda em totem e outros tipos**: Ajustes no frontend para que emenda (e outros campos por tipo) não apareçam nem sejam persistidos para tipos que não suportam.
+- **Duplicação de itens ao trocar tipo**: Ao alterar o tipo de produção para um tipo diferente, o item é resetado mantendo apenas descrição, medida, designer, vendedor e imagem; quando o tipo é o mesmo (ex.: duplicar sem mudar tipo), mantém todas as informações inclusive valor.
+
+### ✨ Melhorias
+- **Status de produção – Impressão**: Coluna "Subl." renomeada para "Imp."; modal e avisos usam "Impressão" em vez de "Sublimação".
+- **Tooltips nos status**: Cabeçalhos e checkboxes dos status exibem tooltip com o nome completo (Financeiro, Conferência, Impressão, Costura, Expedição, Status).
+- **Prioridade para usuário impressao**: Usuário "impressao" vê primeiro os pedidos sem Impressão marcada na lista.
+
 ## [1.2.6] - 2026-02-15
 
 ### ✨ Adicionado
