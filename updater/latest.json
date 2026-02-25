@@ -1,11 +1,11 @@
 {
-  "version": "1.2.8",
+  "version": "1.2.9",
   "notes": "Correção da duplicação de items",
-  "pub_date": "2026-02-24T01:00:00Z",
+  "pub_date": "2026-02-25T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.8/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.8_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3Y5Nm1PZUtCSHlpL1A1cVJRSTJ3QjN2T2k1dTFZcFdLNWZEZ0NPb2JMdmhncVVyRkE5T2RWUCtPLzdjMm5vU0g3bUJDRWQvUWUybFU0OHNkemN1WndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcxOTQ3MjgwCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjhfeDY0X2VuLVVTLm1zaQo5bEhzVWY3bVNJMHFaazRLVEE1Z1JYczhqU2p1dWNONHRqV2FtM0VPRldVTWlMVkh1bmhoM24xaDJGeE9rQjBSZkJqOFp6TmJJbGsxMnBSejNPWThCdz09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.2.9/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.2.9_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY21tREpEMmlBSmRxcUhjbDkrOGVvOUZNY3NLdkFrZ0VidzlvR0ZIdWdidXVLZ3plOW0raFRPTDU4bDBDWGpGU2wyNEZabHZ6UjVnM2EzWFE0YWhkQmdRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzcyMDIyNjU0CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4yLjlfeDY0X2VuLVVTLm1zaQpoRnNvNUFmSWJSY2ZlMTcxOTFnY1poZ3FvSWRHaEVDR0RHaVUwNldFNEhvQ3NZdzc5VG1GakM4d2V5allyemVHYTBTQ1gycmV0SS85K3d2dkFiVCtDZz09Cg=="
     }
   }
 }
