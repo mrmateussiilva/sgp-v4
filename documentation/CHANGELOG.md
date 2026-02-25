@@ -11,7 +11,7 @@
 - **Tooltips nos status**: Cabeçalhos das colunas (Fin., Conf., Imp., Cost., Exp., Status) e cada checkbox/badge de status exibem tooltip com o nome completo ao passar o mouse (Financeiro, Conferência, Impressão, Costura, Expedição, Status do pedido).
 - **Prioridade para usuário impressao**: Quando o usuário logado é "impressao", a lista de pedidos ordena primeiro os pedidos **sem** status Impressão marcado, depois prioridade ALTA e ID descendente, facilitando o dia a dia do setor de impressão sem alterações no backend.
 
-## [1.2.8] - 2026-02-24
+## [1.2.8.9] - 2026-02-24
 
 ### 🐛 Correções
 - **Duplicar item e trocar tipo de produção**: Corrigido o problema em que, ao duplicar um item (ex.: tecido) e depois alterar o tipo do item duplicado para outro (ex.: totem), o item mantinha dados específicos do tipo anterior (como emenda, quantidade de emendas). Agora, ao mudar o tipo de produção de um item, os campos que não se aplicam ao novo tipo são automaticamente limpos (ex.: emenda e emenda_qtd são resetados ao trocar para totem). A regra de quais campos pertencem a cada tipo é definida em `FIELD_ALLOWED_TYPES` e os valores padrão são aplicados na troca de tipo.
