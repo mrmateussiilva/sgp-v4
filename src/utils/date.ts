@@ -100,3 +100,16 @@ export const ensureDateInputValue = (value?: string | null) => {
 
   return `${year}-${month}-${day}`;
 };
+export const isDateExpired = (dateString?: string | null) => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  return target < today;
+};
