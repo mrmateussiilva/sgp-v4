@@ -69,7 +69,8 @@ export default function OrderList() {
   const isPwa = !isTauri();
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
-  const { isAdmin } = useUser();
+  const { isAdmin, username } = useUser();
+  const isImpressaoUser = (username ?? '').trim().toLowerCase() === 'impressao';
 
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1280,11 +1281,24 @@ export default function OrderList() {
         // 3. ID (descendente)
         return (b.id || 0) - (a.id || 0);
       });
+    } else if (isImpressaoUser) {
+      // Usuário impressao: pedidos sem Impressão marcada primeiro, depois prioridade ALTA, depois ID desc
+      filtered = [...filtered].sort((a, b) => {
+        const aPendente = a.sublimacao !== true;
+        const bPendente = b.sublimacao !== true;
+        if (aPendente !== bPendente) {
+          return aPendente ? -1 : 1;
+        }
+        if (a.prioridade !== b.prioridade) {
+          return a.prioridade === 'ALTA' ? -1 : 1;
+        }
+        return (b.id || 0) - (a.id || 0);
+      });
     }
 
     logger.debug('[OrderList] filteredOrders - resultado final length:', filtered.length);
     return filtered;
-  }, [orders, activeSearchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, sortColumn, sortDirection, isBackendPaginated]);
+  }, [orders, activeSearchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, sortColumn, sortDirection, isBackendPaginated, isAdmin, isImpressaoUser]);
 
   // Calcular total de páginas baseado nos pedidos filtrados
   const totalPagesFiltered = useMemo(() => {
@@ -1377,6 +1391,23 @@ export default function OrderList() {
         return result;
       }
 
+      if (isImpressaoUser) {
+        // Usuário impressao: na página atual, pedidos sem Impressão primeiro, depois prioridade ALTA, depois ID desc
+        const result = [...orders].sort((a, b) => {
+          const aPendente = a.sublimacao !== true;
+          const bPendente = b.sublimacao !== true;
+          if (aPendente !== bPendente) {
+            return aPendente ? -1 : 1;
+          }
+          if (a.prioridade !== b.prioridade) {
+            return a.prioridade === 'ALTA' ? -1 : 1;
+          }
+          return (b.id || 0) - (a.id || 0);
+        });
+        logger.debug('[OrderList] paginatedOrders - resultado (backend impressao sort):', result.length);
+        return result;
+      }
+
       const result = orders; // orders já vem paginado do backend
       logger.debug('[OrderList] paginatedOrders - resultado (backend):', result.length);
       return result;
@@ -1387,7 +1418,7 @@ export default function OrderList() {
     const result = filteredOrders.slice(startIndex, endIndex);
     logger.debug('[OrderList] paginatedOrders - resultado (frontend):', result.length, 'slice:', startIndex, '-', endIndex);
     return result;
-  }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated, sortColumn, sortDirection]);
+  }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated, sortColumn, sortDirection, isAdmin, isImpressaoUser]);
 
   // Handlers para painel lateral - DESABILITADO
   // const handleOpenContextPanel = (order: OrderWithItems) => {
