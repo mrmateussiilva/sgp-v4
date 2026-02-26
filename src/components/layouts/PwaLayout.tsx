@@ -1,6 +1,15 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Truck, LogOut, Menu } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Truck,
+  LogOut,
+  Menu,
+  BarChart,
+  Users,
+  FileText,
+} from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -21,16 +30,23 @@ const NAV_ITEMS: Array<{
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
+  adminOnly?: boolean;
 }> = [
   { path: '/dashboard', label: 'Início', icon: LayoutDashboard, exact: true },
   { path: '/dashboard/orders', label: 'Pedidos', icon: ShoppingCart },
+  { path: '/dashboard/pedido/novo', label: 'Novo', icon: ShoppingCart },
+  { path: '/dashboard/clientes', label: 'Clientes', icon: Users },
   { path: '/dashboard/relatorios-envios', label: 'Envios', icon: Truck },
+  { path: '/dashboard/painel-desempenho', label: 'Desempenho', icon: BarChart, adminOnly: true },
+  { path: '/dashboard/fechamentos', label: 'Fechamentos', icon: FileText, adminOnly: true },
 ];
 
 export function PwaLayout({ children }: PwaLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { username } = useAuthStore();
+  const { username, isAdmin } = useAuthStore();
+
+  const filteredNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   const isActive = (path: string, exact?: boolean) => {
     if (exact) return location.pathname === path;
@@ -66,8 +82,12 @@ export function PwaLayout({ children }: PwaLayoutProps) {
         </Link>
 
         {/* Nav - desktop: linha, mobile: hamburger */}
-        <nav className="hidden sm:flex items-center gap-1" role="navigation" aria-label="Menu principal">
-          {NAV_ITEMS.map(({ path, label, icon: Icon, exact }) => {
+        <nav
+          className="hidden sm:flex items-center gap-1"
+          role="navigation"
+          aria-label="Menu principal"
+        >
+          {filteredNavItems.map(({ path, label, icon: Icon, exact }) => {
             const active = isActive(path, exact);
             return (
               <Link
@@ -91,12 +111,17 @@ export function PwaLayout({ children }: PwaLayoutProps) {
         <div className="flex sm:hidden items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" aria-label="Abrir menu">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-h-[44px] min-w-[44px]"
+                aria-label="Abrir menu"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {NAV_ITEMS.map(({ path, label, icon: Icon, exact }) => {
+              {filteredNavItems.map(({ path, label, icon: Icon, exact }) => {
                 const active = isActive(path, exact);
                 return (
                   <DropdownMenuItem key={path} asChild>
@@ -136,7 +161,10 @@ export function PwaLayout({ children }: PwaLayoutProps) {
       </header>
 
       {/* Área de conteúdo */}
-      <main className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar max-w-4xl mx-auto w-full" role="main">
+      <main
+        className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar max-w-7xl mx-auto w-full"
+        role="main"
+      >
         {children}
       </main>
     </div>

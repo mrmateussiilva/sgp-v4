@@ -1,6 +1,21 @@
 import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { isTauri } from '@/utils/isTauri';
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return isMobile;
+};
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -15,7 +30,7 @@ import {
   Truck,
   RefreshCw,
   Loader2,
-  Printer
+  Printer,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -47,7 +62,9 @@ const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
 const GestaoMaquinas = lazy(() => import('./admin/GestaoMaquinas'));
-const ProducaoMaquinas = lazy(() => import('./ProducaoMaquinas').then(module => ({ default: module.ProducaoMaquinas })));
+const ProducaoMaquinas = lazy(() =>
+  import('./ProducaoMaquinas').then((module) => ({ default: module.ProducaoMaquinas }))
+);
 const PrintLogs = lazy(() => import('./PrintLogs'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
@@ -70,6 +87,7 @@ export default function Dashboard() {
   const location = useLocation();
   const { username, isAdmin } = useAuthStore();
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
+  const isMobile = useIsMobile();
 
   // Obter versão do app
   useEffect(() => {
@@ -102,44 +120,47 @@ export default function Dashboard() {
   }, [navigate]);
 
   // Atalhos de teclado
-  const dashboardShortcuts = useMemo(() => [
-    {
-      key: '1',
-      ctrl: true,
-      action: () => navigate('/dashboard'),
-      description: 'Ir para Início',
-    },
-    {
-      key: '2',
-      ctrl: true,
-      action: () => navigate('/dashboard/orders'),
-      description: 'Ir para Pedidos',
-    },
-    {
-      key: '3',
-      ctrl: true,
-      action: () => navigate('/dashboard/pedido/novo'),
-      description: 'Novo Pedido',
-    },
-    {
-      key: '4',
-      ctrl: true,
-      action: () => navigate('/dashboard/clientes'),
-      description: 'Ir para Clientes',
-    },
-    {
-      key: 'b',
-      ctrl: true,
-      action: () => setSidebarExpanded((prev) => !prev),
-      description: 'Recolher/Expandir menu lateral',
-    },
-    {
-      key: 'r',
-      ctrl: true,
-      action: () => window.location.reload(),
-      description: 'Atualizar sistema',
-    },
-  ], [navigate, setSidebarExpanded]);
+  const dashboardShortcuts = useMemo(
+    () => [
+      {
+        key: '1',
+        ctrl: true,
+        action: () => navigate('/dashboard'),
+        description: 'Ir para Início',
+      },
+      {
+        key: '2',
+        ctrl: true,
+        action: () => navigate('/dashboard/orders'),
+        description: 'Ir para Pedidos',
+      },
+      {
+        key: '3',
+        ctrl: true,
+        action: () => navigate('/dashboard/pedido/novo'),
+        description: 'Novo Pedido',
+      },
+      {
+        key: '4',
+        ctrl: true,
+        action: () => navigate('/dashboard/clientes'),
+        description: 'Ir para Clientes',
+      },
+      {
+        key: 'b',
+        ctrl: true,
+        action: () => setSidebarExpanded((prev) => !prev),
+        description: 'Recolher/Expandir menu lateral',
+      },
+      {
+        key: 'r',
+        ctrl: true,
+        action: () => window.location.reload(),
+        description: 'Atualizar sistema',
+      },
+    ],
+    [navigate, setSidebarExpanded]
+  );
 
   useKeyboardShortcuts(dashboardShortcuts);
 
@@ -153,109 +174,116 @@ export default function Dashboard() {
     shortcutLabel?: string;
   }
 
-  const allMenuItems: MenuItem[] = useMemo(() => [
-    {
-      icon: LayoutDashboard,
-      label: 'Início',
-      path: '/dashboard',
-      exact: true,
-      adminOnly: false,
-      section: 'OPERACIONAL',
-      shortcutLabel: '1'
-    },
-    {
-      icon: ShoppingCart,
-      label: 'Pedidos',
-      path: '/dashboard/orders',
-      adminOnly: false,
-      section: 'OPERACIONAL',
-      shortcutLabel: '2'
-    },
-    {
-      icon: Plus,
-      label: 'Novo Pedido',
-      path: '/dashboard/pedido/novo',
-      adminOnly: false,
-      section: 'OPERACIONAL',
-      shortcutLabel: '3'
-    },
-    {
-      icon: Users,
-      label: 'Clientes',
-      path: '/dashboard/clientes',
-      adminOnly: false,
-      section: 'OPERACIONAL',
-      shortcutLabel: '4'
-    },
-    {
-      icon: Truck,
-      label: 'Envios',
-      path: '/dashboard/relatorios-envios',
-      adminOnly: false,
-      section: 'OPERACIONAL'
-    },
-    {
-      icon: Printer,
-      label: 'Logs de Impressão',
-      path: '/dashboard/print-logs',
-      adminOnly: false,
-      section: 'OPERACIONAL'
-    },
-    {
-      icon: BarChart,
-      label: 'Desempenho',
-      path: '/dashboard/painel-desempenho',
-      adminOnly: true,
-      section: 'GESTÃO'
-    },
-    // {
-    //   icon: MonitorPlay,
-    //   label: 'Produção',
-    //   path: '/dashboard/painel-producao',
-    //   adminOnly: false,
-    //   section: 'OPERACIONAL'
-    // },
-    {
-      icon: FileText,
-      label: 'Fechamentos',
-      path: '/dashboard/fechamentos',
-      adminOnly: true,
-      section: 'GESTÃO'
-    },
-    {
-      icon: Settings,
-      label: 'Admin',
-      path: '/dashboard/admin',
-      adminOnly: true,
-      section: 'SISTEMA'
-    },
-    {
-      icon: RefreshCw,
-      label: 'Atualizações',
-      path: '/update-status',
-      adminOnly: false,
-      section: 'SISTEMA'
-    },
-  ], []);
+  const allMenuItems: MenuItem[] = useMemo(
+    () => [
+      {
+        icon: LayoutDashboard,
+        label: 'Início',
+        path: '/dashboard',
+        exact: true,
+        adminOnly: false,
+        section: 'OPERACIONAL',
+        shortcutLabel: '1',
+      },
+      {
+        icon: ShoppingCart,
+        label: 'Pedidos',
+        path: '/dashboard/orders',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+        shortcutLabel: '2',
+      },
+      {
+        icon: Plus,
+        label: 'Novo Pedido',
+        path: '/dashboard/pedido/novo',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+        shortcutLabel: '3',
+      },
+      {
+        icon: Users,
+        label: 'Clientes',
+        path: '/dashboard/clientes',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+        shortcutLabel: '4',
+      },
+      {
+        icon: Truck,
+        label: 'Envios',
+        path: '/dashboard/relatorios-envios',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+      },
+      {
+        icon: Printer,
+        label: 'Logs de Impressão',
+        path: '/dashboard/print-logs',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+      },
+      {
+        icon: BarChart,
+        label: 'Desempenho',
+        path: '/dashboard/painel-desempenho',
+        adminOnly: true,
+        section: 'GESTÃO',
+      },
+      // {
+      //   icon: MonitorPlay,
+      //   label: 'Produção',
+      //   path: '/dashboard/painel-producao',
+      //   adminOnly: false,
+      //   section: 'OPERACIONAL'
+      // },
+      {
+        icon: FileText,
+        label: 'Fechamentos',
+        path: '/dashboard/fechamentos',
+        adminOnly: true,
+        section: 'GESTÃO',
+      },
+      {
+        icon: Settings,
+        label: 'Admin',
+        path: '/dashboard/admin',
+        adminOnly: true,
+        section: 'SISTEMA',
+      },
+      {
+        icon: RefreshCw,
+        label: 'Atualizações',
+        path: '/update-status',
+        adminOnly: false,
+        section: 'SISTEMA',
+      },
+    ],
+    []
+  );
 
   // Filtrar menu baseado em permissões (memoizado)
   // Ocultar "Atualizações" na web - apenas desktop Tauri
-  const menuItems = useMemo(() =>
-    allMenuItems.filter(item =>
-      (!item.adminOnly || isAdmin) && !(item.path === '/update-status' && !isTauri())
-    ),
+  const menuItems = useMemo(
+    () =>
+      allMenuItems.filter(
+        (item) => (!item.adminOnly || isAdmin) && !(item.path === '/update-status' && !isTauri())
+      ),
     [isAdmin, allMenuItems]
   );
 
-  const isActive = useCallback((path: string, exact?: boolean) => {
-    if (exact) {
-      return location.pathname === path;
-    }
-    return location.pathname.startsWith(path);
-  }, [location.pathname]);
+  const isActive = useCallback(
+    (path: string, exact?: boolean) => {
+      if (exact) {
+        return location.pathname === path;
+      }
+      return location.pathname.startsWith(path);
+    },
+    [location.pathname]
+  );
 
-  // Web/PWA: layout simplificado sem sidebar
-  if (!isTauri()) {
+  // Web/PWA: layout simplificado sem sidebar (só no mobile)
+  if (!isTauri() && isMobile) {
     return (
       <TooltipProvider delayDuration={300}>
         <PwaLayout>
@@ -263,7 +291,26 @@ export default function Dashboard() {
             <Routes>
               <Route path="/" element={<DashboardOverview />} />
               <Route path="orders" element={<OrderList />} />
+              <Route path="pedido/novo" element={<PedidoCreateView />} />
+              <Route path="pedido/editar/:id" element={<PedidoEditView />} />
               <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+              <Route
+                path="painel-desempenho"
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <PainelDesempenho />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="clientes" element={<Clientes />} />
+              <Route
+                path="fechamentos"
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <Fechamentos />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>
@@ -277,11 +324,13 @@ export default function Dashboard() {
     <TooltipProvider delayDuration={300}>
       <div className="flex h-screen bg-background overflow-hidden">
         {/* Sidebar Desktop */}
-        <aside className={cn(
-          "hidden md:flex md:flex-col border-r bg-card transition-all duration-300",
-          sidebarExpanded ? "md:w-64" : "md:w-20"
-        )}>
-          <div className={cn("p-6 flex items-center", !sidebarExpanded && "justify-center p-4")}>
+        <aside
+          className={cn(
+            'hidden md:flex md:flex-col border-r bg-card transition-all duration-300',
+            sidebarExpanded ? 'md:w-64' : 'md:w-20'
+          )}
+        >
+          <div className={cn('p-6 flex items-center', !sidebarExpanded && 'justify-center p-4')}>
             {sidebarExpanded ? (
               <div>
                 <h1 className="text-4xl font-bold text-primary">SGP</h1>
@@ -299,8 +348,8 @@ export default function Dashboard() {
               variant="ghost"
               size="sm"
               onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className={cn("w-full", !sidebarExpanded && "justify-center px-0")}
-              aria-label={sidebarExpanded ? "Recolher menu" : "Expandir menu"}
+              className={cn('w-full', !sidebarExpanded && 'justify-center px-0')}
+              aria-label={sidebarExpanded ? 'Recolher menu' : 'Expandir menu'}
               aria-expanded={sidebarExpanded}
             >
               {sidebarExpanded ? (
@@ -316,7 +365,11 @@ export default function Dashboard() {
 
           <Separator />
 
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
+          <nav
+            className="flex-1 p-4 space-y-1 overflow-y-auto"
+            role="navigation"
+            aria-label="Menu principal"
+          >
             {menuItems.map((item, index) => {
               const active = isActive(item.path, item.exact);
               const previousItem = menuItems[index - 1];
@@ -344,7 +397,7 @@ export default function Dashboard() {
 
           {/* Versão do App */}
           {appVersion && (
-            <div className={cn("px-4 py-2", !sidebarExpanded && "flex justify-center")}>
+            <div className={cn('px-4 py-2', !sidebarExpanded && 'flex justify-center')}>
               {sidebarExpanded ? (
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Versão</p>
@@ -357,9 +410,7 @@ export default function Dashboard() {
                       <p className="text-xs font-semibold text-primary">v{appVersion}</p>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    Versão {appVersion}
-                  </TooltipContent>
+                  <TooltipContent side="right">Versão {appVersion}</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -386,9 +437,7 @@ export default function Dashboard() {
                     <LogOut className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">
-                  Sair ({username})
-                </TooltipContent>
+                <TooltipContent side="right">Sair ({username})</TooltipContent>
               </Tooltip>
             ) : (
               <Button
@@ -406,14 +455,16 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-
           {/* Content Area */}
           <main className="flex-1 overflow-y-auto p-6" role="main">
             <Suspense fallback={<RouteLoadingFallback />}>
               <Routes>
                 <Route path="/" element={<DashboardOverview />} />
                 <Route path="orders" element={<OrderList />} />
-                <Route path="orders/new" element={<Navigate to="/dashboard/pedido/novo" replace />} />
+                <Route
+                  path="orders/new"
+                  element={<Navigate to="/dashboard/pedido/novo" replace />}
+                />
                 <Route path="orders/edit/:id" element={<PedidoEditView />} />
                 {/* Rota canônica para novo pedido */}
                 <Route path="pedido/novo" element={<PedidoCreateView />} />

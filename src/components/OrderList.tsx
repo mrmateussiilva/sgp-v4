@@ -1,6 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, Trash2, FileText, Printer, Search, ArrowUp, ArrowDown, X, Filter, CheckSquare, Inbox, Camera, ChevronDown, ChevronUp, Calendar, AlertTriangle, Clock, CheckCircle2, Copy, ChevronRight, Table2, RefreshCw, History, Zap, AlertCircle, Keyboard } from 'lucide-react';
+import {
+  Edit,
+  Trash2,
+  FileText,
+  Plus,
+  Printer,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  X,
+  Filter,
+  CheckSquare,
+  Inbox,
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  Copy,
+  ChevronRight,
+  Table2,
+  RefreshCw,
+  History,
+  Zap,
+  AlertCircle,
+  Keyboard,
+} from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { logger } from '@/utils/logger';
@@ -27,7 +55,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select';
 import {
   Table,
@@ -49,12 +77,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isTauri } from '@/utils/isTauri';
 import { PrintPreviewModal } from './PrintPreviewModal';
 import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
@@ -67,6 +90,7 @@ import { cn } from '@/lib/utils';
 export default function OrderList() {
   const navigate = useNavigate();
   const isPwa = !isTauri();
+  const isMobile = isPwa && typeof window !== 'undefined' && window.innerWidth < 768;
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin, username } = useUser();
@@ -75,7 +99,9 @@ export default function OrderList() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState(''); // Termo de busca ativo (após clicar em buscar)
-  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>('pending');
+  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>(
+    'pending'
+  );
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -95,7 +121,9 @@ export default function OrderList() {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
   const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
   const [cidades, setCidades] = useState<string[]>([]);
-  const [formasEnvio, setFormasEnvio] = useState<Array<{ id: number; nome: string; valor: number }>>([]);
+  const [formasEnvio, setFormasEnvio] = useState<
+    Array<{ id: number; nome: string; valor: number }>
+  >([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -197,8 +225,8 @@ export default function OrderList() {
       new Set(
         orders
           .map((order) => order.cidade_cliente)
-          .filter((cidade): cidade is string => Boolean(cidade)),
-      ),
+          .filter((cidade): cidade is string => Boolean(cidade))
+      )
     ).sort();
     setCidades(uniqueCidades);
   }, [orders]);
@@ -230,7 +258,7 @@ export default function OrderList() {
   const buildStatusUpdatePayload = (
     order: OrderWithItems,
     campo: string,
-    novoValor: boolean,
+    novoValor: boolean
   ): UpdateOrderStatusRequest => {
     // CRÍTICO: Não incluir campo financeiro no payload quando não está sendo alterado
     // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
@@ -283,7 +311,11 @@ export default function OrderList() {
     // Para cálculo de "pronto", usar valor atual do pedido se financeiro não está sendo alterado
     const financeiroParaCalculo = campo === 'financeiro' ? novoValor : financeiroAtual;
     const allComplete =
-      financeiroParaCalculo && payload.conferencia && payload.sublimacao && payload.costura && payload.expedicao;
+      financeiroParaCalculo &&
+      payload.conferencia &&
+      payload.sublimacao &&
+      payload.costura &&
+      payload.expedicao;
 
     payload.pronto = allComplete;
     if (allComplete) {
@@ -322,7 +354,11 @@ export default function OrderList() {
       const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
       const clientSideFiltersActive =
         hasSearch ||
-        selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
+        selectedStatuses.length > 0 ||
+        Boolean(selectedVendedor) ||
+        Boolean(selectedDesigner) ||
+        Boolean(selectedCidade) ||
+        Boolean(selectedFormaEnvio);
 
       // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
@@ -332,11 +368,16 @@ export default function OrderList() {
           1, // Sempre começar da página 1 quando buscando 'all'
           bigPageSize,
           undefined, // status - todos
-          hasSearch ? undefined : (activeSearchTerm || undefined), // cliente
+          hasSearch ? undefined : activeSearchTerm || undefined, // cliente
           dateFrom || undefined, // data_inicio
           dateTo || undefined // data_fim
         );
-        logger.debug('[OrderList] Pedidos recebidos:', paginatedData.orders.length, 'Total:', paginatedData.total);
+        logger.debug(
+          '[OrderList] Pedidos recebidos:',
+          paginatedData.orders.length,
+          'Total:',
+          paginatedData.total
+        );
         if (loadRequestRef.current !== requestId) {
           return;
         }
@@ -354,7 +395,7 @@ export default function OrderList() {
           return;
         }
         logger.debug('[OrderList] getPendingOrdersLight retornou:', {
-          ordersLength: all.length
+          ordersLength: all.length,
         });
         setOrders(all);
         setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
@@ -369,9 +410,9 @@ export default function OrderList() {
             1,
             bigPageSize,
             undefined, // status
-            hasSearch ? undefined : (activeSearchTerm || undefined), // cliente - só se não houver busca
+            hasSearch ? undefined : activeSearchTerm || undefined, // cliente - só se não houver busca
             dateFrom || undefined, // data_inicio
-            dateTo || undefined, // data_fim
+            dateTo || undefined // data_fim
           );
           if (loadRequestRef.current !== requestId) {
             return;
@@ -382,7 +423,7 @@ export default function OrderList() {
         } else {
           const filters = {
             status: OrderStatus.Concluido,
-            cliente: hasSearch ? undefined : (activeSearchTerm || undefined), // Não passar cliente se há busca - vamos filtrar localmente
+            cliente: hasSearch ? undefined : activeSearchTerm || undefined, // Não passar cliente se há busca - vamos filtrar localmente
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
             page: currentPage + 1,
@@ -468,15 +509,12 @@ export default function OrderList() {
 
   // Auto-refresh suave (fallback) a cada 15s.
   // Não executa enquanto modais estiverem abertos para evitar qualquer sensação de "piscada".
-  useAutoRefresh(
-    async () => {
-      if (viewModalOpen || editDialogOpen || deleteDialogOpen) {
-        return;
-      }
-      await loadOrders();
-    },
-    30000,
-  );
+  useAutoRefresh(async () => {
+    if (viewModalOpen || editDialogOpen || deleteDialogOpen) {
+      return;
+    }
+    await loadOrders();
+  }, 30000);
 
   useEffect(() => {
     loadOrders();
@@ -497,7 +535,17 @@ export default function OrderList() {
 
   useEffect(() => {
     setPage(0);
-  }, [productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, activeSearchTerm, rowsPerPage]);
+  }, [
+    productionStatusFilter,
+    dateFrom,
+    dateTo,
+    selectedStatuses,
+    selectedVendedor,
+    selectedDesigner,
+    selectedCidade,
+    activeSearchTerm,
+    rowsPerPage,
+  ]);
 
   const handleEdit = (order: OrderWithItems) => {
     // Navegar para a página de edição completa usando a nova rota
@@ -509,7 +557,6 @@ export default function OrderList() {
     setSelectedOrderForView(order);
     setViewModalOpen(true);
   };
-
 
   const handleDeleteClick = (orderId: number) => {
     setOrderToDelete(orderId);
@@ -662,20 +709,21 @@ export default function OrderList() {
         await api.deleteOrder(orderToDelete);
         removeOrder(orderToDelete);
         toast({
-          title: "Pedido excluído",
-          description: "O pedido foi excluído com sucesso!",
-          variant: "info",
+          title: 'Pedido excluído',
+          description: 'O pedido foi excluído com sucesso!',
+          variant: 'info',
         });
       } catch (error: any) {
-        const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível excluir o pedido.";
+        const errorMessage =
+          error?.response?.data?.detail || error?.message || 'Não foi possível excluir o pedido.';
         const isForbidden = error?.response?.status === 403;
 
         toast({
-          title: isForbidden ? "Acesso negado" : "Erro",
+          title: isForbidden ? 'Acesso negado' : 'Erro',
           description: isForbidden
-            ? "Somente administradores podem executar esta ação."
+            ? 'Somente administradores podem executar esta ação.'
             : errorMessage,
-          variant: "destructive",
+          variant: 'destructive',
         });
         logger.error('Error deleting order:', error);
       }
@@ -694,9 +742,9 @@ export default function OrderList() {
 
       if (!orderWithItems.items || orderWithItems.items.length === 0) {
         toast({
-          title: "Aviso",
-          description: "Este pedido não possui itens para compartilhar.",
-          variant: "warning",
+          title: 'Aviso',
+          description: 'Este pedido não possui itens para compartilhar.',
+          variant: 'warning',
         });
         return;
       }
@@ -794,7 +842,7 @@ export default function OrderList() {
       document.body.appendChild(tempDiv);
 
       // Aguardar um pouco para garantir que tudo foi renderizado
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Capturar screenshot
       const canvas = await html2canvas(tempDiv, {
@@ -827,9 +875,9 @@ export default function OrderList() {
           await writeImage(imageBytes);
 
           toast({
-            title: "Copiado!",
-            description: "Cole no WhatsApp",
-            variant: "success",
+            title: 'Copiado!',
+            description: 'Cole no WhatsApp',
+            variant: 'success',
           });
         } catch (tauriError) {
           logger.error('Erro ao copiar via Tauri:', tauriError);
@@ -850,9 +898,9 @@ export default function OrderList() {
           }, 100);
 
           toast({
-            title: "Imagem salva",
-            description: "A imagem foi baixada. Anexe ao WhatsApp.",
-            variant: "info",
+            title: 'Imagem salva',
+            description: 'A imagem foi baixada. Anexe ao WhatsApp.',
+            variant: 'info',
           });
         }
       } else {
@@ -870,9 +918,9 @@ export default function OrderList() {
 
         if (copied) {
           toast({
-            title: "Copiado!",
-            description: "Cole no WhatsApp",
-            variant: "success",
+            title: 'Copiado!',
+            description: 'Cole no WhatsApp',
+            variant: 'success',
           });
         } else {
           // Fallback para download
@@ -892,9 +940,9 @@ export default function OrderList() {
           }, 100);
 
           toast({
-            title: "Imagem salva",
-            description: "A imagem foi baixada. Anexe ao WhatsApp.",
-            variant: "info",
+            title: 'Imagem salva',
+            description: 'A imagem foi baixada. Anexe ao WhatsApp.',
+            variant: 'info',
           });
         }
       }
@@ -913,9 +961,9 @@ export default function OrderList() {
       }
 
       toast({
-        title: "Erro",
-        description: "Não foi possível gerar a imagem. Tente novamente.",
-        variant: "destructive",
+        title: 'Erro',
+        description: 'Não foi possível gerar a imagem. Tente novamente.',
+        variant: 'destructive',
       });
     }
   };
@@ -935,7 +983,11 @@ export default function OrderList() {
     if (sortColumn !== column) {
       return null;
     }
-    return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ArrowDown className="h-3 w-3 ml-1" />
+    );
   };
 
   // Função para executar busca
@@ -968,7 +1020,11 @@ export default function OrderList() {
 
   // Verificar se um pedido é de reposição
   const isReplacementOrder = (order: OrderWithItems): boolean => {
-    return order.observacao?.includes('[REPOSIÇÃO]') || order.observacao?.includes('[REPOSICAO]') || false;
+    return (
+      order.observacao?.includes('[REPOSIÇÃO]') ||
+      order.observacao?.includes('[REPOSICAO]') ||
+      false
+    );
   };
 
   // Remover zeros à esquerda do número do pedido
@@ -1030,11 +1086,12 @@ export default function OrderList() {
     }
 
     if (dateFrom || dateTo) {
-      const dateLabel = dateFrom && dateTo
-        ? `${formatDateFilter(dateFrom)} a ${formatDateFilter(dateTo)}`
-        : dateFrom
-          ? `A partir de ${formatDateFilter(dateFrom)}`
-          : `Até ${formatDateFilter(dateTo)}`;
+      const dateLabel =
+        dateFrom && dateTo
+          ? `${formatDateFilter(dateFrom)} a ${formatDateFilter(dateTo)}`
+          : dateFrom
+            ? `A partir de ${formatDateFilter(dateFrom)}`
+            : `Até ${formatDateFilter(dateTo)}`;
       filters.push({
         label: `Período: ${dateLabel}`,
         onRemove: () => {
@@ -1054,7 +1111,7 @@ export default function OrderList() {
       });
     }
 
-    selectedStatuses.forEach(status => {
+    selectedStatuses.forEach((status) => {
       const statusLabels: Record<string, string> = {
         financeiro: 'Financeiro',
         conferencia: 'Conferência',
@@ -1065,7 +1122,7 @@ export default function OrderList() {
       };
       filters.push({
         label: statusLabels[status] || status,
-        onRemove: () => setSelectedStatuses(selectedStatuses.filter(s => s !== status)),
+        onRemove: () => setSelectedStatuses(selectedStatuses.filter((s) => s !== status)),
       });
     });
 
@@ -1098,7 +1155,17 @@ export default function OrderList() {
     }
 
     return filters;
-  }, [productionStatusFilter, dateFrom, dateTo, activeSearchTerm, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio]);
+  }, [
+    productionStatusFilter,
+    dateFrom,
+    dateTo,
+    activeSearchTerm,
+    selectedStatuses,
+    selectedVendedor,
+    selectedDesigner,
+    selectedCidade,
+    selectedFormaEnvio,
+  ]);
 
   // Contar filtros ativos
   const activeFiltersCount = useMemo(() => {
@@ -1111,14 +1178,27 @@ export default function OrderList() {
     if (activeSearchTerm) count++;
     if (dateFrom || dateTo) count++;
     return count;
-  }, [selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, activeSearchTerm, dateFrom, dateTo]);
+  }, [
+    selectedStatuses,
+    selectedVendedor,
+    selectedDesigner,
+    selectedCidade,
+    selectedFormaEnvio,
+    activeSearchTerm,
+    dateFrom,
+    dateTo,
+  ]);
 
   // Verificar se estamos usando paginação do backend
   // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
   // carregamos um dataset maior e fazemos paginação local.
   const clientSideFiltersActive =
     Boolean(activeSearchTerm) || // Busca só ativa após clicar no botão
-    selectedStatuses.length > 0 || Boolean(selectedVendedor) || Boolean(selectedDesigner) || Boolean(selectedCidade) || Boolean(selectedFormaEnvio);
+    selectedStatuses.length > 0 ||
+    Boolean(selectedVendedor) ||
+    Boolean(selectedDesigner) ||
+    Boolean(selectedCidade) ||
+    Boolean(selectedFormaEnvio);
   // Quando 'all' é selecionado, sempre usamos paginação frontend porque buscamos todos os pedidos de uma vez
   const isBackendPaginated =
     !clientSideFiltersActive &&
@@ -1163,18 +1243,19 @@ export default function OrderList() {
         const numeroStr = order.numero ? String(order.numero) : '';
         const numeroStrNoZeros = numeroStr.replace(/^0+/, '');
 
-        const matches = (
+        const matches =
           (normalizedTerm.length > 0 && normalizedCliente.includes(normalizedTerm)) ||
           (termDigits.length > 0 &&
             (idStr.includes(termDigits) ||
               numeroStr.includes(termDigits) ||
-              numeroStrNoZeros.includes(termDigits)))
-        );
+              numeroStrNoZeros.includes(termDigits)));
         return matches;
       });
       // Debug: log apenas em desenvolvimento
       if (import.meta.env.DEV && beforeCount > 0) {
-        logger.debug(`[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`);
+        logger.debug(
+          `[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`
+        );
       }
     }
 
@@ -1198,9 +1279,9 @@ export default function OrderList() {
 
       // Filtro por status de produção
       if (productionStatusFilter === 'pending') {
-        filtered = filtered.filter(order => !order.pronto);
+        filtered = filtered.filter((order) => !order.pronto);
       } else if (productionStatusFilter === 'ready') {
-        filtered = filtered.filter(order => order.pronto);
+        filtered = filtered.filter((order) => order.pronto);
       }
     }
 
@@ -1214,21 +1295,21 @@ export default function OrderList() {
         if (selectedStatuses.includes('costura')) statusChecks.push(order.costura === true);
         if (selectedStatuses.includes('expedicao')) statusChecks.push(order.expedicao === true);
         if (selectedStatuses.includes('pronto')) statusChecks.push(order.pronto === true);
-        return statusChecks.some(check => check);
+        return statusChecks.some((check) => check);
       });
     }
 
     // Filtro por vendedor
     if (selectedVendedor) {
       filtered = filtered.filter((order) => {
-        return order.items.some(item => item.vendedor === selectedVendedor);
+        return order.items.some((item) => item.vendedor === selectedVendedor);
       });
     }
 
     // Filtro por designer
     if (selectedDesigner) {
       filtered = filtered.filter((order) => {
-        return order.items.some(item => item.designer === selectedDesigner);
+        return order.items.some((item) => item.designer === selectedDesigner);
       });
     }
 
@@ -1312,7 +1393,23 @@ export default function OrderList() {
 
     logger.debug('[OrderList] filteredOrders - resultado final length:', filtered.length);
     return filtered;
-  }, [orders, activeSearchTerm, productionStatusFilter, dateFrom, dateTo, selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade, selectedFormaEnvio, sortColumn, sortDirection, isBackendPaginated, isAdmin, isImpressaoUser]);
+  }, [
+    orders,
+    activeSearchTerm,
+    productionStatusFilter,
+    dateFrom,
+    dateTo,
+    selectedStatuses,
+    selectedVendedor,
+    selectedDesigner,
+    selectedCidade,
+    selectedFormaEnvio,
+    sortColumn,
+    sortDirection,
+    isBackendPaginated,
+    isAdmin,
+    isImpressaoUser,
+  ]);
 
   // Calcular total de páginas baseado nos pedidos filtrados
   const totalPagesFiltered = useMemo(() => {
@@ -1321,7 +1418,7 @@ export default function OrderList() {
 
   useEffect(() => {
     if (selectedOrderIdsForPrint.length > 0) {
-      const validIds = selectedOrderIdsForPrint.filter(id =>
+      const validIds = selectedOrderIdsForPrint.filter((id) =>
         filteredOrders.some((order) => order.id === id)
       );
       if (validIds.length !== selectedOrderIdsForPrint.length) {
@@ -1335,7 +1432,15 @@ export default function OrderList() {
     if (page > maxPage) {
       setPage(Math.max(0, maxPage));
     }
-  }, [totalPages, totalPagesFiltered, page, dateFrom, dateTo, productionStatusFilter, isBackendPaginated]);
+  }, [
+    totalPages,
+    totalPagesFiltered,
+    page,
+    dateFrom,
+    dateTo,
+    productionStatusFilter,
+    isBackendPaginated,
+  ]);
 
   // Para pedidos com filtros de data, pendentes, prontos e 'all' com paginação, usar dados do backend
   // A paginação já foi feita no backend, então retornar os pedidos diretamente
@@ -1401,7 +1506,10 @@ export default function OrderList() {
           // 3. ID (descendente)
           return (b.id || 0) - (a.id || 0);
         });
-        logger.debug('[OrderList] paginatedOrders - resultado (backend com priority sort):', result.length);
+        logger.debug(
+          '[OrderList] paginatedOrders - resultado (backend com priority sort):',
+          result.length
+        );
         return result;
       }
 
@@ -1418,7 +1526,10 @@ export default function OrderList() {
           }
           return (b.id || 0) - (a.id || 0);
         });
-        logger.debug('[OrderList] paginatedOrders - resultado (backend impressao sort):', result.length);
+        logger.debug(
+          '[OrderList] paginatedOrders - resultado (backend impressao sort):',
+          result.length
+        );
         return result;
       }
 
@@ -1430,9 +1541,26 @@ export default function OrderList() {
     const startIndex = page * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const result = filteredOrders.slice(startIndex, endIndex);
-    logger.debug('[OrderList] paginatedOrders - resultado (frontend):', result.length, 'slice:', startIndex, '-', endIndex);
+    logger.debug(
+      '[OrderList] paginatedOrders - resultado (frontend):',
+      result.length,
+      'slice:',
+      startIndex,
+      '-',
+      endIndex
+    );
     return result;
-  }, [orders, filteredOrders, page, rowsPerPage, isBackendPaginated, sortColumn, sortDirection, isAdmin, isImpressaoUser]);
+  }, [
+    orders,
+    filteredOrders,
+    page,
+    rowsPerPage,
+    isBackendPaginated,
+    sortColumn,
+    sortDirection,
+    isAdmin,
+    isImpressaoUser,
+  ]);
 
   // Handlers para painel lateral - DESABILITADO
   // const handleOpenContextPanel = (order: OrderWithItems) => {
@@ -1480,15 +1608,13 @@ export default function OrderList() {
       return;
     }
 
-    const ordersToPrint = orders.filter((order) =>
-      selectedOrderIdsForPrint.includes(order.id)
-    );
+    const ordersToPrint = orders.filter((order) => selectedOrderIdsForPrint.includes(order.id));
 
     if (ordersToPrint.length === 0) {
       toast({
-        title: "Aviso",
-        description: "Não foi possível localizar os pedidos selecionados.",
-        variant: "warning",
+        title: 'Aviso',
+        description: 'Não foi possível localizar os pedidos selecionados.',
+        variant: 'warning',
       });
       setSelectedOrderIdsForPrint([]);
       return;
@@ -1502,8 +1628,8 @@ export default function OrderList() {
       logger.info(`[OrderList] Iniciando impressão em lote para ${ordersToPrint.length} pedidos`);
       setIsBulkGenerating(true);
       toast({
-        title: "Preparando impressão",
-        description: "Gerando preview dos pedidos selecionados...",
+        title: 'Preparando impressão',
+        description: 'Gerando preview dos pedidos selecionados...',
       });
 
       const { blob, filename } = await generateMultipleOrdersPdfBlob(ordersToPrint);
@@ -1513,15 +1639,15 @@ export default function OrderList() {
       setIsBulkPreviewOpen(true);
 
       toast({
-        title: "Preview gerado",
-        description: "A pré-visualização está pronta.",
+        title: 'Preview gerado',
+        description: 'A pré-visualização está pronta.',
       });
     } catch (error) {
       logger.error('Erro ao gerar preview em lote:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível gerar a pré-visualização.",
-        variant: "destructive",
+        title: 'Erro',
+        description: 'Não foi possível gerar a pré-visualização.',
+        variant: 'destructive',
       });
     } finally {
       setIsBulkGenerating(false);
@@ -1529,151 +1655,159 @@ export default function OrderList() {
   };
 
   // Atalhos de teclado - precisa estar depois de todos os handlers
-  const shortcuts: KeyboardShortcut[] = useMemo(() => [
-    {
-      key: 'n',
-      ctrl: true,
-      action: () => navigate('/dashboard/pedido/novo'),
-      description: 'Novo pedido',
-    },
-    {
-      key: 'f',
-      ctrl: true,
-      action: () => searchInputRef.current?.focus(),
-      description: 'Focar busca',
-    },
-    {
-      key: '/',
-      action: () => searchInputRef.current?.focus(),
-      description: 'Focar busca',
-    },
-    {
-      key: 'ArrowUp',
-      action: () => {
-        // Verificação em tempo real: não navegar se houver dialog aberto
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        handleNavigateUp();
+  const shortcuts: KeyboardShortcut[] = useMemo(
+    () => [
+      {
+        key: 'n',
+        ctrl: true,
+        action: () => navigate('/dashboard/pedido/novo'),
+        description: 'Novo pedido',
       },
-      description: 'Navegar para cima',
-    },
-    {
-      key: 'ArrowDown',
-      action: () => {
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        handleNavigateDown();
+      {
+        key: 'f',
+        ctrl: true,
+        action: () => searchInputRef.current?.focus(),
+        description: 'Focar busca',
       },
-      description: 'Navegar para baixo',
-    },
-    {
-      key: 'v',
-      action: () => {
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        if (selectedOrder) {
-          handleViewOrder(selectedOrder);
-        }
+      {
+        key: '/',
+        action: () => searchInputRef.current?.focus(),
+        description: 'Focar busca',
       },
-      description: 'Visualizar pedido',
-      enabled: selectedOrder !== null,
-    },
-    {
-      key: 'Enter',
-      action: () => {
-        if (statusConfirmModal.show) {
-          statusConfirmButtonRef.current?.click();
-          return;
-        }
+      {
+        key: 'ArrowUp',
+        action: () => {
+          // Verificação em tempo real: não navegar se houver dialog aberto
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          handleNavigateUp();
+        },
+        description: 'Navegar para cima',
+      },
+      {
+        key: 'ArrowDown',
+        action: () => {
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          handleNavigateDown();
+        },
+        description: 'Navegar para baixo',
+      },
+      {
+        key: 'v',
+        action: () => {
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          if (selectedOrder) {
+            handleViewOrder(selectedOrder);
+          }
+        },
+        description: 'Visualizar pedido',
+        enabled: selectedOrder !== null,
+      },
+      {
+        key: 'Enter',
+        action: () => {
+          if (statusConfirmModal.show) {
+            statusConfirmButtonRef.current?.click();
+            return;
+          }
 
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        if (selectedOrder) {
-          handleViewOrder(selectedOrder);
-        }
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          if (selectedOrder) {
+            handleViewOrder(selectedOrder);
+          }
+        },
+        description: 'Confirmar modal / visualizar pedido',
+        enabled: selectedOrder !== null,
       },
-      description: 'Confirmar modal / visualizar pedido',
-      enabled: selectedOrder !== null,
-    },
-    {
-      key: 'e',
-      action: () => {
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        if (selectedOrder) {
-          handleEdit(selectedOrder);
-        }
+      {
+        key: 'e',
+        action: () => {
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          if (selectedOrder) {
+            handleEdit(selectedOrder);
+          }
+        },
+        description: 'Editar pedido',
+        enabled: selectedOrder !== null,
       },
-      description: 'Editar pedido',
-      enabled: selectedOrder !== null,
-    },
-    {
-      key: 'd',
-      action: () => {
-        if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
-        if (selectedOrder && isAdmin) {
-          handleDeleteClick(selectedOrder.id);
-        }
+      {
+        key: 'd',
+        action: () => {
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          if (selectedOrder && isAdmin) {
+            handleDeleteClick(selectedOrder.id);
+          }
+        },
+        description: 'Deletar pedido',
+        enabled: selectedOrder !== null && isAdmin,
       },
-      description: 'Deletar pedido',
-      enabled: selectedOrder !== null && isAdmin,
-    },
-    {
-      key: 'p',
-      action: () => {
-        if (selectedOrder) {
-          setSelectedOrderIdsForPrint([selectedOrder.id]);
-          setTimeout(() => handlePrintSelected(), 100);
-        }
+      {
+        key: 'p',
+        action: () => {
+          if (selectedOrder) {
+            setSelectedOrderIdsForPrint([selectedOrder.id]);
+            setTimeout(() => handlePrintSelected(), 100);
+          }
+        },
+        description: 'Imprimir ficha',
+        enabled: selectedOrder !== null,
       },
-      description: 'Imprimir ficha',
-      enabled: selectedOrder !== null,
-    },
-    {
-      key: 'Escape',
-      action: () => {
-        // Painel lateral desabilitado
-        // if (contextPanelOpen) {
-        //   handleCloseContextPanel();
-        // } else
-        if (statusConfirmModal.show) {
-          closeStatusConfirmModal();
-        } else if (shortcutsModalOpen) {
-          setShortcutsModalOpen(false);
-        } else if (viewModalOpen) {
-          setViewModalOpen(false);
-        } else if (deleteDialogOpen) {
-          setDeleteDialogOpen(false);
-        }
+      {
+        key: 'Escape',
+        action: () => {
+          // Painel lateral desabilitado
+          // if (contextPanelOpen) {
+          //   handleCloseContextPanel();
+          // } else
+          if (statusConfirmModal.show) {
+            closeStatusConfirmModal();
+          } else if (shortcutsModalOpen) {
+            setShortcutsModalOpen(false);
+          } else if (viewModalOpen) {
+            setViewModalOpen(false);
+          } else if (deleteDialogOpen) {
+            setDeleteDialogOpen(false);
+          }
+        },
+        description: 'Fechar modal',
       },
-      description: 'Fechar modal',
-    },
-    {
-      key: '?',
-      action: () => setShortcutsModalOpen(true),
-      description: 'Ver atalhos',
-    },
-  ], [
-    navigate,
-    shortcutsModalOpen,
-    statusConfirmModal.show,
-    closeStatusConfirmModal,
-    handleNavigateUp,
-    handleNavigateDown,
-    selectedOrder,
-    isAnyDialogOpen,
-    isAdmin,
-    handleEdit,
-    handleDeleteClick,
-    handleViewOrder,
-    handlePrintSelected,
-    setSelectedOrderIdsForPrint,
-  ]);
+      {
+        key: '?',
+        action: () => setShortcutsModalOpen(true),
+        description: 'Ver atalhos',
+      },
+    ],
+    [
+      navigate,
+      shortcutsModalOpen,
+      statusConfirmModal.show,
+      closeStatusConfirmModal,
+      handleNavigateUp,
+      handleNavigateDown,
+      selectedOrder,
+      isAnyDialogOpen,
+      isAdmin,
+      handleEdit,
+      handleDeleteClick,
+      handleViewOrder,
+      handlePrintSelected,
+      setSelectedOrderIdsForPrint,
+    ]
+  );
 
   useKeyboardShortcuts(shortcuts);
 
-  const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
+  const handleStatusClick = (
+    pedidoId: number,
+    campo: string,
+    valorAtual: boolean,
+    nomeSetor: string
+  ) => {
     // Verificar se é ação financeira e se o usuário não é admin
     if (campo === 'financeiro' && !isAdmin) {
       toast({
-        title: "Acesso negado",
-        description: "Somente administradores podem executar esta ação.",
-        variant: "destructive",
+        title: 'Acesso negado',
+        description: 'Somente administradores podem executar esta ação.',
+        variant: 'destructive',
       });
       return;
     }
@@ -1699,9 +1833,9 @@ export default function OrderList() {
     // Esta é uma camada extra de segurança além da verificação no handleStatusClick
     if (campo === 'financeiro' && !isAdmin) {
       toast({
-        title: "Acesso negado",
-        description: "Somente administradores podem alterar o status financeiro.",
-        variant: "destructive",
+        title: 'Acesso negado',
+        description: 'Somente administradores podem alterar o status financeiro.',
+        variant: 'destructive',
       });
       closeStatusConfirmModal();
       return;
@@ -1735,12 +1869,13 @@ export default function OrderList() {
           : `${statusConfirmModal.nomeSetor} ${novoValor ? 'marcado' : 'desmarcado'} com sucesso!`;
 
       toast({
-        title: "Status atualizado",
+        title: 'Status atualizado',
         description: mensagem,
-        variant: "success",
+        variant: 'success',
       });
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
+      const errorMessage =
+        error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status.';
       const isForbidden = error?.response?.status === 403;
       const campo = statusConfirmModal.campo;
       const isFinanceiro = campo === 'financeiro';
@@ -1748,25 +1883,25 @@ export default function OrderList() {
       if (isForbidden) {
         if (isFinanceiro) {
           toast({
-            title: "Acesso negado",
-            description: "Somente administradores podem atualizar o status financeiro.",
-            variant: "destructive",
+            title: 'Acesso negado',
+            description: 'Somente administradores podem atualizar o status financeiro.',
+            variant: 'destructive',
           });
         } else {
           // Erro 403 para campos que não deveriam precisar de admin
           // Isso indica que o backend está exigindo admin para todos os campos
           const nomeCampo = statusConfirmModal.nomeSetor || campo;
           toast({
-            title: "⚠️ Problema de permissão no servidor",
+            title: '⚠️ Problema de permissão no servidor',
             description: `O servidor está bloqueando a atualização de "${nomeCampo}" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.`,
-            variant: "destructive",
+            variant: 'destructive',
           });
         }
       } else {
         toast({
-          title: "Erro",
+          title: 'Erro',
           description: errorMessage,
-          variant: "destructive",
+          variant: 'destructive',
         });
       }
 
@@ -1794,7 +1929,14 @@ export default function OrderList() {
     };
 
     // Ordem dos status (do primeiro ao último)
-    const statusOrder = ['financeiro', 'conferencia', 'sublimacao', 'costura', 'expedicao', 'pronto'];
+    const statusOrder = [
+      'financeiro',
+      'conferencia',
+      'sublimacao',
+      'costura',
+      'expedicao',
+      'pronto',
+    ];
     const newStatusIndex = statusOrder.indexOf(newStatus);
 
     // Se está movendo para uma coluna mais avançada, garantir que todos os status anteriores também sejam marcados
@@ -1825,16 +1967,17 @@ export default function OrderList() {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
       toast({
-        title: "Status atualizado",
+        title: 'Status atualizado',
         description: `Pedido movido para ${statusLabels[newStatus] || newStatus}`,
-        variant: "success",
+        variant: 'success',
       });
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || "Não foi possível atualizar o status.";
+      const errorMessage =
+        error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status.';
       toast({
-        title: "Erro",
+        title: 'Erro',
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -1844,7 +1987,9 @@ export default function OrderList() {
   // Modo tabela - layout original
   return (
     <>
-      <div className={`flex flex-col h-full ${viewMode === 'pipeline' ? 'w-full overflow-hidden bg-background/50 animate-in fade-in duration-500' : 'space-y-4 min-h-screen'}`}>
+      <div
+        className={`flex flex-col h-full ${viewMode === 'pipeline' ? 'w-full overflow-hidden bg-background/50 animate-in fade-in duration-500' : 'space-y-4 min-h-screen'}`}
+      >
         {viewMode === 'pipeline' ? (
           <>
             {/* Header minimalista com Glassmorphism */}
@@ -1854,7 +1999,9 @@ export default function OrderList() {
                   <div className="h-6 w-1 bg-primary rounded-full" />
                   Pedidos
                 </h1>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">Status de Produção — Visão em Pipeline</p>
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider pl-3">
+                  Status de Produção — Visão em Pipeline
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
@@ -1966,7 +2113,9 @@ export default function OrderList() {
             <div className="flex items-center justify-between py-2 mb-2">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
-                <p className="text-sm text-muted-foreground">Visualize e gerencie todos os pedidos do sistema</p>
+                <p className="text-sm text-muted-foreground">
+                  Visualize e gerencie todos os pedidos do sistema
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Tooltip>
@@ -2014,7 +2163,7 @@ export default function OrderList() {
               </div>
             </div>
             {/* Barra de Filtros Principais - Sempre Visível */}
-            <Card className={cn("border-2", isPwa && "pwa-card")}>
+            <Card className={cn('border-2', isPwa && 'pwa-card')}>
               <CardContent className="pt-6">
                 <div className="flex flex-col gap-4">
                   {/* Linha 1: Busca e Status */}
@@ -2033,13 +2182,13 @@ export default function OrderList() {
                               handleSearch();
                             }
                           }}
-                          className={cn("pl-10 h-10", isPwa && "min-h-[44px]")}
+                          className={cn('pl-10 h-10', isPwa && 'min-h-[44px]')}
                         />
                       </div>
                       <Button
                         type="button"
                         onClick={handleSearch}
-                        className={cn("h-10 px-4 whitespace-nowrap", isPwa && "min-h-[44px]")}
+                        className={cn('h-10 px-4 whitespace-nowrap', isPwa && 'min-h-[44px]')}
                         variant="default"
                       >
                         <Search className="h-4 w-4 mr-2" />
@@ -2134,7 +2283,8 @@ export default function OrderList() {
                   {activeFiltersList.length === 0 && (
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground">
-                        Use os filtros acima para buscar pedidos. Todos os filtros são aplicados instantaneamente.
+                        Use os filtros acima para buscar pedidos. Todos os filtros são aplicados
+                        instantaneamente.
                       </p>
                     </div>
                   )}
@@ -2187,7 +2337,9 @@ export default function OrderList() {
                                       if (checked) {
                                         setSelectedStatuses([...selectedStatuses, status.value]);
                                       } else {
-                                        setSelectedStatuses(selectedStatuses.filter(s => s !== status.value));
+                                        setSelectedStatuses(
+                                          selectedStatuses.filter((s) => s !== status.value)
+                                        );
                                       }
                                     }}
                                   />
@@ -2205,81 +2357,105 @@ export default function OrderList() {
                           {/* Filtros Secundários */}
                           <div className="space-y-4">
                             <div className="space-y-2">
-                              <Label htmlFor="vendedor-filter" className="text-sm font-semibold">Vendedor</Label>
+                              <Label htmlFor="vendedor-filter" className="text-sm font-semibold">
+                                Vendedor
+                              </Label>
                               <Select
-                                value={selectedVendedor || "all"}
-                                onValueChange={(value) => setSelectedVendedor(value === "all" ? "" : value)}
+                                value={selectedVendedor || 'all'}
+                                onValueChange={(value) =>
+                                  setSelectedVendedor(value === 'all' ? '' : value)
+                                }
                               >
                                 <SelectTrigger id="vendedor-filter" className="h-9">
                                   <SelectValue placeholder="Todos os vendedores" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="all">Todos</SelectItem>
-                                  {vendedores.filter(v => v.nome).map((v) => (
-                                    <SelectItem key={v.id} value={v.nome}>
-                                      {v.nome}
-                                    </SelectItem>
-                                  ))}
+                                  {vendedores
+                                    .filter((v) => v.nome)
+                                    .map((v) => (
+                                      <SelectItem key={v.id} value={v.nome}>
+                                        {v.nome}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="designer-filter" className="text-sm font-semibold">Designer</Label>
+                              <Label htmlFor="designer-filter" className="text-sm font-semibold">
+                                Designer
+                              </Label>
                               <Select
-                                value={selectedDesigner || "all"}
-                                onValueChange={(value) => setSelectedDesigner(value === "all" ? "" : value)}
+                                value={selectedDesigner || 'all'}
+                                onValueChange={(value) =>
+                                  setSelectedDesigner(value === 'all' ? '' : value)
+                                }
                               >
                                 <SelectTrigger id="designer-filter" className="h-9">
                                   <SelectValue placeholder="Todos os designers" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="all">Todos</SelectItem>
-                                  {designers.filter(d => d.nome).map((d) => (
-                                    <SelectItem key={d.id} value={d.nome}>
-                                      {d.nome}
-                                    </SelectItem>
-                                  ))}
+                                  {designers
+                                    .filter((d) => d.nome)
+                                    .map((d) => (
+                                      <SelectItem key={d.id} value={d.nome}>
+                                        {d.nome}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="cidade-filter" className="text-sm font-semibold">Cidade</Label>
+                              <Label htmlFor="cidade-filter" className="text-sm font-semibold">
+                                Cidade
+                              </Label>
                               <Select
-                                value={selectedCidade || "all"}
-                                onValueChange={(value) => setSelectedCidade(value === "all" ? "" : value)}
+                                value={selectedCidade || 'all'}
+                                onValueChange={(value) =>
+                                  setSelectedCidade(value === 'all' ? '' : value)
+                                }
                               >
                                 <SelectTrigger id="cidade-filter" className="h-9">
                                   <SelectValue placeholder="Todas as cidades" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="all">Todas</SelectItem>
-                                  {cidades.filter(c => c && c.trim()).map((cidade) => (
-                                    <SelectItem key={cidade} value={cidade}>
-                                      {cidade}
-                                    </SelectItem>
-                                  ))}
+                                  {cidades
+                                    .filter((c) => c && c.trim())
+                                    .map((cidade) => (
+                                      <SelectItem key={cidade} value={cidade}>
+                                        {cidade}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </div>
 
                             <div className="space-y-2">
-                              <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">Forma de Envio</Label>
+                              <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">
+                                Forma de Envio
+                              </Label>
                               <Select
-                                value={selectedFormaEnvio || "all"}
-                                onValueChange={(value) => setSelectedFormaEnvio(value === "all" ? "" : value)}
+                                value={selectedFormaEnvio || 'all'}
+                                onValueChange={(value) =>
+                                  setSelectedFormaEnvio(value === 'all' ? '' : value)
+                                }
                               >
                                 <SelectTrigger id="forma-envio-filter" className="h-9">
                                   <SelectValue placeholder="Todas as formas de envio" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="all">Todas</SelectItem>
-                                  {formasEnvio.filter(f => f.nome).map((forma) => (
-                                    <SelectItem key={forma.id} value={forma.nome}>
-                                      {forma.nome}
-                                    </SelectItem>
-                                  ))}
+                                  {formasEnvio
+                                    .filter((f) => f.nome)
+                                    .map((forma) => (
+                                      <SelectItem key={forma.id} value={forma.nome}>
+                                        {forma.nome}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -2318,25 +2494,32 @@ export default function OrderList() {
                     onClick={handlePrintSelected}
                     disabled={isBulkGenerating}
                   >
-                    <Printer className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`} />
+                    <Printer
+                      className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`}
+                    />
                     {isBulkGenerating ? 'Gerando...' : 'Imprimir Selecionados'}
                   </Button>
                 </div>
               </div>
             )}
 
-            <Card className={cn("flex-1 flex flex-col min-h-0 flex-grow", isPwa && "pwa-card border-0")}>
+            <Card
+              className={cn('flex-1 flex flex-col min-h-0 flex-grow', isPwa && 'pwa-card border-0')}
+            >
               <CardContent className="p-0 flex-1 flex flex-col min-h-0">
                 <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
                   {/* Indicador de loading sutil */}
                   {loading && paginatedOrders.length > 0 && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
-                      <div className="h-full bg-primary animate-pulse" style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }} />
+                      <div
+                        className="h-full bg-primary animate-pulse"
+                        style={{ width: '40%', animation: 'loading 1.5s ease-in-out infinite' }}
+                      />
                     </div>
                   )}
 
-                  {/* PWA: layout em cards */}
-                  {isPwa ? (
+                  {/* Mobile: layout em cards - Desktop: tabela */}
+                  {isMobile ? (
                     <div className="p-4 space-y-3">
                       {loading && paginatedOrders.length === 0 ? (
                         Array.from({ length: 5 }).map((_, i) => (
@@ -2356,7 +2539,14 @@ export default function OrderList() {
                           <Inbox className="h-12 w-12 text-muted-foreground" />
                           <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
                           <p className="text-sm text-muted-foreground text-center max-w-sm">
-                            {activeSearchTerm || dateFrom || dateTo || selectedStatuses.length > 0 || selectedVendedor || selectedDesigner || selectedCidade || selectedFormaEnvio
+                            {activeSearchTerm ||
+                            dateFrom ||
+                            dateTo ||
+                            selectedStatuses.length > 0 ||
+                            selectedVendedor ||
+                            selectedDesigner ||
+                            selectedCidade ||
+                            selectedFormaEnvio
                               ? 'Tente ajustar seus filtros de busca.'
                               : 'Ainda não há pedidos.'}
                           </p>
@@ -2365,50 +2555,67 @@ export default function OrderList() {
                         paginatedOrders.map((order: OrderWithItems) => {
                           const urgency = getOrderUrgency(order.data_entrega);
                           const isDelayed = urgency.type === 'overdue' && !order.pronto;
-                          const statusLabel = order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento';
+                          const statusLabel = order.pronto
+                            ? 'Pronto'
+                            : isDelayed
+                              ? 'Atrasado'
+                              : 'Em Andamento';
                           return (
                             <Card
                               key={order.id}
                               className={cn(
-                                "p-4 transition-colors",
-                                isDelayed && "border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20"
+                                'p-3 transition-colors shadow-sm',
+                                isDelayed &&
+                                  'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
+                                order.prioridade === 'ALTA' &&
+                                  !isDelayed &&
+                                  'border-l-4 border-l-orange-400'
                               )}
                             >
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                              <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-base">
+                                  {/* 1. Nome do Cliente - Foco principal */}
+                                  <p className="font-semibold text-sm text-foreground truncate">
+                                    {order.cliente || order.customer_name}
+                                  </p>
+
+                                  {/* 2. Status + 3. ID */}
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <Badge
+                                      variant={
+                                        order.pronto
+                                          ? 'default'
+                                          : isDelayed
+                                            ? 'destructive'
+                                            : 'secondary'
+                                      }
+                                      className="text-[10px] px-1.5 py-0"
+                                    >
+                                      {statusLabel}
+                                    </Badge>
+                                    <span className="text-[11px] text-muted-foreground">
                                       #{formatOrderNumber(order.numero, order.id)}
                                     </span>
                                     {order.prioridade === 'ALTA' && (
-                                      <Badge variant="destructive" className="text-xs">ALTA</Badge>
-                                    )}
-                                    {isDelayed && (
-                                      <Badge variant="destructive" className="text-xs">Atrasado</Badge>
+                                      <Badge variant="destructive" className="text-[9px] px-1">
+                                        ALTA
+                                      </Badge>
                                     )}
                                   </div>
-                                  <p className="text-sm text-muted-foreground truncate mt-0.5">
-                                    {order.cliente || order.customer_name}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                    <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+
+                                  {/* 4. Data */}
+                                  <p className="text-[11px] text-muted-foreground mt-1">
                                     {formatDateForDisplay(order.data_entrega, '-')}
-                                  </div>
-                                  <Badge
-                                    variant={order.pronto ? 'default' : isDelayed ? 'destructive' : 'secondary'}
-                                    className="mt-2 text-xs"
-                                  >
-                                    {statusLabel}
-                                  </Badge>
+                                  </p>
                                 </div>
+
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  className="min-h-[44px] shrink-0"
+                                  className="h-9 w-9 p-0 shrink-0"
                                   onClick={() => handleViewOrder(order)}
                                 >
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  Ver
+                                  <ChevronRight className="h-4 w-4" />
                                 </Button>
                               </div>
                             </Card>
@@ -2423,10 +2630,13 @@ export default function OrderList() {
                           <TableRow>
                             <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
                               <Checkbox
-                                checked={selectedOrderIdsForPrint.length > 0 && selectedOrderIdsForPrint.length === paginatedOrders.length}
+                                checked={
+                                  selectedOrderIdsForPrint.length > 0 &&
+                                  selectedOrderIdsForPrint.length === paginatedOrders.length
+                                }
                                 onCheckedChange={(checked) => {
                                   if (checked) {
-                                    setSelectedOrderIdsForPrint(paginatedOrders.map(o => o.id));
+                                    setSelectedOrderIdsForPrint(paginatedOrders.map((o) => o.id));
                                   } else {
                                     setSelectedOrderIdsForPrint([]);
                                   }
@@ -2534,11 +2744,15 @@ export default function OrderList() {
                                   <TooltipTrigger asChild>
                                     <span className="cursor-default">Status</span>
                                   </TooltipTrigger>
-                                  <TooltipContent>Status do pedido (Pronto / Em andamento)</TooltipContent>
+                                  <TooltipContent>
+                                    Status do pedido (Pronto / Em andamento)
+                                  </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">Ações</TableHead>
+                            <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              Ações
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -2598,9 +2812,18 @@ export default function OrderList() {
                               <TableCell colSpan={13} className="h-40 text-center align-top">
                                 <div className="flex flex-col items-center gap-3 py-4">
                                   <Inbox className="h-12 w-12 text-muted-foreground" />
-                                  <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
+                                  <h3 className="text-lg font-semibold">
+                                    Nenhum pedido encontrado
+                                  </h3>
                                   <p className="text-sm text-muted-foreground max-w-sm">
-                                    {activeSearchTerm || dateFrom || dateTo || selectedStatuses.length > 0 || selectedVendedor || selectedDesigner || selectedCidade || selectedFormaEnvio
+                                    {activeSearchTerm ||
+                                    dateFrom ||
+                                    dateTo ||
+                                    selectedStatuses.length > 0 ||
+                                    selectedVendedor ||
+                                    selectedDesigner ||
+                                    selectedCidade ||
+                                    selectedFormaEnvio
                                       ? 'Tente ajustar seus filtros de busca.'
                                       : 'Ainda não há pedidos. Crie o primeiro para começar.'}
                                   </p>
@@ -2621,7 +2844,8 @@ export default function OrderList() {
                             paginatedOrders.map((order: OrderWithItems) => {
                               const urgency = getOrderUrgency(order.data_entrega);
                               const isOverdue = urgency.type === 'overdue';
-                              const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
+                              const isUrgent =
+                                urgency.type === 'today' || urgency.type === 'tomorrow';
                               const isHighPriority = order.prioridade === 'ALTA';
                               const isDelayed = isOverdue && !order.pronto;
 
@@ -2635,7 +2859,9 @@ export default function OrderList() {
                       ${isOverdue && order.pronto ? 'bg-orange-50/30 dark:bg-orange-950/10 border-l-2 border-l-orange-400' : ''}
                       ${isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/40 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : ''}
                       ${isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''}
-                    `.trim().replace(/\s+/g, ' ');
+                    `
+                                .trim()
+                                .replace(/\s+/g, ' ');
 
                               return (
                                 <TableRow
@@ -2646,7 +2872,9 @@ export default function OrderList() {
                                   data-priority={order.prioridade}
                                   onClick={() => {
                                     setSelectedOrder(order);
-                                    const index = paginatedOrders.findIndex(o => o.id === order.id);
+                                    const index = paginatedOrders.findIndex(
+                                      (o) => o.id === order.id
+                                    );
                                     if (index >= 0) setSelectedOrderIndex(index);
                                   }}
                                 >
@@ -2655,9 +2883,14 @@ export default function OrderList() {
                                       checked={selectedOrderIdsForPrint.includes(order.id)}
                                       onCheckedChange={(checked) => {
                                         if (checked) {
-                                          setSelectedOrderIdsForPrint([...selectedOrderIdsForPrint, order.id]);
+                                          setSelectedOrderIdsForPrint([
+                                            ...selectedOrderIdsForPrint,
+                                            order.id,
+                                          ]);
                                         } else {
-                                          setSelectedOrderIdsForPrint(selectedOrderIdsForPrint.filter(id => id !== order.id));
+                                          setSelectedOrderIdsForPrint(
+                                            selectedOrderIdsForPrint.filter((id) => id !== order.id)
+                                          );
                                         }
                                       }}
                                     />
@@ -2669,41 +2902,60 @@ export default function OrderList() {
                                         <EditingIndicator orderId={order.id} />
                                       </div>
                                       {isReplacementOrder(order) && (
-                                        <Badge variant="outline" className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-orange-50 text-orange-700 border-orange-300 w-fit">
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-orange-50 text-orange-700 border-orange-300 w-fit"
+                                        >
                                           REPOSIÇÃO
                                         </Badge>
                                       )}
                                     </div>
                                   </TableCell>
-                                  <TableCell className={`
+                                  <TableCell
+                                    className={`
                           font-medium min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] truncate px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base
                           ${isDelayed ? 'font-semibold' : ''}
                           ${isUrgent && !order.pronto ? 'font-semibold' : ''}
-                        `}>
+                        `}
+                                  >
                                     {order.cliente || order.customer_name}
                                   </TableCell>
                                   <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                                     <div className="flex items-center gap-1.5">
                                       {urgency.type === 'overdue' && (
-                                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" aria-hidden="true" />
+                                        <AlertTriangle
+                                          className="h-3.5 w-3.5 text-red-500 flex-shrink-0"
+                                          aria-hidden="true"
+                                        />
                                       )}
                                       {urgency.type === 'today' && (
-                                        <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" aria-hidden="true" />
+                                        <Clock
+                                          className="h-3.5 w-3.5 text-orange-500 flex-shrink-0"
+                                          aria-hidden="true"
+                                        />
                                       )}
                                       {urgency.type === 'tomorrow' && (
-                                        <Clock className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0" aria-hidden="true" />
+                                        <Clock
+                                          className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0"
+                                          aria-hidden="true"
+                                        />
                                       )}
-                                      <span className={`
+                                      <span
+                                        className={`
                               font-medium
                               ${urgency.type === 'overdue' ? 'text-red-600 dark:text-red-400' : ''}
                               ${urgency.type === 'today' ? 'text-orange-600 dark:text-orange-400' : ''}
                               ${urgency.type === 'tomorrow' ? 'text-yellow-600 dark:text-yellow-500' : ''}
                               ${urgency.type === 'soon' ? 'text-amber-600 dark:text-amber-400' : ''}
-                            `}>
+                            `}
+                                      >
                                         {formatDateForDisplay(order.data_entrega, '-')}
                                       </span>
                                       {urgency.type === 'overdue' && (
-                                        <span className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400" title={`Atrasado há ${urgency.days} dia(s)`}>
+                                        <span
+                                          className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400"
+                                          title={`Atrasado há ${urgency.days} dia(s)`}
+                                        >
                                           ({urgency.days}d)
                                         </span>
                                       )}
@@ -2711,7 +2963,9 @@ export default function OrderList() {
                                   </TableCell>
                                   <TableCell className="hidden md:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
                                     <Badge
-                                      variant={order.prioridade === 'ALTA' ? 'destructive' : 'secondary'}
+                                      variant={
+                                        order.prioridade === 'ALTA' ? 'destructive' : 'secondary'
+                                      }
                                       className={`
                               text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
                               ${order.prioridade === 'ALTA' ? 'animate-pulse' : ''}
@@ -2737,18 +2991,29 @@ export default function OrderList() {
                                             <Checkbox
                                               checked={order.financeiro === true}
                                               disabled={!isAdmin}
-                                              onCheckedChange={() => handleStatusClick(order.id, 'financeiro', !!order.financeiro, 'Financeiro')}
+                                              onCheckedChange={() =>
+                                                handleStatusClick(
+                                                  order.id,
+                                                  'financeiro',
+                                                  !!order.financeiro,
+                                                  'Financeiro'
+                                                )
+                                              }
                                               className={`
                                       transition-all duration-150
-                                      ${!isAdmin ? "opacity-50 cursor-not-allowed" : ""}
-                                      ${order.financeiro ? "scale-110" : ""}
+                                      ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}
+                                      ${order.financeiro ? 'scale-110' : ''}
                                     `}
                                             />
                                           </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                           <p>Financeiro</p>
-                                          {!isAdmin && <p className="text-xs mt-0.5">Somente administradores podem alterar.</p>}
+                                          {!isAdmin && (
+                                            <p className="text-xs mt-0.5">
+                                              Somente administradores podem alterar.
+                                            </p>
+                                          )}
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -2763,7 +3028,14 @@ export default function OrderList() {
                                             <Checkbox
                                               checked={order.conferencia === true}
                                               disabled={!order.financeiro}
-                                              onCheckedChange={() => handleStatusClick(order.id, 'conferencia', !!order.conferencia, 'Conferência')}
+                                              onCheckedChange={() =>
+                                                handleStatusClick(
+                                                  order.id,
+                                                  'conferencia',
+                                                  !!order.conferencia,
+                                                  'Conferência'
+                                                )
+                                              }
                                               className="transition-all duration-150 data-[state=checked]:scale-110"
                                             />
                                           </div>
@@ -2782,7 +3054,14 @@ export default function OrderList() {
                                             <Checkbox
                                               checked={order.sublimacao === true}
                                               disabled={!order.financeiro}
-                                              onCheckedChange={() => handleStatusClick(order.id, 'sublimacao', !!order.sublimacao, 'Impressão')}
+                                              onCheckedChange={() =>
+                                                handleStatusClick(
+                                                  order.id,
+                                                  'sublimacao',
+                                                  !!order.sublimacao,
+                                                  'Impressão'
+                                                )
+                                              }
                                               className="transition-all duration-150 data-[state=checked]:scale-110"
                                             />
                                           </div>
@@ -2790,14 +3069,25 @@ export default function OrderList() {
                                         <TooltipContent>Impressão</TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
-                                    {order.sublimacao && (order.sublimacao_maquina || order.sublimacao_data_impressao) && (
-                                      <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
-                                        {order.sublimacao_maquina && <div className="truncate">{order.sublimacao_maquina}</div>}
-                                        {order.sublimacao_data_impressao && (
-                                          <div>{formatDateForDisplay(order.sublimacao_data_impressao, '-')}</div>
-                                        )}
-                                      </div>
-                                    )}
+                                    {order.sublimacao &&
+                                      (order.sublimacao_maquina ||
+                                        order.sublimacao_data_impressao) && (
+                                        <div className="mt-0.5 lg:mt-1 text-[8px] lg:text-[9px] xl:text-[10px] text-muted-foreground leading-tight text-center">
+                                          {order.sublimacao_maquina && (
+                                            <div className="truncate">
+                                              {order.sublimacao_maquina}
+                                            </div>
+                                          )}
+                                          {order.sublimacao_data_impressao && (
+                                            <div>
+                                              {formatDateForDisplay(
+                                                order.sublimacao_data_impressao,
+                                                '-'
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                   </TableCell>
 
                                   {/* Costura - Só habilitado se Financeiro estiver marcado */}
@@ -2809,7 +3099,14 @@ export default function OrderList() {
                                             <Checkbox
                                               checked={order.costura === true}
                                               disabled={!order.financeiro}
-                                              onCheckedChange={() => handleStatusClick(order.id, 'costura', !!order.costura, 'Costura')}
+                                              onCheckedChange={() =>
+                                                handleStatusClick(
+                                                  order.id,
+                                                  'costura',
+                                                  !!order.costura,
+                                                  'Costura'
+                                                )
+                                              }
                                               className="transition-all duration-150 data-[state=checked]:scale-110"
                                             />
                                           </div>
@@ -2828,7 +3125,14 @@ export default function OrderList() {
                                             <Checkbox
                                               checked={order.expedicao === true}
                                               disabled={!order.financeiro}
-                                              onCheckedChange={() => handleStatusClick(order.id, 'expedicao', !!order.expedicao, 'Expedição')}
+                                              onCheckedChange={() =>
+                                                handleStatusClick(
+                                                  order.id,
+                                                  'expedicao',
+                                                  !!order.expedicao,
+                                                  'Expedição'
+                                                )
+                                              }
                                               className="transition-all duration-150 data-[state=checked]:scale-110"
                                             />
                                           </div>
@@ -2845,21 +3149,38 @@ export default function OrderList() {
                                         <TooltipTrigger asChild>
                                           <div className="flex items-center justify-center gap-1.5">
                                             {order.pronto && (
-                                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" aria-hidden="true" />
+                                              <CheckCircle2
+                                                className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0"
+                                                aria-hidden="true"
+                                              />
                                             )}
                                             <Badge
-                                              variant={order.pronto ? 'success' : isDelayed ? 'destructive' : 'secondary'}
+                                              variant={
+                                                order.pronto
+                                                  ? 'success'
+                                                  : isDelayed
+                                                    ? 'destructive'
+                                                    : 'secondary'
+                                              }
                                               className={`
                                 text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
                                 ${order.pronto ? '' : isDelayed ? 'animate-pulse' : ''}
                               `}
                                             >
-                                              {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                                              {order.pronto
+                                                ? 'Pronto'
+                                                : isDelayed
+                                                  ? 'Atrasado'
+                                                  : 'Em Andamento'}
                                             </Badge>
                                           </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Em Andamento'}
+                                          {order.pronto
+                                            ? 'Pronto'
+                                            : isDelayed
+                                              ? 'Atrasado'
+                                              : 'Em Andamento'}
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -2977,10 +3298,12 @@ export default function OrderList() {
               <div className="w-full bg-background border-t border-border p-4 mt-auto">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <p className="text-sm text-muted-foreground text-center lg:text-left">
-                    {dateFrom || dateTo || productionStatusFilter === 'pending' || productionStatusFilter === 'ready'
+                    {dateFrom ||
+                    dateTo ||
+                    productionStatusFilter === 'pending' ||
+                    productionStatusFilter === 'ready'
                       ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
-                      : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`
-                    }
+                      : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`}
                   </p>
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <Select
@@ -3012,7 +3335,7 @@ export default function OrderList() {
                       </Button>
                       <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
                         {Array.from({
-                          length: isBackendPaginated ? totalPages : totalPagesFiltered
+                          length: isBackendPaginated ? totalPages : totalPagesFiltered,
                         }).map((_, index) => (
                           <Button
                             key={index}
@@ -3029,11 +3352,15 @@ export default function OrderList() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const maxPage = isBackendPaginated ? totalPages - 1 : totalPagesFiltered - 1;
+                          const maxPage = isBackendPaginated
+                            ? totalPages - 1
+                            : totalPagesFiltered - 1;
                           setPage(Math.min(maxPage, page + 1));
                         }}
                         disabled={
-                          isBackendPaginated ? page >= totalPages - 1 : page >= totalPagesFiltered - 1
+                          isBackendPaginated
+                            ? page >= totalPages - 1
+                            : page >= totalPagesFiltered - 1
                         }
                       >
                         Próxima
@@ -3044,6 +3371,17 @@ export default function OrderList() {
               </div>
             )}
           </>
+        )}
+
+        {/* Botão flutuante Novo Pedido - Mobile only */}
+        {isMobile && (
+          <Button
+            size="lg"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg shadow-primary/25 z-50"
+            onClick={() => navigate('/dashboard/pedido/novo')}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
         )}
 
         <ShortcutsHelp
@@ -3079,7 +3417,8 @@ export default function OrderList() {
             <DialogHeader>
               <DialogTitle>Duplicar Pedido</DialogTitle>
               <DialogDescription>
-                Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
+                Configure as datas para o novo pedido duplicado do pedido #
+                {orderToDuplicate?.numero || orderToDuplicate?.id}.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -3108,13 +3447,16 @@ export default function OrderList() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setDuplicateDialogOpen(false);
-                setOrderToDuplicate(null);
-                setDuplicateDataEntrada('');
-                setDuplicateDataEntrega('');
-                setDuplicateDateError(null);
-              }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDuplicateDialogOpen(false);
+                  setOrderToDuplicate(null);
+                  setDuplicateDataEntrada('');
+                  setDuplicateDataEntrega('');
+                  setDuplicateDateError(null);
+                }}
+              >
                 Cancelar
               </Button>
               <Button
@@ -3127,12 +3469,14 @@ export default function OrderList() {
           </DialogContent>
         </Dialog>
 
-
-        <Dialog open={statusConfirmModal.show} onOpenChange={(open) => {
-          if (!open) {
-            closeStatusConfirmModal();
-          }
-        }}>
+        <Dialog
+          open={statusConfirmModal.show}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeStatusConfirmModal();
+            }
+          }}
+        >
           <DialogContent
             onOpenAutoFocus={(event) => {
               event.preventDefault();
@@ -3154,16 +3498,20 @@ export default function OrderList() {
                 <div className="space-y-2">
                   {statusConfirmModal.novoValor ? (
                     <div>
-                      Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído para o pedido #{statusConfirmModal.pedidoId}?
+                      Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído
+                      para o pedido #{statusConfirmModal.pedidoId}?
                     </div>
                   ) : (
                     <div>
                       <div>
-                        Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o pedido #{statusConfirmModal.pedidoId}?
+                        Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o
+                        pedido #{statusConfirmModal.pedidoId}?
                       </div>
                       {statusConfirmModal.campo === 'financeiro' && (
                         <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros status (Conferência, Impressão, Costura e Expedição) também serão desmarcados!
+                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros
+                          status (Conferência, Impressão, Costura e Expedição) também serão
+                          desmarcados!
                         </div>
                       )}
                     </div>
@@ -3172,14 +3520,14 @@ export default function OrderList() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={closeStatusConfirmModal}
-                type="button"
-              >
+              <Button variant="outline" onClick={closeStatusConfirmModal} type="button">
                 Cancelar
               </Button>
-              <Button onClick={handleConfirmStatusChange} ref={statusConfirmButtonRef} type="button">
+              <Button
+                onClick={handleConfirmStatusChange}
+                ref={statusConfirmButtonRef}
+                type="button"
+              >
                 Confirmar
               </Button>
             </DialogFooter>
@@ -3198,7 +3546,8 @@ export default function OrderList() {
                   <div>
                     <DialogTitle className="text-xl font-bold">Gerar Reposição</DialogTitle>
                     <DialogDescription className="text-sm font-medium mt-1 break-words">
-                      Pedido #{orderToReplace?.numero || orderToReplace?.id} • {orderToReplace?.cliente || orderToReplace?.customer_name}
+                      Pedido #{orderToReplace?.numero || orderToReplace?.id} •{' '}
+                      {orderToReplace?.cliente || orderToReplace?.customer_name}
                     </DialogDescription>
                   </div>
                 </div>
@@ -3216,7 +3565,8 @@ export default function OrderList() {
                   <div className="flex-1 flex flex-col gap-1 pr-2">
                     <span className="font-bold text-base leading-tight">Valores Originais</span>
                     <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
-                      Copia integralmente os preços e frete do pedido original. Usar quando o cliente pagará pela nova peça.
+                      Copia integralmente os preços e frete do pedido original. Usar quando o
+                      cliente pagará pela nova peça.
                     </span>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary/50 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
@@ -3237,9 +3587,12 @@ export default function OrderList() {
                     <Zap className="h-6 w-6 text-orange-600 dark:text-orange-400 transition-colors duration-300 fill-current" />
                   </div>
                   <div className="flex-1 flex flex-col gap-1 mt-1 pr-2">
-                    <span className="font-bold text-base text-orange-700 dark:text-orange-400 leading-tight">Cortesia (Zero Vinte)</span>
+                    <span className="font-bold text-base text-orange-700 dark:text-orange-400 leading-tight">
+                      Cortesia (Zero Vinte)
+                    </span>
                     <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
-                      Zera todos os preços unitários e o frete. Ideal para casos de erro interno, garantia ou cortesia.
+                      Zera todos os preços unitários e o frete. Ideal para casos de erro interno,
+                      garantia ou cortesia.
                     </span>
                   </div>
                   <ChevronRight className="h-5 w-5 text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
@@ -3249,7 +3602,8 @@ export default function OrderList() {
               <div className="mt-6 flex items-start gap-2.5 p-3.5 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-900/20 rounded-xl">
                 <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 leading-normal italic">
-                  Independente da escolha, o status será resetado para <strong>Pendente</strong> e uma nova ficha numerada será gerada.
+                  Independente da escolha, o status será resetado para <strong>Pendente</strong> e
+                  uma nova ficha numerada será gerada.
                 </p>
               </div>
             </div>
