@@ -13,6 +13,8 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { isTauri } from '@/utils/isTauri';
+import { BottomNavBar } from './BottomNavBar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,21 +34,26 @@ const NAV_ITEMS: Array<{
   exact?: boolean;
   adminOnly?: boolean;
 }> = [
-  { path: '/dashboard', label: 'Início', icon: LayoutDashboard, exact: true },
-  { path: '/dashboard/orders', label: 'Pedidos', icon: ShoppingCart },
-  { path: '/dashboard/pedido/novo', label: 'Novo', icon: ShoppingCart },
-  { path: '/dashboard/clientes', label: 'Clientes', icon: Users },
-  { path: '/dashboard/relatorios-envios', label: 'Envios', icon: Truck },
-  { path: '/dashboard/painel-desempenho', label: 'Desempenho', icon: BarChart, adminOnly: true },
-  { path: '/dashboard/fechamentos', label: 'Fechamentos', icon: FileText, adminOnly: true },
-];
+    { path: '/dashboard', label: 'Início', icon: LayoutDashboard, exact: true },
+    { path: '/dashboard/orders', label: 'Pedidos', icon: ShoppingCart },
+    { path: '/dashboard/pedido/novo', label: 'Novo', icon: ShoppingCart },
+    { path: '/dashboard/clientes', label: 'Clientes', icon: Users },
+    { path: '/dashboard/relatorios-envios', label: 'Envios', icon: Truck },
+    { path: '/dashboard/painel-desempenho', label: 'Desempenho', icon: BarChart, adminOnly: true },
+    { path: '/dashboard/fechamentos', label: 'Fechamentos', icon: FileText, adminOnly: true },
+  ];
 
 export function PwaLayout({ children }: PwaLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { username, isAdmin } = useAuthStore();
+  const tauri = isTauri();
 
-  const filteredNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.path === '/dashboard/pedido/novo' && !tauri) return false;
+    return true;
+  });
 
   const isActive = (path: string, exact?: boolean) => {
     if (exact) return location.pathname === path;
@@ -107,8 +114,8 @@ export function PwaLayout({ children }: PwaLayoutProps) {
           })}
         </nav>
 
-        {/* Mobile: menu hamburger */}
-        <div className="flex sm:hidden items-center gap-2">
+        {/* Mobile: menu hamburger - Oculto em favor da BottomNavBar */}
+        <div className="hidden items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -162,11 +169,14 @@ export function PwaLayout({ children }: PwaLayoutProps) {
 
       {/* Área de conteúdo */}
       <main
-        className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar max-w-7xl mx-auto w-full"
+        className="flex-1 overflow-auto p-4 md:p-6 pb-20 sm:pb-4 custom-scrollbar max-w-7xl mx-auto w-full"
         role="main"
       >
         {children}
       </main>
+
+      {/* Barra de Navegação Inferior - Mobile only */}
+      <BottomNavBar />
     </div>
   );
 }

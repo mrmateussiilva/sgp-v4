@@ -4,7 +4,6 @@ import {
   Edit,
   Trash2,
   FileText,
-  Plus,
   Printer,
   Search,
   ArrowUp,
@@ -2110,10 +2109,10 @@ export default function OrderList() {
         ) : (
           <>
             {/* Header com alternância de visualização */}
-            <div className="flex items-center justify-between py-2 mb-2">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between py-2 mb-2 px-2 sm:px-0">
+              <div className="flex flex-col">
+                <h1 className="text-xl md:text-2xl font-bold text-foreground">Pedidos</h1>
+                <p className="hidden sm:block text-sm text-muted-foreground">
                   Visualize e gerencie todos os pedidos do sistema
                 </p>
               </div>
@@ -2124,6 +2123,7 @@ export default function OrderList() {
                       type="button"
                       variant="outline"
                       size="icon"
+                      className="h-9 w-9 md:h-10 md:w-10"
                       onClick={() => setShortcutsModalOpen(true)}
                       aria-label="Ver atalhos de teclado"
                     >
@@ -2132,120 +2132,389 @@ export default function OrderList() {
                   </TooltipTrigger>
                   <TooltipContent>Atalhos de teclado (?)</TooltipContent>
                 </Tooltip>
+
+                {/* Botão de Atualizar - útil no mobile PWA */}
+                {isPwa && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 md:h-10 md:w-10"
+                    onClick={() => loadOrders()}
+                    disabled={loading}
+                  >
+                    <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                  </Button>
+                )}
+
                 {isAdmin && (
-                  <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
+                  <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant={viewMode === 'table' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setViewMode('table')}
-                      className="h-8 px-3 bg-background shadow-sm text-primary"
+                      className={cn(
+                        "h-8 px-2 md:px-3",
+                        viewMode === 'table' ? "bg-background shadow-sm text-primary" : "text-muted-foreground"
+                      )}
                     >
-                      <Table2 className="h-4 w-4 mr-2" />
-                      Tabela
+                      <Table2 className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Tabela</span>
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setViewMode('pipeline')}
-                      className="h-8 px-3 text-muted-foreground hover:text-foreground"
+                      className={cn(
+                        "h-8 px-2 md:px-3",
+                        viewMode === 'pipeline' ? "bg-background shadow-sm text-primary" : "text-muted-foreground"
+                      )}
                     >
-                      <div className="flex flex-row gap-0.5 items-center mr-1.5 grayscale opacity-50">
+                      <div className="flex flex-row gap-0.5 items-center sm:mr-1.5">
                         <div className="h-2 w-2 rounded-full bg-current" />
-                        <ChevronRight className="h-2 w-2" />
-                        <div className="h-2 w-2 rounded-full bg-current" />
+                        <ChevronRight className="h-2 w-2 hidden sm:block" />
+                        <div className="h-2 w-2 rounded-full bg-current hidden sm:block" />
                       </div>
-                      Pipeline
+                      <span className="hidden sm:inline">Pipeline</span>
                     </Button>
                   </div>
                 )}
               </div>
             </div>
-            {/* Barra de Filtros Principais - Sempre Visível */}
-            <Card className={cn('border-2', isPwa && 'pwa-card')}>
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-4">
-                  {/* Linha 1: Busca e Status */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Busca - Prioridade 1 */}
-                    <div className="flex-1 flex gap-2 items-center">
-                      <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar por nome do cliente, ID ou número do pedido"
-                          ref={searchInputRef}
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSearch();
-                            }
-                          }}
-                          className={cn('pl-10 h-10', isPwa && 'min-h-[44px]')}
-                        />
+
+            {/* Dialog de Filtros Avançados - Mobile Only */}
+            {isMobile && (
+              <Dialog open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                <DialogContent className="sm:max-w-[425px] h-[90vh] flex flex-col p-0 gap-0">
+                  <DialogHeader className="p-6 pb-2 border-b">
+                    <DialogTitle className="text-xl">Filtros Avançados</DialogTitle>
+                    <DialogDescription>
+                      Refine sua busca por pedidos
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Datas de Entrega */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        Data de Entrega
+                      </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="date-from-mobile" className="text-xs text-muted-foreground">Início</Label>
+                          <Input
+                            id="date-from-mobile"
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="date-to-mobile" className="text-xs text-muted-foreground">Fim</Label>
+                          <Input
+                            id="date-to-mobile"
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="h-10"
+                          />
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        onClick={handleSearch}
-                        className={cn('h-10 px-4 whitespace-nowrap', isPwa && 'min-h-[44px]')}
-                        variant="default"
-                      >
-                        <Search className="h-4 w-4 mr-2" />
-                        Buscar
-                      </Button>
                     </div>
 
-                    {/* Status - Prioridade 1 */}
-                    <div className="w-full sm:w-[180px]">
-                      <Select
-                        value={productionStatusFilter}
-                        onValueChange={(value) =>
-                          setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
-                        }
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Status de produção" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
-                          <SelectItem value="ready">Prontos para entrega</SelectItem>
-                          <SelectItem value="all">Todos os pedidos</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="h-px bg-border" />
+
+                    {/* Status de Produção */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <div className="h-4 w-4 rounded-full border-2 border-primary" />
+                        Status de Produção
+                      </Label>
+                      <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                        {[
+                          { value: 'financeiro', label: 'Financeiro' },
+                          { value: 'conferencia', label: 'Conferência' },
+                          { value: 'sublimacao', label: 'Sublimação' },
+                          { value: 'costura', label: 'Costura' },
+                          { value: 'expedicao', label: 'Expedição' },
+                          { value: 'pronto', label: 'Pronto' },
+                        ].map((status) => (
+                          <div key={status.value} className="flex items-center space-x-2.5">
+                            <Checkbox
+                              id={`status-mobile-${status.value}`}
+                              checked={selectedStatuses.includes(status.value)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedStatuses([...selectedStatuses, status.value]);
+                                } else {
+                                  setSelectedStatuses(
+                                    selectedStatuses.filter((s) => s !== status.value)
+                                  );
+                                }
+                              }}
+                              className="h-5 w-5"
+                            />
+                            <Label
+                              htmlFor={`status-mobile-${status.value}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                            >
+                              {status.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Data de Entrega - Prioridade 1 */}
-                    <div className="flex gap-2 flex-1 sm:flex-initial">
-                      <div className="flex-1 sm:w-[160px] relative">
-                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          type="date"
-                          placeholder="Data inicial de entrega"
-                          value={dateFrom}
-                          onChange={(e) => setDateFrom(e.target.value)}
-                          className="pl-10 h-10"
-                          title="Data inicial de entrega"
-                        />
+                    <div className="h-px bg-border" />
+
+                    {/* Filtros de Pessoas e Local */}
+                    <div className="space-y-4 pt-1">
+                      <div className="space-y-2">
+                        <Label htmlFor="vendedor-mobile" className="text-sm font-semibold">Vendedor</Label>
+                        <Select
+                          value={selectedVendedor || 'all'}
+                          onValueChange={(value) => setSelectedVendedor(value === 'all' ? '' : value)}
+                        >
+                          <SelectTrigger id="vendedor-mobile" className="h-11">
+                            <SelectValue placeholder="Todos os vendedores" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            {vendedores.filter((v) => v.nome).map((v) => (
+                              <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="flex-1 sm:w-[160px] relative">
-                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          type="date"
-                          placeholder="Data final de entrega"
-                          value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
-                          className="pl-10 h-10"
-                          title="Data final de entrega"
-                        />
+
+                      <div className="space-y-2">
+                        <Label htmlFor="designer-mobile" className="text-sm font-semibold">Designer</Label>
+                        <Select
+                          value={selectedDesigner || 'all'}
+                          onValueChange={(value) => setSelectedDesigner(value === 'all' ? '' : value)}
+                        >
+                          <SelectTrigger id="designer-mobile" className="h-11">
+                            <SelectValue placeholder="Todos os designers" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            {designers.filter((d) => d.nome).map((d) => (
+                              <SelectItem key={d.id} value={d.nome}>{d.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cidade-mobile" className="text-sm font-semibold">Cidade</Label>
+                        <Select
+                          value={selectedCidade || 'all'}
+                          onValueChange={(value) => setSelectedCidade(value === 'all' ? '' : value)}
+                        >
+                          <SelectTrigger id="cidade-mobile" className="h-11">
+                            <SelectValue placeholder="Todas as cidades" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            {cidades.filter((c) => c && c.trim()).map((cidade) => (
+                              <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="forma-envio-mobile" className="text-sm font-semibold">Forma de Envio</Label>
+                        <Select
+                          value={selectedFormaEnvio || 'all'}
+                          onValueChange={(value) => setSelectedFormaEnvio(value === 'all' ? '' : value)}
+                        >
+                          <SelectTrigger id="forma-envio-mobile" className="h-11">
+                            <SelectValue placeholder="Todas as formas de envio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            {formasEnvio.filter((f) => f.nome).map((forma) => (
+                              <SelectItem key={forma.id} value={forma.nome}>{forma.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
+                  <DialogFooter className="p-4 border-t bg-muted/20">
+                    <div className="flex items-center justify-between w-full gap-3">
+                      <Button
+                        variant="ghost"
+                        className="text-muted-foreground font-semibold"
+                        onClick={() => {
+                          clearAllFilters();
+                          setAdvancedFiltersOpen(false);
+                        }}
+                      >
+                        Limpar Tudo
+                      </Button>
+                      <Button
+                        className="flex-1 font-bold h-12 rounded-xl shadow-md"
+                        onClick={() => setAdvancedFiltersOpen(false)}
+                      >
+                        Aplicar Filtros
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
 
-                  {/* Linha 2: Filtros Ativos e Controles - Sempre visível quando há filtros */}
-                  {activeFiltersList.length > 0 && (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t">
-                      <div className="flex-1">
+            {/* Barra de Filtros Principais - Desktop e Mobile PWA */}
+            {isMobile ? (
+              <div className="flex flex-col gap-3 mb-4 sticky top-14 z-20 bg-background/95 backdrop-blur-sm p-3 border-b shadow-sm">
+                <div className="flex gap-2 w-full">
+                  <div className="flex-1 relative group">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <Input
+                      placeholder="Nome, ID ou número"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      className="pl-10 h-11 bg-muted/40 border-none rounded-full focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          handleSearch(); // trigger reset search
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
+                      >
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className={cn(
+                        "h-11 w-11 rounded-full border shadow-sm",
+                        (dateFrom || dateTo || activeFiltersCount > 0) && "border-primary bg-primary/5"
+                      )}
+                      onClick={() => setAdvancedFiltersOpen(true)}
+                    >
+                      <Filter className={cn("h-4 w-4", (dateFrom || dateTo || activeFiltersCount > 0) && "text-primary fill-primary/10")} />
+                    </Button>
+                    {activeFiltersCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground border-2 border-background">
+                        {activeFiltersCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Chips - Mobile Only */}
+                <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-none -mx-3 px-3">
+                  {[
+                    { id: 'pending', label: 'Pendentes' },
+                    { id: 'ready', label: 'Prontos' },
+                    { id: 'all', label: 'Todos' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.id}
+                      onClick={() => setProductionStatusFilter(chip.id as any)}
+                      className={cn(
+                        "whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all border",
+                        productionStatusFilter === chip.id
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : "bg-background text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Card className={cn('border-2', isPwa && 'pwa-card')}>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col gap-4">
+                    {/* Linha 1: Busca e Status */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1 flex gap-2 items-center">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                            ref={searchInputRef}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSearch();
+                              }
+                            }}
+                            className={cn('pl-10 h-10', isPwa && 'min-h-[44px]')}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={handleSearch}
+                          className={cn('h-10 px-4 whitespace-nowrap', isPwa && 'min-h-[44px]')}
+                          variant="default"
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          Buscar
+                        </Button>
+                      </div>
+
+                      <div className="w-full sm:w-[180px]">
+                        <Select
+                          value={productionStatusFilter}
+                          onValueChange={(value) =>
+                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+                          }
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Status de produção" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
+                            <SelectItem value="ready">Prontos para entrega</SelectItem>
+                            <SelectItem value="all">Todos os pedidos</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex gap-2 flex-1 sm:flex-initial">
+                        <div className="flex-1 sm:w-[160px] relative">
+                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="date"
+                            placeholder="Data inicial de entrega"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="pl-10 h-10"
+                            title="Data inicial de entrega"
+                          />
+                        </div>
+                        <div className="flex-1 sm:w-[160px] relative">
+                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="date"
+                            placeholder="Data final de entrega"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="pl-10 h-10"
+                            title="Data final de entrega"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Linha 2: Filtros Ativos e Controles */}
+                    {activeFiltersList.length > 0 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">Mostrando:</span>
                           {activeFiltersList.map((filter, index) => (
@@ -2265,243 +2534,215 @@ export default function OrderList() {
                             </Badge>
                           ))}
                         </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={clearAllFilters}
+                          className="h-8 gap-1.5 font-medium"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Limpar todos os filtros
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={clearAllFilters}
-                        className="h-8 gap-1.5 font-medium"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        Limpar todos os filtros
-                      </Button>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Indicador quando não há filtros */}
-                  {activeFiltersList.length === 0 && (
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Use os filtros acima para buscar pedidos. Todos os filtros são aplicados
-                        instantaneamente.
-                      </p>
-                    </div>
-                  )}
+                    {/* Indicador quando não há filtros */}
+                    {activeFiltersList.length === 0 && (
+                      <div className="pt-2 border-t text-center sm:text-left">
+                        <p className="text-sm text-muted-foreground italic">
+                          Filtros aplicados instantaneamente.
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Linha 3: Filtros Avançados (Colapsáveis) */}
-                  <div className="border-t pt-3">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
-                      className="w-full justify-between h-9"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
-                        Filtros Adicionais
-                        {activeFiltersCount > 0 && (
-                          <Badge variant="secondary" className="ml-1">
-                            {activeFiltersCount}
-                          </Badge>
-                        )}
-                      </span>
-                      {advancedFiltersOpen ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-
-                    {advancedFiltersOpen && (
-                      <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Status de Produção */}
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Status de Produção</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              {[
-                                { value: 'financeiro', label: 'Financeiro' },
-                                { value: 'conferencia', label: 'Conferência' },
-                                { value: 'sublimacao', label: 'Sublimação' },
-                                { value: 'costura', label: 'Costura' },
-                                { value: 'expedicao', label: 'Expedição' },
-                                { value: 'pronto', label: 'Pronto' },
-                              ].map((status) => (
-                                <div key={status.value} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`status-${status.value}`}
-                                    checked={selectedStatuses.includes(status.value)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedStatuses([...selectedStatuses, status.value]);
-                                      } else {
-                                        setSelectedStatuses(
-                                          selectedStatuses.filter((s) => s !== status.value)
-                                        );
-                                      }
-                                    }}
-                                  />
-                                  <Label
-                                    htmlFor={`status-${status.value}`}
-                                    className="text-sm font-normal cursor-pointer"
-                                  >
-                                    {status.label}
-                                  </Label>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Filtros Secundários */}
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="vendedor-filter" className="text-sm font-semibold">
-                                Vendedor
-                              </Label>
-                              <Select
-                                value={selectedVendedor || 'all'}
-                                onValueChange={(value) =>
-                                  setSelectedVendedor(value === 'all' ? '' : value)
-                                }
-                              >
-                                <SelectTrigger id="vendedor-filter" className="h-9">
-                                  <SelectValue placeholder="Todos os vendedores" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">Todos</SelectItem>
-                                  {vendedores
-                                    .filter((v) => v.nome)
-                                    .map((v) => (
-                                      <SelectItem key={v.id} value={v.nome}>
-                                        {v.nome}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="designer-filter" className="text-sm font-semibold">
-                                Designer
-                              </Label>
-                              <Select
-                                value={selectedDesigner || 'all'}
-                                onValueChange={(value) =>
-                                  setSelectedDesigner(value === 'all' ? '' : value)
-                                }
-                              >
-                                <SelectTrigger id="designer-filter" className="h-9">
-                                  <SelectValue placeholder="Todos os designers" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">Todos</SelectItem>
-                                  {designers
-                                    .filter((d) => d.nome)
-                                    .map((d) => (
-                                      <SelectItem key={d.id} value={d.nome}>
-                                        {d.nome}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="cidade-filter" className="text-sm font-semibold">
-                                Cidade
-                              </Label>
-                              <Select
-                                value={selectedCidade || 'all'}
-                                onValueChange={(value) =>
-                                  setSelectedCidade(value === 'all' ? '' : value)
-                                }
-                              >
-                                <SelectTrigger id="cidade-filter" className="h-9">
-                                  <SelectValue placeholder="Todas as cidades" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">Todas</SelectItem>
-                                  {cidades
-                                    .filter((c) => c && c.trim())
-                                    .map((cidade) => (
-                                      <SelectItem key={cidade} value={cidade}>
-                                        {cidade}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="forma-envio-filter" className="text-sm font-semibold">
-                                Forma de Envio
-                              </Label>
-                              <Select
-                                value={selectedFormaEnvio || 'all'}
-                                onValueChange={(value) =>
-                                  setSelectedFormaEnvio(value === 'all' ? '' : value)
-                                }
-                              >
-                                <SelectTrigger id="forma-envio-filter" className="h-9">
-                                  <SelectValue placeholder="Todas as formas de envio" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">Todas</SelectItem>
-                                  {formasEnvio
-                                    .filter((f) => f.nome)
-                                    .map((forma) => (
-                                      <SelectItem key={forma.id} value={forma.nome}>
-                                        {forma.nome}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
+                    {/* Linha 3: Filtros Avançados (Colapsáveis) - Desktop Only */}
+                    {!isMobile && (
+                      <div className="border-t pt-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+                          className="w-full justify-between h-9"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Filter className="h-4 w-4" />
+                            Filtros Adicionais
+                            {activeFiltersCount > 0 && (
+                              <Badge variant="secondary" className="ml-1">
+                                {activeFiltersCount}
+                              </Badge>
+                            )}
+                          </span>
+                          {advancedFiltersOpen ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Barra de Seleção de Pedidos para Impressão */}
-            {selectedOrderIdsForPrint.length > 0 && (
-              <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedOrderIdsForPrint([])}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Limpar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={handlePrintSelected}
-                    disabled={isBulkGenerating}
-                  >
-                    <Printer
-                      className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`}
-                    />
-                    {isBulkGenerating ? 'Gerando...' : 'Imprimir Selecionados'}
-                  </Button>
+            {/* Conteúdo da Seção de Filtros Adicionais - Desktop Only */}
+            {!isMobile && advancedFiltersOpen && (
+              <div className="mt-2 p-4 bg-muted/30 rounded-lg space-y-4 border border-border/50 shadow-inner">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Status de Produção */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Status de Produção</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'financeiro', label: 'Financeiro' },
+                        { value: 'conferencia', label: 'Conferência' },
+                        { value: 'sublimacao', label: 'Sublimação' },
+                        { value: 'costura', label: 'Costura' },
+                        { value: 'expedicao', label: 'Expedição' },
+                        { value: 'pronto', label: 'Pronto' },
+                      ].map((status) => (
+                        <div key={status.value} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`status-desktop-${status.value}`}
+                            checked={selectedStatuses.includes(status.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedStatuses([...selectedStatuses, status.value]);
+                              } else {
+                                setSelectedStatuses(
+                                  selectedStatuses.filter((s) => s !== status.value)
+                                );
+                              }
+                            }}
+                          />
+                          <Label
+                            htmlFor={`status-desktop-${status.value}`}
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            {status.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Filtros Secundários */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="vendedor-filter-desktop" className="text-sm font-semibold">Vendedor</Label>
+                      <Select
+                        value={selectedVendedor || 'all'}
+                        onValueChange={(value) => setSelectedVendedor(value === 'all' ? '' : value)}
+                      >
+                        <SelectTrigger id="vendedor-filter-desktop" className="h-9">
+                          <SelectValue placeholder="Todos os vendedores" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {vendedores.filter((v) => v.nome).map((v) => (
+                            <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="designer-filter-desktop" className="text-sm font-semibold">Designer</Label>
+                      <Select
+                        value={selectedDesigner || 'all'}
+                        onValueChange={(value) => setSelectedDesigner(value === 'all' ? '' : value)}
+                      >
+                        <SelectTrigger id="designer-filter-desktop" className="h-9">
+                          <SelectValue placeholder="Todos os designers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {designers.filter((d) => d.nome).map((d) => (
+                            <SelectItem key={d.id} value={d.nome}>{d.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cidade-filter-desktop" className="text-sm font-semibold">Cidade</Label>
+                      <Select
+                        value={selectedCidade || 'all'}
+                        onValueChange={(value) => setSelectedCidade(value === 'all' ? '' : value)}
+                      >
+                        <SelectTrigger id="cidade-filter-desktop" className="h-9">
+                          <SelectValue placeholder="Todas as cidades" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          {cidades.filter((c) => c && c.trim()).map((cidade) => (
+                            <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="forma-envio-filter-desktop" className="text-sm font-semibold">Forma de Envio</Label>
+                      <Select
+                        value={selectedFormaEnvio || 'all'}
+                        onValueChange={(value) => setSelectedFormaEnvio(value === 'all' ? '' : value)}
+                      >
+                        <SelectTrigger id="forma-envio-filter-desktop" className="h-9">
+                          <SelectValue placeholder="Todas as formas de envio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          {formasEnvio.filter((f) => f.nome).map((forma) => (
+                            <SelectItem key={forma.id} value={forma.nome}>{forma.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Barra de Seleção de Pedidos para Impressão */}
+            {
+              selectedOrderIdsForPrint.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedOrderIdsForPrint([])}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Limpar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={handlePrintSelected}
+                      disabled={isBulkGenerating}
+                    >
+                      <Printer
+                        className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`}
+                      />
+                      {isBulkGenerating ? 'Gerando...' : 'Imprimir Selecionados'}
+                    </Button>
+                  </div>
+                </div>
+              )
+            }
 
             <Card
               className={cn('flex-1 flex flex-col min-h-0 flex-grow', isPwa && 'pwa-card border-0')}
@@ -2540,13 +2781,13 @@ export default function OrderList() {
                           <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
                           <p className="text-sm text-muted-foreground text-center max-w-sm">
                             {activeSearchTerm ||
-                            dateFrom ||
-                            dateTo ||
-                            selectedStatuses.length > 0 ||
-                            selectedVendedor ||
-                            selectedDesigner ||
-                            selectedCidade ||
-                            selectedFormaEnvio
+                              dateFrom ||
+                              dateTo ||
+                              selectedStatuses.length > 0 ||
+                              selectedVendedor ||
+                              selectedDesigner ||
+                              selectedCidade ||
+                              selectedFormaEnvio
                               ? 'Tente ajustar seus filtros de busca.'
                               : 'Ainda não há pedidos.'}
                           </p>
@@ -2566,10 +2807,10 @@ export default function OrderList() {
                               className={cn(
                                 'p-3 transition-colors shadow-sm',
                                 isDelayed &&
-                                  'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
+                                'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
                                 order.prioridade === 'ALTA' &&
-                                  !isDelayed &&
-                                  'border-l-4 border-l-orange-400'
+                                !isDelayed &&
+                                'border-l-4 border-l-orange-400'
                               )}
                             >
                               <div className="flex items-center justify-between gap-3">
@@ -2817,13 +3058,13 @@ export default function OrderList() {
                                   </h3>
                                   <p className="text-sm text-muted-foreground max-w-sm">
                                     {activeSearchTerm ||
-                                    dateFrom ||
-                                    dateTo ||
-                                    selectedStatuses.length > 0 ||
-                                    selectedVendedor ||
-                                    selectedDesigner ||
-                                    selectedCidade ||
-                                    selectedFormaEnvio
+                                      dateFrom ||
+                                      dateTo ||
+                                      selectedStatuses.length > 0 ||
+                                      selectedVendedor ||
+                                      selectedDesigner ||
+                                      selectedCidade ||
+                                      selectedFormaEnvio
                                       ? 'Tente ajustar seus filtros de busca.'
                                       : 'Ainda não há pedidos. Crie o primeiro para começar.'}
                                   </p>
@@ -3294,95 +3535,89 @@ export default function OrderList() {
               </CardContent>
             </Card>
 
-            {filteredOrders.length > 0 && (
-              <div className="w-full bg-background border-t border-border p-4 mt-auto">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <p className="text-sm text-muted-foreground text-center lg:text-left">
-                    {dateFrom ||
-                    dateTo ||
-                    productionStatusFilter === 'pending' ||
-                    productionStatusFilter === 'ready'
-                      ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
-                      : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`}
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <Select
-                      value={rowsPerPage.toString()}
-                      onValueChange={(value) => {
-                        setRowsPerPage(Number(value));
-                        setPage(0); // Resetar para primeira página ao mudar tamanho
-                      }}
-                    >
-                      <SelectTrigger className="h-9 w-[140px]">
-                        <SelectValue placeholder="Itens por página" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[10, 20, 50, 100, 500].map((size) => (
-                          <SelectItem key={size} value={size.toString()}>
-                            {size === 500 ? 'Todos' : `${size} por página`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="flex items-center gap-1 flex-wrap justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(Math.max(0, page - 1))}
-                        disabled={page === 0}
-                      >
-                        Anterior
-                      </Button>
-                      <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
-                        {Array.from({
-                          length: isBackendPaginated ? totalPages : totalPagesFiltered,
-                        }).map((_, index) => (
-                          <Button
-                            key={index}
-                            variant={index === page ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setPage(index)}
-                            className="min-w-[40px]"
-                          >
-                            {index + 1}
-                          </Button>
-                        ))}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const maxPage = isBackendPaginated
-                            ? totalPages - 1
-                            : totalPagesFiltered - 1;
-                          setPage(Math.min(maxPage, page + 1));
+            {
+              filteredOrders.length > 0 && (
+                <div className="w-full bg-background border-t border-border p-4 mt-auto">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <p className="text-sm text-muted-foreground text-center lg:text-left">
+                      {dateFrom ||
+                        dateTo ||
+                        productionStatusFilter === 'pending' ||
+                        productionStatusFilter === 'ready'
+                        ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
+                        : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`}
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <Select
+                        value={rowsPerPage.toString()}
+                        onValueChange={(value) => {
+                          setRowsPerPage(Number(value));
+                          setPage(0); // Resetar para primeira página ao mudar tamanho
                         }}
-                        disabled={
-                          isBackendPaginated
-                            ? page >= totalPages - 1
-                            : page >= totalPagesFiltered - 1
-                        }
                       >
-                        Próxima
-                      </Button>
+                        <SelectTrigger className="h-9 w-[140px]">
+                          <SelectValue placeholder="Itens por página" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[10, 20, 50, 100, 500].map((size) => (
+                            <SelectItem key={size} value={size.toString()}>
+                              {size === 500 ? 'Todos' : `${size} por página`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1 flex-wrap justify-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(Math.max(0, page - 1))}
+                          disabled={page === 0}
+                        >
+                          Anterior
+                        </Button>
+                        <div className="flex items-center gap-1 flex-wrap justify-center max-w-full">
+                          {Array.from({
+                            length: isBackendPaginated ? totalPages : totalPagesFiltered,
+                          }).map((_, index) => (
+                            <Button
+                              key={index}
+                              variant={index === page ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setPage(index)}
+                              className="min-w-[40px]"
+                            >
+                              {index + 1}
+                            </Button>
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const maxPage = isBackendPaginated
+                              ? totalPages - 1
+                              : totalPagesFiltered - 1;
+                            setPage(Math.min(maxPage, page + 1));
+                          }}
+                          disabled={
+                            isBackendPaginated
+                              ? page >= totalPages - 1
+                              : page >= totalPagesFiltered - 1
+                          }
+                        >
+                          Próxima
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            }
           </>
-        )}
+        )
+        }
 
-        {/* Botão flutuante Novo Pedido - Mobile only */}
-        {isMobile && (
-          <Button
-            size="lg"
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg shadow-primary/25 z-50"
-            onClick={() => navigate('/dashboard/pedido/novo')}
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        )}
+        {/* Botão flutuante Novo Pedido - Removido no PWA conforme solicitado */}
 
         <ShortcutsHelp
           open={shortcutsModalOpen}
@@ -3698,7 +3933,7 @@ export default function OrderList() {
         isAdmin={isAdmin}
       />
       */}
-      </div>
+      </div >
     </>
   );
 }

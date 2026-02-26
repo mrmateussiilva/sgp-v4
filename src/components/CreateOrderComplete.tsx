@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { confirm } from '@/utils/confirm';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
+import { isTauri } from '@/utils/isTauri';
 import {
   Cliente,
   OrderStatus,
@@ -142,6 +143,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
 
   logger.debug('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
+
+  // Redirecionar se não estiver no Tauri (PWA/Browser não pode criar/editar pedidos conforme solicitado)
+  useEffect(() => {
+    if (!isTauri()) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'A criação de pedidos está disponível apenas no aplicativo oficial.',
+        variant: 'destructive',
+      });
+      navigate('/dashboard/orders');
+    }
+  }, [navigate, toast]);
 
   // Detectar automaticamente se está em modo edição baseado na rota
   // Se routeOrderId existir, está em modo edição
