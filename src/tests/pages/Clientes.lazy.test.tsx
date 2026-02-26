@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import Clientes from '@/pages/Clientes';
 
 // Mock de papaparse
-const mockParse = vi.fn((_file: any, options?: any) => {
+const mockParse = vi.fn((_file: unknown, options?: unknown) => {
   const result: {
     data: Array<{ nome: string; telefone: string; email: string }>;
     errors: Array<{ row: number; message: string }>;
@@ -112,7 +112,7 @@ describe('Clientes - Lazy Loading CSV', () => {
     const user = userEvent.setup();
     
     // Mock de erro no parsing
-    mockParse.mockImplementationOnce((_file: any, options?: any) => {
+    mockParse.mockImplementationOnce((_file: unknown, options?: unknown) => {
       const result: {
         data: Array<{ nome: string; telefone: string; email: string }>;
         errors: Array<{ row: number; message: string }>;

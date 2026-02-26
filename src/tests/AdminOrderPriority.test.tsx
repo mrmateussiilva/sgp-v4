@@ -1,6 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { useMemo } from 'react';
+import { describe, it, expect } from 'vitest';
 
 // Mock types
 interface Order {
@@ -11,7 +9,7 @@ interface Order {
 
 // Simulação simplificada da lógica do filteredOrders
 const getFilteredOrders = (orders: Order[], isAdmin: boolean, sortColumn: string | null) => {
-    let filtered = [...orders];
+    const filtered = [...orders];
 
     if (sortColumn) {
         // Simplificado para o teste

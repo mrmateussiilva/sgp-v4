@@ -847,7 +847,6 @@ describe('fechamentoReport', () => {
               descricao: 'MOCHILINHAS DAVI',
               valor_unitario: 'R$ 9,90',
               unit_price: 9.90,
-              // @ts-ignore - simulando campo dinâmico da API
               quantidade_mochilinha: 14,
               tipo_producao: 'mochilinha',
             } as any,
