@@ -110,25 +110,26 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
-                <View style={styles.headerTopRow}>
-                    <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                        <HeaderItem
-                            label="PEDIDO"
-                            value={`#${order.numero}`}
-                        />
-                        {order.item_index && (
-                            <View style={styles.itemBadge}>
-                                <Text style={styles.counterValue}>
-                                    {order.item_index}/{order.total_items}
-                                </Text>
-                            </View>
-                        )}
-                        {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                        <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
-                        <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
-                        <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 6 }}>
+                    <HeaderItem
+                        label="PEDIDO"
+                        value={`#${order.numero}`}
+                    />
+                    {order.item_index && (
+                        <View style={styles.itemBadge}>
+                            <Text style={styles.counterValue}>
+                                {order.item_index}/{order.total_items}
+                            </Text>
+                        </View>
+                    )}
+                    {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
+                    <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
+                    <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, maxWidth: 160, overflow: 'hidden' }}>
+                        <Text style={styles.hLabel}>FR.:</Text>
+                        <Text style={[styles.hValue, { maxLines: 1 }]}>
+                            {order.forma_envio.toUpperCase()}
+                        </Text>
                     </View>
                 </View>
 
