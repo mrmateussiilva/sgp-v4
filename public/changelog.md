@@ -1,5 +1,19 @@
 # Changelog - SGP v4
 
+## [1.3.2] - 2026-02-26
+
+### ✨ Melhorias
+- **Atalhos de teclado globais**: Navegação rápida via teclado em toda a aplicação (Ctrl+1..9 para páginas, setas ↑↓ para navegar pedidos, Enter para abrir, F1 para ajuda).
+- **Badges de atalho na Sidebar**: Indicadores visuais dos atalhos disponíveis em cada item do menu.
+- **Modal de Ajuda (F1)**: Novo modal listando todos os atalhos disponíveis na tela atual.
+
+### 🐛 Corrigido
+- **Zeros à esquerda no número do pedido**: Número do pedido nas fichas de impressão agora exibe sem zeros à esquerda (`#487` em vez de `#0000000487`).
+- **Cabeçalho da ficha embolado**: Reestruturado o cabeçalho da ficha de produção (PDF) com espaçamento uniforme e labels abreviados (ENT., ENTRG., FR.:).
+
+### 🔧 Melhorado
+- **Layout da ficha de produção (PDF)**: Cabeçalho reorganizado em duas linhas com espaçamento uniforme. Texto de frete é truncado automaticamente quando ultrapassa o espaço disponível.
+
 ## [1.2.9] - 2026-02-24
 
 ### 🐛 Correções
