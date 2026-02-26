@@ -49,8 +49,8 @@ const formatEmendaDisplay = (emenda?: string, emendaQtd?: string): string | unde
     const tipo = String(emenda).toLowerCase().trim();
     const label =
         tipo === 'horizontal' ? 'Horizontal' :
-        tipo === 'vertical' ? 'Vertical' :
-        tipo === 'com-emenda' ? 'Sim' : emenda;
+            tipo === 'vertical' ? 'Vertical' :
+                tipo === 'com-emenda' ? 'Sim' : emenda;
     const qtd = emendaQtd?.trim();
     const qtdNum = qtd ? (parseInt(qtd, 10) || 0) : 0;
     if (qtdNum > 0) return `${label} (${qtd} emenda${qtdNum !== 1 ? 's' : ''})`;
@@ -125,9 +125,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         )}
                         {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
                     </View>
-                    <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
-                    <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
-                    <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
+                    <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+                        <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
+                        <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
+                    </View>
                 </View>
 
                 <View style={styles.headerBottomRow}>
@@ -136,9 +137,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             ? order.cliente.substring(0, 30).toUpperCase()
                             : order.cliente.toUpperCase()}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
                         <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
                         <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
+                        <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
                     </View>
                 </View>
             </View>

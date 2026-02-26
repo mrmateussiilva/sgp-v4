@@ -1,4 +1,5 @@
 import { OrderWithItems, OrderItem } from '../types';
+import { formatOrderNumber } from '../utils/formatOrderNumber';
 
 export interface ProductionProduct {
     id: number;
@@ -74,7 +75,7 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
             : undefined;
 
         const commonInfo = {
-            numero: String(order.numero || order.id),
+            numero: formatOrderNumber(order.numero || order.id),
             cliente: order.customer_name || order.cliente || 'Não informado',
             telefone_cliente: order.telefone_cliente,
             cidade_estado: cityState,
