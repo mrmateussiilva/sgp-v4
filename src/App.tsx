@@ -16,6 +16,7 @@ import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { ChangelogModal } from './components/ChangelogModal';
 import { logger } from './utils/logger';
 import { UpdateBanner } from './components/UpdateBanner';
+import { CommandPalette } from './components/CommandPalette';
 
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -47,10 +48,11 @@ function App() {
   const [updateVersion, setUpdateVersion] = useState<string>('');
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Hook de verificação automática de atualizações usando updater oficial do Tauri
-  // Nota: Notificações WebSocket são gerenciadas por useOrderAutoSync em OrderList.tsx
-  // que usa o singleton ordersSocket para evitar múltiplas conexões
+  // Notificação de nova versão agora é gerenciada pelo componente UpdateBanner
+  // para ser mais persistente e visível em todo o sistema.
   useTauriUpdater();
+
+  // Hook de verificação automática de atualizações usando updater oficial do Tauri
 
   // Ativar notificações em tempo real globalmente (toasts + refresh)
   // O hook já lida com connect/disconnect baseado no sessionToken.
@@ -260,6 +262,7 @@ function App() {
               <HashRouter>
                 <div className="flex flex-col h-screen overflow-hidden">
                   <UpdateBanner />
+                  <CommandPalette />
                   <div className="flex-1 flex flex-col relative">
                     <Routes>
                       <Route path="/login" element={<Login />} />

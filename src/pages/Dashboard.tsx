@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 
 // Lazy load de todas as rotas para code-splitting
@@ -100,6 +101,48 @@ export default function Dashboard() {
     }
   }, [navigate]);
 
+  // Atalhos de teclado
+  const dashboardShortcuts = useMemo(() => [
+    {
+      key: '1',
+      ctrl: true,
+      action: () => navigate('/dashboard'),
+      description: 'Ir para Início',
+    },
+    {
+      key: '2',
+      ctrl: true,
+      action: () => navigate('/dashboard/orders'),
+      description: 'Ir para Pedidos',
+    },
+    {
+      key: '3',
+      ctrl: true,
+      action: () => navigate('/dashboard/pedido/novo'),
+      description: 'Novo Pedido',
+    },
+    {
+      key: '4',
+      ctrl: true,
+      action: () => navigate('/dashboard/clientes'),
+      description: 'Ir para Clientes',
+    },
+    {
+      key: 'b',
+      ctrl: true,
+      action: () => setSidebarExpanded((prev) => !prev),
+      description: 'Recolher/Expandir menu lateral',
+    },
+    {
+      key: 'r',
+      ctrl: true,
+      action: () => window.location.reload(),
+      description: 'Atualizar sistema',
+    },
+  ], [navigate, setSidebarExpanded]);
+
+  useKeyboardShortcuts(dashboardShortcuts);
+
   interface MenuItem {
     icon: any;
     label: string;
@@ -107,6 +150,7 @@ export default function Dashboard() {
     exact?: boolean;
     adminOnly: boolean;
     section: string;
+    shortcutLabel?: string;
   }
 
   const allMenuItems: MenuItem[] = useMemo(() => [
@@ -116,28 +160,32 @@ export default function Dashboard() {
       path: '/dashboard',
       exact: true,
       adminOnly: false,
-      section: 'OPERACIONAL'
+      section: 'OPERACIONAL',
+      shortcutLabel: '1'
     },
     {
       icon: ShoppingCart,
       label: 'Pedidos',
       path: '/dashboard/orders',
       adminOnly: false,
-      section: 'OPERACIONAL'
+      section: 'OPERACIONAL',
+      shortcutLabel: '2'
     },
     {
       icon: Plus,
       label: 'Novo Pedido',
       path: '/dashboard/pedido/novo',
       adminOnly: false,
-      section: 'OPERACIONAL'
+      section: 'OPERACIONAL',
+      shortcutLabel: '3'
     },
     {
       icon: Users,
       label: 'Clientes',
       path: '/dashboard/clientes',
       adminOnly: false,
-      section: 'OPERACIONAL'
+      section: 'OPERACIONAL',
+      shortcutLabel: '4'
     },
     {
       icon: Truck,
@@ -286,6 +334,7 @@ export default function Dashboard() {
                   separatorLabel={isFirstInSection ? item.section : undefined}
                   showBadge={item.path === '/update-status' && isUpdateAvailable}
                   isFirst={index === 0}
+                  shortcutLabel={item.shortcutLabel}
                 />
               );
             })}
