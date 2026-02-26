@@ -49,8 +49,8 @@ export async function uploadImageToServer(
       mimeType = 'image/webp';
     }
 
-    // Criar o Blob diretamente do Uint8Array (cast para any para evitar erro de SharedArrayBuffer no TS)
-    const blob = new Blob([imageData as any], { type: mimeType });
+    // Criar o Blob diretamente do Uint8Array
+    const blob = new Blob([imageData as unknown as BlobPart], { type: mimeType });
     const formData = new FormData();
 
     // Gerar nome de arquivo baseado no orderItemId ou timestamp
@@ -73,13 +73,15 @@ export async function uploadImageToServer(
       success: true,
       server_reference: response.data.server_reference || response.data.image_reference || response.data.path || response.data.url,
     };
-  } catch (error: any) {
-    console.error('Erro no upload de imagem:', error);
-    console.error('Erro detalhado:', error?.response?.data);
+  } catch (error: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const err = error as any;
+    console.error('Erro no upload de imagem:', err);
+    console.error('Erro detalhado:', err?.response?.data);
     return {
       success: false,
       server_reference: null,
-      error: error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Erro desconhecido no upload',
+      error: err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Erro desconhecido no upload',
     };
   }
 }

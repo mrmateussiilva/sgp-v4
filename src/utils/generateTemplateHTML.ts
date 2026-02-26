@@ -196,7 +196,7 @@ ${fieldsHTML}
           let newHtml = html;
           
           // Substituir {{key}} por valores
-          newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
+            newHtml = newHtml.replace(/{{([^}|]+)(?:[|]([^}]+))?}}/g, (match, key, format) => {
             const value = sampleData[key.trim()] || '';
             
             if (format) {
@@ -225,7 +225,7 @@ ${fieldsHTML}
             const html = field.innerHTML;
             let newHtml = html;
             
-            newHtml = newHtml.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, key, format) => {
+              newHtml = newHtml.replace(/{{([^}|]+)(?:[|]([^}]+))?}}/g, (match, key, format) => {
               const value = data[key.trim()] || '';
               
               if (format) {

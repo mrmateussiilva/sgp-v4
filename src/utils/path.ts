@@ -23,23 +23,25 @@ export function normalizeImagePath(path: string): string {
   if (normalized.startsWith('/')) {
     try {
       // Importar dinamicamente para evitar dependência circular
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const apiClientModule = require('../services/apiClient');
       const baseUrl = apiClientModule.getApiUrl();
-      
+
       if (baseUrl && baseUrl.trim()) {
         // Garantir que a baseUrl não tenha barra final e o caminho já começa com /
         const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
         const fullUrl = `${cleanBaseUrl}${normalized}`;
-        console.log('[normalizeImagePath] ✅ Construindo URL:', { 
-          originalPath: path, 
-          baseUrl, 
+        console.log('[normalizeImagePath] ✅ Construindo URL:', {
+          originalPath: path,
+          baseUrl,
           cleanBaseUrl,
           normalized,
-          fullUrl 
+          fullUrl
         });
         return fullUrl;
       } else {
         // Se baseUrl não estiver configurado, verificar se é Tauri antes de usar window.location
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { isTauri } = require('./isTauri');
         if (!isTauri() && typeof window !== 'undefined') {
           const protocol = window.location.protocol;
@@ -74,6 +76,7 @@ export function normalizeImagePath(path: string): string {
   if (normalized.startsWith('media/')) {
     // Importar dinamicamente para evitar dependência circular
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { getApiUrl } = require('../services/apiClient');
       const baseUrl = getApiUrl();
       if (baseUrl) {

@@ -1148,27 +1148,6 @@ const escapeHtml = (value: string | number | undefined): string => {
     .replace(/'/g, '&#39;');
 };
 
-/**
- * Remove estilos do template HTML vindo da API para evitar conflitos
- * - Remove blocos <style>...</style>
- * - Remove estilos inline que fixam height/width em template-page/item
- * @deprecated Desabilitado - agora usamos template diretamente da API
- */
-// Unused function - kept for reference
-// @ts-expect-error - Function kept for future reference, intentionally unused
-const _sanitizeTemplateHtml = (_html: string): string => {
-  const html = _html;
-  let cleaned = html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/\sstyle="[^"]*(height|min-height|max-height|width)[^"]*"/gi, '');
-
-  // Desembrulhar containers herdados do template da API (template-page, item-container)
-  // Mantém apenas o conteúdo interno para caber no nosso layout de 3 itens/página
-  cleaned = cleaned.replace(/<div[^>]*class="[^"]*\btemplate-page\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, '$1');
-  cleaned = cleaned.replace(/<div[^>]*class="[^"]*\bitem-container\b[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, '$1');
-
-  return cleaned;
-};
 // Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
 // Função não utilizada atualmente - mantida para referência futura
 
@@ -1236,76 +1215,6 @@ const renderField = (
   `;
 };
 
-/**
- * Gera o CSS para o template (função legada, não usada atualmente - mantida para referência)
- */
-// Unused function - kept for reference
-// @ts-expect-error - Function kept for future reference, intentionally unused
-const _generateTemplateStyles = (_template: FichaTemplate): string => {
-  const template = _template;
-  const isResumo = template.title?.toLowerCase().includes('resumo');
-
-  return `
-        .template-page {
-          width: ${mmToPx(template.width)}px;
-          height: ${mmToPx(template.height)}px;
-          position: relative;
-          background: white;
-          margin: 0 auto;
-          padding: ${mmToPx(template.marginTop)}px ${mmToPx(template.marginRight)}px ${mmToPx(template.marginBottom)}px ${mmToPx(template.marginLeft)}px;
-          box-sizing: border-box;
-          ${isResumo ? '' : 'page-break-after: always;'}
-        }
-        
-        .template-field {
-          box-sizing: border-box;
-        }
-        
-        .template-field-text,
-        .template-field-date,
-        .template-field-number,
-        .template-field-currency {
-          display: flex;
-          align-items: flex-start;
-          padding: 1px 2px;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          hyphens: auto;
-          ${isResumo ? 'overflow: visible;' : ''}
-        }
-        
-        .template-field-image {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid #ddd;
-          background: #f9f9f9;
-          ${isResumo ? 'overflow: visible;' : ''}
-        }
-        
-        ${isResumo ? `
-        /* Template resumo: permitir que o conteúdo seja exibido completamente */
-        .template-page {
-          overflow: visible;
-          height: auto;
-          min-height: ${mmToPx(template.height)}px;
-        }
-        .template-field {
-          max-height: none;
-        }
-        ` : ''}
-        
-        @media print {
-          .template-page {
-            ${isResumo ? 'page-break-inside: avoid;' : 'page-break-inside: avoid;'}
-          }
-          
-          .template-field {
-            page-break-inside: avoid;
-          }
-        }
-      `;
-};
 // Evita erro do TypeScript (noUnusedLocals) mantendo a função apenas como referência.
 // Função não utilizada atualmente - mantida para referência futura
 
@@ -1745,8 +1654,8 @@ export const generateTemplatePrintContent = async (
 
       // Combinar CSS: estilos do template original + CSS básico complementar
       // CRÍTICO: Remover regras de altura do template que conflitam com nosso layout
-      let cleanedTemplateStyles = templateStyles.replace(
-        /([^\{\}]*\.item[^\{]*)\{([^\}]*)\}/gi,
+      const cleanedTemplateStyles = templateStyles.replace(
+        /([^{}]*\.item[^{]*)\{([^}]*)\}/gi,
         (_match, selector, rules) => {
           // Remover height, min-height, max-height
           const cleanedRules = rules

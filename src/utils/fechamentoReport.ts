@@ -108,16 +108,16 @@ const parseCurrencyCached = (value: unknown): number => {
  */
 const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number => {
   // 1. Tentar obter a quantidade de forma robusta (mesma lógica da UI)
-  const anyItem = orderItem as any;
+  const anyItem = orderItem as unknown as Record<string, string | number | undefined>;
   const rawQuantity =
     orderItem.quantity ??
-    parseInt(anyItem.quantidade_paineis ||
+    parseInt(String(anyItem.quantidade_paineis ||
       anyItem.quantidade_mochilinha ||
       anyItem.quantidade_totem ||
       anyItem.quantidade_lona ||
       anyItem.quantidade_adesivo ||
       anyItem.quantidade_canga ||
-      anyItem.quantidade_impressao_3d || '1');
+      anyItem.quantidade_impressao_3d || '1'));
 
   const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? rawQuantity : 1;
 

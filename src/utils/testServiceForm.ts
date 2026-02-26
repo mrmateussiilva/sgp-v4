@@ -94,8 +94,9 @@ export const testServiceForm = async () => {
 // Função para testar no console do navegador
 export const testInBrowser = () => {
   if (typeof window !== 'undefined') {
-    (window as any).testServiceForm = testServiceForm;
-    (window as any).testOrderData = testOrderData;
+    const win = window as unknown as Record<string, unknown>;
+    win.testServiceForm = testServiceForm;
+    win.testOrderData = testOrderData;
     console.log('Funções de teste disponíveis:');
     console.log('- testServiceForm() - Gera a ficha de serviço');
     console.log('- testOrderData - Dados de exemplo do pedido');

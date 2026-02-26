@@ -49,13 +49,15 @@ const formatIntervalLabel = (start: string, end?: string | null) => {
   return `${startLabel} - ${formatDateForDisplay(end, '-')}`;
 };
 
-const openPdfInPrintWindow = (doc: any, filename: string) => {
+const openPdfInPrintWindow = (doc: unknown, filename: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = doc as any;
   if (typeof window === 'undefined') {
-    doc.save(filename);
+    d.save(filename);
     return;
   }
 
-  const blob = doc.output('blob');
+  const blob = d.output('blob');
   const blobUrl = URL.createObjectURL(blob);
 
   // Abre uma nova janela para impressão (aproveita o gesto do usuário)
@@ -107,7 +109,7 @@ const openPdfInPrintWindow = (doc: any, filename: string) => {
       if (!frameWindow) {
         throw new Error('Janela de impressão indisponível');
       }
-      
+
       // Aguarda um pouco para garantir que o PDF carregou
       setTimeout(() => {
         try {
@@ -117,20 +119,20 @@ const openPdfInPrintWindow = (doc: any, filename: string) => {
         } catch (error) {
           console.warn('Erro ao imprimir via iframe:', error);
           cleanup();
-          doc.save(filename);
+          d.save(filename);
         }
       }, 300);
     } catch (error) {
       console.warn('Erro ao configurar impressão via iframe:', error);
       cleanup();
-      doc.save(filename);
+      d.save(filename);
     }
   };
 
   iframe.onerror = () => {
     console.warn('Erro ao carregar PDF no iframe');
     cleanup();
-    doc.save(filename);
+    d.save(filename);
   };
 
   document.body.appendChild(iframe);
@@ -142,22 +144,24 @@ const openPdfInPrintWindow = (doc: any, filename: string) => {
  * Permite que o usuário escolha entre salvar ou imprimir
  */
 export const openInViewer = async (
-  content: { type: 'pdf'; doc: any; filename: string } | { type: 'html'; html: string; title: string }
+  content: { type: 'pdf'; doc: unknown; filename: string } | { type: 'html'; html: string; title: string }
 ) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const doc = (content as any).doc;
   console.log('[openInViewer] Iniciando função', { type: content.type });
-  
+
   if (typeof window === 'undefined') {
     if (content.type === 'pdf') {
-      content.doc.save(content.filename);
+      doc.save(content.filename);
     }
     return;
   }
 
   let blobUrl: string;
-  
+
   if (content.type === 'pdf') {
     console.log('[openInViewer] Gerando blob do PDF');
-    const blob = content.doc.output('blob');
+    const blob = doc.output("blob");
     blobUrl = URL.createObjectURL(blob);
     console.log('[openInViewer] Blob criado, URL:', blobUrl);
   } else {
@@ -183,7 +187,7 @@ export const openInViewer = async (
     overlay.style.height = '100%';
     overlay.style.backgroundColor = '#1a1a1a';
     overlay.style.zIndex = '9998';
-    
+
     // Container do conteúdo principal (tela cheia)
     const mainContainer = document.createElement('div');
     mainContainer.style.position = 'fixed';
@@ -196,7 +200,7 @@ export const openInViewer = async (
     mainContainer.style.overflow = 'hidden';
     mainContainer.style.display = 'flex';
     mainContainer.style.flexDirection = 'column';
-    
+
     // Barra superior (header)
     const header = document.createElement('div');
     header.style.display = 'flex';
@@ -205,7 +209,7 @@ export const openInViewer = async (
     header.style.padding = '16px 24px';
     header.style.backgroundColor = '#f8f9fa';
     header.style.borderBottom = '1px solid #e9ecef';
-    
+
     // Título
     const title = document.createElement('div');
     title.style.display = 'flex';
@@ -222,13 +226,13 @@ export const openInViewer = async (
     titleText.style.letterSpacing = '-0.02em';
     title.appendChild(titleIcon);
     title.appendChild(titleText);
-    
+
     // Container de botões (header)
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
     buttonContainer.style.gap = '10px';
     buttonContainer.style.alignItems = 'center';
-    
+
     // Função helper para criar botões estilizados
     const createStyledButton = (
       text: string,
@@ -252,44 +256,44 @@ export const openInViewer = async (
       btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
       btn.style.transition = 'all 0.2s ease';
       btn.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-      
+
       const iconSpan = document.createElement('span');
       iconSpan.textContent = icon;
       iconSpan.style.fontSize = '16px';
-      
+
       const textSpan = document.createElement('span');
       textSpan.textContent = text;
-      
+
       btn.appendChild(iconSpan);
       btn.appendChild(textSpan);
-      
+
       // Hover effect
       btn.addEventListener('mouseenter', () => {
         btn.style.backgroundColor = hoverBgColor;
         btn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
         btn.style.transform = 'translateY(-1px)';
       });
-      
+
       btn.addEventListener('mouseleave', () => {
         btn.style.backgroundColor = bgColor;
         btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)';
         btn.style.transform = 'translateY(0)';
       });
-      
+
       btn.addEventListener('mousedown', () => {
         btn.style.transform = 'translateY(0)';
         btn.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.1)';
       });
-      
+
       btn.addEventListener('mouseup', () => {
         btn.style.transform = 'translateY(-1px)';
         btn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)';
       });
-      
+
       btn.onclick = onClick;
       return btn;
     };
-    
+
     // Botão de imprimir
     const printBtn = createStyledButton(
       'Imprimir',
@@ -307,7 +311,7 @@ export const openInViewer = async (
         }
       }
     );
-    
+
     // Botão de salvar (apenas para PDFs)
     let saveBtn: HTMLButtonElement | null = null;
     if (content.type === 'pdf') {
@@ -320,26 +324,27 @@ export const openInViewer = async (
           try {
             // Verificar se está no Tauri
             const tauriCheck = isTauri();
-            const tauriCheckAlt = typeof window !== 'undefined' && 
+            const tauriCheckAlt = typeof window !== 'undefined' &&
               (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
               (window.location.port === '1420' || window.location.protocol === 'tauri:');
-            
+
             if (tauriCheck || tauriCheckAlt) {
               // Usar API do Tauri para salvar
               const { save } = await import('@tauri-apps/plugin-dialog');
               const { writeFile } = await import('@tauri-apps/plugin-fs');
-              
+
               const filePath = await save({
                 defaultPath: content.filename,
                 filters: [{ name: 'PDF', extensions: ['pdf'] }],
               });
-              
+
               if (filePath) {
                 // Converter blob para array de bytes
-                const blob = content.doc.output('blob');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const blob = (content.doc as any).output('blob');
                 const arrayBuffer = await blob.arrayBuffer();
                 const uint8Array = new Uint8Array(arrayBuffer);
-                
+
                 // Salvar arquivo
                 await writeFile(filePath, uint8Array);
                 console.log('[openInViewer] Arquivo salvo com sucesso:', filePath);
@@ -372,7 +377,7 @@ export const openInViewer = async (
         }
       );
     }
-    
+
     // Botão de fechar
     const closeBtn = createStyledButton(
       'Fechar',
@@ -383,25 +388,25 @@ export const openInViewer = async (
         cleanup();
       }
     );
-    
+
     // Adicionar botões ao container
     buttonContainer.appendChild(printBtn);
     if (saveBtn) {
       buttonContainer.appendChild(saveBtn);
     }
     buttonContainer.appendChild(closeBtn);
-    
+
     // Montar header
     header.appendChild(title);
     header.appendChild(buttonContainer);
-    
+
     // Container do iframe
     const iframeContainer = document.createElement('div');
     iframeContainer.style.flex = '1';
     iframeContainer.style.position = 'relative';
     iframeContainer.style.overflow = 'hidden';
     iframeContainer.style.backgroundColor = '#ffffff';
-    
+
     // Iframe
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -412,13 +417,13 @@ export const openInViewer = async (
     iframe.style.border = 'none';
     iframe.style.backgroundColor = '#ffffff';
     iframe.src = blobUrl;
-    
+
     iframeContainer.appendChild(iframe);
-    
+
     // Montar estrutura principal
     mainContainer.appendChild(header);
     mainContainer.appendChild(iframeContainer);
-    
+
     const cleanup = () => {
       try {
         if (document.body.contains(overlay)) {
@@ -430,11 +435,11 @@ export const openInViewer = async (
         URL.revokeObjectURL(blobUrl);
       } catch (_) { /* noop */ }
     };
-    
+
     // Adicionar ao DOM
     document.body.appendChild(overlay);
     document.body.appendChild(mainContainer);
-    
+
     // Adicionar animação de entrada
     mainContainer.style.opacity = '0';
     mainContainer.style.transform = 'scale(0.95)';
@@ -443,14 +448,14 @@ export const openInViewer = async (
       mainContainer.style.opacity = '1';
       mainContainer.style.transform = 'scale(1)';
     }, 10);
-    
+
     console.log('[openInViewer] Iframe criado e adicionado ao DOM');
-    
+
     // Limpar após um tempo se não for fechado (5 minutos)
     setTimeout(() => {
       cleanup();
     }, 300000);
-    
+
     return;
   } catch (iframeError) {
     console.error('[openInViewer] Erro ao criar iframe:', iframeError);
@@ -462,7 +467,7 @@ export const openInViewer = async (
   try {
     newWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
     console.log('[openInViewer] window.open retornou:', newWindow);
-    
+
     if (newWindow) {
       console.log('[openInViewer] Janela aberta com sucesso');
       newWindow.focus();
@@ -493,10 +498,8 @@ export const openInViewer = async (
   }
 };
 
-// Função para abrir PDF em nova janela sem chamar print() automaticamente
-// Permite que o usuário escolha entre salvar ou imprimir
 // Usa a função universal openInViewer internamente
-export const openPdfInWindow = async (doc: any, filename: string) => {
+export const openPdfInWindow = async (doc: unknown, filename: string) => {
   return openInViewer({ type: 'pdf', doc, filename });
 };
 
@@ -757,8 +760,8 @@ export const printEnvioReport = (
       doc.write(html);
       doc.close();
       setTimeout(() => {
-        try { temp.contentWindow?.focus(); temp.contentWindow?.print(); } catch(_){}
-        setTimeout(() => { try { document.body.removeChild(temp); } catch(_){} }, 1000);
+        try { temp.contentWindow?.focus(); temp.contentWindow?.print(); } catch (_) { /* noop */ }
+        setTimeout(() => { try { document.body.removeChild(temp); } catch (_) { /* noop */ } }, 1000);
       }, 300);
     }
     return;

@@ -632,20 +632,22 @@ function getByteLength(data: ArrayBuffer | ArrayBufferView): number {
  * Salva PDF usando API do Tauri
  * @returns Caminho do arquivo salvo ou null se cancelado
  */
-async function salvarPDFTauri(pdfDocGenerator: any, nomeArquivo: string, abrirAposSalvar: boolean = false): Promise<string | null> {
+async function salvarPDFTauri(pdfDocGenerator: unknown, nomeArquivo: string, abrirAposSalvar: boolean = false): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const generator = pdfDocGenerator as any;
   return new Promise((resolve, reject) => {
     console.log('[pdfGenerator] 📦 Iniciando getBuffer do PDFMake...');
 
     // Tentar usar getBuffer primeiro
-    if (typeof pdfDocGenerator.getBuffer === 'function') {
-      pdfDocGenerator.getBuffer(async (buffer: ArrayBuffer | ArrayBufferView) => {
+    if (typeof generator.getBuffer === 'function') {
+      generator.getBuffer(async (buffer: ArrayBuffer | ArrayBufferView) => {
         console.log('[pdfGenerator] 📦 Buffer recebido via getBuffer, tamanho:', buffer ? getByteLength(buffer) : 'null');
         await processarESalvarPDF(buffer, nomeArquivo, abrirAposSalvar, resolve, reject);
       });
     } else {
       // Fallback: usar getBlob e converter
       console.log('[pdfGenerator] 📦 getBuffer não disponível, usando getBlob...');
-      pdfDocGenerator.getBlob(async (blob: Blob) => {
+      generator.getBlob(async (blob: Blob) => {
         console.log('[pdfGenerator] 📦 Blob recebido, tamanho:', blob?.size || 'desconhecido');
         if (!blob) {
           reject(new Error('Falha ao gerar blob do PDF'));
@@ -665,7 +667,7 @@ async function processarESalvarPDF(
   nomeArquivo: string,
   abrirAposSalvar: boolean,
   resolve: (value: string | null) => void,
-  reject: (reason?: any) => void
+  reject: (reason?: unknown) => void
 ): Promise<void> {
   try {
     console.log('[pdfGenerator] 📥 Importando APIs do Tauri...');

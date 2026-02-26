@@ -97,6 +97,7 @@ export const printOrderServiceForm = async (
   _templateType: 'geral' | 'resumo' = 'resumo',
   items?: OrderItem[]
 ) => {
+  console.log('[printOrderServiceForm] Usando template level:', _templateType);
   const resolved = await hydrateOrderForPrint(order, items);
   const orderForPrint = resolved.order;
 
@@ -112,7 +113,7 @@ export const printOrderServiceForm = async (
   const grouped = groupOrders(ordersWithImages);
 
   // Gerar Blob
-  // @ts-ignore - JSX element
+  // @ts-expect-error - JSX element
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
   // Nome do arquivo
@@ -153,7 +154,7 @@ export const generateMultipleOrdersPdfBlob = async (
   const React = await import('react');
 
   // Gerar Blob
-  // @ts-ignore - JSX element
+  // @ts-expect-error - JSX element
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
   // Nome do arquivo com timestamp para evitar cache
@@ -173,6 +174,7 @@ export const printMultipleOrdersServiceForm = async (
   orders: OrderWithItems[],
   _templateType: 'geral' | 'resumo' = 'resumo'
 ): Promise<void> => {
+  console.log('[printMultipleOrdersServiceForm] Usando template level:', _templateType);
   const { blob, filename } = await generateMultipleOrdersPdfBlob(orders);
 
   // Salvar e abrir via Tauri

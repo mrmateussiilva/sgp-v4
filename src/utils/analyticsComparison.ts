@@ -17,23 +17,23 @@ export function calculatePeriodAnalytics(
     const orderDate = order.data_entrada
       ? new Date(order.data_entrada)
       : order.created_at
-      ? new Date(order.created_at)
-      : null;
-    
+        ? new Date(order.created_at)
+        : null;
+
     if (!orderDate) return false;
-    
+
     // Verificar se está no período
     orderDate.setHours(0, 0, 0, 0);
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
-    
+
     if (orderDate < start || orderDate > end) return false;
-    
+
     // Aplicar filtros adicionais se fornecidos
     // (implementação simplificada - pode ser expandida)
-    
+
     return true;
   });
 
@@ -73,19 +73,19 @@ export function calculatePeriodAnalytics(
   // Calcular trends semanais
   const weeklyTrends: AnalyticsTrendPoint[] = [];
   const currentDate = new Date(startDate);
-  
+
   while (currentDate <= endDate) {
     const weekStart = new Date(currentDate);
     weekStart.setDate(currentDate.getDate() - currentDate.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    
+
     const weekOrders = filteredOrders.filter((order) => {
       const orderDate = order.data_entrada
         ? new Date(order.data_entrada)
         : order.created_at
-        ? new Date(order.created_at)
-        : null;
+          ? new Date(order.created_at)
+          : null;
       if (!orderDate) return false;
       return orderDate >= weekStart && orderDate <= weekEnd;
     });
@@ -133,14 +133,14 @@ export function getCurrentWeek(): { start: Date; end: Date } {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Ajustar para segunda-feira
-  
+
   const start = new Date(today.setDate(diff));
   start.setHours(0, 0, 0, 0);
-  
+
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
-  
+
   return { start, end };
 }
 
@@ -151,11 +151,11 @@ export function getPreviousWeek(): { start: Date; end: Date } {
   const { start: currentStart } = getCurrentWeek();
   const start = new Date(currentStart);
   start.setDate(start.getDate() - 7);
-  
+
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   end.setHours(23, 59, 59, 999);
-  
+
   return { start, end };
 }
 

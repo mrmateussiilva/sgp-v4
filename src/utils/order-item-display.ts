@@ -273,7 +273,7 @@ const formatComposition = (value: unknown): string => {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) {
       return parsed
-        .map((part: any) => `${part.label || part.item || 'Parte'}: ${part.tecido || 'N/A'}`)
+        .map((part: { label?: string; item?: string; tecido?: string }) => `${part.label || part.item || 'Parte'}: ${part.tecido || 'N/A'}`)
         .join(' | ');
     }
     return String(value);
