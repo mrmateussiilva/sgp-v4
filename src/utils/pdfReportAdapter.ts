@@ -9,6 +9,7 @@ import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 import { logger } from './logger';
+import { formatOrderNumber } from './formatOrderNumber';
 
 // ============================================================================
 // FUNÇÕES DE CONVERSÃO
@@ -133,7 +134,7 @@ async function converterItem(order: OrderWithItems, item: OrderItem): Promise<It
   }
 
   return {
-    numero: order.numero || order.id?.toString() || '000000000',
+    numero: formatOrderNumber(order.numero || order.id) || '0',
     cliente: order.customer_name || order.cliente || 'Cliente não informado',
     telefone_cliente: order.telefone_cliente,
     cidade_estado: formatarCidadeEstado(order),

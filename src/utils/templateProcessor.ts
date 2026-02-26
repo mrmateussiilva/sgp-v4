@@ -3,6 +3,7 @@ import { imageToBase64, loadAuthenticatedImage } from './imageLoader';
 import { isValidImagePath } from './path';
 import { apiClient } from '../api/client';
 import { logger } from './logger';
+import { formatOrderNumber } from './formatOrderNumber';
 import { CUSTOM_PRINT_TEMPLATE, CUSTOM_PRINT_CSS } from './customPrintTemplate';
 import { canonicalizeFromOrderItem, toPrintFields } from '@/mappers/productionItems';
 import { resizeImageToBase64 } from './imageResizer';
@@ -386,7 +387,7 @@ export const createOrderDataMap = (
 
   const dataMap = {
     // Dados do pedido
-    numero: order.numero || order.id?.toString() || '',
+    numero: formatOrderNumber(order.numero || order.id),
     cliente: order.customer_name || order.cliente || '',
     telefone_cliente: order.telefone_cliente || '',
     cidade_cliente: order.cidade_cliente || '',

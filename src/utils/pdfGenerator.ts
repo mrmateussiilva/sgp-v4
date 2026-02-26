@@ -486,7 +486,7 @@ function gerarCabecalhoItem(item: ItemRelatorio): Content {
         table: {
           body: [[
             {
-              text: item.numero || '000000000',
+              text: item.numero || '0',
               style: 'numeroPedido',
               margin: [10, 6, 10, 6],
             }

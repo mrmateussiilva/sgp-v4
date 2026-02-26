@@ -1,6 +1,7 @@
 import { OrderItem, OrderWithItems } from '../types';
 import { imageToBase64 } from './imageLoader';
 import { isValidImagePath } from './path';
+import { formatOrderNumber } from './formatOrderNumber';
 
 // ============================================================================
 // TYPES
@@ -58,9 +59,9 @@ const parseCurrencyValue = (value: unknown): number => {
 };
 
 const formatCurrency = (value: unknown): string =>
-  new Intl.NumberFormat('pt-BR', { 
-    style: 'currency', 
-    currency: 'BRL' 
+  new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
   }).format(parseCurrencyValue(value));
 
 const escapeHtml = (value: string): string =>
@@ -88,7 +89,7 @@ const collectItemDetails = (item: OrderItem): ItemDetail[] => {
   const details: ItemDetail[] = [];
   const itemRecord = item as unknown as Record<string, unknown>;
   const tipoProducao = (item.tipo_producao || '').toLowerCase();
-  
+
   // Determina o tipo de produção
   const isTotem = tipoProducao.includes('totem');
   const isAdesivo = tipoProducao.includes('adesivo');
@@ -96,7 +97,7 @@ const collectItemDetails = (item: OrderItem): ItemDetail[] => {
 
   const addDetail = (label: string, value: unknown) => {
     if (value === null || value === undefined) return;
-    
+
     let stringValue = '';
     if (typeof value === 'string') {
       stringValue = value.trim();
@@ -124,30 +125,30 @@ const collectItemDetails = (item: OrderItem): ItemDetail[] => {
   addDetail('Tipo de Produção', item.tipo_producao);
   addDetail('Descrição', item.descricao);
   addDetail('Quantidade', item.quantity);
-  
+
   // Dimensões (se houver)
   if (item.largura) addDetail('Largura', item.largura);
   if (item.altura) addDetail('Altura', item.altura);
   if (item.metro_quadrado) addDetail('m²', item.metro_quadrado);
-  
+
   // Equipe
   if (item.designer) addDetail('Designer', item.designer);
   if (item.vendedor) addDetail('Vendedor', item.vendedor);
 
   // ===== CAMPOS ESPECÍFICOS POR TIPO =====
-  
+
   if (isTotem) {
     // TOTEM: Material é o principal
     addDetail('Material', item.tecido);
     addDetail('Tipo de Acabamento', item.tipo_acabamento);
-    
+
   } else if (isAdesivo) {
     // ADESIVO: Tipo de adesivo e valores
     addDetail('Tipo de Adesivo', item.tecido || getFieldValue(itemRecord, 'tipo_adesivo'));
     addCurrency('Valor do Adesivo', getFieldValue(itemRecord, 'valor_adesivo'));
     addDetail('Qtd. Adesivos', getFieldValue(itemRecord, 'quantidade_adesivo'));
     addCurrency('Outros Valores', getFieldValue(itemRecord, 'outros_valores_adesivo'));
-    
+
   } else if (isLona) {
     // LONA: Campos específicos de lona
     addDetail('Tecido', item.tecido);
@@ -156,28 +157,28 @@ const collectItemDetails = (item: OrderItem): ItemDetail[] => {
     addCurrency('Valor Lona', getFieldValue(itemRecord, 'valor_lona'));
     addDetail('Qtd. Lona', getFieldValue(itemRecord, 'quantidade_lona'));
     addCurrency('Outros Valores', getFieldValue(itemRecord, 'outros_valores_lona'));
-    
+
   } else {
     // PAINEL ou OUTROS: Campos padrão
     addDetail('Tecido', item.tecido);
     addDetail('Overloque', getFieldValue(itemRecord, 'overloque'));
     addDetail('Elástico', getFieldValue(itemRecord, 'elastico'));
     addDetail('Tipo de Acabamento', item.tipo_acabamento);
-    
+
     // Ilhós (só se tiver)
     if (item.quantidade_ilhos) {
       addDetail('Qtd. Ilhós', item.quantidade_ilhos);
       if (item.espaco_ilhos) addDetail('Espaço Ilhós', item.espaco_ilhos);
       addCurrency('Valor Ilhós', item.valor_ilhos);
     }
-    
+
     // Cordinha (só se tiver)
     if (item.quantidade_cordinha) {
       addDetail('Qtd. Cordinha', item.quantidade_cordinha);
       if (item.espaco_cordinha) addDetail('Espaço Cordinha', item.espaco_cordinha);
       addCurrency('Valor Cordinha', item.valor_cordinha);
     }
-    
+
     // Emenda (só se tiver)
     if (item.emenda && item.emenda.toLowerCase() !== 'sem-emenda') {
       addDetail('Emenda', item.emenda);
@@ -208,7 +209,7 @@ const formatOrderDate = (dateValue?: string | null): string => {
 };
 
 const buildOrderHeader = (order: OrderWithItems): string => {
-  const orderId = (order.numero || order.id).toString();
+  const orderId = formatOrderNumber(order.numero || order.id);
   const customerName = order.customer_name || order.cliente || 'Não informado';
   const phone = order.telefone_cliente || 'Não informado';
   const city = order.cidade_cliente || '';
@@ -216,7 +217,7 @@ const buildOrderHeader = (order: OrderWithItems): string => {
   const location = [city, state].filter(Boolean).join(' / ') || 'Não informado';
   const formaEnvio = order.forma_envio || 'Não informado';
   const prioridade = order.prioridade || '';
-  
+
   const entradaDate = formatOrderDate(order.data_entrada || order.created_at);
   const entregaDate = formatOrderDate(order.data_entrega);
 
@@ -239,10 +240,10 @@ const buildOrderHeader = (order: OrderWithItems): string => {
 };
 
 const buildItemCard = (
-  item: OrderItem, 
+  item: OrderItem,
   itemIndex: number,
   totalQuantity: number,
-  isLastItem: boolean, 
+  isLastItem: boolean,
   financials: OrderFinancials,
   imageBase64Map?: Map<string, string>
 ): string => {
@@ -250,22 +251,22 @@ const buildItemCard = (
   const details = collectItemDetails(item);
   const imagePath = item.imagem?.trim();
   const imageCaption = getFieldValue(itemRecord, 'legenda_imagem');
-  
+
   // Usar base64 se disponível, senão usar o caminho original
-  const imageUrl = imagePath && imageBase64Map?.has(imagePath) 
-    ? imageBase64Map.get(imagePath)! 
+  const imageUrl = imagePath && imageBase64Map?.has(imagePath)
+    ? imageBase64Map.get(imagePath)!
     : imagePath;
 
   // Calcular valores financeiros do item
   const subtotal = parseCurrencyValue(item.subtotal);
   const discount = parseCurrencyValue(
-    getFieldValue(itemRecord, 'desconto') || 
-    getFieldValue(itemRecord, 'valor_desconto') || 
+    getFieldValue(itemRecord, 'desconto') ||
+    getFieldValue(itemRecord, 'valor_desconto') ||
     0
   );
   const total = Math.max(subtotal - discount, 0);
 
-  const detailsHtml = details.length > 0 
+  const detailsHtml = details.length > 0
     ? details.map(detail => `
         <tr>
           <td class="label">${escapeHtml(detail.label)}:</td>
@@ -380,8 +381,8 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
 
   const orderRecord = order as unknown as Record<string, unknown>;
   const freightValue = parseCurrencyValue(
-    getFieldValue(orderRecord, 'valor_frete') || 
-    getFieldValue(orderRecord, 'frete') || 
+    getFieldValue(orderRecord, 'valor_frete') ||
+    getFieldValue(orderRecord, 'frete') ||
     0
   );
 
@@ -393,8 +394,8 @@ const computeOrderFinancials = (order: OrderWithItems): OrderFinancials => {
   );
 
   const totalValue = parseCurrencyValue(
-    order.total_value || 
-    getFieldValue(orderRecord, 'valor_total') || 
+    order.total_value ||
+    getFieldValue(orderRecord, 'valor_total') ||
     0
   );
 
@@ -440,7 +441,7 @@ const generatePrintContent = (order: OrderWithItems, imageBase64Map?: Map<string
 
   // Expandir itens baseado na quantidade (cada unidade = 1 página)
   const expandedItems: Array<{ item: OrderItem; itemIndex: number; totalQuantity: number }> = [];
-  
+
   order.items.forEach((item) => {
     const quantity = item.quantity || 1;
     for (let i = 1; i <= quantity; i++) {
@@ -952,7 +953,7 @@ export const printOrder = async (order: OrderWithItems) => {
 
   // Carregar todas as imagens para base64 antes de gerar o conteúdo
   const imageBase64Map = new Map<string, string>();
-  
+
   if (Array.isArray(order.items)) {
     const imagePromises = order.items
       .filter(item => item.imagem && isValidImagePath(item.imagem))
@@ -971,11 +972,11 @@ export const printOrder = async (order: OrderWithItems) => {
           // Continuar mesmo se uma imagem falhar
         }
       });
-    
+
     await Promise.all(imagePromises);
     console.log('[printOrder] 📊 Total de imagens carregadas:', imageBase64Map.size);
   }
-  
+
   const content = generatePrintContent(order, imageBase64Map);
   const styles = buildStyles();
 
@@ -1001,7 +1002,7 @@ export const printOrder = async (order: OrderWithItems) => {
     console.warn('Não foi possível abrir janela de impressão:', err);
     win = null;
   }
-  
+
   if (!win) {
     // Fallback: usa iframe oculto
     const temp = document.createElement('iframe');
@@ -1015,7 +1016,7 @@ export const printOrder = async (order: OrderWithItems) => {
       doc.open();
       doc.write(html);
       doc.close();
-      
+
       // Executar print via TypeScript após carregar
       const tryPrint = () => {
         try {
@@ -1042,7 +1043,7 @@ export const printOrder = async (order: OrderWithItems) => {
           console.warn('Erro ao tentar imprimir:', e);
         }
       };
-      
+
       if (doc.readyState === 'complete') {
         tryPrint();
       } else {
@@ -1052,11 +1053,11 @@ export const printOrder = async (order: OrderWithItems) => {
     }
     return;
   }
-  
+
   win.document.open();
   win.document.write(html);
   win.document.close();
-  
+
   // Executar print via TypeScript após janela carregar
   const tryPrint = () => {
     try {
@@ -1083,7 +1084,7 @@ export const printOrder = async (order: OrderWithItems) => {
     win.addEventListener('load', tryPrint, { once: true });
     win.document.addEventListener('DOMContentLoaded', tryPrint, { once: true });
   }
-  
+
   // Restaurar título anterior após um tempo
   setTimeout(() => {
     document.title = previousTitle;
