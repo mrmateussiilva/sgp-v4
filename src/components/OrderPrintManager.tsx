@@ -107,12 +107,12 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 
       // Agrupar itens de forma correta (respeitando reordenação)
       // Garantir que designer/vendedor sejam propagados se estiverem nos itens mas não no pedido
-      const orderWithResponsibles = {
+      const orderWithResponsibles: OrderWithItems = {
         ...orderWithImages,
-        designer: (orderWithImages as any).designer || orderWithImages.items?.[0]?.designer,
-        vendedor: (orderWithImages as any).vendedor || orderWithImages.items?.[0]?.vendedor,
+        designer: orderWithImages.designer || orderWithImages.items?.[0]?.designer,
+        vendedor: orderWithImages.vendedor || orderWithImages.items?.[0]?.vendedor,
       };
-      const grouped = groupOrders([orderWithResponsibles as any]);
+      const grouped = groupOrders([orderWithResponsibles as unknown as OrderWithItems]);
 
       // Gerar PDF usando React (instantâneo!)
       const blob = await pdf(<ProductionReportPDF pedidos={grouped} />).toBlob();

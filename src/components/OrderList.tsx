@@ -1459,8 +1459,8 @@ export default function OrderList() {
       if (sortColumn) {
         let sorted = [...orders];
         sorted = sorted.sort((a, b) => {
-          let aValue: any;
-          let bValue: any;
+          let aValue: string | number | boolean = '';
+          let bValue: string | number | boolean = '';
 
           switch (sortColumn) {
             case 'id':
@@ -1593,7 +1593,7 @@ export default function OrderList() {
     if (order) {
       setSelectedOrder(order);
     }
-  }, [paginatedOrders, selectedOrderIndex]);
+  }, [paginatedOrders, selectedOrderIndex, setSelectedOrder]);
 
   const handleNavigateDown = useCallback(() => {
     if (paginatedOrders.length === 0) return;
@@ -1606,7 +1606,7 @@ export default function OrderList() {
     if (order) {
       setSelectedOrder(order);
     }
-  }, [paginatedOrders, selectedOrderIndex]);
+  }, [paginatedOrders, selectedOrderIndex, setSelectedOrder]);
   const handlePrintSelected = async () => {
     if (selectedOrderIdsForPrint.length === 0) {
       return;
@@ -1795,6 +1795,8 @@ export default function OrderList() {
       handleViewOrder,
       handlePrintSelected,
       setSelectedOrderIdsForPrint,
+      viewModalOpen,
+      deleteDialogOpen,
     ]
   );
 
@@ -1877,10 +1879,11 @@ export default function OrderList() {
         description: mensagem,
         variant: 'success',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as any;
       const errorMessage =
-        error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status.';
-      const isForbidden = error?.response?.status === 403;
+        err?.response?.data?.detail || err?.message || 'Não foi possível atualizar o status.';
+      const isForbidden = err?.response?.status === 403;
       const campo = statusConfirmModal.campo;
       const isFinanceiro = campo === 'financeiro';
 
@@ -1975,9 +1978,10 @@ export default function OrderList() {
         description: `Pedido movido para ${statusLabels[newStatus] || newStatus}`,
         variant: 'success',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as any;
       const errorMessage =
-        error?.response?.data?.detail || error?.message || 'Não foi possível atualizar o status.';
+        err?.response?.data?.detail || err?.message || 'Não foi possível atualizar o status.';
       toast({
         title: 'Erro',
         description: errorMessage,
@@ -2024,7 +2028,7 @@ export default function OrderList() {
                   </div>
                   <Select
                     value={productionStatusFilter}
-                    onValueChange={(value) => setProductionStatusFilter(value as any)}
+                    onValueChange={(value) => setProductionStatusFilter(value as 'pending' | 'ready' | 'all')}
                   >
                     <SelectTrigger className="h-9 text-xs w-[130px] bg-muted/30 border-border/40">
                       <SelectValue placeholder="Status" />
@@ -2427,7 +2431,7 @@ export default function OrderList() {
                   ].map((chip) => (
                     <button
                       key={chip.id}
-                      onClick={() => setProductionStatusFilter(chip.id as any)}
+                      onClick={() => setProductionStatusFilter(chip.id as 'pending' | 'ready' | 'all')}
                       className={cn(
                         "whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all border",
                         productionStatusFilter === chip.id
