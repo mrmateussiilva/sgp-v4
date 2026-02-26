@@ -1,4 +1,4 @@
-# Proposta de Melhorias - SGP v4 (Versão 1.3.0)
+# Proposta de Melhorias - SGP v4 (Versão 1.3.2)
 
 Este documento detalha as sugestões técnicas e funcionais para a próxima grande atualização do sistema, com foco em **Performance**, **Estabilidade** e **Novas Telas/Funcionalidades** para otimizar o fluxo de trabalho industrial.
 
@@ -76,7 +76,7 @@ Melhorar a resiliência das notificações em tempo real.
 ---
 
 > [!TIP]
-> **Recomendação de Prioridade para v1.3.0:**
+> **Recomendação de Prioridade para v1.3.2:**
 > 1. Iniciar pela geração de **Thumbnails** (ganho imediato de UX).
 > 2. Implementar **Ações em Massa** (ganho imediato de agilidade para o usuário).
 > 3. Planejar o **Módulo de Estoque**.
