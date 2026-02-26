@@ -126,8 +126,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                        <HeaderItem label="ENTRADA" value={formatDate(order.data_entrada)} />
-                        <HeaderItem label="ENTREGA" value={formatDate(order.data_envio)} />
+                        <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
+                        <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
+                        <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
                     </View>
                 </View>
 
@@ -137,10 +138,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             ? order.cliente.substring(0, 30).toUpperCase()
                             : order.cliente.toUpperCase()}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
                         <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
                         <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
-                        <HeaderItem label="FRETE" value={order.forma_envio.toUpperCase()} />
                     </View>
                 </View>
             </View>
