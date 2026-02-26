@@ -44,14 +44,17 @@ export const api = {
   deleteOrder: ordersApi.deleteOrder,
   deleteAllOrders: async () => { await apiClient.delete('/pedidos/all'); return true; },
   resetOrderIds: async () => { await apiClient.post('/pedidos/reset-ids'); return true; },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getOrdersWithFilters: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getOrdersWithFiltersForTable: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
   getDashboardSummary: ordersApi.getDashboardSummary,
   getTotalOrdersCount: ordersApi.getTotalOrdersCount,
-  getOrderHistory: async (_orderId?: number) => [],
+  getOrderHistory: async (_?: number) => [],
   getOrderFicha: ordersApi.getOrderFicha,
   // Orders by range
   getOrdersByDeliveryDateRange: ordersApi.getOrdersByDeliveryDateRange,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRelatorioEnviosPedidos: async (start: string, end?: string, options?: any) => {
     return ordersApi.getOrdersPaginated(options?.page, options?.pageSize, options?.status, options?.cliente, start, end).then(r => r.orders);
   },
@@ -118,44 +121,44 @@ export type {
 // Note: token parameter is kept for backwards compatibility but not used internally
 // as authentication is now handled by apiClient interceptor
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const getMateriais = async (_token?: string) => resourcesApi.getMateriais();
-export const createMaterial = (_token: string, req: any) => resourcesApi.createMaterial(req);
-export const updateMaterial = (_token: string, req: any) => resourcesApi.updateMaterial(req);
-export const deleteMaterial = (_token: string, id: number) => resourcesApi.deleteMaterial(id);
+export const getMateriais = async (_?: string) => resourcesApi.getMateriais();
+export const createMaterial = (_: string, req: any) => resourcesApi.createMaterial(req);
+export const updateMaterial = (_: string, req: any) => resourcesApi.updateMaterial(req);
+export const deleteMaterial = (_: string, id: number) => resourcesApi.deleteMaterial(id);
 
-export const getVendedores = async (_token?: string) => resourcesApi.getVendedores();
-export const createVendedor = (_token: string, req: any) => resourcesApi.createVendedor(req);
-export const updateVendedor = (_token: string, req: any) => resourcesApi.updateVendedor(req);
-export const deleteVendedor = (_token: string, id: number) => resourcesApi.deleteVendedor(id);
+export const getVendedores = async (_?: string) => resourcesApi.getVendedores();
+export const createVendedor = (_: string, req: any) => resourcesApi.createVendedor(req);
+export const updateVendedor = (_: string, req: any) => resourcesApi.updateVendedor(req);
+export const deleteVendedor = (_: string, id: number) => resourcesApi.deleteVendedor(id);
 
-export const getDesigners = async (_token?: string) => resourcesApi.getDesigners();
-export const createDesigner = (_token: string, req: any) => resourcesApi.createDesigner(req);
-export const updateDesigner = (_token: string, req: any) => resourcesApi.updateDesigner(req);
-export const deleteDesigner = (_token: string, id: number) => resourcesApi.deleteDesigner(id);
+export const getDesigners = async (_?: string) => resourcesApi.getDesigners();
+export const createDesigner = (_: string, req: any) => resourcesApi.createDesigner(req);
+export const updateDesigner = (_: string, req: any) => resourcesApi.updateDesigner(req);
+export const deleteDesigner = (_: string, id: number) => resourcesApi.deleteDesigner(id);
 
-export const getFormasEnvio = async (_token?: string) => resourcesApi.getFormasEnvio();
-export const createFormaEnvio = (_token: string, req: any) => resourcesApi.createFormaEnvio(req);
-export const updateFormaEnvio = (_token: string, req: any) => resourcesApi.updateFormaEnvio(req);
-export const deleteFormaEnvio = (_token: string, id: number) => resourcesApi.deleteFormaEnvio(id);
+export const getFormasEnvio = async (_?: string) => resourcesApi.getFormasEnvio();
+export const createFormaEnvio = (_: string, req: any) => resourcesApi.createFormaEnvio(req);
+export const updateFormaEnvio = (_: string, req: any) => resourcesApi.updateFormaEnvio(req);
+export const deleteFormaEnvio = (_: string, id: number) => resourcesApi.deleteFormaEnvio(id);
 
-export const getFormasPagamento = async (_token?: string) => resourcesApi.getFormasPagamento();
-export const createFormaPagamento = (_token: string, req: any) => resourcesApi.createFormaPagamento(req);
-export const updateFormaPagamento = (_token: string, req: any) => resourcesApi.updateFormaPagamento(req);
-export const deleteFormaPagamento = (_token: string, id: number) => resourcesApi.deleteFormaPagamento(id);
+export const getFormasPagamento = async (_?: string) => resourcesApi.getFormasPagamento();
+export const createFormaPagamento = (_: string, req: any) => resourcesApi.createFormaPagamento(req);
+export const updateFormaPagamento = (_: string, req: any) => resourcesApi.updateFormaPagamento(req);
+export const deleteFormaPagamento = (_: string, id: number) => resourcesApi.deleteFormaPagamento(id);
 
-export const getUsers = async (_token?: string) => resourcesApi.getUsers();
-export const createUser = (_token: string, req: any) => resourcesApi.createUser(req);
-export const updateUser = (_token: string, req: any) => resourcesApi.updateUser(req);
-export const deleteUser = (_token: string, id: number) => resourcesApi.deleteUser(id);
+export const getUsers = async (_?: string) => resourcesApi.getUsers();
+export const createUser = (_: string, req: any) => resourcesApi.createUser(req);
+export const updateUser = (_: string, req: any) => resourcesApi.updateUser(req);
+export const deleteUser = (_: string, id: number) => resourcesApi.deleteUser(id);
 
-export const getTiposProducao = async (_token?: string) => resourcesApi.getTiposProducao();
-export const getTiposProducaoAtivos = async (_token?: string) => resourcesApi.getTiposProducaoAtivos();
-export const createTipoProducao = (_token: string, req: any) => resourcesApi.createTipoProducao(req);
-export const updateTipoProducao = (_token: string, req: any) => resourcesApi.updateTipoProducao(req);
-export const deleteTipoProducao = (_token: string, id: number) => resourcesApi.deleteTipoProducao(id);
+export const getTiposProducao = async (_?: string) => resourcesApi.getTiposProducao();
+export const getTiposProducaoAtivos = async (_?: string) => resourcesApi.getTiposProducaoAtivos();
+export const createTipoProducao = (_: string, req: any) => resourcesApi.createTipoProducao(req);
+export const updateTipoProducao = (_: string, req: any) => resourcesApi.updateTipoProducao(req);
+export const deleteTipoProducao = (_: string, id: number) => resourcesApi.deleteTipoProducao(id);
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export const getOrdersByDeliveryDate = async (_token: string, start: string, end: string) => {
+export const getOrdersByDeliveryDate = async (_: string, start: string, end: string) => {
   return ordersApi.getOrdersByDeliveryDateRange(start, end);
 };
-export const getOrderFicha = (_token: string, id: number) => ordersApi.getOrderFicha(id);
+export const getOrderFicha = (_: string, id: number) => ordersApi.getOrderFicha(id);

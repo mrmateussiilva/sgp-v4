@@ -13,7 +13,8 @@ export function setAdapterFallbackBaseUrl(url: string): void {
 }
 
 function resolveUrl(config: AxiosRequestConfig): string {
-  let { url = '', baseURL } = config;
+  const { baseURL } = config;
+  let { url = '' } = config;
 
   // Usar fallback se baseURL do config estiver ausente
   const effectiveBaseUrl = baseURL || fallbackBaseUrl;
@@ -68,6 +69,7 @@ function resolveUrl(config: AxiosRequestConfig): string {
   return url;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getResponseData(response: Response, responseType?: AxiosRequestConfig['responseType']): Promise<any> {
   // Se o status for 204 No Content ou 205 Reset Content, ou se o status for 200/201 mas o corpo estiver vazio
   if (response.status === 204 || response.status === 205) {
@@ -126,7 +128,9 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
 
   const headers = new Headers();
   if (config.headers) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const headerObj = (config.headers && typeof (config.headers as any).toJSON === 'function')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (config.headers as any).toJSON()
       : { ...(config.headers as Record<string, string> | undefined) };
 

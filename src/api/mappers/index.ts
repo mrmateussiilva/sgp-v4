@@ -77,11 +77,11 @@ export const mapStatusToApi = (status: OrderStatus): ApiOrderStatus => {
 export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: number): OrderItem => {
     const anyItem = item as unknown as Record<string, unknown>;
     const acabamentoAny = (item.acabamento ?? (anyItem.acabamento as ApiAcabamento | null | undefined)) ?? null;
-    const quantity = deriveQuantity(item);
+    const quantity = deriveQuantity(item as unknown as Record<string, unknown>);
     const unitPrice =
         item.valor_unitario != null || item.valor_totem != null || item.valor_lona != null || item.valor_adesivo != null || item.valor_painel != null || item.valor_canga != null || item.valor_impressao_3d != null
             ? parseDecimal(item.valor_unitario ?? item.valor_totem ?? item.valor_lona ?? item.valor_adesivo ?? item.valor_painel ?? item.valor_canga ?? item.valor_impressao_3d)
-            : deriveUnitPrice(item);
+            : deriveUnitPrice(item as unknown as Record<string, unknown>);
     const subtotal = Number((unitPrice * quantity).toFixed(2));
     const fallbackId = item.id ?? orderId * 1000 + index;
     const imagemCandidate =
@@ -459,12 +459,12 @@ export const buildTipoProducaoUpdatePayload = (payload: Partial<TipoProducaoPayl
     return sanitizePayload(update);
 };
 
-export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
-    const tipo = inferTipoProducao(item);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const canon = canonicalizeFromItemRequest(item as CreateOrderItemRequest) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const buildItemPayloadFromRequest = (item: any): Record<string, unknown> => {
+    const tipo = inferTipoProducao(item as Record<string, unknown>);
+    const canon: any = canonicalizeFromItemRequest(item as CreateOrderItemRequest);
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
         tipo_producao: tipo,
         descricao: safeString(canon.descricao ?? 'Item'),
         largura: canon.largura ?? '',
@@ -473,7 +473,7 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         vendedor: canon.vendedor ?? '',
         designer: canon.designer ?? '',
         tecido: canon.tecido ?? '',
-        acabamento: buildAcabamento(canon),
+        acabamento: buildAcabamento(canon as any),
         emenda: canon.emenda ?? 'sem-emenda',
         emenda_qtd: canon.emenda_qtd ?? undefined,
         observacao: canon.observacao ?? '',
@@ -617,10 +617,10 @@ export const buildItemPayloadFromRequest = (item: any): Record<string, any> => {
         payload.id = identifier;
     }
 
-    return sanitizePayload(payload);
+    return sanitizePayload(payload) as Record<string, unknown>;
 };
 
-export const computeTotalsFromItems = (items: any[], frete: number): { valorItens: number; valorTotal: number } => {
+export const computeTotalsFromItems = (items: Array<any>, frete: number): { valorItens: number; valorTotal: number } => {
     const valorItens = items.reduce((sum, item) => {
         const qty = deriveQuantity(item);
         const unitPrice = deriveUnitPrice(item);
@@ -630,9 +630,9 @@ export const computeTotalsFromItems = (items: any[], frete: number): { valorIten
     return { valorItens, valorTotal };
 };
 
-export const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<string, any> => {
+export const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<string, unknown> => {
     const freteNumber = parseDecimal(request.valor_frete ?? 0);
-    const { valorItens, valorTotal } = computeTotalsFromItems(request.items ?? [], freteNumber);
+    const { valorItens, valorTotal } = computeTotalsFromItems(request.items as any ?? [], freteNumber);
     const itemsPayload = (request.items ?? []).map((item) => buildItemPayloadFromRequest(item));
 
     const payload: Record<string, any> = {
@@ -663,8 +663,8 @@ export const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<st
     return sanitizePayload(payload);
 };
 
-export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, any> => {
-    const payload: Record<string, any> = {};
+export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {};
 
     if (request.customer_name || request.cliente) {
         payload.cliente = request.cliente ?? request.customer_name;
@@ -711,7 +711,7 @@ export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<st
     }
 
     if (Array.isArray(request.items) || request.valor_frete !== undefined) {
-        const frete = parseDecimal(payload.valor_frete ?? request.valor_frete ?? 0);
+        const frete = parseDecimal((payload.valor_frete as string | number) ?? request.valor_frete ?? 0);
         const { valorItens, valorTotal } = computeTotalsFromItems(request.items ?? [], frete);
         payload.valor_itens = toCurrencyString(valorItens);
         payload.valor_total = toCurrencyString(valorTotal);
@@ -719,11 +719,11 @@ export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<st
 
     delete payload.financeiro;
 
-    return sanitizePayload(payload);
+    return sanitizePayload(payload) as Record<string, unknown>;
 };
 
-export const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Record<string, any> => {
-    const payload: Record<string, any> = {};
+export const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {};
     (
         [
             'cliente',
@@ -753,10 +753,10 @@ export const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Recor
 
     delete payload.financeiro;
 
-    return sanitizePayload(payload);
+    return sanitizePayload(payload) as Record<string, unknown>;
 };
 
-export const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, any> => {
+export const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<string, unknown> => {
     const payload: Record<string, any> = {
         conferencia: request.conferencia,
         sublimacao: request.sublimacao,
@@ -766,11 +766,11 @@ export const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<st
         sublimacao_data_impressao: request.sublimacao_data_impressao,
     };
 
-    const isFinanceiroUpdate = (request as any)._isFinanceiroUpdate === true;
+    const isFinanceiroUpdate = request._isFinanceiroUpdate === true;
     if (isFinanceiroUpdate && request.financeiro !== undefined) {
         payload.financeiro = request.financeiro;
     }
-    delete payload._isFinanceiroUpdate;
+    delete (payload as any)._isFinanceiroUpdate;
 
     if (request.status) {
         payload.status = mapStatusToApi(request.status);
@@ -779,5 +779,5 @@ export const buildStatusPayload = (request: UpdateOrderStatusRequest): Record<st
         payload.pronto = request.pronto;
     }
 
-    return sanitizePayload(payload);
+    return sanitizePayload(payload) as Record<string, unknown>;
 };

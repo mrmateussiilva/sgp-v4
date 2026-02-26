@@ -8,6 +8,7 @@ import {
     UpdateOrderRequest,
     UpdateOrderMetadataRequest,
     UpdateOrderStatusRequest,
+    UpdateOrderItemRequest,
     OrderFicha,
     DashboardSummary,
 } from '../types';
@@ -318,8 +319,7 @@ export const ordersApi = {
     updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
         requireSessionToken();
         const payload = buildStatusPayload(request);
-
-        const isFinanceiroUpdate = (request as any)._isFinanceiroUpdate === true;
+        const isFinanceiroUpdate = request._isFinanceiroUpdate === true;
         if (!isFinanceiroUpdate) {
             delete payload.financeiro;
             delete payload.financeiro_aprovado;
@@ -377,7 +377,7 @@ export const ordersApi = {
         return mapOrderToFicha(order);
     },
 
-    updateOrderItem: async (itemId: number, data: any): Promise<boolean> => {
+    updateOrderItem: async (itemId: number, data: Partial<UpdateOrderItemRequest> & { pedido_id?: number }): Promise<boolean> => {
         requireSessionToken();
         const payload = buildItemPayloadFromRequest(data);
         if (data?.pedido_id != null) {

@@ -108,6 +108,9 @@ export interface OrderWithItems {
   sublimacao_maquina?: string | null;
   sublimacao_data_impressao?: string | null;
 
+  designer?: string;
+  vendedor?: string;
+
   items: OrderItem[];
 }
 
@@ -271,6 +274,7 @@ export interface UpdateOrderStatusRequest {
   sublimacao_data_impressao?: string | null;
   status?: OrderStatus;
   pronto?: boolean;
+  _isFinanceiroUpdate?: boolean;
 }
 
 export interface LoginRequest {
