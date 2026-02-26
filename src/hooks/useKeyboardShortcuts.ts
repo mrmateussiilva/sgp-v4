@@ -27,6 +27,9 @@ export function useKeyboardShortcuts(
     (event: KeyboardEvent) => {
       if (!enabled) return;
 
+      // Debug para identificar o que está acontecendo no Tauri
+      // console.log('[HOOK] KeyDown:', event.key, 'Target:', event.target);
+
       // Ignorar se estiver digitando em inputs, textareas, etc
       const target = event.target as HTMLElement;
       const isInput =
@@ -35,11 +38,27 @@ export function useKeyboardShortcuts(
         target.isContentEditable;
 
       // Permitir Esc sempre, e alguns atalhos mesmo em inputs (Ctrl+S, Ctrl+F, etc)
-      const allowedInInput = ['Escape', 'Escape', 'Escape'].includes(event.key);
+      const allowedInInput = ['Escape'].includes(event.key);
       const ctrlBased = event.ctrlKey || event.metaKey;
-      const allowCtrlBased = ['s', 'f', 'n', 'k', '/'].includes(event.key.toLowerCase());
+      const allowCtrlBased = ['s', 'f', 'n', 'k', '/', 'r'].includes(event.key.toLowerCase());
 
       if (isInput && !allowedInInput && !(ctrlBased && allowCtrlBased)) {
+        return;
+      }
+
+      // Verificar se o foco está dentro de um dialog/modal.
+      // Se estiver dentro de um dialog, não disparar atalhos sem modificadores para evitar conflito.
+      const isInsideDialog = target.closest(
+        '[role="dialog"], [role="alertdialog"], [data-radix-portal]'
+      ) !== null;
+
+      const hasVisibleOverlay = document.querySelector(
+        '[data-radix-portal] [role="dialog"], [data-radix-portal] [role="alertdialog"]'
+      ) !== null;
+
+      if ((isInsideDialog || hasVisibleOverlay) && !ctrlBased && event.key !== 'Escape') {
+        // Se estivermos em um dialog e a tecla for Enter, o dialog.tsx deve lidar com isso.
+        // O Hook deve apenas ignorar.
         return;
       }
 
@@ -79,9 +98,9 @@ export function useKeyboardShortcuts(
   useEffect(() => {
     if (!enabled) return;
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
   }, [handleKeyDown, enabled]);
 }
@@ -94,13 +113,13 @@ export function formatShortcut(shortcut: KeyboardShortcut): string {
   if (shortcut.ctrl || shortcut.meta) parts.push(shortcut.meta ? '⌘' : 'Ctrl');
   if (shortcut.shift) parts.push('Shift');
   if (shortcut.alt) parts.push('Alt');
-  
+
   // Formatar a tecla principal
-  const keyDisplay = shortcut.key.length === 1 
-    ? shortcut.key.toUpperCase() 
+  const keyDisplay = shortcut.key.length === 1
+    ? shortcut.key.toUpperCase()
     : formatSpecialKey(shortcut.key);
   parts.push(keyDisplay);
-  
+
   return parts.join(' + ');
 }
 
@@ -120,4 +139,3 @@ function formatSpecialKey(key: string): string {
   };
   return mapping[key] || key;
 }
-

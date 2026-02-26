@@ -15,6 +15,7 @@ interface DashboardMenuItemProps {
   separatorLabel?: string;
   showBadge?: boolean;
   isFirst?: boolean;
+  shortcutLabel?: string;
 }
 
 export function DashboardMenuItem({
@@ -28,6 +29,7 @@ export function DashboardMenuItem({
   separatorLabel,
   showBadge = false,
   isFirst = false,
+  shortcutLabel,
 }: DashboardMenuItemProps) {
   const navigate = useNavigate();
 
@@ -54,7 +56,7 @@ export function DashboardMenuItem({
         type="button"
         variant={active ? "secondary" : "ghost"}
         className={cn(
-          "h-9 w-full transition-all relative px-3",
+          "h-9 w-full transition-all relative px-3 group",
           expanded ? "justify-start" : "justify-center px-0",
           active ? "bg-primary/5 text-primary font-bold hover:bg-primary/10" : "text-muted-foreground hover:text-foreground"
         )}
@@ -63,9 +65,14 @@ export function DashboardMenuItem({
         aria-current={active ? "page" : undefined}
         title={!expanded ? label : undefined}
       >
-        <div className="flex items-center">
+        <div className="flex items-center w-full">
           <Icon className={cn("h-4 w-4 shrink-0", expanded && "mr-3")} aria-hidden="true" />
-          {expanded && <span className="text-sm truncate">{label}</span>}
+          {expanded && <span className="text-sm truncate flex-1 text-left">{label}</span>}
+          {expanded && shortcutLabel && (
+            <kbd className="hidden group-hover:inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-auto">
+              {shortcutLabel}
+            </kbd>
+          )}
           {showBadge && (
             <span className={cn(
               "absolute h-2 w-2 rounded-full bg-blue-500 border-2 border-background",
