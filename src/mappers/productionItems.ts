@@ -107,7 +107,7 @@ export type CanonicalProductionItem =
   | MochilinhaCanonicalItem
   | OtherCanonicalItem;
 
-function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
+export function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   const normalized = String(tipo ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (normalized === 'painel') return 'painel';
   if (normalized === 'generica') return 'generica';

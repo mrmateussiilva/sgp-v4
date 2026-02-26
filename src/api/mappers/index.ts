@@ -48,7 +48,7 @@ import {
     inferTipoProducao,
     buildAcabamento,
 } from '../utils';
-import { canonicalizeFromItemRequest } from '../../mappers/productionItems';
+import { canonicalizeFromItemRequest, normalizeTipo } from '../../mappers/productionItems';
 import { FIELD_ALLOWED_TYPES, TYPE_SPECIFIC_FIELD_DEFAULTS } from '../../utils/order-item-display';
 
 const APP_STATUS_TO_API: Record<OrderStatus, ApiOrderStatus> = {
@@ -131,7 +131,7 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
         quantity,
         unit_price: unitPrice,
         subtotal,
-        tipo_producao: item.tipo_producao,
+        tipo_producao: normalizeTipo(item.tipo_producao),
         descricao: item.descricao,
         largura: item.largura ?? undefined,
         altura: item.altura ?? undefined,

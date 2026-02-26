@@ -265,7 +265,16 @@ export const ordersApi = {
         logger.debug('[api.updateOrder] Request original:', JSON.stringify(request, null, 2));
 
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-        const order = mapPedidoFromApi(response.data);
+
+        // Buscar dados completos para o backup JSON
+        let order: OrderWithItems;
+        try {
+            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
+            order = mapPedidoFromApi(jsonResponse.data);
+        } catch (error) {
+            logger.warn('[api.updateOrder] Erro ao buscar JSON completo, usando retorno do PATCH:', error);
+            order = mapPedidoFromApi(response.data);
+        }
 
         try {
             await apiClient.post(`/pedidos/save-json/${order.id}`, order);
@@ -286,7 +295,24 @@ export const ordersApi = {
         requireSessionToken();
         const payload = buildMetadataPayload(request);
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-        return mapPedidoFromApi(response.data);
+
+        // Buscar dados completos para o backup JSON
+        let order: OrderWithItems;
+        try {
+            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
+            order = mapPedidoFromApi(jsonResponse.data);
+        } catch (error) {
+            logger.warn('[api.updateOrderMetadata] Erro ao buscar JSON completo, usando retorno do PATCH:', error);
+            order = mapPedidoFromApi(response.data);
+        }
+
+        try {
+            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+        } catch (error) {
+            logger.warn('[api.updateOrderMetadata] Erro ao salvar JSON do pedido na API:', error);
+        }
+
+        return order;
     },
 
     updateOrderStatus: async (request: UpdateOrderStatusRequest): Promise<OrderWithItems> => {
@@ -305,8 +331,16 @@ export const ordersApi = {
 
         clearOrderCache(request.id);
 
-        const freshResponse = await apiClient.get<ApiPedido>(`/pedidos/${request.id}`);
-        const updatedOrder = mapPedidoFromApi(freshResponse.data);
+        // Buscar dados completos para o backup JSON e retorno
+        let updatedOrder: OrderWithItems;
+        try {
+            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
+            updatedOrder = mapPedidoFromApi(jsonResponse.data);
+        } catch (error) {
+            logger.warn('[api.updateOrderStatus] Erro ao buscar JSON completo, usando GET padrão:', error);
+            const freshResponse = await apiClient.get<ApiPedido>(`/pedidos/${request.id}`);
+            updatedOrder = mapPedidoFromApi(freshResponse.data);
+        }
 
         try {
             await apiClient.post(`/pedidos/save-json/${updatedOrder.id}`, updatedOrder);

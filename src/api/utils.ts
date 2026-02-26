@@ -1,3 +1,4 @@
+import { normalizeTipo } from '../mappers/productionItems';
 
 export const sanitizeDecimalString = (value: string): string => {
     const trimmed = value.trim();
@@ -103,13 +104,14 @@ export const deriveUnitPrice = (source: any): number => {
 
 export const inferTipoProducao = (item: any): string => {
     if (item?.tipo_producao) {
-        return String(item.tipo_producao);
+        return normalizeTipo(item.tipo_producao);
     }
     if (typeof item?.descricao === 'string') {
         const lower = item.descricao.toLowerCase();
         if (lower.includes('totem')) return 'totem';
         if (lower.includes('lona')) return 'lona';
         if (lower.includes('adesivo')) return 'adesivo';
+        if (lower.includes('mesa de babado') || lower.includes('mesa_babado')) return 'mesa_babado';
     }
     return 'generica';
 };

@@ -1301,6 +1301,9 @@ export default function OrderList() {
     // Filtro por vendedor
     if (selectedVendedor) {
       filtered = filtered.filter((order) => {
+        // Se o pedido não tem itens carregados, não podemos filtrar por vendedor localmente.
+        // Neste caso, mantemos o pedido na lista para evitar que "suma" injustamente.
+        if (!order.items || order.items.length === 0) return true;
         return order.items.some((item) => item.vendedor === selectedVendedor);
       });
     }
@@ -1308,6 +1311,8 @@ export default function OrderList() {
     // Filtro por designer
     if (selectedDesigner) {
       filtered = filtered.filter((order) => {
+        // Se o pedido não tem itens carregados, mantemos na lista.
+        if (!order.items || order.items.length === 0) return true;
         return order.items.some((item) => item.designer === selectedDesigner);
       });
     }
