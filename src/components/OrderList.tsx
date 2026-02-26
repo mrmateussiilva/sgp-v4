@@ -2155,12 +2155,12 @@ export default function OrderList() {
                   <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border/50 shadow-sm">
                     <Button
                       type="button"
-                      variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                      variant="secondary"
                       size="sm"
                       onClick={() => setViewMode('table')}
                       className={cn(
                         "h-8 px-2 md:px-3",
-                        viewMode === 'table' ? "bg-background shadow-sm text-primary" : "text-muted-foreground"
+                        "bg-background shadow-sm text-primary"
                       )}
                     >
                       <Table2 className="h-4 w-4 sm:mr-2" />
@@ -2168,12 +2168,12 @@ export default function OrderList() {
                     </Button>
                     <Button
                       type="button"
-                      variant={viewMode === 'pipeline' ? 'secondary' : 'ghost'}
+                      variant="ghost"
                       size="sm"
                       onClick={() => setViewMode('pipeline')}
                       className={cn(
                         "h-8 px-2 md:px-3",
-                        viewMode === 'pipeline' ? "bg-background shadow-sm text-primary" : "text-muted-foreground"
+                        "text-muted-foreground"
                       )}
                     >
                       <div className="flex flex-row gap-0.5 items-center sm:mr-1.5">
