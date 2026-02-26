@@ -1,3 +1,4 @@
+import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
@@ -56,17 +57,17 @@ class GlobalNotificationManager {
       // Tentar inscrever no sistema de notificações
       const result = await invoke<string>('subscribe_to_notifications', { clientId: this.clientId });
       console.log(`Tentativa de conexão: ${result}`);
-      
+
       // Se a conexão foi bem-sucedida ou o cliente já estava conectado
       if (result.includes('conectado') || result.includes('inscrito')) {
         this.isConnected = true;
         this.reconnectAttempts = 0;
-        
+
         // Configurar listener único para este cliente (apenas se não existir)
         if (!this.unlistenRef) {
           const unlisten = await listen<OrderNotification>(this.eventName, (event) => {
             const notification = event.payload;
-            
+
             // Logs reduzidos - apenas para eventos importantes
             switch (notification.notification_type) {
               case 'OrderStatusChanged':
@@ -81,22 +82,22 @@ class GlobalNotificationManager {
                 console.log(`📡 Evento recebido:`, notification.notification_type);
             }
           });
-          
+
           this.unlistenRef = unlisten;
         }
 
         // Iniciar heartbeat automático
         this.startHeartbeat();
-        
+
       } else {
         console.warn(`Falha na conexão: ${result}`);
         this.reconnectAttempts++;
       }
-      
+
     } catch (error) {
       console.error('Erro ao conectar ao sistema de notificações:', error);
       this.reconnectAttempts++;
-      
+
       // Tentar reconectar apenas se não excedeu o limite
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         console.log(`Tentando reconectar (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
@@ -117,7 +118,7 @@ class GlobalNotificationManager {
     try {
       // Cancelar inscrição no backend
       await invoke<string>('unsubscribe_from_notifications', { clientId: this.clientId });
-      
+
       // Remover listener do frontend
       if (this.unlistenRef) {
         this.unlistenRef();
@@ -126,10 +127,10 @@ class GlobalNotificationManager {
 
       // Parar heartbeat
       this.stopHeartbeat();
-      
+
       this.isConnected = false;
       console.log(`Cliente ${this.clientId} desconectado do sistema de notificações`);
-      
+
     } catch (error) {
       console.error('Erro ao desconectar do sistema de notificações:', error);
     }
@@ -156,7 +157,7 @@ class GlobalNotificationManager {
   private startHeartbeat(): void {
     // Parar heartbeat anterior se existir
     this.stopHeartbeat();
-    
+
     // Iniciar novo heartbeat
     this.heartbeatInterval = setInterval(() => {
       this.sendHeartbeat();
@@ -189,17 +190,17 @@ class GlobalNotificationManager {
 // Hook global único para toda a aplicação
 export function useGlobalNotifications() {
   const manager = GlobalNotificationManager.getInstance();
-  
+
   // Conectar automaticamente quando o hook é usado
   React.useEffect(() => {
     manager.connect();
-    
+
     // Cleanup quando o componente desmonta
     return () => {
       manager.disconnect();
     };
   }, []);
-  
+
   return {
     clientId: manager.getClientId(),
     isConnected: manager.getIsConnected(),
@@ -215,7 +216,7 @@ export { GlobalNotificationManager };
 
 // Exemplo de uso em um componente
 export function GlobalNotificationExample() {
-  const { clientId, isConnected, status, reconnect } = useGlobalNotifications();
+  const { clientId, isConnected, status, reconnect, connect, disconnect } = useGlobalNotifications();
 
   const handleTestConnection = async () => {
     if (isConnected) {
@@ -235,11 +236,11 @@ export function GlobalNotificationExample() {
       <p>Client ID: {clientId}</p>
       <p>Status: {isConnected ? 'Conectado' : 'Desconectado'}</p>
       <p>Tentativas de reconexão: {status.reconnectAttempts}</p>
-      
+
       <button onClick={handleTestConnection}>
         {isConnected ? 'Desconectar' : 'Conectar'}
       </button>
-      
+
       <button onClick={handleReconnect}>
         Reconectar
       </button>
