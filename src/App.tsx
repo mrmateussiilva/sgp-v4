@@ -17,7 +17,7 @@ import { ChangelogModal } from './components/ChangelogModal';
 import { logger } from './utils/logger';
 import { UpdateBanner } from './components/UpdateBanner';
 import { CommandPalette } from './components/CommandPalette';
-
+import type { FallbackReason } from './pages/ConfigApi';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Login = lazy(() => import('./pages/Login'));
@@ -44,6 +44,7 @@ function App() {
   const [apiUrl, setApiUrl] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
   const [showFallback, setShowFallback] = useState(false);
+  const [fallbackReason, setFallbackReason] = useState<FallbackReason>('no_config');
   const [showChangelog, setShowChangelog] = useState(false);
   const [updateVersion, setUpdateVersion] = useState<string>('');
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -144,6 +145,7 @@ function App() {
         loadConfig().then(config => {
           if (!config?.api_url) {
             setApiUrl(null);
+            setFallbackReason('no_config');
             setShowFallback(true);
           }
         });
@@ -171,12 +173,14 @@ function App() {
         } else {
           clearTimeout(safetyTimeoutId);
           setApiUrl(null);
+          setFallbackReason('no_config');
           setShowFallback(true);
         }
       } catch (error) {
         clearTimeout(safetyTimeoutId);
         logger.error('Erro ao carregar configuração:', error);
         setApiUrl(null);
+        setFallbackReason('no_config');
         setShowFallback(true);
       } finally {
         setIsCheckingConnection(false);
@@ -189,6 +193,7 @@ function App() {
   useEffect(() => {
     const unsubscribe = onApiFailure(() => {
       setApiUrl(null);
+      setFallbackReason('connection_lost');
       setShowFallback(true);
     });
     return () => {
@@ -249,6 +254,7 @@ function App() {
             {showFallback || !apiUrl ? (
               <div className="bg-background text-foreground min-h-screen">
                 <ConfigApi
+                  reason={fallbackReason}
                   onConfigured={(url) => {
                     const normalizedUrl = normalizeApiUrl(url);
                     applyApiUrl(normalizedUrl);
