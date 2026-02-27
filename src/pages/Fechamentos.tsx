@@ -1479,9 +1479,9 @@ export default function Fechamentos() {
           {/* Tipo de relatório e ações principais */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Tipo de relatório</Label>
+              <Label htmlFor="reportType">Tipo de relatório</Label>
               <Select value={reportType} onValueChange={(value) => updateFilter('reportType', value as ReportTypeKey)}>
-                <SelectTrigger className="bg-white">
+                <SelectTrigger id="reportType" className="bg-white">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1523,8 +1523,9 @@ export default function Fechamentos() {
           {/* Filtros de data, tipo de data e cliente */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>Data inicial</Label>
+              <Label htmlFor="startDate">Data inicial</Label>
               <Input
+                id="startDate"
                 type="date"
                 value={startDate}
                 onChange={(event) => updateFilter('startDate', event.target.value)}
@@ -1534,8 +1535,9 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
-              <Label>Data final</Label>
+              <Label htmlFor="endDate">Data final</Label>
               <Input
+                id="endDate"
                 type="date"
                 value={endDate}
                 onChange={(event) => updateFilter('endDate', event.target.value)}
@@ -1546,9 +1548,9 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tipo de data</Label>
+              <Label htmlFor="dateMode">Tipo de data</Label>
               <Select value={dateMode} onValueChange={(value) => updateFilter('dateMode', value)}>
-                <SelectTrigger className="bg-white">
+                <SelectTrigger id="dateMode" className="bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1559,8 +1561,9 @@ export default function Fechamentos() {
             </div>
 
             <div className="space-y-2">
-              <Label>Cliente</Label>
+              <Label htmlFor="cliente-search">Cliente</Label>
               <ClienteAutocomplete
+                id="cliente-search"
                 value={cliente}
                 onSelect={(clienteSelecionado: Cliente | null) => {
                   if (clienteSelecionado) {

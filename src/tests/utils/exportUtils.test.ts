@@ -14,27 +14,30 @@ vi.mock('papaparse', () => ({
   },
 }));
 
-const createMockJsPDF = () => ({
-  setFontSize: vi.fn().mockReturnThis(),
-  setFont: vi.fn().mockReturnThis(),
-  text: vi.fn().mockReturnThis(),
-  save: vi.fn(),
-  output: vi.fn(() => 'blob:mock'),
-  addPage: vi.fn().mockReturnThis(),
-  setFillColor: vi.fn().mockReturnThis(),
-  setTextColor: vi.fn().mockReturnThis(),
-  rect: vi.fn().mockReturnThis(),
-  internal: {
-    pageSize: {
-      getWidth: () => 210,
-      getHeight: () => 297,
+vi.mock('jspdf', () => {
+  const mockDoc = {
+    setFontSize: vi.fn().mockReturnThis(),
+    setFont: vi.fn().mockReturnThis(),
+    text: vi.fn().mockReturnThis(),
+    save: vi.fn(),
+    output: vi.fn(() => 'blob:mock'),
+    addPage: vi.fn().mockReturnThis(),
+    setFillColor: vi.fn().mockReturnThis(),
+    setTextColor: vi.fn().mockReturnThis(),
+    rect: vi.fn().mockReturnThis(),
+    internal: {
+      pageSize: {
+        getWidth: () => 210,
+        getHeight: () => 297,
+      },
     },
-  },
+  };
+  const jsPDF = vi.fn(() => mockDoc);
+  return {
+    default: jsPDF,
+    jsPDF: jsPDF,
+  };
 });
-
-vi.mock('jspdf', () => ({
-  default: vi.fn().mockImplementation(createMockJsPDF),
-}));
 
 vi.mock('jspdf-autotable', () => ({
   default: vi.fn(),
@@ -160,7 +163,7 @@ describe('exportUtils - Lazy Loading', () => {
 
       const jsPDF = await import('jspdf');
       const pdfInstance = (jsPDF.default as any).mock.results[0].value;
-      
+
       expect(pdfInstance.text).toHaveBeenCalled();
       expect(pdfInstance.save).toHaveBeenCalled();
     });
