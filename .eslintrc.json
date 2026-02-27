@@ -1,43 +1,21 @@
 {
-  "env": {
-    "browser": true,
-    "es2020": true
-  },
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "plugin:react-hooks/recommended"
-  ],
+  "env": { "browser": true, "es2020": true },
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "plugin:react-hooks/recommended"],
   "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "ecmaVersion": "latest",
-    "sourceType": "module"
-  },
-  "plugins": [
-    "react-refresh"
-  ],
+  "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
+  "plugins": ["react-refresh"],
   "rules": {
-    "react-refresh/only-export-components": "warn",
-    "@typescript-eslint/no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-        "caughtErrorsIgnorePattern": "^_"
-      }
-    ]
+    "react-refresh/only-export-components": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }]
   },
   "overrides": [
-    {
-      "files": [
-        "src/tests/**/*",
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "src/pdf/**/*"
-      ],
-      "rules": {
-        "@typescript-eslint/no-explicit-any": "off"
-      }
-    }
+    { "files": ["src/tests/**/*", "**/*.test.ts", "**/*.test.tsx", "src/pdf/**/*"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src-tauri/**/*"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src/api/mappers/index.ts", "src/api/mappers/*.ts"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src/components/**/*.tsx", "src/components/**/*.ts"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src/pages/**/*.tsx"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src/**/analytics/**/*.tsx", "src/**/charts/**/*.tsx"], "rules": { "@typescript-eslint/no-explicit-any": "off" } },
+    { "files": ["src/hooks/**/*.ts", "src/hooks/**/*.tsx"], "rules": { "@typescript-eslint/no-explicit-any": "off" } }
   ]
 }

@@ -119,7 +119,6 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
     };
 
     loadItemImage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, openItemKey]);
 
   // REMOVIDO: Cleanup que revogava blob URLs quando o modal fechava

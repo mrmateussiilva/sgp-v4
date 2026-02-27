@@ -459,7 +459,6 @@ export const buildTipoProducaoUpdatePayload = (payload: Partial<TipoProducaoPayl
     return sanitizePayload(update);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const buildItemPayloadFromRequest = (item: any): Record<string, unknown> => {
     const tipo = inferTipoProducao(item as Record<string, unknown>);
     const canon: any = canonicalizeFromItemRequest(item as CreateOrderItemRequest);

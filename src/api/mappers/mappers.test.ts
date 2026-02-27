@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildItemPayloadFromRequest } from './index';
-import { normalizeApiMoney, parseDecimal, toCurrencyString } from '../utils';
+import { normalizeApiMoney, toCurrencyString } from '../utils';
 
 describe('API Mappers & Utils Regression', () => {
     describe('normalizeApiMoney', () => {

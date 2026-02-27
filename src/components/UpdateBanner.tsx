@@ -14,9 +14,9 @@ export function UpdateBanner() {
     const navigate = useNavigate();
     const location = useLocation();
     const { isUpdateAvailable, updateVersion } = useUpdaterStore();
+    const [isVisible, setIsVisible] = useState(true);
 
     if (!isTauri()) return null;
-    const [isVisible, setIsVisible] = useState(true);
 
     // Se o usuário fechar o banner, ele fica oculto apenas nesta sessão
     // a menos que ele mude de página de configuração ou reinicie.

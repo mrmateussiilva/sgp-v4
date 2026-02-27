@@ -603,9 +603,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   // Estado para rastrear dados iniciais (para detectar mudanças)
   // Desabilitado - não usado atualmente (comentado no useEffect beforeunload)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_initialFormData, setInitialFormData] = useState(formData);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
 
   // Função para confirmar navegação se houver mudanças não salvas
@@ -832,7 +830,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrderId, navigate, toast]);
 
   // Carregar catálogos do banco (ativos)
@@ -1333,12 +1330,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           error = 'Nome do portador é obrigatório';
         }
         break;
-      case 'valor_frete':
+      case 'valor_frete': {
         const valorFrete = parseLocaleNumber(value);
         if (valorFrete < 0) {
           error = 'Valor do frete não pode ser negativo';
         }
         break;
+      }
     }
 
     setErrors(prev => ({
@@ -2526,7 +2524,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       }
 
       const createItems: CreateOrderItemRequest[] = normalizedItems.map(
-        ({ orderItemId, ...item }) => {
+        ({ orderItemId: _orderItemId, ...item }) => {
           // Remover orderItemId do objeto (não é necessário para criação)
           return item;
         }

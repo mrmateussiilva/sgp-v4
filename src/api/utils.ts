@@ -59,17 +59,16 @@ export const parseNumericId = (value: unknown): number | null => {
 };
 
 export const deriveQuantity = (source: Record<string, unknown>): number => {
-    const s = source as any;
     const candidates = [
-        s?.quantity,
-        s?.quantidade_paineis,
-        s?.quantidade_totem,
-        s?.quantidade_lona,
-        s?.quantidade_adesivo,
-        s?.quantidade_canga,
-        s?.quantidade_impressao_3d,
-        s?.quantidade_mochilinha,
-        s?.quantidade,
+        source.quantity,
+        source.quantidade_paineis,
+        source.quantidade_totem,
+        source.quantidade_lona,
+        source.quantidade_adesivo,
+        source.quantidade_canga,
+        source.quantidade_impressao_3d,
+        source.quantidade_mochilinha,
+        source.quantidade,
     ];
 
     for (const candidate of candidates) {
@@ -82,17 +81,16 @@ export const deriveQuantity = (source: Record<string, unknown>): number => {
 };
 
 export const deriveUnitPrice = (source: Record<string, unknown>): number => {
-    const s = source as any;
     const candidates = [
-        s?.unit_price,
-        s?.valor_unitario,
-        s?.valor_totem,
-        s?.valor_lona,
-        s?.valor_adesivo,
-        s?.valor_painel,
-        s?.valor_canga,
-        s?.valor_impressao_3d,
-        s?.valor_mochilinha,
+        source.unit_price,
+        source.valor_unitario,
+        source.valor_totem,
+        source.valor_lona,
+        source.valor_adesivo,
+        source.valor_painel,
+        source.valor_canga,
+        source.valor_impressao_3d,
+        source.valor_mochilinha,
     ];
 
     for (const candidate of candidates) {
@@ -105,12 +103,11 @@ export const deriveUnitPrice = (source: Record<string, unknown>): number => {
 };
 
 export const inferTipoProducao = (item: Record<string, unknown>): string => {
-    const i = item as any;
-    if (i?.tipo_producao) {
-        return normalizeTipo(i.tipo_producao);
+    if (item.tipo_producao != null) {
+        return normalizeTipo(String(item.tipo_producao));
     }
-    if (typeof i?.descricao === 'string') {
-        const lower = i.descricao.toLowerCase();
+    if (typeof item.descricao === 'string') {
+        const lower = item.descricao.toLowerCase();
         if (lower.includes('totem')) return 'totem';
         if (lower.includes('lona')) return 'lona';
         if (lower.includes('adesivo')) return 'adesivo';
@@ -120,24 +117,23 @@ export const inferTipoProducao = (item: Record<string, unknown>): string => {
 };
 
 export const buildAcabamento = (item: Record<string, unknown>): { overloque?: boolean; elastico?: boolean; ilhos?: boolean } => {
-    const i = item as any;
     return {
-        overloque: Boolean(i?.overloque),
-        elastico: Boolean(i?.elastico),
+        overloque: Boolean(item.overloque),
+        elastico: Boolean(item.elastico),
         ilhos:
-            Boolean(i?.tipo_acabamento && String(i.tipo_acabamento).toLowerCase().includes('ilho')) ||
-            Boolean(i?.quantidade_ilhos || i?.ilhos_qtd),
+            Boolean(item.tipo_acabamento && String(item.tipo_acabamento).toLowerCase().includes('ilho')) ||
+            Boolean(item.quantidade_ilhos || item.ilhos_qtd),
     };
 };
 
 export const sanitizePayload = (payload: Record<string, unknown>): Record<string, unknown> => {
-    const p = payload as any;
+    const p = { ...payload };
     Object.keys(p).forEach((key) => {
         if (p[key] === undefined) {
             delete p[key];
         }
     });
-    return p as Record<string, unknown>;
+    return p;
 };
 
 export const normalizeNullableString = (value?: string | null): string | null => {

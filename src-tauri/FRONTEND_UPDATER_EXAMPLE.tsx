@@ -5,12 +5,12 @@ import { alert } from '../src/utils/alert';
 const FALLBACK_MANIFEST_URL = 'https://sgp.finderbit.com.br/update';
 
 function resolveManifestUrl() {
-  const viteEnv = (import.meta as any)?.env?.VITE_SGP_MANIFEST_URL;
+  const viteEnv = (import.meta as ImportMeta & { env?: { VITE_SGP_MANIFEST_URL?: string } })?.env?.VITE_SGP_MANIFEST_URL;
   if (viteEnv) {
     return viteEnv as string;
   }
   if (typeof window !== 'undefined') {
-    const globalUrl = (window as any).__SGP_MANIFEST_URL__;
+    const globalUrl = (window as Window & { __SGP_MANIFEST_URL__?: string }).__SGP_MANIFEST_URL__;
     if (globalUrl) {
       return globalUrl;
     }

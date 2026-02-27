@@ -342,7 +342,7 @@ export default function Clientes() {
         }
         break;
       
-      case 'cep':
+      case 'cep': {
         const cepLimpo = valor.replace(/\D/g, '');
         if (!valor.trim()) {
           erro = '';
@@ -350,6 +350,7 @@ export default function Clientes() {
           erro = 'CEP deve ter 8 dígitos';
         }
         break;
+      }
       
       case 'cidade':
         erro = '';
@@ -363,7 +364,7 @@ export default function Clientes() {
         }
         break;
       
-      case 'telefone':
+      case 'telefone': {
         const telLimpo = valor.replace(/\D/g, '');
         if (!valor.trim()) {
           erro = '';
@@ -371,6 +372,7 @@ export default function Clientes() {
           erro = 'Telefone deve ter 11 dígitos';
         }
         break;
+      }
     }
 
     setErros(prev => ({ ...prev, [campo]: erro }));

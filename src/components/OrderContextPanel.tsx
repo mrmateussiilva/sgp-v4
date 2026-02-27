@@ -28,29 +28,24 @@ export function OrderContextPanel({
   onStatusChange,
   isAdmin = false,
 }: OrderContextPanelProps) {
-  if (!isOpen || !order) return null;
-
   const getOrderUrgency = useMemo(() => {
-    if (!order.data_entrega) return { isDelayed: false, isUrgent: false, isToday: false, isTomorrow: false, daysDelayed: 0 };
-    
+    if (!order?.data_entrega) return { isDelayed: false, isUrgent: false, isToday: false, isTomorrow: false, daysDelayed: 0 };
     const deliveryDate = new Date(order.data_entrega);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     deliveryDate.setHours(0, 0, 0, 0);
-    
     const diffTime = deliveryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
     const isDelayed = diffDays < 0;
     const isToday = diffDays === 0;
     const isTomorrow = diffDays === 1;
     const isUrgent = isToday || isTomorrow || (diffDays >= 2 && diffDays <= 3);
     const daysDelayed = isDelayed ? Math.abs(diffDays) : 0;
-    
     return { isDelayed, isUrgent, isToday, isTomorrow, daysDelayed };
-  }, [order.data_entrega]);
+  }, [order?.data_entrega]);
 
   const progressPercentage = useMemo(() => {
+    if (!order) return 0;
     const steps = [
       order.financeiro,
       order.conferencia,
@@ -60,7 +55,9 @@ export function OrderContextPanel({
     ];
     const completed = steps.filter(Boolean).length;
     return (completed / steps.length) * 100;
-  }, [order.financeiro, order.conferencia, order.sublimacao, order.costura, order.expedicao]);
+  }, [order?.financeiro, order?.conferencia, order?.sublimacao, order?.costura, order?.expedicao]);
+
+  if (!isOpen || !order) return null;
 
   const statusSteps = [
     { label: 'Financeiro', completed: order.financeiro, field: 'financeiro' },

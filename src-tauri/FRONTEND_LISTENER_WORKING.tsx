@@ -147,7 +147,7 @@ export async function forceOrderCheck() {
 import { useState, useEffect } from 'react';
 
 export function OrdersPageWithState() {
-  const [orders, setOrders] = useState([]);
+  const [_orders, _setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   
   const reloadOrders = useCallback(async () => {

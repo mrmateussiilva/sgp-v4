@@ -383,10 +383,11 @@ export const resourcesApi = {
         try {
             await apiClient.delete(url);
             return true;
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error('Erro ao excluir usuário:', error);
-            if (error?.response?.data?.detail) throw new Error(error.response.data.detail);
-            if (error?.message) throw error;
+            const err = error as { response?: { data?: { detail?: string } }; message?: string };
+            if (err?.response?.data?.detail) throw new Error(err.response.data.detail);
+            if (err?.message) throw error;
             throw new Error('Erro desconhecido ao excluir usuário');
         }
     },
@@ -466,8 +467,9 @@ export const resourcesApi = {
             );
             logger.debug(`[api] Template HTML carregado: ${templateType}, exists: ${response.data.exists}, length: ${response.data.html?.length || 0}`);
             return response.data;
-        } catch (error: any) {
-            if (error.response?.status === 404) {
+        } catch (error: unknown) {
+            const err = error as { response?: { status?: number } };
+            if (err?.response?.status === 404) {
                 return { html: null, exists: false };
             }
             logger.warn('[api] Erro ao buscar template HTML editado:', error);
@@ -489,7 +491,7 @@ export const resourcesApi = {
 
     generateReport: async (request: ReportRequestPayload): Promise<ReportResponse> => {
         requireSessionToken();
-        const params: Record<string, any> = {
+        const params: Record<string, string | undefined> = {
             report_type: request.report_type,
             date_mode: request.date_mode || 'entrada',
         };
@@ -510,7 +512,7 @@ export const resourcesApi = {
         end_date?: string;
         date_mode?: string;
         cliente?: string;
-    }): Promise<any> => {
+    }): Promise<unknown> => {
         requireSessionToken();
         const requestParams = {
             ...params,

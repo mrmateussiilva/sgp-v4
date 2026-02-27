@@ -289,7 +289,7 @@ export class NotificationManager {
     let title = '';
     let description = '';
     let variant: "success" | "warning" | "info" | "destructive" = "success";
-    let duration = 3000;
+    const duration = 3000;
 
     switch (notification.notification_type) {
       case NotificationType.OrderCreated:

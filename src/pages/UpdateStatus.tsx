@@ -134,13 +134,14 @@ export default function UpdateStatus() {
             setInstallProgress(0);
             console.info('[UpdateStatus] Download iniciado');
             break;
-          case 'Progress':
-            const data = event.data as any;
+          case 'Progress': {
+            const data = event.data as { contentLength?: number; chunkLength?: number };
             if (data.contentLength) {
-              const percent = Math.round((data.chunkLength / data.contentLength) * 100);
+              const percent = Math.round(((data.chunkLength ?? 0) / data.contentLength) * 100);
               setInstallProgress(percent);
             }
             break;
+          }
           case 'Finished':
             setInstallProgress(100);
             console.info('[UpdateStatus] Download concluído');

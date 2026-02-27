@@ -81,7 +81,7 @@ export default function DashboardOverview() {
       let allOrders = [...initialOrdersResult.orders];
       let currentPage = 2;
       const pageSize = 100;
-      let totalPages = initialOrdersResult.total_pages;
+      const totalPages = initialOrdersResult.total_pages;
 
       while (currentPage <= 5 && currentPage <= totalPages) {
         const nextResult = await api.getOrdersPaginated(currentPage, pageSize);

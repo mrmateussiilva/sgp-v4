@@ -383,7 +383,7 @@ function ReportTable({ report, columnName, loading, isAnalitico, selectedRowIds,
       let bValue: string | number;
 
       switch (sortConfig.field) {
-        case 'ficha':
+        case 'ficha': {
           aValue = a.ficha || '';
           bValue = b.ficha || '';
           const aNum = Number.parseInt(aValue.toString(), 10);
@@ -394,6 +394,7 @@ function ReportTable({ report, columnName, loading, isAnalitico, selectedRowIds,
           return sortConfig.direction === 'asc'
             ? aValue.toString().localeCompare(bValue.toString(), 'pt-BR')
             : bValue.toString().localeCompare(aValue.toString(), 'pt-BR');
+        }
         case 'descricao':
           aValue = a.descricao || '';
           bValue = b.descricao || '';

@@ -131,7 +131,9 @@ const formatValue = (value: unknown, key?: string): string => {
       if (Array.isArray(parsed)) {
         return parsed.map((p: any) => `${p.item}: ${p.tecido}`).join(' | ');
       }
-    } catch (e) { }
+    } catch {
+      /* ignore parse errors */
+    }
   }
   return String(value);
 };
