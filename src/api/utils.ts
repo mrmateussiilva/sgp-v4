@@ -11,7 +11,7 @@ export const sanitizeDecimalString = (value: string): string => {
     return trimmed;
 };
 
-export const parseDecimal = (value: string | number | null | undefined): number => {
+export const parseDecimal = (value: string | number | null | undefined | unknown): number => {
     if (typeof value === 'number') {
         return Number.isNaN(value) ? 0 : value;
     }

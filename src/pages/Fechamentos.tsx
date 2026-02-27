@@ -32,7 +32,7 @@ import { Separator } from '@/components/ui/separator';
 import { SmoothTableWrapper } from '@/components/SmoothTableWrapper';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ReportRequestPayload, ReportResponse, ReportGroup, ReportRowData, ReportTotals, ReportTypeKey, Cliente } from '@/types';
+import { ReportRequestPayload, ReportResponse, ReportGroup, ReportRowData, ReportTotals, ReportTypeKey, Cliente, OrderWithItems } from '@/types';
 import { openPdfInWindow } from '@/utils/exportUtils';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { generateFechamentoReport } from '@/utils/fechamentoReport';
@@ -915,9 +915,10 @@ export default function Fechamentos() {
         cliente: cliente.trim() !== '' ? cliente.trim() : undefined,
       });
 
-      const processedReport = generateFechamentoReport(response, payload);
+      const orders = response as OrderWithItems[];
+      const processedReport = generateFechamentoReport(orders, payload);
       setReport(processedReport);
-      setRawOrders(response);
+      setRawOrders(orders);
     } catch (error) {
       const message =
         error instanceof Error

@@ -11,6 +11,7 @@ import { api } from '@/services/api';
 import { Cliente } from '@/types';
 
 interface ClienteAutocompleteProps {
+  id?: string;
   value: string;
   onSelect: (cliente: Cliente | null) => void;
   onInputChange: (value: string) => void;
@@ -18,6 +19,7 @@ interface ClienteAutocompleteProps {
 }
 
 export function ClienteAutocomplete({
+  id,
   value,
   onSelect,
   onInputChange,
@@ -102,6 +104,7 @@ export function ClienteAutocomplete({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
+              id={id}
               value={searchTerm}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Digite o nome do cliente..."
