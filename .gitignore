@@ -42,6 +42,11 @@ src-tauri/.env
 *.db-shm
 *.db-wal
 
+# Test output
+test_output.txt
+test_output_debug.txt
+test_results.txt
+
 # OS
 .DS_Store
 Thumbs.db
