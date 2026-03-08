@@ -26,7 +26,6 @@ export const EventTestPanel = () => {
   useEffect(() => {
     if (!isListening) return;
 
-    console.log('🧪 Iniciando teste de eventos...');
     addEvent('Iniciando listeners de teste');
 
     const unlistenPromises: Promise<() => void>[] = [];
@@ -36,7 +35,7 @@ export const EventTestPanel = () => {
     
     eventNames.forEach(eventName => {
       const unlisten = listen<number>(eventName, (event) => {
-        console.log(`🎉 EVENTO RECEBIDO: ${eventName}`, event.payload);
+
         addEvent(`${eventName}: ${event.payload}`);
       });
       unlistenPromises.push(unlisten);
@@ -46,7 +45,7 @@ export const EventTestPanel = () => {
     return () => {
       Promise.all(unlistenPromises).then((unlistenFunctions) => {
         unlistenFunctions.forEach(unlisten => unlisten());
-        console.log('🧪 Listeners de teste removidos');
+
       });
     };
   }, [isListening]);

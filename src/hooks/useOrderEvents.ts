@@ -59,7 +59,7 @@ class OrderEventsManager {
     const type = message.type;
     if (!type) {
       if (import.meta.env.DEV) {
-        console.warn('⚠️ [OrderEventsManager] Evento sem tipo:', message);
+        // noop
       }
       return;
     }
@@ -74,7 +74,7 @@ class OrderEventsManager {
 
     if (!orderId) {
       if (import.meta.env.DEV) {
-        console.warn('⚠️ [OrderEventsManager] Evento recebido sem order_id rastreável:', message);
+        // noop
       }
       return;
     }
@@ -258,7 +258,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           await fn();
         } catch (error) {
           // Não quebrar polling por erro pontual
-          console.warn('[useOrderAutoSync] Erro no polling de pedidos:', error);
+
         } finally {
           isPollingRef.current = false;
         }

@@ -53,8 +53,7 @@ export async function getImagePreviewUrl(
     try {
       const blobUrl = await loadAuthenticatedImage(imageReference);
       return blobUrl;
-    } catch (error) {
-      console.error('Erro ao carregar imagem do servidor para preview:', error);
+    } catch {
       return null;
     }
   }
@@ -65,8 +64,7 @@ export async function getImagePreviewUrl(
     try {
       const base64 = await loadLocalImageAsBase64(imageReference);
       return base64;
-    } catch (error) {
-      console.error('Erro ao carregar imagem local para preview:', error);
+    } catch {
       return null;
     }
   }
@@ -75,8 +73,7 @@ export async function getImagePreviewUrl(
   try {
     const blobUrl = await loadAuthenticatedImage(imageReference);
     return blobUrl;
-  } catch (error) {
-    console.error('Erro ao carregar imagem para preview:', error);
+  } catch {
     return null;
   }
 }

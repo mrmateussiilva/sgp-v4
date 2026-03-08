@@ -683,7 +683,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           setTiposProducao(tipos);
           logger.debug('Tipos de produção atualizados:', tipos);
         } else {
-          console.warn('Nenhum tipo de produção encontrado na API, usando fallback');
+
           // Manter fallback se API não retornar dados
         }
       } catch (error) {
@@ -761,7 +761,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     } else {
       // Se não tem routeOrderId e está em modo edição, pode ser problema
       if (mode === 'edit') {
-        console.warn('[CreateOrderComplete] Modo edição mas sem ID na rota');
+        // noop
       }
     }
   }, [routeOrderId, navigate, toast, mode]);
@@ -2340,8 +2340,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           } else {
             dataEntregaFormatted = formData.data_entrega;
           }
-        } catch (error) {
-          console.warn('Erro ao formatar data de entrega:', error);
+        } catch {
+          // noop
         }
       }
 

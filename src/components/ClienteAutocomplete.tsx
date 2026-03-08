@@ -65,8 +65,8 @@ export function ClienteAutocomplete({
     try {
       const data = await api.getClientes();
       setTodosClientes(data);
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+    } catch {
+      // noop
     }
   };
 

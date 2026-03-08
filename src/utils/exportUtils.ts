@@ -64,8 +64,7 @@ const openPdfInPrintWindow = (doc: unknown, filename: string) => {
   let printWindow: Window | null = null;
   try {
     printWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-  } catch (err) {
-    console.warn('Falha ao abrir nova janela para impressão:', err);
+  } catch {
     printWindow = null;
   }
 
@@ -75,8 +74,8 @@ const openPdfInPrintWindow = (doc: unknown, filename: string) => {
       try {
         printWindow?.focus();
         printWindow?.print();
-      } catch (error) {
-        console.warn('Erro ao chamar print() na nova janela:', error);
+      } catch {
+        // ignore
       }
     }, 500);
 
@@ -116,21 +115,18 @@ const openPdfInPrintWindow = (doc: unknown, filename: string) => {
           frameWindow.focus();
           frameWindow.print();
           setTimeout(cleanup, 2000);
-        } catch (error) {
-          console.warn('Erro ao imprimir via iframe:', error);
+        } catch {
           cleanup();
           d.save(filename);
         }
       }, 300);
-    } catch (error) {
-      console.warn('Erro ao configurar impressão via iframe:', error);
+    } catch {
       cleanup();
       d.save(filename);
     }
   };
 
   iframe.onerror = () => {
-    console.warn('Erro ao carregar PDF no iframe');
     cleanup();
     d.save(filename);
   };
@@ -148,7 +144,6 @@ export const openInViewer = async (
 ) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const doc = (content as any).doc;
-  console.log('[openInViewer] Iniciando função', { type: content.type });
 
   if (typeof window === 'undefined') {
     if (content.type === 'pdf') {
@@ -160,23 +155,14 @@ export const openInViewer = async (
   let blobUrl: string;
 
   if (content.type === 'pdf') {
-    console.log('[openInViewer] Gerando blob do PDF');
     const blob = doc.output("blob");
     blobUrl = URL.createObjectURL(blob);
-    console.log('[openInViewer] Blob criado, URL:', blobUrl);
   } else {
-    console.log('[openInViewer] Criando blob do HTML');
     const blob = new Blob([content.html], { type: 'text/html' });
     blobUrl = URL.createObjectURL(blob);
-    console.log('[openInViewer] Blob HTML criado, URL:', blobUrl);
   }
 
-  // Não usar diálogo de salvar do Tauri para visualização/impressão
-  // Isso força o usuário a salvar antes de ver o PDF
-  // Vamos direto para o iframe ou window.open que permite visualizar e imprimir sem salvar primeiro
-
   // Criar iframe em tela cheia para visualização
-  console.log('[openInViewer] Criando iframe em tela cheia...');
   try {
     // Container principal com overlay escuro
     const overlay = document.createElement('div');
@@ -347,7 +333,6 @@ export const openInViewer = async (
 
                 // Salvar arquivo
                 await writeFile(filePath, uint8Array);
-                console.log('[openInViewer] Arquivo salvo com sucesso:', filePath);
               }
             } else {
               // Fallback: usar download via link
@@ -361,8 +346,7 @@ export const openInViewer = async (
                 document.body.removeChild(link);
               }, 100);
             }
-          } catch (error) {
-            console.error('[openInViewer] Erro ao salvar arquivo:', error);
+          } catch {
             // Fallback em caso de erro
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -449,40 +433,32 @@ export const openInViewer = async (
       mainContainer.style.transform = 'scale(1)';
     }, 10);
 
-    console.log('[openInViewer] Iframe criado e adicionado ao DOM');
-
     // Limpar após um tempo se não for fechado (5 minutos)
     setTimeout(() => {
       cleanup();
     }, 300000);
 
     return;
-  } catch (iframeError) {
-    console.error('[openInViewer] Erro ao criar iframe:', iframeError);
+  } catch {
+    // fallback
   }
 
-  // Fallback: tentar window.open
-  console.log('[openInViewer] Tentando window.open como fallback...');
   let newWindow: Window | null = null;
   try {
     newWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-    console.log('[openInViewer] window.open retornou:', newWindow);
 
     if (newWindow) {
-      console.log('[openInViewer] Janela aberta com sucesso');
       newWindow.focus();
       setTimeout(() => {
         try { URL.revokeObjectURL(blobUrl); } catch (_) { /* noop */ }
       }, 60000);
       return;
     }
-  } catch (err) {
-    console.error('[openInViewer] Erro ao abrir nova janela:', err);
+  } catch {
+    // fallback
   }
 
-  // Fallback final: download direto (apenas para PDFs)
   if (content.type === 'pdf') {
-    console.log('[openInViewer] Usando fallback final: download direto');
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = content.filename;
@@ -638,8 +614,7 @@ export const exportEnvioReportToPDF = async (
   const filename = `relatorio_envios_${suffix}.pdf`;
   try {
     openPdfInPrintWindow(doc, filename);
-  } catch (error) {
-    console.error('Erro ao tentar abrir janela de impressão. Baixando PDF.', error);
+  } catch {
     doc.save(filename);
   }
 };
@@ -742,8 +717,7 @@ export const printEnvioReport = (
   let win: Window | null = null;
   try {
     win = window.open('', '_blank', 'noopener,noreferrer');
-  } catch (err) {
-    console.warn('Não foi possível abrir janela de impressão:', err);
+  } catch {
     win = null;
   }
   if (!win) {

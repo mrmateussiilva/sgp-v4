@@ -101,7 +101,6 @@ export default function Dashboard() {
           setAppVersion(import.meta.env.VITE_APP_VERSION || 'web');
         }
       } catch (error) {
-        console.error('Erro ao obter versão:', error);
         setAppVersion(import.meta.env.VITE_APP_VERSION || 'web');
       }
     };
@@ -113,7 +112,6 @@ export default function Dashboard() {
       await api.logout();
       navigate('/login');
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
       // Mesmo com erro, redirecionar para login
       navigate('/login');
     }

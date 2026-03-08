@@ -135,7 +135,6 @@ export default function Clientes() {
         description: "Não foi possível carregar os clientes.",
         variant: "destructive",
       });
-      console.error('Erro ao carregar clientes:', error);
     } finally {
       setLoading(false);
     }
@@ -277,7 +276,6 @@ export default function Clientes() {
         description: "Não foi possível importar os clientes. Tente novamente.",
         variant: "destructive",
       });
-      console.error('Erro ao importar clientes:', error);
     } finally {
       setImportingCsv(false);
     }
@@ -324,7 +322,6 @@ export default function Clientes() {
       }
     } catch (error) {
       setErros(prev => ({ ...prev, cep: 'Erro ao buscar CEP' }));
-      console.error('Erro ao buscar CEP:', error);
     } finally {
       setBuscandoCep(false);
     }
@@ -489,7 +486,6 @@ export default function Clientes() {
         description: "Não foi possível salvar o cliente.",
         variant: "destructive",
       });
-      console.error('Erro ao salvar cliente:', error);
     } finally {
       setSalvando(false);
     }
@@ -519,7 +515,6 @@ export default function Clientes() {
         description: "Não foi possível excluir o cliente.",
         variant: "destructive",
       });
-      console.error('Erro ao excluir cliente:', error);
     } finally {
       setExcluindo(false);
     }

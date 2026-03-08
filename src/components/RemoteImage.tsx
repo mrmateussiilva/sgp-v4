@@ -40,7 +40,6 @@ export const RemoteImage: React.FC<RemoteImageProps> = ({
                     setLoading(false);
                 }
             } catch (err) {
-                console.error(`[RemoteImage] Erro ao carregar imagem: ${src}`, err);
                 if (isMounted) {
                     setError(true);
                     setLoading(false);

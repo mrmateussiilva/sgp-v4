@@ -52,8 +52,7 @@ const hydrateOrderForPrint = async (
       },
       items: mergedItems
     };
-  } catch (error) {
-    console.warn('Falha ao hidratar pedido para impressão, usando dados atuais:', error);
+  } catch {
     return { order, items };
   }
 };
@@ -72,8 +71,8 @@ const preFetchImages = async (orders: OrderWithItems[]): Promise<OrderWithItems[
             try {
               const base64 = await imageToBase64(item.imagem);
               return { ...item, imagem: base64 };
-            } catch (err) {
-              console.warn(`[preFetchImages] Falha ao converter imagem para item ${item.id}:`, err);
+            } catch {
+              // usar imagem original
             }
           }
           return item;
@@ -97,7 +96,6 @@ export const printOrderServiceForm = async (
   _templateType: 'geral' | 'resumo' = 'resumo',
   items?: OrderItem[]
 ) => {
-  console.log('[printOrderServiceForm] Usando template level:', _templateType);
   const resolved = await hydrateOrderForPrint(order, items);
   const orderForPrint = resolved.order;
 
@@ -174,7 +172,6 @@ export const printMultipleOrdersServiceForm = async (
   orders: OrderWithItems[],
   _templateType: 'geral' | 'resumo' = 'resumo'
 ): Promise<void> => {
-  console.log('[printMultipleOrdersServiceForm] Usando template level:', _templateType);
   const { blob, filename } = await generateMultipleOrdersPdfBlob(orders);
 
   // Salvar e abrir via Tauri

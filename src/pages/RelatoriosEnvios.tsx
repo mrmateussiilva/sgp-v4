@@ -141,19 +141,14 @@ export default function RelatoriosEnvios() {
 
     try {
       setExporting(true);
-      console.info('Imprimindo relatório de envios', {
-        grupos: relatorio.length,
-        totalPedidos,
-        dataInicio,
-        dataFim,
-      });
+
       printEnvioReport(relatorio, dataInicio, dataFim || null);
       toast({
         title: 'Impressão iniciada',
         description: 'O diálogo de impressão foi aberto (caso permitido pelo navegador).',
       });
     } catch (err) {
-      console.error('Erro ao exportar PDF de envios:', err);
+
       setError('Não foi possível exportar o PDF. Tente novamente.');
       toast({
         title: 'Erro ao exportar',

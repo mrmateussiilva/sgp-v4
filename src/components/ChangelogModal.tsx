@@ -53,7 +53,7 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
       setChangelog(versionSection || content);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro ao carregar changelog';
-      console.error('[ChangelogModal] Erro:', err);
+
       setError(errorMsg);
       setChangelog('Não foi possível carregar o changelog desta versão.');
     } finally {
@@ -73,7 +73,7 @@ export function ChangelogModal({ version, isOpen, onClose }: ChangelogModalProps
 
     const match = content.match(versionRegex);
     if (!match) {
-      console.warn(`[ChangelogModal] Versão ${targetVersion} não encontrada no conteúdo.`);
+
       return null;
     }
 

@@ -44,8 +44,8 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         setIsPrinting(true);
         try {
             await printPdfBlob(pdfBlob);
-        } catch (error) {
-            console.error('Erro ao imprimir:', error);
+        } catch {
+          // noop
         } finally {
             setIsPrinting(false);
         }
@@ -56,8 +56,8 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         setIsSaving(true);
         try {
             await saveAndOpenPdf(pdfBlob, filename);
-        } catch (error) {
-            console.error('Erro ao salvar:', error);
+        } catch {
+          // noop
         } finally {
             setIsSaving(false);
         }

@@ -64,8 +64,7 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
         setHistory(entries);
         setHistoryError(null);
       })
-      .catch((error) => {
-        console.error('Erro ao buscar histórico do pedido:', error);
+      .catch((_e) => {
         if (!isMounted) return;
         setHistory([]);
         setHistoryError('Não foi possível carregar o histórico de alterações.');
@@ -114,8 +113,8 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
               if (isMounted) setHistory(entries);
             }
           }
-        } catch (error) {
-          console.error('Erro ao recarregar pedido após evento:', error);
+        } catch {
+          // noop
         }
       }
     };

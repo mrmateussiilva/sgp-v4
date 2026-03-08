@@ -99,7 +99,6 @@ export default function DashboardOverview() {
         });
       }
     } catch (error: any) {
-      console.error('Erro ao carregar pedidos:', error);
       const errorMessage = error?.response?.data?.detail || error?.message || 'Erro desconhecido';
       setError(errorMessage);
 
@@ -135,10 +134,7 @@ export default function DashboardOverview() {
 
   // Validar se orders é um array válido
   const validOrders = useMemo(() => {
-    if (!Array.isArray(orders)) {
-      console.warn('Orders não é um array válido');
-      return [];
-    }
+    if (!Array.isArray(orders)) return [];
     return orders;
   }, [orders]);
 
@@ -301,7 +297,6 @@ export default function DashboardOverview() {
         shippingMethods,
       };
     } catch (error) {
-      console.error('Erro ao calcular estatísticas:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao calcular estatísticas do dashboard',

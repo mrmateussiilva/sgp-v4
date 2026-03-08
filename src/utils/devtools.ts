@@ -6,24 +6,24 @@ let isInitialized = false;
 async function openDevtools() {
   try {
     await invoke('open_devtools');
-  } catch (error) {
-    console.error('Erro ao abrir DevTools:', error);
+  } catch {
+    // ignore
   }
 }
 
 async function closeDevtools() {
   try {
     await invoke('close_devtools');
-  } catch (error) {
-    console.error('Erro ao fechar DevTools:', error);
+  } catch {
+    // ignore
   }
 }
 
 async function toggleDevtools() {
   try {
     await invoke('toggle_devtools');
-  } catch (error) {
-    console.error('Erro ao alternar DevTools:', error);
+  } catch {
+    // ignore
   }
 }
 
@@ -60,6 +60,5 @@ export function enableDevtoolsShortcuts(): void {
   };
 
   document.addEventListener('keydown', handler);
-  console.info('Atalhos do DevTools habilitados (F12, Ctrl+Shift+I/J/D).');
   isInitialized = true;
 }

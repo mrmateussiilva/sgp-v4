@@ -66,7 +66,7 @@ export default function GestaoVendedores() {
         description: 'Não foi possível carregar os vendedores.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar vendedores:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +177,7 @@ export default function GestaoVendedores() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar vendedor:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +207,7 @@ export default function GestaoVendedores() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir vendedor:', error);
+
     } finally {
       setIsLoading(false);
     }

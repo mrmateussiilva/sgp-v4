@@ -56,7 +56,7 @@ export default function GestaoDesigners() {
         description: 'Não foi possível carregar os designers.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar designers:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +160,7 @@ export default function GestaoDesigners() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar designer:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -190,7 +190,7 @@ export default function GestaoDesigners() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir designer:', error);
+
     } finally {
       setIsLoading(false);
     }

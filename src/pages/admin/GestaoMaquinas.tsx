@@ -52,7 +52,7 @@ export default function GestaoMaquinas() {
                 description: 'Não foi possível carregar as máquinas.',
                 variant: 'destructive',
             });
-            console.error('Erro ao carregar máquinas:', error);
+
         } finally {
             setIsLoading(false);
         }
@@ -135,7 +135,7 @@ export default function GestaoMaquinas() {
                 description: error.toString(),
                 variant: 'destructive',
             });
-            console.error('Erro ao salvar máquina:', error);
+
         } finally {
             setIsLoading(false);
         }
@@ -165,7 +165,7 @@ export default function GestaoMaquinas() {
                 description: error.toString(),
                 variant: 'destructive',
             });
-            console.error('Erro ao excluir máquina:', error);
+
         } finally {
             setIsLoading(false);
         }

@@ -84,7 +84,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         pdf = pdfModule.pdf;
         ProductionReportPDF = reportModule.ProductionReportPDF;
       } catch (importErr) {
-        console.error('[OrderPrintManager] Erro ao carregar módulos de PDF:', importErr);
+
         throw new Error('Falha ao carregar motor de PDF. Verifique sua conexão ou tente reiniciar o app.');
       }
 
@@ -95,8 +95,8 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
             try {
               const base64 = await imageToBase64(item.imagem);
               return { ...item, imagem: base64 };
-            } catch (err) {
-              console.warn(`[OrderPrintManager] Falha ao converter imagem para item ${item.id}:`, err);
+            } catch {
+              // noop
             }
           }
           return item;
@@ -132,7 +132,7 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
       }
 
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+
       const errorMessage = error instanceof Error ? error.message : 'Erro ao gerar PDF. Tente novamente.';
       alert(`Erro ao gerar PDF: ${errorMessage}`);
     } finally {

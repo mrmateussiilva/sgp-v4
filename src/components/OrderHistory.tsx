@@ -68,7 +68,6 @@ export function OrderHistory({ order }: OrderHistoryProps) {
       const entries = generateHistoryFromOrder(order);
       setHistory(entries);
     } catch (err) {
-      console.error('Erro ao carregar histórico:', err);
       setError('Não foi possível carregar o histórico de alterações.');
     } finally {
       setLoading(false);

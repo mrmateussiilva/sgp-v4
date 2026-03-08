@@ -63,7 +63,7 @@ export default function GestaoFormasPagamento() {
         description: 'Não foi possível carregar as formas de pagamento.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar formas de pagamento:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +170,7 @@ export default function GestaoFormasPagamento() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar forma de pagamento:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -200,7 +200,7 @@ export default function GestaoFormasPagamento() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir forma de pagamento:', error);
+
     } finally {
       setIsLoading(false);
     }

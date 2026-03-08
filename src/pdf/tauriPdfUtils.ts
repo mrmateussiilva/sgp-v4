@@ -6,7 +6,6 @@ import { open } from '@tauri-apps/plugin-shell';
  * Salva um Blob PDF em disco usando o diálogo do Tauri e o abre no visualizador padrão.
  */
 export async function saveAndOpenPdf(blob: Blob, filename: string): Promise<string | null> {
-    try {
         const filePath = await save({
             defaultPath: filename,
             filters: [{
@@ -27,21 +26,16 @@ export async function saveAndOpenPdf(blob: Blob, filename: string): Promise<stri
         // Tenta abrir o arquivo automaticamente
         try {
             await open(filePath);
-        } catch (openError) {
-            console.warn('Não foi possível abrir o PDF automaticamente:', openError);
+        } catch {
+            // noop
         }
 
         return filePath;
-    } catch (error) {
-        console.error('Erro ao salvar/abrir PDF via Tauri:', error);
-        throw error;
-    }
 }
 /**
  * Dispara o diálogo de impressão nativo do sistema para um Blob PDF.
  */
 export async function printPdfBlob(blob: Blob): Promise<void> {
-    try {
         const url = URL.createObjectURL(blob);
 
         // Criar um iframe oculto para impressão
@@ -72,8 +66,4 @@ export async function printPdfBlob(blob: Blob): Promise<void> {
                 }, 60000); // 1 minuto de margem
             }
         };
-    } catch (error) {
-        console.error('Erro ao disparar impressão nativa:', error);
-        throw error;
-    }
 }

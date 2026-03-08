@@ -119,7 +119,6 @@ export function useLazyImage(
         setImageSrc(blobUrl);
         setError(false);
       } catch (err) {
-        console.error('[useLazyImage] Erro ao carregar imagem:', err);
         setError(true);
         setImageSrc(null);
       } finally {

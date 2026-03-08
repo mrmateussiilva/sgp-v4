@@ -69,7 +69,7 @@ export default function GestaoMateriais() {
         description: 'Não foi possível carregar os materiais.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar materiais:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -181,7 +181,7 @@ export default function GestaoMateriais() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar material:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +211,7 @@ export default function GestaoMateriais() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir material:', error);
+
     } finally {
       setIsLoading(false);
     }

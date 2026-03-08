@@ -31,13 +31,6 @@ export function normalizeImagePath(path: string): string {
         // Garantir que a baseUrl não tenha barra final e o caminho já começa com /
         const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
         const fullUrl = `${cleanBaseUrl}${normalized}`;
-        console.log('[normalizeImagePath] ✅ Construindo URL:', {
-          originalPath: path,
-          baseUrl,
-          cleanBaseUrl,
-          normalized,
-          fullUrl
-        });
         return fullUrl;
       } else {
         // Se baseUrl não estiver configurado, verificar se é Tauri antes de usar window.location
@@ -52,21 +45,11 @@ export function normalizeImagePath(path: string): string {
           const apiPort = port === '1420' ? '8000' : (port || (protocol === 'https:' ? '443' : '8000'));
           const fallbackUrl = `${protocol}//${hostname}:${apiPort}`;
           const fullUrl = `${fallbackUrl}${normalized}`;
-          console.warn('[normalizeImagePath] ⚠️ Base URL não configurada, usando fallback:', {
-            originalPath: path,
-            fallbackUrl,
-            fullUrl
-          });
           return fullUrl;
         }
-        // Se não conseguir construir URL completa, retornar o path normalizado
-        // Isso permite que o navegador tente carregar como URL relativa
-        console.warn('[normalizeImagePath] ⚠️ Base URL não configurada e window não disponível, retornando path relativo:', normalized);
         return normalized;
       }
-    } catch (error) {
-      console.error('[normalizeImagePath] ❌ Erro ao construir URL de imagem:', error, 'path:', normalized);
-      // Em caso de erro, retornar o path normalizado ao invés de string vazia
+    } catch {
       return normalized;
     }
   }
@@ -92,9 +75,8 @@ export function normalizeImagePath(path: string): string {
         // Se não conseguir extrair o ID, retornar o caminho normalizado
         return normalized;
       }
-    } catch (error) {
+    } catch {
       // Se houver erro ao importar, retornar o caminho normalizado
-      console.warn('Erro ao construir URL de imagem:', error);
     }
   }
 

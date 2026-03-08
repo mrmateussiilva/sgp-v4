@@ -24,21 +24,17 @@ export function useTauriUpdater() {
       try {
         const { check } = await import('@tauri-apps/plugin-updater');
 
-        console.info('[Updater] Verificando atualizações...');
-
         const update = await check({
           target: undefined, // Deixa o Tauri escolher automaticamente
         });
 
         if (!update) {
-          console.info('[Updater] Aplicação está atualizada');
+
           setUpdateAvailable(false);
           hasCheckedRef.current = true;
           return;
         }
 
-        console.info(`[Updater] Nova versão disponível: ${update.version}`);
-        console.info(`[Updater] Versão atual: ${update.currentVersion}`);
 
         // Atualizar store global para mostrar notificação no menu
         setUpdateAvailable(true, update.version);
@@ -47,7 +43,7 @@ export function useTauriUpdater() {
 
       } catch (error) {
         // Erros são silenciosos na inicialização para não perturbar o usuário
-        console.error('[Updater] Erro ao verificar atualizações:', error);
+
         hasCheckedRef.current = true;
       }
     };

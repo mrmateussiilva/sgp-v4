@@ -30,7 +30,7 @@ export default function UpdateStatus() {
           setCurrentVersion(import.meta.env.VITE_APP_VERSION || 'web');
         }
       } catch (err) {
-        console.error('Erro ao obter versão:', err);
+
         setCurrentVersion(import.meta.env.VITE_APP_VERSION || 'web');
       }
     };
@@ -56,8 +56,6 @@ export default function UpdateStatus() {
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
 
-      console.info('[UpdateStatus] Verificando atualizações...');
-
       const update = await check({
         target: undefined,
       });
@@ -82,7 +80,7 @@ export default function UpdateStatus() {
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
-      console.error('[UpdateStatus] Erro:', err);
+
       setError(errorMsg);
       toast({
         title: '❌ Erro ao verificar atualizações',
@@ -103,8 +101,6 @@ export default function UpdateStatus() {
     try {
       const { check } = await import('@tauri-apps/plugin-updater');
 
-      console.info('[UpdateStatus] Verificando atualização novamente...');
-
       const update = await check({
         target: undefined,
       });
@@ -119,8 +115,6 @@ export default function UpdateStatus() {
         return;
       }
 
-      console.info('[UpdateStatus] Baixando e instalando atualização...');
-
       // Salvar versão atual antes de atualizar
       if (currentVersion) {
         localStorage.setItem('previous_version', currentVersion);
@@ -132,7 +126,7 @@ export default function UpdateStatus() {
         switch (event.event) {
           case 'Started':
             setInstallProgress(0);
-            console.info('[UpdateStatus] Download iniciado');
+
             break;
           case 'Progress': {
             const data = event.data as { contentLength?: number; chunkLength?: number };
@@ -144,7 +138,7 @@ export default function UpdateStatus() {
           }
           case 'Finished':
             setInstallProgress(100);
-            console.info('[UpdateStatus] Download concluído');
+
             break;
         }
       });
@@ -152,8 +146,6 @@ export default function UpdateStatus() {
       // NOTA: Se o Tauri v2 simplificar o evento Progress para dar a porcentagem acumulada
       // em algum campo, usaríamos. Caso contrário, apenas mostramos que está em progresso.
       // Para o ERP desktop, uma barra que 'anda' ou estado de 'Processando' é suficiente se o dado for incerto.
-
-      console.info('[UpdateStatus] Atualização instalada. Reiniciando...');
 
       toast({
         title: '✅ Atualização instalada!',
@@ -170,7 +162,7 @@ export default function UpdateStatus() {
       await relaunch();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido ao instalar';
-      console.error('[UpdateStatus] Erro ao instalar:', err);
+
       setError(errorMsg);
       setIsInstalling(false);
 

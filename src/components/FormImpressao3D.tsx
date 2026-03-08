@@ -79,8 +79,8 @@ export function FormImpressao3D({
         if (!tabData?.tecido && data.length > 0) {
           onDataChange('tecido', data[0]);
         }
-      } catch (error) {
-        console.error('Erro ao carregar filamentos:', error);
+      } catch {
+        // noop
       }
     };
     loadFilamentos();
@@ -99,8 +99,8 @@ export function FormImpressao3D({
       .then((url) => {
         setImagePreviewUrl(url);
       })
-      .catch((error) => {
-        console.error('Erro ao carregar preview de imagem:', error);
+      .catch((_e) => {
+
         setImagePreviewUrl(null);
       })
       .finally(() => {
@@ -250,8 +250,8 @@ export function FormImpressao3D({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
                     });
-                  } catch (error) {
-                    console.error('Erro ao salvar imagem localmente:', error);
+                  } catch (_e) {
+
                     toast({
                       title: 'Erro',
                       description: 'Não foi possível salvar a imagem localmente.',

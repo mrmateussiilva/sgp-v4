@@ -62,7 +62,7 @@ export default function GestaoFormasEnvio() {
         description: 'Não foi possível carregar as formas de envio.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar formas de envio:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +169,7 @@ export default function GestaoFormasEnvio() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar forma de envio:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -199,7 +199,7 @@ export default function GestaoFormasEnvio() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir forma de envio:', error);
+
     } finally {
       setIsLoading(false);
     }

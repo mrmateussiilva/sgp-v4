@@ -146,14 +146,6 @@ const getSubtotalValue = (orderItem: OrderWithItems['items'][number]): number =>
     return result;
   }
 
-  // Fallback: logar erro e retornar 0
-  console.error('[fechamentoReport] Não foi possível calcular subtotal para item:', {
-    item_id: orderItem.id,
-    subtotal: orderItem.subtotal,
-    quantity,
-    unit_price: orderItem.unit_price,
-    valor_unitario: orderItem.valor_unitario,
-  });
   return 0;
 };
 
@@ -1088,10 +1080,7 @@ export const generateFechamentoReport = (
     });
 
     if (orders.length !== byId.size) {
-      console.warn('[fechamentoReport] Deduplicação aplicada:', {
-        inputOrders: orders.length,
-        uniqueOrders: byId.size,
-      });
+      // deduplicação aplicada
     }
 
     return Array.from(byId.values());
@@ -1126,7 +1115,7 @@ export const generateFechamentoReport = (
   });
 
   if (validationWarnings.length > 0) {
-    console.warn('[fechamentoReport] Avisos de validação de pedidos:', validationWarnings);
+    // avisos de validação ignorados
   }
 
   // Determinar modo de distribuição de frete
@@ -1304,7 +1293,7 @@ export const generateFechamentoReport = (
   // Validar consistência dos totais calculados
   const totalsValidation = validateReportTotals(groups, totals);
   if (totalsValidation.warnings.length > 0) {
-    console.warn('[fechamentoReport] Avisos de validação dos totais:', totalsValidation.warnings);
+    // avisos de totais ignorados
   }
 
   return {

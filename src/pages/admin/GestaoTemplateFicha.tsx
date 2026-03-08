@@ -265,7 +265,7 @@ export default function GestaoTemplateFicha() {
       setHasChanges(false);
       loadedFromServer = true;
     } catch (error) {
-      console.error('Erro ao carregar templates do servidor:', error);
+
       toast({
         title: 'Aviso',
         description: 'Não foi possível carregar os templates do servidor. Tentando versão local.',
@@ -289,8 +289,8 @@ export default function GestaoTemplateFicha() {
         });
         return;
       }
-    } catch (error) {
-      console.error('Erro ao carregar templates locais:', error);
+    } catch {
+      // noop
     }
 
     setTemplates({
@@ -313,7 +313,7 @@ export default function GestaoTemplateFicha() {
       });
       setHtmlHasChanges(false);
     } catch (error) {
-      console.error('Erro ao carregar templates HTML:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar templates HTML.',
@@ -340,7 +340,7 @@ export default function GestaoTemplateFicha() {
       });
       setHtmlHasChanges(false);
     } catch (error) {
-      console.error('Erro ao salvar template HTML:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível salvar template HTML.',
@@ -393,18 +393,16 @@ export default function GestaoTemplateFicha() {
         // Resumo: não gerar template local automaticamente.
         // O projeto usa apenas templates da API; se não existir, o usuário deve configurar na API.
         if (!resumoHTMLExistente.exists || !resumoHTMLExistente.html || resumoHTMLExistente.html.trim().length === 0) {
-          console.log('[saveTemplates] ⚠️ Template HTML do resumo não encontrado/está vazio na API - nada será gerado localmente');
+          // noop
         } else {
-          console.log('[saveTemplates] ✅ HTML editado manualmente encontrado para resumo - preservando');
+          // noop
         }
 
         if (!geralHTMLExistente.exists || !geralHTMLExistente.html || geralHTMLExistente.html.trim().length === 0) {
-          // Para geral, usar o HTML gerado do JSON (só se não existir editado)
           const { generateTemplatesHTML } = await import('@/utils/generateTemplateHTML');
           htmlToSave.geral = generateTemplatesHTML(normalized.geral, normalized.resumo).geral;
-          console.log('[saveTemplates] ✅ HTML estruturado gerado para geral (não havia HTML editado)');
         } else {
-          console.log('[saveTemplates] ⚠️ HTML editado manualmente encontrado para geral - preservando');
+          // noop
         }
 
         // Só salvar se houver algo para salvar
@@ -431,7 +429,7 @@ export default function GestaoTemplateFicha() {
           });
         }
       } catch (htmlError) {
-        console.error('Erro ao verificar/salvar HTML:', htmlError);
+
         toast({
           title: 'Aviso',
           description: 'Templates JSON salvos, mas houve erro ao verificar HTML.',
@@ -439,7 +437,7 @@ export default function GestaoTemplateFicha() {
         });
       }
     } catch (error) {
-      console.error('Erro ao salvar templates:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível salvar os templates.',

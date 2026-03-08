@@ -83,8 +83,8 @@ export default function PedidoEditor() {
       try {
         const pag = await api.getFormasPagamentoAtivas();
         setFormasPagamento(pag);
-      } catch (error) {
-        console.error('Erro ao carregar catálogos:', error);
+      } catch {
+        // noop
       }
     };
     loadCatalogs();
@@ -151,7 +151,7 @@ export default function PedidoEditor() {
         // Verificar se está concluído (bloqueado)
         setIsLocked(order.status === OrderStatus.Concluido);
       } catch (error) {
-        console.error('Erro ao carregar pedido:', error);
+
         toast({
           title: 'Erro',
           description: 'Não foi possível carregar o pedido.',
@@ -328,7 +328,7 @@ export default function PedidoEditor() {
 
       navigate('/dashboard/orders');
     } catch (error) {
-      console.error('Erro ao salvar pedido:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível salvar as alterações do pedido.',

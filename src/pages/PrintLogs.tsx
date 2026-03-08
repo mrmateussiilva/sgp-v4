@@ -87,8 +87,8 @@ export default function PrintLogsPage() {
             setLoadingMachines(true);
             const data = await api.getMaquinasAtivas();
             setMachines(data);
-        } catch (error) {
-            console.error('Erro ao carregar máquinas:', error);
+        } catch {
+          // noop
         } finally {
             setLoadingMachines(false);
         }
@@ -105,8 +105,8 @@ export default function PrintLogsPage() {
                 data = await api.getPrinterLogs(selectedMachine, limit, 0, undefined, startDate, endDate);
             }
             setLogs(data);
-        } catch (error) {
-            console.error('Erro ao carregar logs:', error);
+        } catch {
+          // noop
         } finally {
             setLoading(false);
         }

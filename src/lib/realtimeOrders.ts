@@ -414,7 +414,7 @@ class OrdersWebSocketManager {
     // CORREÇÃO 4: Limitar número de tentativas de reconexão
     if (this.consecutiveFailures >= this.maxReconnectAttempts) {
       if (import.meta.env.DEV) {
-        console.info(`ℹ️ WebSocket: Parando tentativas de reconexão após ${this.maxReconnectAttempts} tentativas. O sistema continuará funcionando normalmente sem atualizações em tempo real.`);
+        // noop
       }
       this.updateStatus({
         lastError: `WebSocket não disponível após ${this.maxReconnectAttempts} tentativas - funcionando sem tempo real`,

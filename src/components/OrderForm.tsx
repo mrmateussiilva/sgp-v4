@@ -76,7 +76,6 @@ export default function OrderForm() {
         description: "Não foi possível carregar o pedido.",
         variant: "destructive",
       });
-      console.error('Error loading order:', error);
     }
   };
 
@@ -184,7 +183,6 @@ export default function OrderForm() {
         description: id ? "Não foi possível atualizar o pedido." : "Não foi possível criar o pedido.",
         variant: "destructive",
       });
-      console.error('Error saving order:', error);
     } finally {
       setLoading(false);
     }

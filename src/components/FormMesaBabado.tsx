@@ -66,8 +66,8 @@ export function FormMesaBabado({
             if (tabData?.composicao_tecidos) {
                 return JSON.parse(tabData.composicao_tecidos);
             }
-        } catch (e) {
-            console.error('Erro ao fazer parse da composição de tecidos:', e);
+        } catch {
+            // noop
         }
         return [{ label: 'Corpo', tecido: '' }, { label: 'Babado', tecido: '' }];
     });
@@ -83,8 +83,7 @@ export function FormMesaBabado({
             } else {
                 setFabrics([{ label: 'Corpo', tecido: '' }, { label: 'Babado', tecido: '' }]);
             }
-        } catch (e) {
-            console.error('Erro ao resetar composição de tecidos:', e);
+        } catch {
             setFabrics([{ label: 'Corpo', tecido: '' }, { label: 'Babado', tecido: '' }]);
         }
     }, [tabId]);
@@ -112,8 +111,7 @@ export function FormMesaBabado({
             .then((url) => {
                 setImagePreviewUrl(url);
             })
-            .catch((error) => {
-                console.error('Erro ao carregar preview de imagem:', error);
+            .catch((_e) => {
                 setImagePreviewUrl(null);
             })
             .finally(() => {
@@ -333,7 +331,7 @@ export function FormMesaBabado({
                                         onDataChange('imagem', metadata.local_path);
                                         const preview = await getImagePreviewUrl(metadata.local_path);
                                         setImagePreviewUrl(preview);
-                                    } catch (error) {
+                                    } catch (_e) {
                                         toast({ title: 'Erro', description: 'Falha ao salvar imagem', variant: 'destructive' });
                                     } finally {
                                         setImageLoading(false);

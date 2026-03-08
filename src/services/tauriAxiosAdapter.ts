@@ -44,13 +44,11 @@ function resolveUrl(config: AxiosRequestConfig): string {
         } catch {
           // Se ainda falhar, retornar a URL combinada mesmo assim
           // O fetch do Tauri pode aceitar URLs relativas
-          console.warn('[tauriAxiosAdapter] ⚠️ Falha ao construir URL usando URL():', { baseURL: effectiveBaseUrl, url, combined, error });
           url = combined;
         }
       }
     } else {
       // Se não houver baseURL e a URL for relativa, lançar erro mais descritivo
-      console.error('[tauriAxiosAdapter] ❌ Requisição relativa detectada sem baseURL configurada:', { url });
       throw new Error(`Configuração de API ausente. Não foi possível resolver a URL alvo: ${url}. Verifique se a URL base da API foi configurada corretamente.`);
     }
   }
@@ -106,13 +104,11 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
     } catch (e) {
       // Se falhou o parse JSON mas o responseType era padrão, retorna como texto
       if (!responseType || responseType === 'json') {
-        console.warn('[tauriAxiosAdapter] ⚠️ Falha ao parsear JSON, retornando texto puro:', e);
         return text;
       }
       throw e;
     }
-  } catch (error) {
-    console.error('[tauriAxiosAdapter] ❌ Erro ao processar corpo da resposta:', error);
+  } catch {
     return null;
   }
 }
@@ -120,11 +116,6 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
 const tauriAxiosAdapter: AxiosAdapter = async (config) => {
   const url = resolveUrl(config);
   const method = (config.method ?? 'GET').toUpperCase();
-
-  // Log para debug de query parameters
-  if (config.params && Object.keys(config.params).length > 0) {
-    console.log('[tauriAxiosAdapter] 📡 Query params:', config.params, 'URL final:', url);
-  }
 
   const headers = new Headers();
   if (config.headers) {

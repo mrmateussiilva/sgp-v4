@@ -47,7 +47,7 @@ export async function generateProductionPdf(
 
         return pdfPath;
     } catch (error) {
-        console.error('Failed to generate PDF:', error);
+
         throw new Error(`PDF generation failed: ${error}`);
     }
 }
@@ -64,7 +64,7 @@ export async function loadProductionTemplate(): Promise<string> {
         }
         return await response.text();
     } catch (error) {
-        console.error('Failed to load template:', error);
+
         throw new Error(`Template loading failed: ${error}`);
     }
 }

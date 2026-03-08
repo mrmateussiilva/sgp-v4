@@ -87,8 +87,8 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
       try {
         const pag = await api.getFormasPagamentoAtivas();
         setFormasPagamento(pag);
-      } catch (error) {
-        console.error('Erro ao carregar catálogos:', error);
+      } catch {
+        // noop
       }
     };
     loadCatalogs();
@@ -344,7 +344,7 @@ export default function PedidoForm({ mode, pedido }: PedidoFormProps) {
 
       navigate('/dashboard/orders');
     } catch (error) {
-      console.error('Erro ao salvar pedido:', error);
+
       toast({
         title: 'Erro',
         description: mode === 'create'

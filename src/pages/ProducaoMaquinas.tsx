@@ -23,7 +23,7 @@ export const ProducaoMaquinas: React.FC = () => {
             const result = await maquinasApi.getDashboardOverview();
             setData(result);
         } catch (err) {
-            console.error(err);
+
             setError("Erro ao carregar dados do dashboard.");
         } finally {
             setLoading(false);

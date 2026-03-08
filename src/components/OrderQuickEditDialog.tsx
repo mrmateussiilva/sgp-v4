@@ -116,7 +116,7 @@ export function OrderQuickEditDialog({
           status: order.status ?? OrderStatus.Pendente,
         });
       } catch (error) {
-        console.error('Erro ao carregar dados para edição:', error);
+
         toast({
           title: 'Erro',
           description: 'Não foi possível carregar as informações do pedido para edição.',
@@ -175,7 +175,7 @@ export function OrderQuickEditDialog({
       });
       onOpenChange(false);
     } catch (error) {
-      console.error('Erro ao salvar alterações do pedido:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível salvar as alterações. Tente novamente.',

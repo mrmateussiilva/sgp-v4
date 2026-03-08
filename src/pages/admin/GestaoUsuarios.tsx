@@ -62,7 +62,7 @@ export default function GestaoUsuarios() {
         description: 'Não foi possível carregar os usuários.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar usuários:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -189,7 +189,7 @@ export default function GestaoUsuarios() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar usuário:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -224,8 +224,7 @@ export default function GestaoUsuarios() {
       setUsuarioToDelete(null);
       loadUsuarios();
     } catch (error: any) {
-      console.error('Erro ao excluir usuário:', error);
-      
+
       // Melhorar tratamento de erro
       let errorMessage = 'Erro ao excluir usuário';
       if (error?.response?.data?.detail) {

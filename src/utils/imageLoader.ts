@@ -57,14 +57,10 @@ function normalizeImageUrl(imagePath: string): string {
   // Se for local_path de outro sistema, extrair apenas o nome do arquivo
   // e tentar buscar no servidor (assumindo que o servidor salva pelo nome do arquivo)
   if (isOtherSystemLocalPath(normalized)) {
-    console.warn('[normalizeImageUrl] ⚠️ Local path de outro sistema detectado:', normalized);
     // Extrair apenas o nome do arquivo
     const fileName = normalized.split(/[\\/]/).pop();
     if (fileName) {
-      // Tentar buscar como caminho relativo da API
-      // Ajustar conforme a estrutura de diretórios da API
-      normalized = `/images/${fileName}`; // ou o caminho correto da API
-      console.log('[normalizeImageUrl] 🔄 Convertendo para caminho do servidor:', normalized);
+      normalized = `/images/${fileName}`;
     }
   }
 
@@ -77,13 +73,9 @@ function normalizeImageUrl(imagePath: string): string {
       // Construir nova URL usando a base da API configurada
       const apiBase = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
       normalized = apiBase + cleanPath;
-      console.log('[normalizeImageUrl] 🔄 Convertendo tauri://localhost:', {
-        original: imagePath,
-        normalized
-      });
       return normalized;
-    } catch (e) {
-      console.warn('[normalizeImageUrl] ⚠️ Erro ao converter tauri://localhost:', e);
+    } catch {
+      // fallback: retorna normalizado
     }
   }
 
@@ -98,12 +90,8 @@ function normalizeImageUrl(imagePath: string): string {
         // Construir nova URL usando a base da API configurada
         const apiBase = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
         normalized = apiBase + path;
-        console.log('[normalizeImageUrl] 🔄 Substituindo localhost:', {
-          original: imagePath,
-          normalized
-        });
-      } catch (e) {
-        console.warn('[normalizeImageUrl] ⚠️ Erro ao normalizar URL:', e);
+      } catch {
+        // fallback
       }
     }
     return normalized;
@@ -127,18 +115,15 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     return blobUrlCache.get(normalized)!;
   }
 
-  try {
-    // Se for base64, retornar diretamente
-    if (normalized.startsWith('data:image/')) {
-      return normalized;
-    }
+  // Se for base64, retornar diretamente
+  if (normalized.startsWith('data:image/')) {
+    return normalized;
+  }
 
-    // NOVO: Se estiver em Tauri, verificar cache local primeiro
-    // Mas apenas se NÃO for local_path de outro sistema
-    if (isTauri() && !isOtherSystemLocalPath(normalized)) {
+  // Se estiver em Tauri, verificar cache local primeiro
+  if (isTauri() && !isOtherSystemLocalPath(normalized)) {
       const localPath = await getLocalImagePath(normalized);
       if (localPath) {
-        console.log('[loadAuthenticatedImage] ✅ Imagem encontrada no cache local:', localPath);
         // Carregar do cache local e converter para blob URL para compatibilidade
         const base64 = await loadLocalImageAsBase64(localPath);
         // Converter base64 para blob URL
@@ -150,11 +135,10 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         blobCache.set(normalized, blob);
         return blobUrl;
       }
-    }
+  }
 
-    // Se já for URL completa (http/https), usar diretamente sem baseURL
-    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-      console.log('[loadAuthenticatedImage] 📥 Carregando imagem de URL completa:', normalized);
+  // Se já for URL completa (http/https), usar diretamente sem baseURL
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
       const response = await apiClient.get(normalized, {
         responseType: 'blob',
         baseURL: '', // Não usar baseURL para URLs completas
@@ -175,10 +159,8 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
           // Cachear localmente usando caminho normalizado
           await cacheImageFromUrl(normalized, imageData);
-          console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
-        } catch (cacheError) {
-          // Não falhar se o cache falhar, apenas logar
-          console.warn('[loadAuthenticatedImage] ⚠️ Erro ao cachear imagem localmente:', cacheError);
+        } catch {
+          // Não falhar se o cache falhar
         }
       }
 
@@ -201,22 +183,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       // Garantir que o caminho comece com / para construir corretamente
       const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
       relativePath = `/pedidos/media${cleanPath}`;
-      console.log('[loadAuthenticatedImage] 🔄 Convertendo para endpoint /media/:', {
-        original: imagePath,
-        normalized,
-        cleanPath,
-        relativePath
-      });
     }
-
-    console.log('[loadAuthenticatedImage] 🔧 Construindo URL relativa:', {
-      originalPath: imagePath,
-      normalized,
-      relativePath,
-      baseURL: getApiUrl()
-    });
-
-    console.log('[loadAuthenticatedImage] 📥 Carregando imagem de:', relativePath);
 
     // Carregar imagem com autenticação usando apiClient (que já tem baseURL configurado)
     const response = await apiClient.get(relativePath, {
@@ -240,27 +207,12 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
         // Cachear localmente usando caminho normalizado
         await cacheImageFromUrl(normalized, imageData);
-        console.log('[loadAuthenticatedImage] 💾 Imagem cacheada localmente:', normalized);
-      } catch (cacheError) {
-        // Não falhar se o cache falhar, apenas logar
-        console.warn('[loadAuthenticatedImage] ⚠️ Erro ao cachear imagem localmente:', cacheError);
+      } catch {
+        // Não falhar se o cache falhar
       }
     }
 
-    console.log('[loadAuthenticatedImage] ✅ Imagem carregada:', {
-      originalPath: imagePath,
-      normalized,
-      blobUrl
-    });
-
-    return blobUrl;
-  } catch (error) {
-    console.error('[loadAuthenticatedImage] ❌ Erro ao carregar imagem:', {
-      imagePath,
-      error
-    });
-    throw error;
-  }
+  return blobUrl;
 }
 
 /**
@@ -298,9 +250,7 @@ export async function imageToBase64(
   imagePath: string,
   options?: { resize?: boolean; fixedHeight?: number }
 ): Promise<string> {
-  try {
-    // Normalizar caminho para usar chave consistente do cache
-    const normalized = normalizeImageUrl(imagePath);
+  const normalized = normalizeImageUrl(imagePath);
 
     // Se já for base64, retornar diretamente
     if (normalized.startsWith('data:image/')) {
@@ -341,7 +291,6 @@ export async function imageToBase64(
         URL.revokeObjectURL(blobUrl);
         return resizedBase64;
       } catch (resizeError) {
-        console.warn('[imageToBase64] ⚠️ Erro ao redimensionar, usando original:', resizeError);
         // Continuar com conversão normal se redimensionamento falhar
       }
     }
@@ -356,13 +305,6 @@ export async function imageToBase64(
       reader.onerror = reject;
       reader.readAsDataURL(blob!);
     });
-  } catch (error) {
-    console.error('[imageToBase64] ❌ Erro ao converter imagem para base64:', {
-      imagePath,
-      error
-    });
-    throw error;
-  }
 }
 
 /**
@@ -433,7 +375,6 @@ async function resizeImageToBase64(
           newHeight = maxHeightPx;
         }
 
-        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Limites: ${maxWidth || 'auto'}mm x ${maxHeight}mm, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}px`);
 
         // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');
@@ -455,16 +396,13 @@ async function resizeImageToBase64(
 
         // Converter para data URL (JPEG com qualidade 0.9)
         const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        console.log(`[resizeImageToBase64] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
         resolve(resizedDataUrl);
       } catch (error) {
-        console.error('[resizeImageToBase64] ❌ Erro ao redimensionar:', error);
         reject(error);
       }
     };
 
-    img.onerror = (error) => {
-      console.error('[resizeImageToBase64] ❌ Erro ao carregar imagem:', error);
+    img.onerror = () => {
       reject(new Error('Erro ao carregar imagem para redimensionamento'));
     };
 

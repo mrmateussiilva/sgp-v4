@@ -1110,7 +1110,7 @@ export default function Fechamentos() {
         });
       }
     } catch (error) {
-      console.error('Erro ao exportar CSV:', error);
+
       toast({
         title: 'Falha ao exportar CSV',
         description: error instanceof Error ? error.message : 'Ocorreu um erro ao exportar o CSV.',
@@ -1282,7 +1282,7 @@ export default function Fechamentos() {
 
           // Validação: garantir que descrição tem largura mínima
           if (colDescricaoWidth < 10) {
-            console.warn('Aviso: Largura da descrição muito pequena. Ajustando layout...');
+            // noop
           }
 
           // Posições finais para renderização

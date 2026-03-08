@@ -80,8 +80,7 @@ export function FormAdesivoProducao({
       .then((url) => {
         setImagePreviewUrl(url);
       })
-      .catch((error) => {
-        console.error('Erro ao carregar preview de imagem:', error);
+      .catch((_e) => {
         setImagePreviewUrl(null);
       })
       .finally(() => {
@@ -219,8 +218,8 @@ export function FormAdesivoProducao({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
                     });
-                  } catch (error) {
-                    console.error('Erro ao salvar imagem localmente:', error);
+                  } catch (_e) {
+
                     toast({
                       title: 'Erro',
                       description: 'Não foi possível salvar a imagem localmente.',
@@ -237,8 +236,8 @@ export function FormAdesivoProducao({
                       onDataChange('imagem', reader.result as string);
                     };
                     reader.readAsDataURL(file);
-                  } catch (error) {
-                    console.error('Erro ao ler arquivo:', error);
+                  } catch (_e) {
+
                     toast({
                       title: 'Erro',
                       description: 'Não foi possível ler o arquivo.',
@@ -295,8 +294,8 @@ export function FormAdesivoProducao({
                       title: 'Imagem salva',
                       description: 'Imagem salva localmente com sucesso.',
                     });
-                  } catch (error) {
-                    console.error('Erro ao salvar imagem localmente:', error);
+                  } catch (_e) {
+
                     toast({
                       title: 'Erro',
                       description: 'Não foi possível salvar a imagem localmente.',
@@ -313,8 +312,8 @@ export function FormAdesivoProducao({
                       onDataChange('imagem', reader.result as string);
                     };
                     reader.readAsDataURL(file);
-                  } catch (error) {
-                    console.error('Erro ao ler arquivo:', error);
+                  } catch (_e) {
+
                     toast({
                       title: 'Erro',
                       description: 'Não foi possível ler o arquivo.',

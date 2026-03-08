@@ -48,9 +48,6 @@ export function TopProductsChart({
     const total = currentProducts.reduce((sum, p) => sum + p.quantity, 0);
 
     // Debug: Log dos dados para verificação
-    console.log('[TopProductsChart] Produtos atuais:', currentProducts);
-    console.log('[TopProductsChart] Produtos anteriores:', previousProducts);
-    console.log('[TopProductsChart] Mapa anterior:', Array.from(previousMap.entries()));
 
     const data: ProductData[] = currentProducts
       .slice(0, limit)
@@ -69,15 +66,6 @@ export function TopProductsChart({
           // Não calcular variação percentual (seria infinito)
           variacao = undefined;
         }
-        // Se ambos são 0, variacao já é undefined
-
-        // Debug: Log de cada produto
-        console.log(`[TopProductsChart] ${product.product_name}:`, {
-          atual: product.quantity,
-          anterior: previousQty,
-          variacao: variacao !== undefined ? `${variacao.toFixed(1)}%` : 'N/A (produto novo)'
-        });
-
         return {
           name: product.product_name.length > 25
             ? product.product_name.substring(0, 25) + '...'

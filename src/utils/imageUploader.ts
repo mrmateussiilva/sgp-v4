@@ -76,8 +76,6 @@ export async function uploadImageToServer(
   } catch (error: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const err = error as any;
-    console.error('Erro no upload de imagem:', err);
-    console.error('Erro detalhado:', err?.response?.data);
     return {
       success: false,
       server_reference: null,

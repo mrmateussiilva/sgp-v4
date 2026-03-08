@@ -40,8 +40,8 @@ export const FormProducaoFields: React.FC<FormProducaoFieldsProps> = ({
             try {
                 const data = await api.getMaquinasAtivas();
                 setMaquinas(data);
-            } catch (error) {
-                console.error("Erro ao buscar máquinas:", error);
+            } catch {
+              // noop
             } finally {
                 setLoading(false);
             }

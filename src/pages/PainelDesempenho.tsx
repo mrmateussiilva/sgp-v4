@@ -94,7 +94,7 @@ export default function PainelDesempenho() {
       processData(response);
       setIsSearched(true);
     } catch (err) {
-      console.error('Erro ao buscar pedidos:', err);
+
       setError('Não foi possível carregar os pedidos da API. Por favor, tente novamente.');
     } finally {
       setLoading(false);

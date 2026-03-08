@@ -114,15 +114,15 @@ export default function GestaoTemplateRelatorios() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
         setHasChanges(false);
       } catch (error) {
-        console.warn('Erro ao carregar templates do servidor, usando local:', error);
+
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved) as RelatorioTemplatesConfig;
           setTemplates(parsed);
         }
       }
-    } catch (error) {
-      console.error('Erro ao carregar templates:', error);
+    } catch {
+      // noop
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export default function GestaoTemplateRelatorios() {
         });
       }
     } catch (error) {
-      console.error('Erro ao salvar templates:', error);
+
       toast({
         title: 'Erro',
         description: 'Não foi possível salvar os templates.',

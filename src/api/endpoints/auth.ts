@@ -32,7 +32,7 @@ export const authApi = {
         } catch (error) {
             // No logout, ignoramos erros de API pois o objetivo principal 
             // é limpar o estado local do usuário.
-            console.warn('[authApi] Erro ao notificar servidor sobre logout:', error);
+
         } finally {
             setAuthToken(null);
             useAuthStore.getState().logout();

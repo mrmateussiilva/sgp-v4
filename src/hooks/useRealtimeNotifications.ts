@@ -112,7 +112,7 @@ export const useRealtimeNotifications = () => {
     };
 
     if (!notification.order_id) {
-      console.warn('⚠️ Notificação recebida sem order_id válido:', message);
+
       return;
     }
 

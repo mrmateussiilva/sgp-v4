@@ -53,9 +53,8 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
         clientId: id,
       }));
 
-      console.log('⚠️ Sistema de broadcast desabilitado (usando HTTP direto)');
-    } catch (error) {
-      console.error('❌ Erro ao conectar ao broadcast:', error);
+    } catch {
+      // noop
     }
   }, []);
 
@@ -69,10 +68,9 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
           clientId: '',
         }));
 
-        console.log('🔌 Sistema de broadcast não está ativo');
       }
-    } catch (error) {
-      console.error('❌ Erro ao desconectar do broadcast:', error);
+    } catch {
+      // noop
     }
   }, []);
 
@@ -87,8 +85,8 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
           lastHeartbeat: new Date(),
         }));
       }
-    } catch (error) {
-      console.error('❌ Erro ao enviar heartbeat:', error);
+    } catch {
+      // noop
     }
   }, [status.clientId]);
 
@@ -104,27 +102,22 @@ export function useGlobalBroadcast(): UseGlobalBroadcastReturn {
       }));
       return clients;
     } catch (error) {
-      console.error('❌ Erro ao obter clientes ativos:', error);
+
       return [];
     }
   }, []);
 
   // Broadcast de atualização de status
   const broadcastStatusUpdate = useCallback(async (
-    orderId: number,
-    orderNumero: string | null,
-    userId: number,
-    details: string
+    _orderId: number,
+    _orderNumero: string | null,
+    _userId: number,
+    _details: string
   ) => {
     try {
-      console.log('🌐 Broadcast de status enviado (mock):', {
-        orderId,
-        orderNumero,
-        userId,
-        details,
-      });
-    } catch (error) {
-      console.error('❌ Erro no broadcast de status:', error);
+      // broadcast mock enviado
+    } catch {
+      // ignore
     }
   }, []);
 

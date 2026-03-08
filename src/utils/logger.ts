@@ -4,7 +4,6 @@
  */
 
 const isDev = import.meta.env.DEV;
-const isTauri = import.meta.env.TAURI_PLATFORM !== undefined;
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -25,11 +24,9 @@ class Logger {
     };
   }
 
-  private shouldLog(level: LogLevel): boolean {
-    // Em produção, apenas logar erros e warnings
-    if (!isDev) {
-      return level === 'error' || level === 'warn';
-    }
+  private shouldLog(_level: LogLevel): boolean {
+    // Em produção não exibir nada no console do navegador
+    if (!isDev) return false;
     return true;
   }
 
@@ -49,23 +46,12 @@ class Logger {
     if (!this.shouldLog('warn')) return;
     const entry = this.formatMessage('warn', message, args.length > 0 ? args : undefined);
     console.warn(`[WARN] ${entry.timestamp}`, message, ...args);
-    
-    // Em produção, considerar enviar warnings para serviço de monitoramento
-    if (!isDev && isTauri) {
-      // Aqui poderia enviar para serviço de logging remoto
-    }
   }
 
   error(message: string, error?: Error | unknown, ...args: unknown[]): void {
+    if (!this.shouldLog('error')) return;
     const entry = this.formatMessage('error', message, { error, args });
     console.error(`[ERROR] ${entry.timestamp}`, message, error, ...args);
-    
-    // Sempre logar erros, mesmo em produção
-    // Em produção, enviar para serviço de monitoramento de erros
-    if (!isDev && isTauri) {
-      // Aqui poderia enviar para Sentry, LogRocket, etc.
-      // Exemplo: Sentry.captureException(error);
-    }
   }
 
   /**

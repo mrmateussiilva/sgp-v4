@@ -61,7 +61,7 @@ export default function GestaoTiposProducao() {
         description: 'Não foi possível carregar os tipos de produção.',
         variant: 'destructive',
       });
-      console.error('Erro ao carregar tipos de produção:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +155,7 @@ export default function GestaoTiposProducao() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao salvar tipo de produção:', error);
+
     } finally {
       setIsLoading(false);
     }
@@ -185,7 +185,7 @@ export default function GestaoTiposProducao() {
         description: error.toString(),
         variant: 'destructive',
       });
-      console.error('Erro ao excluir tipo de produção:', error);
+
     } finally {
       setIsLoading(false);
     }

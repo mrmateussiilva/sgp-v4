@@ -63,7 +63,6 @@ export async function resizeImageToBase64(
           }
         }
         
-        console.log(`[resizeImageToBase64] Original: ${img.width}x${img.height}, Limites: ${maxWidth || 110}mm x ${maxHeight}mm, Redimensionado: ${Math.round(newWidth)}x${Math.round(newHeight)}px (${Math.round(newWidth/mmToPx)}x${Math.round(newHeight/mmToPx)}mm)`);
         
         // Criar canvas e redimensionar
         const canvas = document.createElement('canvas');
@@ -85,16 +84,13 @@ export async function resizeImageToBase64(
         
         // Converter para data URL (JPEG com qualidade 0.9)
         const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        console.log(`[resizeImageToBase64] ✅ Imagem redimensionada com sucesso (${resizedDataUrl.length} bytes)`);
         resolve(resizedDataUrl);
       } catch (error) {
-        console.error('[resizeImageToBase64] ❌ Erro ao redimensionar:', error);
         reject(error);
       }
     };
-    
-    img.onerror = (error) => {
-      console.error('[resizeImageToBase64] ❌ Erro ao carregar imagem:', error);
+
+    img.onerror = () => {
       reject(new Error('Erro ao carregar imagem para redimensionamento'));
     };
     
