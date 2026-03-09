@@ -38,6 +38,7 @@ import { FormImpressao3D } from '@/components/FormImpressao3D';
 import { FormMochilinhaProducao } from '@/components/FormMochilinhaProducao';
 import { FormMesaBabado } from '@/components/FormMesaBabado';
 import { CurrencyInput } from '@/components/ui/currency-input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
@@ -57,6 +58,8 @@ const TIPOS_PRODUCAO_FALLBACK = [
   { value: 'bolsinha', label: 'Bolsinha' },
   { value: 'mesa_babado', label: 'Mesa de Babado' },
 ];
+
+const VALIDATION_ERROR_AUTO_DISMISS_MS = 5000;
 
 interface TabItem {
   id: string;
@@ -659,6 +662,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     { id: 4, name: 'R$ 50,00', type: 'valor_fixo', value: 50 },
   ]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Auto-remover alertas e contornos de erro após alguns segundos
+  useEffect(() => {
+    if (Object.keys(errors).length === 0) return;
+    const t = setTimeout(() => setErrors({}), VALIDATION_ERROR_AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [errors]);
 
   const normalizeNomeList = (entries: Array<{ nome: string }>) => {
     const unique = new Set<string>();
@@ -1857,12 +1867,23 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return formatCurrencyBR(calcularTotal());
   };
 
+  const hasAnyUnsavedItems = tabs.some((tabId) => itemHasUnsavedChanges[tabId] === true);
+
   const handleSalvar = () => {
     if (isEditMode && !selectedOrderId) {
       toast({
         variant: 'destructive',
         title: 'Selecione um pedido',
         description: 'Escolha um pedido para editar antes de salvar.',
+      });
+      return;
+    }
+
+    if (hasAnyUnsavedItems) {
+      toast({
+        variant: 'destructive',
+        title: 'Itens não salvos',
+        description: 'Salve todos os itens antes de salvar o pedido.',
       });
       return;
     }
@@ -3444,13 +3465,34 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           Cancelar
         </Button>
 
-        <Button
-          onClick={handleSalvar}
-          className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
-        >
-          <Save className="h-5 w-5" />
-          Salvar Pedido
-        </Button>
+        {hasAnyUnsavedItems ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    disabled
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
+                  >
+                    <Save className="h-5 w-5" />
+                    Salvar Pedido
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Salve todos os itens antes de salvar o pedido.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <Button
+            onClick={handleSalvar}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
+          >
+            <Save className="h-5 w-5" />
+            Salvar Pedido
+          </Button>
+        )}
       </div>
 
       {/* Modal de Validação de Item */}

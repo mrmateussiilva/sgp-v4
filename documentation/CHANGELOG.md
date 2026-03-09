@@ -1,5 +1,11 @@
 # Changelog - SGP v4
 
+## [1.3.3] - 2026-03-08
+
+### ✨ Melhorias
+- **Salvar Pedido apenas com itens salvos**: Na tela de criação/edição de pedidos, o botão "Salvar Pedido" só fica habilitado quando não há nenhum item com mudanças não salvas. Quando desabilitado, um tooltip exibe "Salve todos os itens antes de salvar o pedido."; a validação também é aplicada no handler para evitar bypass.
+- **Auto-remover alertas de erro**: Os alertas de erro (mensagens em vermelho e contornos vermelhos nos campos) na tela de criação de pedidos passam a ser removidos automaticamente após 5 segundos, mantendo a interface mais limpa.
+
 ## [1.3.2] - 2026-02-26
 
 ### ✨ Melhorias
