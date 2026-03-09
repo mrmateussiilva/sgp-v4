@@ -134,17 +134,23 @@ export function OrderProductionPipeline({
 
     const [dragOverStepId, setDragOverStepId] = useState<string | null>(null);
     const [hoveringButtonsOrderId, setHoveringButtonsOrderId] = useState<number | null>(null);
+    const [draggingOrderId, setDraggingOrderId] = useState<number | null>(null);
 
     const handleDragStart = (e: DragEvent, orderId: number) => {
+        setDraggingOrderId(orderId);
         e.dataTransfer.setData('orderId', orderId.toString());
         e.dataTransfer.effectAllowed = 'move';
-        const target = e.currentTarget as HTMLElement;
-        target.style.opacity = '0.5';
+
+        // Pequeno atraso para deixar o browser criar o ghost image antes de mudarmos a opacidade do original
+        setTimeout(() => {
+            const target = e.target as HTMLElement;
+            if (target) target.classList.add('opacity-20');
+        }, 0);
     };
 
-    const handleDragEnd = (e: DragEvent) => {
-        const target = e.currentTarget as HTMLElement;
-        target.style.opacity = '1';
+    const handleDragEnd = () => {
+        setDraggingOrderId(null);
+        setDragOverStepId(null);
     };
 
     const handleDragOver = (e: DragEvent, stepId: string) => {
@@ -155,13 +161,19 @@ export function OrderProductionPipeline({
         }
     };
 
-    const handleDragLeave = () => {
+    const handleDragLeave = (e: DragEvent) => {
+        // Evitar que o dragLeave dispare ao entrar em elementos filhos do container
+        const relatedTarget = e.relatedTarget as HTMLElement;
+        if (relatedTarget && e.currentTarget instanceof HTMLElement && e.currentTarget.contains(relatedTarget)) {
+            return;
+        }
         setDragOverStepId(null);
     };
 
     const handleDrop = (e: DragEvent, stepId: string) => {
         e.preventDefault();
         setDragOverStepId(null);
+        setDraggingOrderId(null);
         const orderId = parseInt(e.dataTransfer.getData('orderId'));
         if (!isNaN(orderId)) {
             onStatusChange(orderId, stepId);
@@ -219,7 +231,7 @@ export function OrderProductionPipeline({
 
                             {/* Orders List */}
                             <div
-                                className={`flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar transition-colors ${dragOverStepId === step.id ? 'bg-primary/5' : ''}`}
+                                className={`flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar transition-all duration-300 ${dragOverStepId === step.id ? 'bg-primary/[0.04] ring-2 ring-primary/20 ring-inset' : ''}`}
                                 onDragOver={(e) => handleDragOver(e, step.id)}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, step.id)}
@@ -228,6 +240,7 @@ export function OrderProductionPipeline({
                                     const urgency = getOrderUrgency(order.data_entrega);
                                     const firstVendedor = order.items?.[0]?.vendedor;
                                     const itemCount = order.items?.length || 0;
+                                    const isDragging = draggingOrderId === order.id;
 
                                     return (
                                         <Card
@@ -235,7 +248,7 @@ export function OrderProductionPipeline({
                                             draggable={hoveringButtonsOrderId !== order.id}
                                             onDragStart={(e) => handleDragStart(e, order.id)}
                                             onDragEnd={handleDragEnd}
-                                            className={`group border-border/60 hover:border-primary/40 transition-all shadow-none bg-background overflow-hidden relative border-l-4 ${urgency.color}`}
+                                            className={`group border-border/60 hover:border-primary/40 transition-all shadow-none bg-background overflow-hidden relative cursor-grab active:cursor-grabbing border-l-4 ${urgency.color} ${isDragging ? 'opacity-20 border-dashed saturate-0 scale-95 pointer-events-none' : ''}`}
                                         >
                                             <CardContent className="p-3">
                                                 <div className="flex flex-col gap-2.5">
@@ -372,7 +385,15 @@ export function OrderProductionPipeline({
                                         </Card>
                                     );
                                 })}
-                                {stepOrders.length === 0 && (
+
+                                {/* Placeholder visual ao arrastar sobre a coluna */}
+                                {dragOverStepId === step.id && draggingOrderId !== null && (
+                                    <div className="h-24 border-2 border-dashed border-primary/20 rounded-lg bg-primary/5 animate-in slide-in-from-top-2 duration-300 flex items-center justify-center">
+                                        <div className="h-1.5 w-12 rounded-full bg-primary/20" />
+                                    </div>
+                                )}
+
+                                {stepOrders.length === 0 && !dragOverStepId && (
                                     <div className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-border/20 rounded-lg">
                                         <Package className="h-5 w-5 text-muted-foreground/10 mb-1.5" />
                                         <span className="text-[9px] uppercase font-bold text-muted-foreground/20 tracking-wider">Sem pedidos</span>
