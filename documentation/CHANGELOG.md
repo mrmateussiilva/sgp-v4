@@ -7,6 +7,7 @@
 - **Auto-remover alertas de erro**: Os alertas de erro (mensagens em vermelho e contornos vermelhos nos campos) na tela de criação de pedidos passam a ser removidos automaticamente após 5 segundos, mantendo a interface mais limpa.
 - **Coluna de Horário de Liberação Financeira**: Nova coluna "Hr. lib." na lista de pedidos que registra e exibe o horário exato (HH:mm) em que o status Financeiro foi marcado. O dado é persistido localmente (`localStorage`) para consulta rápida durante a sessão.
 - **Formatação de Horário**: Nova função utilitária `formatTimeHHmm` para exibição padronizada de horas/minutos no formato PT-BR.
+- **Redesenho do Pipeline/Kanban**: Refatoração visual completa da visão de fluxo de produção. Colunas mais compactas (aumento de densidade), remoção de efeitos de glassmorphism em favor de um visual sólido/profissional, e cards com nova hierarquia (cliente em destaque, ícones de informação inline e bordas laterais coloridas para indicação visual imediata de urgência/prazo).
 
 ## [1.3.2] - 2026-02-26
 
