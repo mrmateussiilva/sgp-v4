@@ -3157,9 +3157,8 @@ export default function OrderList() {
                               const rowClassName = `
                       hover:bg-muted/50 transition-all duration-200 cursor-pointer
                       ${isSelected ? 'bg-primary/10 dark:bg-primary/20 ring-1 ring-primary/30 z-20' : ''}
-                      ${isDelayed ? 'bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''}
-                      ${isOverdue && order.pronto ? 'bg-orange-50/30 dark:bg-orange-950/10 border-l-2 border-l-orange-400' : ''}
-                      ${isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/40 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : ''}
+                       ${isDelayed ? 'bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''}
+                       ${isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/40 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : ''}
                       ${isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''}
                     `
                                 .trim()
@@ -3224,19 +3223,19 @@ export default function OrderList() {
                                   </TableCell>
                                   <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                                     <div className="flex items-center gap-1.5">
-                                      {urgency.type === 'overdue' && (
+                                      {urgency.type === 'overdue' && !order.pronto && (
                                         <AlertTriangle
                                           className="h-3.5 w-3.5 text-red-500 flex-shrink-0"
                                           aria-hidden="true"
                                         />
                                       )}
-                                      {urgency.type === 'today' && (
+                                      {urgency.type === 'today' && !order.pronto && (
                                         <Clock
                                           className="h-3.5 w-3.5 text-orange-500 flex-shrink-0"
                                           aria-hidden="true"
                                         />
                                       )}
-                                      {urgency.type === 'tomorrow' && (
+                                      {urgency.type === 'tomorrow' && !order.pronto && (
                                         <Clock
                                           className="h-3.5 w-3.5 text-yellow-500 flex-shrink-0"
                                           aria-hidden="true"
@@ -3244,16 +3243,16 @@ export default function OrderList() {
                                       )}
                                       <span
                                         className={`
-                              font-medium
-                              ${urgency.type === 'overdue' ? 'text-red-600 dark:text-red-400' : ''}
-                              ${urgency.type === 'today' ? 'text-orange-600 dark:text-orange-400' : ''}
-                              ${urgency.type === 'tomorrow' ? 'text-yellow-600 dark:text-yellow-500' : ''}
-                              ${urgency.type === 'soon' ? 'text-amber-600 dark:text-amber-400' : ''}
-                            `}
+                               font-medium
+                               ${urgency.type === 'overdue' && !order.pronto ? 'text-red-600 dark:text-red-400' : ''}
+                               ${urgency.type === 'today' && !order.pronto ? 'text-orange-600 dark:text-orange-400' : ''}
+                               ${urgency.type === 'tomorrow' && !order.pronto ? 'text-yellow-600 dark:text-yellow-500' : ''}
+                               ${urgency.type === 'soon' && !order.pronto ? 'text-amber-600 dark:text-amber-400' : ''}
+                             `}
                                       >
                                         {formatDateForDisplay(order.data_entrega, '-')}
                                       </span>
-                                      {urgency.type === 'overdue' && (
+                                      {urgency.type === 'overdue' && !order.pronto && (
                                         <span
                                           className="text-[9px] lg:text-[10px] font-semibold text-red-600 dark:text-red-400"
                                           title={`Atrasado há ${urgency.days} dia(s)`}
