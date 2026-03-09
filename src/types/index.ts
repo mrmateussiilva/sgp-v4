@@ -335,6 +335,7 @@ export interface DashboardSummary {
   efficiency_rate: number;
   avg_production_time: number;
   avg_delay_time: number;
+  concluidos_hoje?: number; // Adicionado para suporte ao Dashboard V2
   production_efficiency: Record<string, number>;
   shipping_methods: Array<{ name: string; count: number; percentage: number }>;
   status_counts: Record<string, number>;

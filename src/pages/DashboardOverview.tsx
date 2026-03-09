@@ -47,6 +47,7 @@ interface DashboardStats {
   todayOrders: number;
   efficiencyRate: number;
   shippingMethods: Array<{ name: string; count: number; percentage: number }>;
+  completedTodayOrders: number;
 }
 
 interface RecentOrder extends OrderWithItems {
@@ -162,7 +163,7 @@ export default function DashboardOverview() {
           todayOrders: summary.hoje,
           efficiencyRate: summary.efficiency_rate,
           shippingMethods: summary.shipping_methods || [],
-          completedTodayOrders: summary.concluidos_hoje || 0,
+          completedTodayOrders: summary.concluidos_hoje || 0, // Fallback if backend doesn't provide yet
         };
       }
 
@@ -324,6 +325,7 @@ export default function DashboardOverview() {
         todayOrders: 0,
         efficiencyRate: 0,
         shippingMethods: [],
+        completedTodayOrders: 0,
       };
     }
   }, [validOrders, summary, toast]);
@@ -653,7 +655,6 @@ export default function DashboardOverview() {
           productionCounts={productionCounts}
           urgentOrders={urgentOrders}
           recentOrders={recentOrders}
-          isPwa={isPwa}
           getProductionStatusColor={getProductionStatusColor}
           getProductionStatus={getProductionStatus}
           handleViewOrder={handleViewOrder}

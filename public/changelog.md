@@ -1,5 +1,15 @@
 # Changelog - SGP v4
 
+## [1.3.4] - 2026-03-09
+
+### ✨ Dashboard Operacional V2
+- **Redesenho Completo do Dashboard V2**: Painel operacional industrial com estética ERP e foco em ação.
+- **Alternância V1/V2**: Toggle no cabeçalho para trocar entre as versões do dashboard.
+- **Alertas Críticos**: Barra de status no topo para monitoramento imediato de atrasos.
+- **Produção em Tempo Real**: Pipeline visual com progresso e ícones por etapa de produção.
+- **Monitoramento de Logística**: Seção de envios com ícones inteligentes e contagem de pedidos por método (Viação, Motoboy, Correios).
+- **Visual Industrial**: Interface de alto contraste e densidade para operação diária.
+
 ## [1.3.2] - 2026-02-26
 
 ### ✨ Melhorias

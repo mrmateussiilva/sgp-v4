@@ -1,5 +1,16 @@
 # Changelog - SGP v4
 
+## [1.3.4] - 2026-03-09
+
+### ✨ Dashboard Operacional V2
+- **Redesenho Completo do Dashboard V2**: Transformação da interface em um painel operacional com estética industrial (ERP), priorizando visibilidade e ação imediata.
+- **Sistema de Alternância (V1/V2)**: Implementado seletor no cabeçalho para alternar entre o Dashboard Clássico (V1) e o novo Dashboard Operacional (V2).
+- **Alertas de Alta Visibilidade**: Nova barra de status no topo que destaca pedidos atrasados de forma crítica (vermelho) ou confirma produção em dia (verde).
+- **Painel "Produção Agora"**: Visualização em tempo real do pipeline produtivo com ícones específicos por etapa e barras de progresso de volume.
+- **Monitoramento de Logística**: Nova seção dedicada para controle de envios (Transportadoras, Motoboy, Correios) com contagem de pedidos aguardando coleta/postagem e ícones inteligentes.
+- **Prioridade de Ação Condicional**: Painel de "Precisa de Atenção" que surge apenas quando há urgências ou atrasos, otimizando o espaço de trabalho.
+- **Estética Industrial**: Nova UI de alto contraste com foco em dados brutos, tipografia técnica (`tabular-nums`) e botões de ação rápida tipo console.
+
 ## [1.3.3] - 2026-03-08
 
 ### ✨ Melhorias
