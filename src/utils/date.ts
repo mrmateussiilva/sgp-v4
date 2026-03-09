@@ -78,6 +78,14 @@ export const formatDateForDisplay = (value?: string | null, fallback = '-') => {
   return fallback;
 };
 
+/** Formata string ISO/datetime para apenas hora e minutos (HH:mm). Retorna fallback se inválido ou ausente. */
+export const formatTimeHHmm = (value?: string | null, fallback = '-'): string => {
+  if (!value || !String(value).trim()) return fallback;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
 export const ensureDateInputValue = (value?: string | null) => {
   if (!value) return '';
 
