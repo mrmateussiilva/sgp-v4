@@ -127,7 +127,7 @@ export default function OrderList() {
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
   // Força re-render da tabela quando hr. liberação é gravada/removida (localStorage)
-  const [hrLiberacaoDirty, setHrLiberacaoDirty] = useState(0);
+  const [, setHrLiberacaoDirty] = useState(0);
 
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
