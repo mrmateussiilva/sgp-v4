@@ -1,32 +1,19 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Timer,
-  Users,
-  Calendar,
   Plus,
   Eye,
-  Zap,
-  FileText,
-  Truck,
-  Target,
   RefreshCw,
-  Search,
-  Edit
+  Search
 } from 'lucide-react';
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import { OrderWithItems, DashboardSummary } from '../types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { formatDateForDisplay } from '@/utils/date';
+// import { formatDateForDisplay } from '@/utils/date';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
