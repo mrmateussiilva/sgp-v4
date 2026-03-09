@@ -137,15 +137,10 @@ export function OrderProductionPipeline({
     const [draggingOrderId, setDraggingOrderId] = useState<number | null>(null);
 
     const handleDragStart = (e: DragEvent, orderId: number) => {
-        setDraggingOrderId(orderId);
         e.dataTransfer.setData('orderId', orderId.toString());
         e.dataTransfer.effectAllowed = 'move';
-
-        // Pequeno atraso para deixar o browser criar o ghost image antes de mudarmos a opacidade do original
-        setTimeout(() => {
-            const target = e.target as HTMLElement;
-            if (target) target.classList.add('opacity-20');
-        }, 0);
+        // setTimeout garante que o browser captura o ghost image ANTES de reduzir a opacidade
+        setTimeout(() => setDraggingOrderId(orderId), 0);
     };
 
     const handleDragEnd = () => {
@@ -248,7 +243,7 @@ export function OrderProductionPipeline({
                                             draggable={hoveringButtonsOrderId !== order.id}
                                             onDragStart={(e) => handleDragStart(e, order.id)}
                                             onDragEnd={handleDragEnd}
-                                            className={`group border-border/60 hover:border-primary/40 transition-all shadow-none bg-background overflow-hidden relative cursor-grab active:cursor-grabbing border-l-4 ${urgency.color} ${isDragging ? 'opacity-20 border-dashed saturate-0 scale-95 pointer-events-none' : ''}`}
+                                            className={`group border-border/60 hover:border-primary/40 transition-all duration-150 shadow-none bg-background relative cursor-grab active:cursor-grabbing border-l-4 ${urgency.color} ${isDragging ? 'opacity-25 saturate-0 scale-95' : ''}`}
                                         >
                                             <CardContent className="p-3">
                                                 <div className="flex flex-col gap-2.5">
