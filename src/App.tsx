@@ -247,7 +247,7 @@ function App() {
   }
 
   return (
-    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="sgp-ui-theme">
       <AlertProvider>
         <ConfirmProvider>
           <Suspense fallback={<LoadingFallback />}>

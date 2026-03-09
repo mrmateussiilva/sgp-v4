@@ -22,14 +22,15 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['changelog.md', 'vite.svg'],
+        includeAssets: ['changelog.md'],
         manifest: {
           name: 'SGP - Sistema de Gerenciamento de Pedidos',
           short_name: 'SGP',
-          description: 'Sistema de Gerenciamento de Pedidos',
+          description: 'Sistema completo de Gerenciamento de Pedidos com controle de produção e relatórios.',
           theme_color: '#3b82f6',
           background_color: '#ffffff',
           display: 'standalone',
+          orientation: 'landscape',
           start_url: base,
           icons: [
             {
@@ -42,14 +43,20 @@ export default defineConfig(({ mode }) => {
               src: `${base}pwa-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable',
+              purpose: 'any',
+            },
+            {
+              src: `${base}pwa-512x512.png`,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
             },
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,svg}'],
           globIgnores: ['**/pwa-192x192.png', '**/pwa-512x512.png'],
-          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           runtimeCaching: [
             {
               urlPattern: /^https?:\/\/.*\/api\/.*/i,
