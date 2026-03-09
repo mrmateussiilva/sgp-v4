@@ -44,7 +44,7 @@ import { EditingIndicator } from './EditingIndicator';
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderProductionPipeline } from './OrderProductionPipeline';
 // import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
-import { formatDateForDisplay } from '@/utils/date';
+import { formatDateForDisplay, formatTimeHHmm } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +86,16 @@ import { ShortcutsHelp } from './ShortcutsHelp';
 
 import { cn } from '@/lib/utils';
 
+const HR_LIBERACAO_KEY = 'sgp_hr_liberacao';
+
+function getHrLiberacao(orderId: number): string | null {
+  try {
+    return localStorage.getItem(`${HR_LIBERACAO_KEY}_${orderId}`);
+  } catch {
+    return null;
+  }
+}
+
 export default function OrderList() {
   const navigate = useNavigate();
   const isPwa = !isTauri();
@@ -115,6 +125,9 @@ export default function OrderList() {
   const [selectedCidade, setSelectedCidade] = useState<string>('');
   const [selectedFormaEnvio, setSelectedFormaEnvio] = useState<string>('');
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+
+  // Força re-render da tabela quando hr. liberação é gravada/removida (localStorage)
+  const [hrLiberacaoDirty, setHrLiberacaoDirty] = useState(0);
 
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
@@ -1865,6 +1878,24 @@ export default function OrderList() {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
 
+      if (campo === 'financeiro') {
+        if (novoValor) {
+          try {
+            localStorage.setItem(`${HR_LIBERACAO_KEY}_${pedidoId}`, new Date().toISOString());
+            setHrLiberacaoDirty((c) => c + 1);
+          } catch {
+            /* ignore */
+          }
+        } else {
+          try {
+            localStorage.removeItem(`${HR_LIBERACAO_KEY}_${pedidoId}`);
+            setHrLiberacaoDirty((c) => c + 1);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
       const mensagensTodosSetores =
         payload.pronto && payload.status === OrderStatus.Concluido && novoValor;
 
@@ -1973,6 +2004,14 @@ export default function OrderList() {
     try {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
+      if (payload.financeiro === true) {
+        try {
+          localStorage.setItem(`${HR_LIBERACAO_KEY}_${orderId}`, new Date().toISOString());
+          setHrLiberacaoDirty((c) => c + 1);
+        } catch {
+          /* ignore */
+        }
+      }
       toast({
         title: 'Status atualizado',
         description: `Pedido movido para ${statusLabels[newStatus] || newStatus}`,
@@ -2948,6 +2987,16 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[70px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-default">Hr. lib.</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Hora liberação (financeiro)</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableHead>
                             <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
@@ -3031,6 +3080,9 @@ export default function OrderList() {
                                   <TableCell>
                                     <Skeleton className="h-4 w-24" />
                                   </TableCell>
+                                  <TableCell className="hidden sm:table-cell text-center">
+                                    <Skeleton className="h-4 w-12" />
+                                  </TableCell>
                                   <TableCell>
                                     <Skeleton className="h-4 w-20" />
                                   </TableCell>
@@ -3059,7 +3111,7 @@ export default function OrderList() {
                             </>
                           ) : paginatedOrders.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={13} className="h-40 text-center align-top">
+                              <TableCell colSpan={14} className="h-40 text-center align-top">
                                 <div className="flex flex-col items-center gap-3 py-4">
                                   <Inbox className="h-12 w-12 text-muted-foreground" />
                                   <h3 className="text-lg font-semibold">
@@ -3267,6 +3319,11 @@ export default function OrderList() {
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
+                                  </TableCell>
+
+                                  {/* Hr. liberação - apenas frontend (localStorage) */}
+                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[70px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                    {formatTimeHHmm(getHrLiberacao(order.id))}
                                   </TableCell>
 
                                   {/* Conferência - Só habilitado se Financeiro estiver marcado */}
