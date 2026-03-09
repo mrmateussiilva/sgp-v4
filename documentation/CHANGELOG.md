@@ -8,6 +8,8 @@
 - **Coluna de Horário de Liberação Financeira**: Nova coluna "Hr. lib." na lista de pedidos que registra e exibe o horário exato (HH:mm) em que o status Financeiro foi marcado. O dado é persistido localmente (`localStorage`) para consulta rápida durante a sessão.
 - **Formatação de Horário**: Nova função utilitária `formatTimeHHmm` para exibição padronizada de horas/minutos no formato PT-BR.
 - **Redesenho do Pipeline/Kanban**: Refatoração visual completa da visão de fluxo de produção. Colunas mais compactas (aumento de densidade), remoção de efeitos de glassmorphism em favor de um visual sólido/profissional, e cards com nova hierarquia (cliente em destaque, ícones de informação inline e bordas laterais coloridas para indicação visual imediata de urgência/prazo).
+- **Aprimoramento do Drag and Drop (DnD)**: Nova experiência de arraste com efeito de "pickup" (transparência no card original), placeholders (drop zones) animados nas colunas de destino e feedback visual refinado nas colunas ativas.
+- **Correção de Interação no Fluxo**: Resolvido problema que bloqueava o arraste de cards após a primeira interação. A lógica foi migrada integralmente para o estado React, garantindo maior estabilidade e performance no fluxo de produção.
 
 ## [1.3.2] - 2026-02-26
 
