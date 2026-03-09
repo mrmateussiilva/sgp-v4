@@ -3,7 +3,7 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, FileText, Trash2, Copy, Clock, ChevronRight, User, MapPin, Truck, Package } from 'lucide-react';
+import { Edit, FileText, Trash2, Copy, Clock, User, MapPin, Truck, Package } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { EditingIndicator } from './EditingIndicator';
 import {
@@ -89,12 +89,11 @@ export function OrderProductionPipeline({
 }: OrderProductionPipelineProps) {
 
     const getOrderUrgency = (dataEntrega: string | null | undefined) => {
-        if (!dataEntrega) return { type: 'no-date', days: null };
+        if (!dataEntrega) return { type: 'no-date', color: 'border-transparent', text: 'text-muted-foreground' };
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
         let deliveryDate: Date;
         const dateMatch = dataEntrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
@@ -111,15 +110,15 @@ export function OrderProductionPipeline({
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays < 0) {
-            return { type: 'overdue', days: Math.abs(diffDays) };
+            return { type: 'overdue', color: 'border-l-destructive', text: 'text-destructive font-semibold' };
         } else if (diffDays === 0) {
-            return { type: 'today', days: 0 };
+            return { type: 'today', color: 'border-l-orange-500', text: 'text-orange-600 font-semibold' };
         } else if (diffDays === 1) {
-            return { type: 'tomorrow', days: 1 };
+            return { type: 'tomorrow', color: 'border-l-amber-500', text: 'text-amber-600 font-semibold' };
         } else if (diffDays <= 3) {
-            return { type: 'soon', days: diffDays };
+            return { type: 'soon', color: 'border-l-blue-400', text: 'text-blue-600 font-semibold' };
         } else {
-            return { type: 'ok', days: diffDays };
+            return { type: 'ok', color: 'border-transparent', text: 'text-muted-foreground' };
         }
     };
 
@@ -139,8 +138,6 @@ export function OrderProductionPipeline({
     const handleDragStart = (e: DragEvent, orderId: number) => {
         e.dataTransfer.setData('orderId', orderId.toString());
         e.dataTransfer.effectAllowed = 'move';
-
-        // Estilo visual no ghost image se necessário
         const target = e.currentTarget as HTMLElement;
         target.style.opacity = '0.5';
     };
@@ -197,247 +194,191 @@ export function OrderProductionPipeline({
 
     return (
         <TooltipProvider>
-            <div className="flex flex-row h-full w-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-hide gap-1">
-                {PIPELINE_STEPS.map((step, index) => {
+            <div className="flex flex-row h-full w-full overflow-x-auto overflow-y-hidden pb-2 gap-0 border-t border-border/60">
+                {PIPELINE_STEPS.map((step) => {
                     const stepOrders = ordersByStep[step.id] || [];
-                    const isLast = index === PIPELINE_STEPS.length - 1;
 
                     return (
-                        <div key={step.id} className="flex flex-row h-full min-w-[280px] max-w-[320px] flex-1">
+                        <div key={step.id} className="flex flex-col h-full min-w-[240px] max-w-[280px] flex-1 border-r border-border/60 last:border-r-0 bg-muted/10">
+                            {/* Step Header */}
                             <div
-                                className={`flex flex-col h-full w-full bg-slate-50/30 dark:bg-slate-900/10 border-x border-t border-border/40 first:rounded-tl-2xl last:rounded-tr-2xl last:border-r overflow-hidden shadow-sm transition-all duration-200 ${dragOverStepId === step.id ? 'bg-primary/5 ring-2 ring-primary/20 ring-inset' : ''
-                                    }`}
+                                className={`px-3 py-3 shrink-0 border-t-4 ${step.activeColor.replace('bg-', 'border-')} bg-background/80`}
                                 onDragOver={(e) => handleDragOver(e, step.id)}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, step.id)}
                             >
-                                {/* Step Header */}
-                                <div className="px-4 py-4 border-b border-border/40 bg-background/50 backdrop-blur-sm shrink-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold text-white ${step.activeColor}`}>
-                                                {index + 1}
-                                            </span>
-                                            <h3 className={`text-xs font-black uppercase tracking-widest ${step.color}`}>
-                                                {step.label}
-                                            </h3>
-                                        </div>
-                                        <Badge variant="outline" className="text-[10px] font-bold bg-background/80 border-border/50">
-                                            {stepOrders.length}
-                                        </Badge>
-                                    </div>
-                                </div>
-
-                                {/* Orders List */}
-                                <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
-                                    {stepOrders.map((order) => {
-                                        const urgency = getOrderUrgency(order.data_entrega);
-                                        const firstVendedor = order.items?.[0]?.vendedor;
-                                        const itemCount = order.items?.length || 0;
-
-                                        return (
-                                            <Card
-                                                key={order.id}
-                                                draggable={hoveringButtonsOrderId !== order.id}
-                                                onDragStart={(e) => handleDragStart(e, order.id)}
-                                                onDragEnd={handleDragEnd}
-                                                className="group border-border/40 hover:border-primary/40 transition-all duration-300 shadow-none hover:shadow-xl hover:shadow-primary/5 bg-background/70 overflow-hidden relative cursor-grab active:cursor-grabbing hover:-translate-y-0.5"
-                                            >
-                                                {order.prioridade === 'ALTA' && (
-                                                    <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden pointer-events-none z-10">
-                                                        <div className="absolute top-0 right-0 bg-destructive text-destructive-foreground text-[8px] font-black uppercase tracking-tighter py-0.5 w-24 text-center transform rotate-45 translate-x-8 translate-y-2.5 shadow-sm">
-                                                            Alta
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                <CardContent className="p-3.5 pt-4">
-                                                    <div className="flex flex-col gap-3">
-                                                        {/* Top Section: ID and Title */}
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="flex items-center gap-1.5 opacity-60">
-                                                                <span className="font-mono text-[10px] font-bold tracking-tight uppercase bg-muted px-1 rounded">
-                                                                    PED #{order.numero || order.id}
-                                                                </span>
-                                                                <EditingIndicator orderId={order.id} />
-                                                            </div>
-                                                            <h4 className="text-[13px] font-black tracking-tight text-foreground leading-tight line-clamp-2">
-                                                                {order.cliente || order.customer_name}
-                                                            </h4>
-                                                        </div>
-
-                                                        {/* Info Grid */}
-                                                        <div className="grid grid-cols-2 gap-x-2 gap-y-2 pt-1">
-                                                            {/* Entrega */}
-                                                            <div className={`flex flex-col gap-0.5 ${urgency.type === 'overdue' ? 'text-destructive' :
-                                                                urgency.type === 'today' ? 'text-orange-500' :
-                                                                    urgency.type === 'tomorrow' ? 'text-amber-500' :
-                                                                        'text-foreground'
-                                                                }`}>
-                                                                <span className="text-[8px] font-black uppercase opacity-60 tracking-widest">Entrega</span>
-                                                                <div className="flex items-center gap-1 text-[10px] font-bold">
-                                                                    <Clock className="h-2.5 w-2.5 shrink-0" />
-                                                                    <span className="whitespace-nowrap">
-                                                                        {order.data_entrega ? formatDateForDisplay(order.data_entrega, '-') : 'A combinar'}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Itens */}
-                                                            <div className="flex flex-col gap-0.5 text-slate-500 dark:text-slate-400">
-                                                                <span className="text-[8px] font-black uppercase opacity-60 tracking-widest">Volume</span>
-                                                                <div className="flex items-center gap-1 text-[10px] font-bold">
-                                                                    <Package className="h-2.5 w-2.5 shrink-0" />
-                                                                    <span>{itemCount} {itemCount === 1 ? 'item' : 'itens'}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Vendedor */}
-                                                            {firstVendedor && (
-                                                                <div className="flex flex-col gap-0.5 text-slate-500 dark:text-slate-400 overflow-hidden">
-                                                                    <span className="text-[8px] font-black uppercase opacity-60 tracking-widest">Responsável</span>
-                                                                    <div className="flex items-center gap-1 text-[10px] font-bold truncate">
-                                                                        <User className="h-2.5 w-2.5 shrink-0" />
-                                                                        <span className="truncate uppercase">{firstVendedor}</span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Cidade/Estado */}
-                                                            {order.cidade_cliente && (
-                                                                <div className="flex flex-col gap-0.5 text-slate-500 dark:text-slate-400 overflow-hidden">
-                                                                    <span className="text-[8px] font-black uppercase opacity-60 tracking-widest">Destino</span>
-                                                                    <div className="flex items-center gap-1 text-[10px] font-bold truncate">
-                                                                        <MapPin className="h-2.5 w-2.5 shrink-0" />
-                                                                        <span className="truncate uppercase">
-                                                                            {order.cidade_cliente}{order.estado_cliente ? `/${order.estado_cliente}` : ''}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Envio */}
-                                                            {order.forma_envio && (
-                                                                <div className="flex flex-col gap-0.5 text-slate-500 dark:text-slate-400 overflow-hidden col-span-2">
-                                                                    <span className="text-[8px] font-black uppercase opacity-60 tracking-widest">Envio</span>
-                                                                    <div className="flex items-center gap-1 text-[10px] font-bold truncate">
-                                                                        <Truck className="h-2.5 w-2.5 shrink-0" />
-                                                                        <span className="truncate uppercase">{order.forma_envio}</span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Action Buttons on Hover */}
-                                                        <div
-                                                            className="flex items-center justify-end gap-2 pt-3 border-t border-border/10 transition-all relative z-50 bg-background/90 opacity-0 group-hover:opacity-100"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            onMouseEnter={() => setHoveringButtonsOrderId(order.id)}
-                                                            onMouseLeave={() => setHoveringButtonsOrderId(null)}
-                                                        >
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 pointer-events-auto"
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            onViewOrder(order);
-                                                                        }}
-                                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <FileText className="h-4 w-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="text-[10px] uppercase font-bold">Ver</TooltipContent>
-                                                            </Tooltip>
-
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 pointer-events-auto"
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            onEdit(order);
-                                                                        }}
-                                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <Edit className="h-4 w-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="text-[10px] uppercase font-bold">Editar</TooltipContent>
-                                                            </Tooltip>
-
-                                                            {onDuplicate && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 pointer-events-auto"
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                onDuplicate(order);
-                                                                            }}
-                                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <Copy className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent className="text-[10px] uppercase font-bold">Duplicar</TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-
-                                                            {isAdmin && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 pointer-events-auto"
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                onDelete(order.id);
-                                                                            }}
-                                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent className="text-[10px] uppercase font-bold">Excluir</TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })}
-                                    {stepOrders.length === 0 && (
-                                        <div className="h-24 flex items-center justify-center border-2 border-dashed border-border/20 rounded-xl">
-                                            <span className="text-[10px] uppercase font-bold text-muted-foreground/40">Vazio</span>
-                                        </div>
-                                    )}
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold text-foreground tracking-tight flex items-center gap-1.5 uppercase">
+                                        {step.label}
+                                    </h3>
+                                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-muted/50 text-muted-foreground border-none">
+                                        {stepOrders.length}
+                                    </Badge>
                                 </div>
                             </div>
-                            {!isLast && (
-                                <div className="flex items-center justify-center w-6 shrink-0 z-10 -mx-3">
-                                    <div className="h-8 w-8 rounded-full bg-background border border-border/40 shadow-sm flex items-center justify-center">
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+
+                            {/* Orders List */}
+                            <div
+                                className={`flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar transition-colors ${dragOverStepId === step.id ? 'bg-primary/5' : ''}`}
+                                onDragOver={(e) => handleDragOver(e, step.id)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, step.id)}
+                            >
+                                {stepOrders.map((order) => {
+                                    const urgency = getOrderUrgency(order.data_entrega);
+                                    const firstVendedor = order.items?.[0]?.vendedor;
+                                    const itemCount = order.items?.length || 0;
+
+                                    return (
+                                        <Card
+                                            key={order.id}
+                                            draggable={hoveringButtonsOrderId !== order.id}
+                                            onDragStart={(e) => handleDragStart(e, order.id)}
+                                            onDragEnd={handleDragEnd}
+                                            className={`group border-border/60 hover:border-primary/40 transition-all shadow-none bg-background overflow-hidden relative border-l-4 ${urgency.color}`}
+                                        >
+                                            <CardContent className="p-3">
+                                                <div className="flex flex-col gap-2.5">
+                                                    {/* Top Row: ID + Priority Badge */}
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-mono text-[10px] font-medium text-muted-foreground bg-muted/40 px-1 rounded uppercase tracking-tighter">
+                                                            #{order.numero || order.id}
+                                                        </span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <EditingIndicator orderId={order.id} />
+                                                            {order.prioridade === 'ALTA' && (
+                                                                <Badge variant="destructive" className="h-3.5 px-1 text-[8px] font-black uppercase leading-none rounded-sm">Alta</Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Cliente (Destaque Principal) */}
+                                                    <h4 className="text-[13px] font-semibold text-foreground leading-tight line-clamp-2 uppercase">
+                                                        {order.cliente || order.customer_name}
+                                                    </h4>
+
+                                                    <div className="h-px bg-border/40 my-0.5" />
+
+                                                    {/* Info Blocks */}
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {/* Prazo e Volume */}
+                                                        <div className="flex items-center justify-between text-[11px]">
+                                                            <div className={`flex items-center gap-1 ${urgency.text}`}>
+                                                                <Clock className="h-3 w-3" />
+                                                                <span>
+                                                                    {order.data_entrega ? formatDateForDisplay(order.data_entrega, '-') : 'A combinar'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1 text-muted-foreground/80 font-medium">
+                                                                <Package className="h-3 w-3" />
+                                                                <span>{itemCount} {itemCount === 1 ? 'it' : 'its'}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Responsável e Destino */}
+                                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground/70">
+                                                            {firstVendedor && (
+                                                                <div className="flex items-center gap-1 max-w-[85px] truncate">
+                                                                    <User className="h-3 w-3 shrink-0" />
+                                                                    <span className="truncate uppercase">{firstVendedor}</span>
+                                                                </div>
+                                                            )}
+                                                            {order.cidade_cliente && (
+                                                                <div className="flex items-center gap-1 max-w-[100px] truncate justify-end">
+                                                                    <MapPin className="h-3 w-3 shrink-0" />
+                                                                    <span className="truncate uppercase truncate">{order.cidade_cliente}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Canal de envio */}
+                                                        {order.forma_envio && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 pt-0.5 border-t border-dashed border-border/30">
+                                                                <Truck className="h-3 w-3 shrink-0" />
+                                                                <span className="truncate uppercase">{order.forma_envio}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Overlay Actions on Hover */}
+                                                    <div
+                                                        className="absolute inset-0 bg-background/95 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onMouseEnter={() => setHoveringButtonsOrderId(order.id)}
+                                                        onMouseLeave={() => setHoveringButtonsOrderId(null)}
+                                                    >
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 rounded border-border/60 hover:bg-muted"
+                                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewOrder(order); }}
+                                                                >
+                                                                    <FileText className="h-4 w-4 text-foreground" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="text-[10px] font-bold">VER</TooltipContent>
+                                                        </Tooltip>
+
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 rounded border-border/60 hover:bg-muted"
+                                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(order); }}
+                                                                >
+                                                                    <Edit className="h-4 w-4 text-foreground" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="text-[10px] font-bold">EDITAR</TooltipContent>
+                                                        </Tooltip>
+
+                                                        {onDuplicate && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 rounded border-border/60 hover:bg-muted"
+                                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDuplicate(order); }}
+                                                                    >
+                                                                        <Copy className="h-4 w-4 text-foreground" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="text-[10px] font-bold">DUPLICAR</TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {isAdmin && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 rounded shadow-sm opacity-90 hover:opacity-100"
+                                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(order.id); }}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="text-[10px] font-bold">EXCLUIR</TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                                {stepOrders.length === 0 && (
+                                    <div className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-border/20 rounded-lg">
+                                        <Package className="h-5 w-5 text-muted-foreground/10 mb-1.5" />
+                                        <span className="text-[9px] uppercase font-bold text-muted-foreground/20 tracking-wider">Sem pedidos</span>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     );
                 })}

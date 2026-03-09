@@ -2035,12 +2035,12 @@ export default function OrderList() {
   return (
     <>
       <div
-        className={`flex flex-col h-full ${viewMode === 'pipeline' ? 'w-full overflow-hidden bg-background/50 animate-in fade-in duration-500' : 'space-y-4 min-h-screen'}`}
+        className={`flex flex-col h-full ${viewMode === 'pipeline' ? 'w-full overflow-hidden bg-background animate-in fade-in duration-300' : 'space-y-4 min-h-screen'}`}
       >
         {viewMode === 'pipeline' ? (
           <>
-            {/* Header minimalista com Glassmorphism */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 py-4 gap-4 border-b border-border/40 bg-background/40 backdrop-blur-md sticky top-0 z-20">
+            {/* Header minimalista e sólido */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-6 py-4 gap-4 border-b border-border/60 bg-background sticky top-0 z-20">
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                   <div className="h-6 w-1 bg-primary rounded-full" />
