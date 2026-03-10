@@ -58,10 +58,43 @@ fn main() {
             generate_production_pdf,
         ])
         .setup(|app| {
-            // Atualizar título da janela com a versão
             let version = env!("CARGO_PKG_VERSION");
             let title = format!("SGP - Sistema de Gerenciamento de Pedidos v{}", version);
-            
+
+            // ─── Limpa cache WebView2 quando a versão do app muda ─────────────────
+            // O WebView2 mantém cache em AppData (pasta EBWebView). Ao reinstalar
+            // via MSI sem limpar esse cache, o Windows continua exibindo a interface
+            // antiga. Aqui detectamos mudança de versão e forçamos limpeza do cache.
+            #[cfg(target_os = "windows")]
+            {
+                if let Ok(data_dir) = app.path().app_local_data_dir() {
+                    let version_file = data_dir.join("last_version.txt");
+                    let webview_cache = data_dir.join("EBWebView");
+
+                    // Lê a versão anterior gravada em disco
+                    let last_version = std::fs::read_to_string(&version_file)
+                        .unwrap_or_default();
+                    let last_version = last_version.trim();
+
+                    if last_version != version {
+                        // Versão MUDOU → limpa o cache do WebView2
+                        if webview_cache.exists() {
+                            match std::fs::remove_dir_all(&webview_cache) {
+                                Ok(_) => info!("Cache WebView2 limpo (versão {} → {})", last_version, version),
+                                Err(e) => warn!("Falha ao limpar cache WebView2: {}", e),
+                            }
+                        }
+                        // Grava a versão atual para a próxima inicialização
+                        let _ = std::fs::create_dir_all(&data_dir);
+                        let _ = std::fs::write(&version_file, version);
+                        info!("Versão atualizada para {} em {:?}", version, version_file);
+                    } else {
+                        info!("Versão {} sem alteração, cache mantido.", version);
+                    }
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────────
+
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title(&title).unwrap_or_else(|e| {
                     warn!("Erro ao definir título da janela: {}", e);
