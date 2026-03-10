@@ -1,5 +1,13 @@
 # Changelog - SGP v4
 
+## [1.3.4] - 2026-03-10
+
+### ✨ Unificação de Botões de Salvar
+- **Consolidação de Salvamento**: Removido o botão individual "Salvar Item" de todos os sub-formulários de produção. O processo de salvamento agora é centralizado no botão "Salvar Pedido".
+- **Validação em Cascata**: Implementada validação automática que percorre todos os itens do pedido antes de permitir o salvamento, exibindo erros consolidados para o usuário.
+- **Interface Simplificada**: Remoção de indicadores de "mudanças não salvas" (bolinhas laranjas) e estados obsoletos, tornando a criação de pedidos mais fluida.
+- **Renomeação de Ações**: Botão "Cancelar" nos sub-formulários renomeado para "Limpar Item" para refletir melhor sua função de reset de dados do item atual.
+
 ## [1.3.3] - 2026-03-09
 
 ### ✨ Dashboard Operacional V2

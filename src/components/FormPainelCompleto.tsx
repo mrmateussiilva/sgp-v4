@@ -21,9 +21,7 @@ interface FormPainelCompletoProps {
   designers: string[];
   tecidos: string[];
   onDataChange: (field: string, value: any) => void;
-  onSaveItem?: () => void;
   onCancelItem?: () => void;
-  hasUnsavedChanges?: boolean;
   mode?: 'painel' | 'generica';
 }
 
@@ -46,9 +44,7 @@ export function FormPainelCompleto({
   designers,
   tecidos,
   onDataChange,
-  onSaveItem,
   onCancelItem,
-  hasUnsavedChanges = false,
   mode = 'painel'
 }: FormPainelCompletoProps) {
   const isGenerica = mode === 'generica';
@@ -697,32 +693,15 @@ export function FormPainelCompleto({
           </div>
         )}
 
-        {/* Botões de ação */}
-        <div className="flex justify-between items-center">
-          {hasUnsavedChanges && (
-            <div className="flex items-center gap-2 text-orange-600 text-sm">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Mudanças não salvas</span>
-            </div>
-          )}
-
-          <div className="flex gap-4 ml-auto">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={onCancelItem}
-              className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={onSaveItem}
-              className="h-12 px-6 bg-green-600 hover:bg-green-700"
-            >
-              Salvar Item
-            </Button>
-          </div>
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onCancelItem}
+            className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
+          >
+            Limpar Item
+          </Button>
         </div>
       </div>
     </div>

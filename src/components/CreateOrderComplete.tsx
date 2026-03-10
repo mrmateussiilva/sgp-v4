@@ -38,7 +38,6 @@ import { FormImpressao3D } from '@/components/FormImpressao3D';
 import { FormMochilinhaProducao } from '@/components/FormMochilinhaProducao';
 import { FormMesaBabado } from '@/components/FormMesaBabado';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOrderStore } from '@/store/orderStore';
 import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
@@ -535,7 +534,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setTabs(['tab-1']);
         setTabsData({ 'tab-1': createEmptyTab('tab-1') });
         setActiveTab('tab-1');
-        setItemHasUnsavedChanges({});
         return;
       }
 
@@ -553,12 +551,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       setTabs(generatedTabs);
       setTabsData(data);
       setActiveTab(generatedTabs[0]);
-      setItemHasUnsavedChanges(
-        generatedTabs.reduce<Record<string, boolean>>((acc, tabId) => {
-          acc[tabId] = false;
-          return acc;
-        }, {})
-      );
       // Salvar estado inicial para comparação
       setInitialFormData(formData);
       setInitialTabsData(data);
@@ -597,7 +589,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   });
 
   // Estado para gerenciar mudanças não salvas de cada item
-  const [itemHasUnsavedChanges, setItemHasUnsavedChanges] = useState<Record<string, boolean>>({});
+
 
   // Estado para o dialog de duplicação de itens
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
@@ -1402,11 +1394,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       };
     });
 
-    // Marcar que o item tem mudanças não salvas
-    setItemHasUnsavedChanges(prev => ({
-      ...prev,
-      [tabId]: true
-    }));
   };
 
   const handleAddTab = () => {
@@ -1417,11 +1404,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       [newTabId]: createEmptyTab(newTabId)
     }));
 
-    // Inicializar estados para o novo item
-    setItemHasUnsavedChanges(prev => ({
-      ...prev,
-      [newTabId]: false
-    }));
 
     setActiveTab(newTabId);
   };
@@ -1443,10 +1425,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     delete newTabsData[tabId];
     setTabsData(newTabsData);
 
-    // Limpar mudanças não salvas
-    const newItemHasUnsavedChanges = { ...itemHasUnsavedChanges };
-    delete newItemHasUnsavedChanges[tabId];
-    setItemHasUnsavedChanges(newItemHasUnsavedChanges);
 
     if (activeTab === tabId) {
       setActiveTab(newTabs[0]);
@@ -1481,15 +1459,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       ...newTabsDataEntries
     }));
 
-    // Inicializar estados para os novos itens
-    const newUnsavedChanges: Record<string, boolean> = {};
-    newTabs.forEach(id => {
-      newUnsavedChanges[id] = true; // Marcar como com mudanças não salvas
-    });
-    setItemHasUnsavedChanges(prev => ({
-      ...prev,
-      ...newUnsavedChanges
-    }));
 
     // Ir para a primeira nova aba
     setActiveTab(newTabs[0]);
@@ -1720,53 +1689,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return { errors, warnings };
   };
 
-  const handleSaveItem = (tabId: string) => {
-    const validation = validateItemComplete(tabId);
-
-    if (!validation) return;
-
-    if (validation.errors.length > 0) {
-      // Mostrar modal de erros obrigatórios
-      setValidationErrors(validation.errors);
-      setOptionalWarnings(validation.warnings);
-      setShowValidationModal(true);
-      return;
-    }
-
-    if (validation.warnings.length > 0) {
-      // Mostrar confirmação com avisos opcionais
-      const warningsList = validation.warnings.map(w => `• ${w}`).join('\n');
-      const confirmMessage = `Tem certeza que deseja salvar este item?\n\nAvisos:\n${warningsList}`;
-
-      confirm(confirmMessage, {
-        title: "Confirmar Salvamento",
-        variant: "warning",
-        confirmText: "Confirmar e Salvar",
-        cancelText: "Cancelar",
-      }).then((confirmed) => {
-        if (confirmed) {
-          saveItemConfirmed(tabId);
-        }
-      });
-      return;
-    }
-
-    // Salvar diretamente se não há erros nem avisos
-    saveItemConfirmed(tabId);
-  };
-
-  const saveItemConfirmed = (tabId: string) => {
-    // Marcar que não há mudanças não salvas
-    setItemHasUnsavedChanges(prev => ({
-      ...prev,
-      [tabId]: false
-    }));
-
-    toast({
-      title: "Item validado!",
-      description: `Item ${tabs.indexOf(tabId) + 1} está pronto para o pedido.`,
-    });
-  };
 
   const handleCancelItem = (tabId: string) => {
     // Limpar o item
@@ -1775,11 +1697,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       [tabId]: createEmptyTab(tabId)
     }));
 
-    // Marcar que não há mudanças não salvas
-    setItemHasUnsavedChanges(prev => ({
-      ...prev,
-      [tabId]: false
-    }));
 
     toast({
       title: "Item limpo",
@@ -1867,7 +1784,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     return formatCurrencyBR(calcularTotal());
   };
 
-  const hasAnyUnsavedItems = tabs.some((tabId) => itemHasUnsavedChanges[tabId] === true);
+
 
   const handleSalvar = () => {
     if (isEditMode && !selectedOrderId) {
@@ -1879,28 +1796,60 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return;
     }
 
-    if (hasAnyUnsavedItems) {
-      toast({
-        variant: 'destructive',
-        title: 'Itens não salvos',
-        description: 'Salve todos os itens antes de salvar o pedido.',
-      });
+    // 1. Validar cada item individualmente (campos específicos e imagens)
+    const allItemErrors: string[] = [];
+    const allItemWarnings: string[] = [];
+
+    tabs.forEach((tabId, index) => {
+      const validation = validateItemComplete(tabId);
+      if (validation) {
+        if (validation.errors.length > 0) {
+          validation.errors.forEach(err => allItemErrors.push(`Item ${index + 1}: ${err}`));
+        }
+        if (validation.warnings.length > 0) {
+          validation.warnings.forEach(warn => allItemWarnings.push(`Item ${index + 1}: ${warn}`));
+        }
+      }
+    });
+
+    if (allItemErrors.length > 0) {
+      setValidationErrors(allItemErrors);
+      setOptionalWarnings(allItemWarnings);
+      setShowValidationModal(true);
       return;
     }
 
-    // Executar validação completa
-    const isValid = validateAll();
+    // 2. Executar validação geral (cliente, envio, totais)
+    const isValidGeneral = validateAll();
 
-    if (!isValid) {
+    if (!isValidGeneral) {
       toast({
         variant: "destructive",
         title: "Erro de Validação",
-        description: "Corrija todos os erros antes de salvar o pedido.",
+        description: "Corrija os erros do pedido antes de salvar.",
       });
       return;
     }
 
-    // Se chegou até aqui, todos os dados estão válidos
+    // 3. Se houver warnings nos itens, pedir confirmação
+    if (allItemWarnings.length > 0) {
+      const warningsList = allItemWarnings.map(w => `• ${w}`).join('\n');
+      const confirmMessage = `O pedido possui os seguintes alertas nos itens:\n\n${warningsList}\n\nDeseja prosseguir mesmo assim?`;
+
+      confirm(confirmMessage, {
+        title: "Alertas nos Itens",
+        variant: "warning",
+        confirmText: "Sim, prosseguir",
+        cancelText: "Não, revisar",
+      }).then((confirmed) => {
+        if (confirmed) {
+          setShowResumoModal(true);
+        }
+      });
+      return;
+    }
+
+    // Se chegou até aqui sem erros e sem warnings que precisem de confirmação adicional
     setShowResumoModal(true);
   };
 
@@ -1928,7 +1877,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     // Limpar dados dos itens
     setTabs(['tab-1']);
     setTabsData({ 'tab-1': createEmptyTab('tab-1') });
-    setItemHasUnsavedChanges({});
+
     setActiveTab('tab-1');
     setErrors({});
 
@@ -2515,7 +2464,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         });
 
         setShowResumoModal(false);
-        setItemHasUnsavedChanges({});
         setCurrentOrder(finalOrder);
         populateFormFromOrder(finalOrder);
         updateOrderInStore(finalOrder);
@@ -2905,9 +2853,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                     <TabsTrigger value={tabId} className="text-base h-9 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <span>Item {index + 1}</span>
-                        {itemHasUnsavedChanges[tabId] && (
-                          <div className="w-2 h-2 bg-orange-500 rounded-full" title="Mudanças não salvas"></div>
-                        )}
                       </div>
                       {tabs.length > 1 && (
                         <span
@@ -2967,9 +2912,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                       mode="painel"
                     />
                   </div>
@@ -2984,9 +2927,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                       mode="generica"
                     />
                   </div>
@@ -3001,9 +2942,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tiposLona={materiaisLona}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3017,9 +2956,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tiposAdesivo={tiposAdesivo}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3033,9 +2970,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       materiais={materiaisTotem}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3049,9 +2984,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3064,9 +2997,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       vendedores={vendedores}
                       designers={designers}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3080,9 +3011,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
-                      hasUnsavedChanges={itemHasUnsavedChanges[tabId] || false}
                     />
                   </div>
                 )}
@@ -3096,7 +3025,6 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                       designers={designers}
                       tecidos={materiaisTecido}
                       onDataChange={(field, value) => handleTabDataChange(tabId, field, value)}
-                      onSaveItem={() => handleSaveItem(tabId)}
                       onCancelItem={() => handleCancelItem(tabId)}
                     />
                   </div>
@@ -3286,32 +3214,15 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                         />
                       </div>
 
-                      {/* Botões de ação para outros tipos */}
-                      <div className="flex justify-between items-center pt-4 border-t border-green-200">
-                        {itemHasUnsavedChanges[tabId] && (
-                          <div className="flex items-center gap-2 text-orange-600 text-sm">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                            <span>Mudanças não salvas</span>
-                          </div>
-                        )}
-
-                        <div className="flex gap-4 ml-auto">
-                          <Button
-                            variant="outline"
-                            type="button"
-                            onClick={() => handleCancelItem(tabId)}
-                            className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={() => handleSaveItem(tabId)}
-                            className="h-12 px-6 bg-green-600 hover:bg-green-700"
-                          >
-                            Salvar Item
-                          </Button>
-                        </div>
+                      <div className="flex gap-4 ml-auto">
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => handleCancelItem(tabId)}
+                          className="h-12 px-6 text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          Cancelar / Limpar Item
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -3465,34 +3376,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           Cancelar
         </Button>
 
-        {hasAnyUnsavedItems ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-block">
-                  <Button
-                    disabled
-                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
-                  >
-                    <Save className="h-5 w-5" />
-                    Salvar Pedido
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                Salve todos os itens antes de salvar o pedido.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <Button
-            onClick={handleSalvar}
-            className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
-          >
-            <Save className="h-5 w-5" />
-            Salvar Pedido
-          </Button>
-        )}
+        <Button
+          onClick={handleSalvar}
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
+        >
+          <Save className="h-5 w-5" />
+          Salvar Pedido
+        </Button>
       </div>
 
       {/* Modal de Validação de Item */}

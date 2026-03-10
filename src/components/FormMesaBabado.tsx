@@ -26,9 +26,7 @@ interface FormMesaBabadoProps {
     designers: string[];
     tecidos: string[];
     onDataChange: (field: string, value: any) => void;
-    onSaveItem?: () => void;
     onCancelItem?: () => void;
-    hasUnsavedChanges?: boolean;
 }
 
 const normalizeDecimal = (value: string | number): string => {
@@ -50,9 +48,7 @@ export function FormMesaBabado({
     designers,
     tecidos,
     onDataChange,
-    onSaveItem,
     onCancelItem,
-    hasUnsavedChanges = false,
 }: FormMesaBabadoProps) {
     const { toast } = useToast();
 
@@ -437,21 +433,15 @@ export function FormMesaBabado({
                 )}
             </div>
 
-            <div className="flex justify-between items-center pt-4">
-                {hasUnsavedChanges && (
-                    <div className="flex items-center gap-2 text-orange-600 text-sm">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                        <span>Mudanças não salvas</span>
-                    </div>
-                )}
-                <div className="flex gap-3 ml-auto">
-                    {onCancelItem && (
-                        <Button variant="outline" onClick={onCancelItem} className="h-11 px-6">Cancelar</Button>
-                    )}
-                    <Button onClick={onSaveItem} className="h-11 px-6 bg-green-600 hover:bg-green-700 min-w-[120px]">
-                        Salvar Item
-                    </Button>
-                </div>
+            <div className="flex justify-end pt-4">
+                <Button
+                    variant="outline"
+                    type="button"
+                    onClick={onCancelItem}
+                    className="h-11 px-6 text-red-600 border-red-300 hover:bg-red-50"
+                >
+                    Limpar Item
+                </Button>
             </div>
         </div>
     );
