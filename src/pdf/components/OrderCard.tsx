@@ -110,26 +110,31 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
 
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 6 }}>
-                    <HeaderItem
-                        label="PEDIDO"
-                        value={`#${order.numero}`}
-                    />
-                    {order.item_index && (
-                        <View style={styles.itemBadge}>
-                            <Text style={styles.counterValue}>
-                                {order.item_index}/{order.total_items}
+                <View style={[styles.headerTopRow, { marginBottom: 6 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
+                        <HeaderItem
+                            label="PEDIDO"
+                            value={`#${order.numero}`}
+                        />
+                        {order.item_index && (
+                            <View style={styles.itemBadge}>
+                                <Text style={styles.counterValue}>
+                                    {order.item_index}/{order.total_items}
+                                </Text>
+                            </View>
+                        )}
+                        {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
+                        <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
+                        <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, maxWidth: 160, overflow: 'hidden' }}>
+                            <Text style={styles.hLabel}>FR.:</Text>
+                            <Text style={[styles.hValue, { maxLines: 1 }]}>
+                                {order.forma_envio.toUpperCase()}
                             </Text>
                         </View>
-                    )}
-                    {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
-                    <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
-                    <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, maxWidth: 160, overflow: 'hidden' }}>
-                        <Text style={styles.hLabel}>FR.:</Text>
-                        <Text style={[styles.hValue, { maxLines: 1 }]}>
-                            {order.forma_envio.toUpperCase()}
-                        </Text>
                     </View>
                 </View>
 
@@ -139,9 +144,23 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             ? order.cliente.substring(0, 30).toUpperCase()
                             : order.cliente.toUpperCase()}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 15 }}>
-                        <Text style={styles.hValue}>{order.telefone_cliente || ''}</Text>
-                        <Text style={styles.hValue}>{order.cidade_estado || ''}</Text>
+                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'baseline' }}>
+                        {order.telefone_cliente && (
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                                <Text style={styles.hLabel}>TEL:</Text>
+                                <Text style={styles.hValue}>{order.telefone_cliente}</Text>
+                            </View>
+                        )}
+                        {order.cidade_estado && (
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                                <Text style={styles.hLabel}>CID:</Text>
+                                <Text style={styles.hValue}>
+                                    {order.cidade_estado.length > 25
+                                        ? order.cidade_estado.substring(0, 25).toUpperCase()
+                                        : order.cidade_estado.toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 </View>
             </View>
