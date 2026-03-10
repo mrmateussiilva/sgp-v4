@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, X, Save, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -173,6 +173,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(getInitialId());
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
+  const currentOrderRef = useRef<OrderWithItems | null>(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>(TIPOS_PRODUCAO_FALLBACK);
 
@@ -714,6 +715,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           const updatedOrder = await api.getOrderById(orderId);
           if (updatedOrder) {
             setCurrentOrder(updatedOrder);
+            currentOrderRef.current = updatedOrder;
             // Recarregar formulário com dados atualizados
             populateFormFromOrder(updatedOrder);
           }
@@ -801,6 +803,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         }
 
         setCurrentOrder(order);
+        currentOrderRef.current = order;
         logger.debug('[CreateOrderComplete] Populando formulário...');
         populateFormFromOrder(order);
         logger.debug('[CreateOrderComplete] Formulário populado com sucesso');
@@ -881,6 +884,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       try {
         const formas = await api.getFormasPagamentoAtivas();
         setFormasPagamento(formas);
+        // Após carregar as opções, re-sincronizar o valor selecionado caso
+        // o pedido já tenha sido carregado (resolve race condition em modo edição)
+        setFormData(prev => {
+          if (prev.tipo_pagamento) return prev; // já tem valor, não sobrescrever
+          // Se currentOrder já foi carregado, restaurar o tipo_pagamento
+          const orderRef = currentOrderRef.current;
+          if (orderRef?.forma_pagamento_id) {
+            return { ...prev, tipo_pagamento: orderRef.forma_pagamento_id.toString() };
+          }
+          return prev;
+        });
       } catch (error) {
         logger.error("Erro ao carregar formas de pagamento:", error);
       }
@@ -1873,6 +1887,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       desconto_tipo: '',
       valor_frete: '0,00',
     });
+    // Limpar referência do pedido
+    currentOrderRef.current = null;
 
     // Limpar dados dos itens
     setTabs(['tab-1']);

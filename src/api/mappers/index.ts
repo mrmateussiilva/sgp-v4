@@ -220,7 +220,7 @@ export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
         status,
         prioridade: pedido.prioridade ?? undefined,
         forma_envio: pedido.forma_envio ?? undefined,
-        forma_pagamento_id: parseNumericId(pedido.tipo_pagamento ?? undefined) ?? undefined,
+        forma_pagamento_id: parseNumericId(pedido.tipo_pagamento ?? undefined) ?? parseNumericId((pedido as unknown as Record<string, unknown>).forma_pagamento_id as string | number | null | undefined) ?? undefined,
         observacao: pedido.observacao ?? undefined,
         financeiro: Boolean(pedido.financeiro),
         conferencia: Boolean(pedido.conferencia),
@@ -665,29 +665,28 @@ export const buildPedidoCreatePayload = (request: CreateOrderRequest): Record<st
 export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<string, unknown> => {
     const payload: Record<string, unknown> = {};
 
-    if (request.customer_name || request.cliente) {
+    if (request.customer_name !== undefined || request.cliente !== undefined) {
         payload.cliente = request.cliente ?? request.customer_name;
     }
-    if (request.address) {
-        payload.cidade_cliente = request.address;
+    if (request.cidade_cliente !== undefined) {
+        payload.cidade_cliente = request.cidade_cliente ?? '';
+    } else if (request.address !== undefined) {
+        payload.cidade_cliente = request.address ?? '';
     }
-    if (request.cidade_cliente) {
-        payload.cidade_cliente = request.cidade_cliente;
+    if (request.estado_cliente !== undefined) {
+        payload.estado_cliente = request.estado_cliente ?? '';
     }
-    if (request.estado_cliente) {
-        payload.estado_cliente = request.estado_cliente;
+    if (request.telefone_cliente !== undefined) {
+        payload.telefone_cliente = request.telefone_cliente ?? '';
     }
-    if (request.telefone_cliente) {
-        payload.telefone_cliente = request.telefone_cliente;
-    }
-    if (request.status) {
+    if (request.status !== undefined) {
         payload.status = mapStatusToApi(request.status);
     }
-    if (request.prioridade) {
-        payload.prioridade = normalizePriority(request.prioridade);
+    if (request.prioridade !== undefined) {
+        payload.prioridade = normalizePriority(request.prioridade ?? null);
     }
-    if (request.forma_envio) {
-        payload.forma_envio = request.forma_envio;
+    if (request.forma_envio !== undefined) {
+        payload.forma_envio = request.forma_envio ?? '';
         const parsed = parseNumericId(request.forma_envio);
         if (parsed !== null) {
             payload.forma_envio_id = parsed;
@@ -699,6 +698,9 @@ export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<st
     }
     if (request.observacao !== undefined) {
         payload.observacao = request.observacao ?? '';
+    }
+    if (request.data_entrega !== undefined) {
+        payload.data_entrega = request.data_entrega ?? null;
     }
 
     if (Array.isArray(request.items)) {
