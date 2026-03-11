@@ -341,6 +341,7 @@ export type {
     OrderAuditLogEntry,
     LoginRequest,
     LoginResponse,
+    LoginResponse as LoginApiResponse,
     Cliente,
     CreateClienteRequest,
     UpdateClienteRequest,
@@ -357,4 +358,5 @@ export type {
     ReportRowData,
     ReportTotals,
     DashboardSummary,
+    DesignerArteItem,
 } from '../../types';

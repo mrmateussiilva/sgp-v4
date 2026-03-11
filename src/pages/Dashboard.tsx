@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Loader2,
   Printer,
+  Palette,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -66,6 +67,7 @@ const ProducaoMaquinas = lazy(() =>
   import('./ProducaoMaquinas').then((module) => ({ default: module.ProducaoMaquinas }))
 );
 const PrintLogs = lazy(() => import('./PrintLogs'));
+const TelaPainelDesigners = lazy(() => import('./TelaPainelDesigners'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
@@ -218,6 +220,13 @@ export default function Dashboard() {
         icon: Printer,
         label: 'Logs de Impressão',
         path: '/dashboard/print-logs',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+      },
+      {
+        icon: Palette,
+        label: 'Painel Designers',
+        path: '/dashboard/painel-designers',
         adminOnly: false,
         section: 'OPERACIONAL',
       },
@@ -575,6 +584,7 @@ export default function Dashboard() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="painel-designers" element={<TelaPainelDesigners />} />
                 <Route path="print-logs" element={<PrintLogs />} />
               </Routes>
             </Suspense>

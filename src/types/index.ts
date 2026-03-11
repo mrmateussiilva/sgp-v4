@@ -789,3 +789,67 @@ export interface PrinterStats {
   reprints: number;
   success_rate: number;
 }
+
+// ========================================
+// Designer Arte Item (Painel de Designers)
+// ========================================
+
+export interface DesignerArteItem {
+  item_id: number;
+  order_id: number;
+  numero_pedido: string;
+  cliente: string;
+  data_entrega?: string;
+  tipo_producao?: string;
+  descricao?: string;
+  largura?: string;
+  altura?: string;
+  metro_quadrado?: string;
+  imagem?: string;
+  observacao?: string;
+  status_pedido: string;
+  prioridade?: string;
+  status_arte?: 'aguardando' | 'liberado';
+
+  // Campos técnicos de produção
+  tecido?: string;
+  composicao_tecidos?: string;
+  acabamento?: { overloque?: boolean; elastico?: boolean; ilhos?: boolean };
+  vendedor?: string;
+  emenda?: string;
+  emenda_qtd?: string;
+
+  // Quantidades específicas
+  quantidade_paineis?: string;
+  quantidade_totem?: string;
+  quantidade_lona?: string;
+  quantidade_adesivo?: string;
+
+  // Detalhes de acabamento
+  tipo_acabamento?: string;
+  quantidade_ilhos?: string;
+  espaco_ilhos?: string;
+  quantidade_cordinha?: string;
+  espaco_cordinha?: string;
+
+  // Campos específicos por tipo
+  tipo_adesivo?: string;
+  acabamento_lona?: string;
+  acabamento_totem?: string;
+  acabamento_totem_outro?: string;
+
+  // Flags técnicas
+  terceirizado?: boolean;
+  ziper?: boolean;
+  cordinha_extra?: boolean;
+  alcinha?: boolean;
+  toalha_pronta?: boolean;
+
+  // Comentários estilo Trello
+  comentarios?: Array<{
+    id: string;
+    autor: string;
+    texto: string;
+    data: string;
+  }>;
+}
