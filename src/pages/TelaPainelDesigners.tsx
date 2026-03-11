@@ -3,16 +3,16 @@ import { designersApi } from '@/api/endpoints/designers';
 import { RemoteImage } from '@/components/RemoteImage';
 import { DesignerArteItem } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
-    Loader2, RefreshCw, Clock, Palette, Package, CheckCircle2, Circle,
-    Maximize2, Layers, FileText, AlertTriangle, ExternalLink, Ruler, Box, Scissors,
-    MessageSquare, Send, User
+    Loader2, RefreshCw, Clock, Package, CheckCircle2, Circle,
+    Maximize2, FileText, AlertTriangle,
+    MessageSquare, Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -513,18 +513,6 @@ function ModalDetalhesArte({ item, onClose, onToggleStatus, onPostComentario }: 
         item.cordinha_extra ||
         item.alcinha;
 
-    // Gerador de cor para avatar baseado no nome
-    const getAvatarColor = (name: string) => {
-        const colors = [
-            'bg-blue-500', 'bg-purple-500', 'bg-indigo-500', 'bg-rose-500',
-            'bg-amber-500', 'bg-emerald-500', 'bg-sky-500', 'bg-violet-500'
-        ];
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return colors[Math.abs(hash) % colors.length];
-    };
 
     const currentUser = useAuthStore.getState().username || 'Usuário';
 
