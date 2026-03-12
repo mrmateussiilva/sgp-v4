@@ -1,6 +1,11 @@
 # Changelog - SGP v4
 
-## [1.3.4] - 2026-03-10
+## [1.3.4] - 2026-03-12
+
+### ✨ Persistência da Hora de Liberação
+- **Armazenamento no Backend**: A "Hora de Liberação" (registrada ao marcar o status Financeiro) agora é persistida no banco de dados, em vez de apenas no `localStorage`. Isso permite que a informação seja compartilhada entre diferentes usuários e máquinas.
+- **Auditoria e Histórico**: O campo `financeiro_liberado_em` serve como registro permanente e auditável para o fluxo financeiro do pedido.
+- **Ajuste de Fuso Horário (UTC-3)**: Implementada normalização automática de fuso horário. O sistema agora registra timestamps em UTC e os converte corretamente para o horário local do usuário, eliminando discrepâncias de exibição.
 
 ### ✨ Unificação de Botões de Salvar
 - **Consolidação de Salvamento**: Removido o botão individual "Salvar Item" de todos os sub-formulários de produção. O processo de salvamento agora é centralizado no botão "Salvar Pedido".
