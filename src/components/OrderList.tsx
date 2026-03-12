@@ -86,15 +86,7 @@ import { ShortcutsHelp } from './ShortcutsHelp';
 
 import { cn } from '@/lib/utils';
 
-const HR_LIBERACAO_KEY = 'sgp_hr_liberacao';
-
-function getHrLiberacao(orderId: number): string | null {
-  try {
-    return localStorage.getItem(`${HR_LIBERACAO_KEY}_${orderId}`);
-  } catch {
-    return null;
-  }
-}
+// Hr. liberação agora vem diretamente da API (financeiro_liberado_em)
 
 export default function OrderList() {
   const navigate = useNavigate();
@@ -127,7 +119,6 @@ export default function OrderList() {
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
   // Força re-render da tabela quando hr. liberação é gravada/removida (localStorage)
-  const [, setHrLiberacaoDirty] = useState(0);
 
   // Dados para filtros
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
@@ -1879,21 +1870,7 @@ export default function OrderList() {
       updateOrder(updatedOrder);
 
       if (campo === 'financeiro') {
-        if (novoValor) {
-          try {
-            localStorage.setItem(`${HR_LIBERACAO_KEY}_${pedidoId}`, new Date().toISOString());
-            setHrLiberacaoDirty((c) => c + 1);
-          } catch {
-            /* ignore */
-          }
-        } else {
-          try {
-            localStorage.removeItem(`${HR_LIBERACAO_KEY}_${pedidoId}`);
-            setHrLiberacaoDirty((c) => c + 1);
-          } catch {
-            /* ignore */
-          }
-        }
+        // O timestamp agora é gerenciado pelo backend
       }
 
       const mensagensTodosSetores =
@@ -2005,12 +1982,7 @@ export default function OrderList() {
       const updatedOrder = await api.updateOrderStatus(payload);
       updateOrder(updatedOrder);
       if (payload.financeiro === true) {
-        try {
-          localStorage.setItem(`${HR_LIBERACAO_KEY}_${orderId}`, new Date().toISOString());
-          setHrLiberacaoDirty((c) => c + 1);
-        } catch {
-          /* ignore */
-        }
+        // Timestamp gerenciado pelo backend
       }
       toast({
         title: 'Status atualizado',
@@ -3320,9 +3292,9 @@ export default function OrderList() {
                                     </TooltipProvider>
                                   </TableCell>
 
-                                  {/* Hr. liberação - apenas frontend (localStorage) */}
+                                  {/* Hr. liberação - persistido no backend */}
                                   <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[70px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                                    {formatTimeHHmm(getHrLiberacao(order.id))}
+                                    {formatTimeHHmm(order.financeiro_liberado_em)}
                                   </TableCell>
 
                                   {/* Conferência - Só habilitado se Financeiro estiver marcado */}

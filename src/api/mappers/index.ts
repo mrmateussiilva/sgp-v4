@@ -230,6 +230,7 @@ export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
         pronto: typeof prontoFromApi === 'boolean' ? prontoFromApi : status === OrderStatus.Concluido,
         sublimacao_maquina: pedido.sublimacao_maquina ?? undefined,
         sublimacao_data_impressao: pedido.sublimacao_data_impressao ?? undefined,
+        financeiro_liberado_em: pedido.financeiro_liberado_em ?? undefined,
         items,
     };
 };

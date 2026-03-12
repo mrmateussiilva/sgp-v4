@@ -99,6 +99,7 @@ export interface ApiPedido {
     conferencia?: boolean | null;
     sublimacao_maquina?: string | null;
     sublimacao_data_impressao?: string | null;
+    financeiro_liberado_em?: string | null;
 }
 
 export interface MaterialApi {

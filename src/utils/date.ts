@@ -81,8 +81,23 @@ export const formatDateForDisplay = (value?: string | null, fallback = '-') => {
 /** Formata string ISO/datetime para apenas hora e minutos (HH:mm). Retorna fallback se inválido ou ausente. */
 export const formatTimeHHmm = (value?: string | null, fallback = '-'): string => {
   if (!value || !String(value).trim()) return fallback;
-  const parsed = new Date(value);
+  
+  let dateStr = String(value).trim();
+  
+  // Se estiver no formato "YYYY-MM-DD HH:mm:ss" (espaço em vez de T), normaliza para ISO
+  if (DATE_TIME_WITH_SPACE_REGEX.test(dateStr)) {
+    dateStr = dateStr.replace(' ', 'T');
+  }
+
+  // Se for um formato ISO mas não tiver fuso horário (nem 'Z', nem '+' ou '-'), assume UTC
+  // Ex: "2026-03-12T23:25:00" -> "2026-03-12T23:25:00Z"
+  if (dateStr.includes('T') && !/[Z+-]/.test(dateStr.split('T')[1])) {
+    dateStr += 'Z';
+  }
+
+  const parsed = new Date(dateStr);
   if (Number.isNaN(parsed.getTime())) return fallback;
+  
   return parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 

@@ -13,6 +13,7 @@ import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { OrderPrintManager } from './OrderPrintManager';
 import { FormProducaoFields } from './FormProducaoFields';
 import { useToast } from '@/hooks/use-toast';
+import { formatTimeHHmm } from '@/utils/date';
 
 interface OrderViewModalProps {
   isOpen: boolean;
@@ -1466,6 +1467,12 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
                   {order.status}
                 </Badge>
               </div>
+              {order.financeiro_liberado_em && (
+                <div>
+                  <span className="font-semibold text-emerald-600">Liberação (Financeiro):</span><br />
+                  <span className="font-medium">{formatDate(order.financeiro_liberado_em)} às {formatTimeHHmm(order.financeiro_liberado_em)}</span>
+                </div>
+              )}
 
             </div>
 

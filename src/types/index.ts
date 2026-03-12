@@ -107,6 +107,7 @@ export interface OrderWithItems {
   pronto?: boolean;
   sublimacao_maquina?: string | null;
   sublimacao_data_impressao?: string | null;
+  financeiro_liberado_em?: string | null;
 
   designer?: string;
   vendedor?: string;
