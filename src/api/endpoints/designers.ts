@@ -34,10 +34,18 @@ export const designersApi = {
      * Busca itens de pedidos atribuídos a um designer via rota dedicada do backend.
      * O backend faz a query filtrada — sem carregar 200 pedidos completos.
      */
-    getItensPorDesigner: async (designerName: string): Promise<DesignerArteItem[]> => {
+    getItensPorDesigner: async (
+        designerName: string,
+        params?: {
+            start_date?: string;
+            end_date?: string;
+            limit?: number;
+            offset?: number;
+        }
+    ): Promise<DesignerArteItem[]> => {
         requireSessionToken();
         const encodedNome = encodeURIComponent(designerName);
-        const response = await apiClient.get<DesignerArteItem[]>(`/designers/${encodedNome}/itens`);
+        const response = await apiClient.get<DesignerArteItem[]>(`/designers/${encodedNome}/itens`, { params });
         return response.data ?? [];
     },
 

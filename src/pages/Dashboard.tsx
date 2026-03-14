@@ -236,7 +236,7 @@ export default function Dashboard() {
         icon: BarChart,
         label: 'Análise Materiais',
         path: '/dashboard/analise-materiais',
-        adminOnly: true,
+        adminOnly: false,
         section: 'GESTÃO',
       },
       {
@@ -319,6 +319,7 @@ export default function Dashboard() {
                 }
               />
               <Route path="clientes" element={<Clientes />} />
+              <Route path="analise-materiais" element={<MaterialAnalysis />} />
               <Route
                 path="fechamentos"
                 element={
@@ -602,11 +603,7 @@ export default function Dashboard() {
                 />
                 <Route
                   path="analise-materiais"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <MaterialAnalysis />
-                    </ProtectedRoute>
-                  }
+                  element={<MaterialAnalysis />}
                 />
                 <Route path="painel-designers" element={<TelaPainelDesigners />} />
                 <Route path="print-logs" element={<PrintLogs />} />

@@ -1,5 +1,45 @@
 # Changelog - SGP v4
 
+## [1.3.5] - 2026-03-14
+
+### ✨ SAFIRA - Assistente Inteligente V1 (Refinamento Completo)
+- **Painel de Chat Lateral**: Implementação de um painel fixo à direita com animação suave de entrada (`slide-in`), substituindo o modelo de modal central para uma experiência estilo ChatGPT/Notion AI.
+- **Inteligência Operacional (10 Intents)**: Backend robusto capaz de processar e responder perguntas sobre:
+    - Pedidos (hoje, em produção, atrasados, concluídos hoje).
+    - Performance (vendedor recordista, cliente destaque do mês).
+    - Produção (tipo mais feito, etapa com mais demanda/gargalo, tempo médio).
+    - Materiais (material mais usado/consumido).
+- **UX e Naturalidade**:
+    - **Linguagem Humanizada**: Mensagens reescritas para soar menos mecânicas e mais diretas.
+    - **Sugestões Rápidas**: Interface limpa com 4 chips de perguntas principais para acesso imediato aos dados mais críticos.
+    - **Estado de "Pensamento"**: Indicador visual dinâmico ("bounce") com mensagens variadas de processamento para simular interação real.
+    - **Respostas Estruturadas**: Formatação superior com quebras de linha e separação clara entre títulos e valores numéricos.
+    - **Fallback Inteligente**: Sistema de ajuda que lista tópicos disponíveis quando uma pergunta não é reconhecida.
+- **Persistência de Dados**:
+    - **Histórico Persistente**: Migração do estado para `localStorage`, garantindo que a conversa não seja perdida ao fechar o sistema ou o painel.
+    - **Mensagem Inicial Condicional**: A saudação de boas-vindas só aparece se não houver histórico prévio.
+- **Backend & Log**:
+    - **Registro de Consultas**: Cada interação é logada no banco de dados para auditoria e análise de demanda dos usuários.
+    - **Arquitetura Desacoplada**: Sistema pronto para futura expansão com modelos de linguagem (RAG/IA Generativa).
+
+### 🎨 Painel de Designers (Otimização & Performance)
+- **Carregamento Inteligente**: Sistema agora carrega apenas os últimos 7 dias de pedidos por padrão, evitando sobrecarga no backend e lentidão no navegador.
+- **Filtros Dinâmicos**: Nova barra de ferramentas com busca por período personalizado e atalhos rápidos (Hoje, 7 Dias, 30 Dias).
+- **Paginação "Load More"**: Implementação de carregamento incremental para manipular grandes volumes de artes sem perda de fluidez na interface.
+- **Eficiência de API**: Consultas otimizadas com suporte a `limit` e `offset`, garantindo respostas rápidas mesmo em bases de dados extensas.
+- **Privacidade e Foco**: Removida a opção de abrir a imagem real no navegador para manter o fluxo de trabalho concentrado no painel.
+
+### 📊 Análise de Materiais V2
+- **Correção de Fluxo de Dados**: Resolvido problema crítico onde o ranking de materiais aparecia vazio.
+- **Gráficos de Evolução**: Implementada visualização clara da tendência de consumo de tecidos e insumos ao longo do tempo.
+- **Hierarquia de Consumo**: Novo sistema de "Top 3 Materiais" com exibição dinâmica e cores coordenadas por categoria.
+- **Filtros Avançados**: Otimização dos filtros por período (Data Início/Fim) e Tipo de Produção, com atualização instantânea dos KPIs.
+- **Refatoração de Tipagem**: Sincronização rigorosa dos modelos de dados entre API e Frontend para garantir integridade nas estatísticas.
+
+### 🔐 Gestão de Acessos
+- **Análise de Materiais para Todos**: A tela de Estatísticas e Evolução de Materiais agora está acessível para todos os usuários do sistema, não apenas administradores, facilitando o acompanhamento operacional em todos os níveis.
+- **Navegação Sincronizada**: Acesso liberado tanto na visão Desktop quanto na visão Mobile/Web (PWA).
+
 ## [1.3.4] - 2026-03-12
 
 ### ✨ Persistência da Hora de Liberação

@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import {
     Loader2, RefreshCw, Clock, Package, CheckCircle2, Circle,
     Maximize2, FileText, AlertTriangle,
-    MessageSquare, Send
+    MessageSquare, Send, Calendar, ListFilter,
+    PlusCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +41,13 @@ const formatDate = (dateStr: string) => {
     }
 };
 
+const getTodayStr = () => new Date().toISOString().split('T')[0];
+const getDaysAgoStr = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toISOString().split('T')[0];
+};
+
 export default function TelaPainelDesigners() {
     const [designers, setDesigners] = useState<{ id: number; nome: string }[]>([]);
     const [activeDesigner, setActiveDesigner] = useState<string>('');
@@ -49,6 +57,14 @@ export default function TelaPainelDesigners() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+
+    // Estados de Filtro e Paginação
+    const [startDate, setStartDate] = useState<string>(getDaysAgoStr(7));
+    const [endDate, setEndDate] = useState<string>(getTodayStr());
+    const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 50;
+
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const { toast } = useToast();
 
@@ -117,19 +133,47 @@ export default function TelaPainelDesigners() {
         }
     }, []);
 
-    const refreshItems = useCallback(async (designerName: string) => {
+    const refreshItems = useCallback(async (
+        designerName: string, 
+        isLoadMore = false,
+        dateOverrides?: { start?: string, end?: string }
+    ) => {
         if (!designerName) return;
+        
+        const currentOffset = isLoadMore ? offset + LIMIT : 0;
+        const sDate = dateOverrides?.start ?? startDate;
+        const eDate = dateOverrides?.end ?? endDate;
+        
         setIsRefreshing(true);
         try {
-            const designerItems = await designersApi.getItensPorDesigner(designerName);
-            setItems(designerItems);
+            const designerItems = await designersApi.getItensPorDesigner(designerName, {
+                start_date: sDate,
+                end_date: eDate,
+                limit: LIMIT,
+                offset: currentOffset,
+            });
+
+            if (isLoadMore) {
+                setItems(prev => [...prev, ...designerItems]);
+                setOffset(currentOffset);
+            } else {
+                setItems(designerItems);
+                setOffset(0);
+            }
+
+            setHasMore(designerItems.length === LIMIT);
             setLastUpdated(new Date());
         } catch (error) {
             console.error('Erro ao buscar itens do designer:', error);
+            toast({
+                title: 'Erro ao carregar',
+                description: 'Não foi possível buscar as artes.',
+                variant: 'destructive'
+            });
         } finally {
             setIsRefreshing(false);
         }
-    }, []);
+    }, [startDate, endDate, offset, toast]);
 
     useEffect(() => {
         fetchInitialData();
@@ -212,6 +256,91 @@ export default function TelaPainelDesigners() {
                 </div>
             </div>
 
+            {/* Barra de Filtros */}
+            <Card className="p-4 bg-muted/20 border-slate-200">
+                <div className="flex flex-col lg:flex-row lg:items-end gap-6">
+                    <div className="grid grid-cols-2 sm:flex items-end gap-3 flex-1">
+                        <div className="space-y-1.5 flex-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5">
+                                <Calendar className="h-3 w-3 text-primary" /> Data Inicial
+                            </label>
+                            <Input
+                                type="date"
+                                className="h-9 text-xs font-bold"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1.5 flex-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1.5">
+                                <Calendar className="h-3 w-3 text-primary" /> Data Final
+                            </label>
+                            <Input
+                                type="date"
+                                className="h-9 text-xs font-bold"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            onClick={() => refreshItems(activeDesigner)}
+                            className="h-9 font-black text-xs px-6"
+                            disabled={isRefreshing}
+                        >
+                            {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <ListFilter className="h-3 w-3 mr-2" />}
+                            FILTRAR
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Atalhos rápidos</label>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-[10px] font-bold border-slate-200 bg-white"
+                                onClick={() => {
+                                    const today = getTodayStr();
+                                    setStartDate(today);
+                                    setEndDate(today);
+                                    refreshItems(activeDesigner, false, { start: today, end: today });
+                                }}
+                            >
+                                HOJE
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-[10px] font-bold border-slate-200 bg-white"
+                                onClick={() => {
+                                    const start = getDaysAgoStr(7);
+                                    const end = getTodayStr();
+                                    setStartDate(start);
+                                    setEndDate(end);
+                                    refreshItems(activeDesigner, false, { start, end });
+                                }}
+                            >
+                                7 DIAS
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-[10px] font-bold border-slate-200 bg-white"
+                                onClick={() => {
+                                    const start = getDaysAgoStr(30);
+                                    const end = getTodayStr();
+                                    setStartDate(start);
+                                    setEndDate(end);
+                                    refreshItems(activeDesigner, false, { start, end });
+                                }}
+                            >
+                                30 DIAS
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
             {designers.length === 0 ? (
                 <Card className="p-8 text-center bg-muted/50">
                     <p className="text-muted-foreground">Nenhum designer ativo encontrado no sistema.</p>
@@ -240,78 +369,95 @@ export default function TelaPainelDesigners() {
                             value={designer.nome}
                             className="mt-6 focus-visible:outline-none h-[calc(100vh-230px)]"
                         >
-                            <div className="h-full overflow-hidden">
+                            <div className="h-full flex flex-col overflow-hidden">
                                 {items.length === 0 ? (
                                     <div className="py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
                                         <Package className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                                        <p className="text-muted-foreground font-medium italic">Nenhuma arte atribuída a {designer.nome} no momento.</p>
+                                        <p className="text-muted-foreground font-medium italic">Nenhum pedido encontrado no período selecionado.</p>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden pb-4">
-                                        {/* Coluna: Aguardando Liberação */}
-                                        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-sm">
-                                            <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-black/10 border-b border-slate-200/60 dark:border-slate-800/60 backdrop-blur-sm">
-                                                <h2 className="text-xs font-bold flex items-center text-amber-600 uppercase tracking-widest leading-none">
-                                                    <Circle className="h-4 w-4 mr-2" />
-                                                    Aguardando
-                                                    <Badge variant="secondary" className="ml-2 bg-amber-100/50 text-amber-700 hover:bg-amber-100/50 border-none h-5 px-1.5 text-[10px]">
-                                                        {activeDesigner === designer.nome ? items.filter(i => i.status_arte !== 'liberado').length : 0}
-                                                    </Badge>
-                                                </h2>
+                                    <>
+                                        <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden pb-4">
+                                            {/* Coluna: Aguardando Liberação */}
+                                            <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-sm">
+                                                <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-black/10 border-b border-slate-200/60 dark:border-slate-800/60 backdrop-blur-sm">
+                                                    <h2 className="text-xs font-bold flex items-center text-amber-600 uppercase tracking-widest leading-none">
+                                                        <Circle className="h-4 w-4 mr-2" />
+                                                        Aguardando
+                                                        <Badge variant="secondary" className="ml-2 bg-amber-100/50 text-amber-700 hover:bg-amber-100/50 border-none h-5 px-1.5 text-[10px]">
+                                                            {activeDesigner === designer.nome ? items.filter(i => i.status_arte !== 'liberado').length : 0}
+                                                        </Badge>
+                                                    </h2>
+                                                </div>
+
+                                                <ScrollArea className="flex-1 p-4">
+                                                    <div className="space-y-4 pr-3">
+                                                        {activeDesigner === designer.nome && items.filter(i => i.status_arte !== 'liberado').map((item) => (
+                                                            <CardArteDesigner
+                                                                key={item.item_id}
+                                                                item={item}
+                                                                onToggleStatus={() => toggleStatusArte(item)}
+                                                                onOpen={() => setSelectedItem(item)}
+                                                            />
+                                                        ))}
+                                                        {(activeDesigner !== designer.nome || items.filter(i => i.status_arte !== 'liberado').length === 0) && (
+                                                            <div className="text-center py-12 opacity-40">
+                                                                <Package className="h-8 w-8 mx-auto mb-2" />
+                                                                <p className="text-xs italic">Nenhuma arte pendente</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </ScrollArea>
                                             </div>
 
-                                            <ScrollArea className="flex-1 p-4">
-                                                <div className="space-y-4 pr-3">
-                                                    {activeDesigner === designer.nome && items.filter(i => i.status_arte !== 'liberado').map((item) => (
-                                                        <CardArteDesigner
-                                                            key={item.item_id}
-                                                            item={item}
-                                                            onToggleStatus={() => toggleStatusArte(item)}
-                                                            onOpen={() => setSelectedItem(item)}
-                                                        />
-                                                    ))}
-                                                    {(activeDesigner !== designer.nome || items.filter(i => i.status_arte !== 'liberado').length === 0) && (
-                                                        <div className="text-center py-12 opacity-40">
-                                                            <Package className="h-8 w-8 mx-auto mb-2" />
-                                                            <p className="text-xs italic">Nenhuma arte pendente</p>
-                                                        </div>
-                                                    )}
+                                            {/* Coluna: Liberado */}
+                                            <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-sm">
+                                                <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-black/10 border-b border-slate-200/60 dark:border-slate-800/60 backdrop-blur-sm">
+                                                    <h2 className="text-xs font-bold flex items-center text-green-600 uppercase tracking-widest leading-none">
+                                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                        Liberado
+                                                        <Badge variant="secondary" className="ml-2 bg-green-100/50 text-green-700 hover:bg-green-100/50 border-none h-5 px-1.5 text-[10px]">
+                                                            {items.filter(i => i.status_arte === 'liberado').length}
+                                                        </Badge>
+                                                    </h2>
                                                 </div>
-                                            </ScrollArea>
-                                        </div>
 
-                                        {/* Coluna: Liberado */}
-                                        <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-slate-200/60 dark:border-slate-800/60 overflow-hidden shadow-sm">
-                                            <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-black/10 border-b border-slate-200/60 dark:border-slate-800/60 backdrop-blur-sm">
-                                                <h2 className="text-xs font-bold flex items-center text-green-600 uppercase tracking-widest leading-none">
-                                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                                    Liberado
-                                                    <Badge variant="secondary" className="ml-2 bg-green-100/50 text-green-700 hover:bg-green-100/50 border-none h-5 px-1.5 text-[10px]">
-                                                        {items.filter(i => i.status_arte === 'liberado').length}
-                                                    </Badge>
-                                                </h2>
+                                                <ScrollArea className="flex-1 p-4">
+                                                    <div className="space-y-4 pr-3">
+                                                        {activeDesigner === designer.nome && items.filter(i => i.status_arte === 'liberado').map((item) => (
+                                                            <CardArteDesigner
+                                                                key={item.item_id}
+                                                                item={item}
+                                                                onToggleStatus={() => toggleStatusArte(item)}
+                                                                onOpen={() => setSelectedItem(item)}
+                                                            />
+                                                        ))}
+                                                        {(activeDesigner !== designer.nome || items.filter(i => i.status_arte === 'liberado').length === 0) && (
+                                                            <div className="text-center py-12 opacity-40">
+                                                                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                                                                <p className="text-xs italic">Nada liberado ainda</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </ScrollArea>
                                             </div>
-
-                                            <ScrollArea className="flex-1 p-4">
-                                                <div className="space-y-4 pr-3">
-                                                    {activeDesigner === designer.nome && items.filter(i => i.status_arte === 'liberado').map((item) => (
-                                                        <CardArteDesigner
-                                                            key={item.item_id}
-                                                            item={item}
-                                                            onToggleStatus={() => toggleStatusArte(item)}
-                                                            onOpen={() => setSelectedItem(item)}
-                                                        />
-                                                    ))}
-                                                    {(activeDesigner !== designer.nome || items.filter(i => i.status_arte === 'liberado').length === 0) && (
-                                                        <div className="text-center py-12 opacity-40">
-                                                            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                                                            <p className="text-xs italic">Nada liberado ainda</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </ScrollArea>
                                         </div>
-                                    </div>
+
+                                        {hasMore && (
+                                            <div className="flex justify-center py-3">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => refreshItems(activeDesigner, true)}
+                                                    disabled={isRefreshing}
+                                                    className="font-black text-[10px] h-8 gap-2 border-slate-300 shadow-sm hover:bg-slate-50"
+                                                >
+                                                    {isRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlusCircle className="h-3 w-3 text-primary" />}
+                                                    CARREGAR MAIS ARTES
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </TabsContent>
@@ -546,17 +692,6 @@ function ModalDetalhesArte({ item, onClose, onToggleStatus, onPostComentario }: 
                                         alt={item.descricao || 'Arte'}
                                         className="w-full h-full object-contain p-2"
                                     />
-                                    <div className="absolute top-2 right-2">
-                                        <a
-                                            href={item.imagem}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="bg-white/90 p-1.5 rounded border shadow-sm hover:bg-primary hover:text-white transition-colors block"
-                                            title="Tamanho real"
-                                        >
-                                            <Maximize2 className="h-4 w-4" />
-                                        </a>
-                                    </div>
                                 </>
                             ) : (
                                 <div className="text-slate-300 font-bold text-xs uppercase text-center p-4">Sem imagem de visualização</div>
