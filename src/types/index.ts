@@ -871,6 +871,7 @@ export interface MaterialStatsKPIs {
   total_itens_com_ilhos: number;
   data_pico: string | null;
   m2_pico: number;
+  media_m2_dia: number;
 }
 
 export interface MaterialStatsResponse {

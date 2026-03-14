@@ -6,15 +6,12 @@ import {
   Zap,
   Layers,
   MousePointer2,
-  CalendarDays,
   Info,
   Calculator,
   Terminal,
   BookOpen,
-  ChevronRight,
   Calendar,
   Filter,
-  CheckCircle2,
   BarChart
 } from 'lucide-react';
 import { 
@@ -31,7 +28,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

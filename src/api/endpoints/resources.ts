@@ -25,6 +25,7 @@ import {
     FichaTemplatesConfig,
     RelatorioTemplatesConfig,
     ReportRequestPayload,
+    ReportResponse,
     MaterialStatsResponse,
     MaterialEvolutionResponse,
 } from '../types';
