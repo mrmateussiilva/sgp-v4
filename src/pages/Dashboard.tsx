@@ -44,6 +44,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
+import { SafiraChat, SafiraPanel } from '@/components/Safira';
 
 // Lazy load de todas as rotas para code-splitting
 const OrderList = lazy(() => import('../components/OrderList'));
@@ -410,6 +411,13 @@ export default function Dashboard() {
 
           <Separator />
 
+          {/* SAFIRA Assistant */}
+          <div className="px-4 py-2">
+            <SafiraChat expanded={sidebarExpanded} />
+          </div>
+
+          <Separator />
+
           {/* Versão do App */}
           {appVersion && (
             <div className={cn('px-4 py-2', !sidebarExpanded && 'flex justify-center')}>
@@ -606,6 +614,7 @@ export default function Dashboard() {
             </Suspense>
           </main>
         </div>
+        <SafiraPanel />
       </div>
     </TooltipProvider>
   );
