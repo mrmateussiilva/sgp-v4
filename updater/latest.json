@@ -1,11 +1,11 @@
 {
   "version": "1.3.0",
-  "notes": "Salvamento Unificado",
-  "pub_date": "2026-03-10T01:00:00Z",
+  "notes": "CORRECOES ERROS REPORTADOS PELO MAICON",
+  "pub_date": "2026-03-14T01:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.3.4/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.3.4_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3EybWI3RU93dGR2OW5KQ2xKVXRjWWlkNVJTRGNiN1prWDRMOFZzczJxNmxhNkM2RFJHajYxUG1PQVhWcW9tMm9SUGR2MlNpQ1AzOGxtTmVrVTJ2MHdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzczMTIzNzU3CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4zLjRfeDY0X2VuLVVTLm1zaQo3ZnFWeVdmdHFJdDN5czBwRUhUMTRudlZ4ZEw1Yzl0TTgvN1Q1VEFyZHJrQ2VIaWhBUHNTNnZMZVRMY1IyczNWc0QvYVVrWFMyMUpaQ1dsTkxJcFdDQT09Cg=="
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.3.5/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.3.5_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2tCVU1DUWFZRjJCb0VPdjZDN1N4MksvanYrajdqSHZnUGdsenp3bUVubThOc1QyZElmS2FOLzVHSWtFRU51U1RoZ3BlOGNOalRXRUM5bTFhL1NXY0FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzczNDc1NzA3CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4zLjVfeDY0X2VuLVVTLm1zaQpHbWNtZUxwcEZ5blljUzFiS2NDNkpiWitVSHJhWHdtNDJmZ1dBSm9QUFFUeTF2Zlh4d2FxM2lRN2FmZEt1enlLYTZlQ2tZSTdJWDUxRU81bUU2WDhCZz09Cg=="
     }
   }
 }
