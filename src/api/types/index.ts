@@ -360,4 +360,9 @@ export type {
     ReportTotals,
     DashboardSummary,
     DesignerArteItem,
+    MaterialStatsResponse,
+    RankingItem,
+    MaterialStatsKPIs,
+    MaterialEvolutionItem,
+    MaterialEvolutionResponse,
 } from '../../types';

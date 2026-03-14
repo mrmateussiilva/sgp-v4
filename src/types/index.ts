@@ -854,3 +854,39 @@ export interface DesignerArteItem {
     data: string;
   }>;
 }
+
+export interface RankingItem {
+  nome: string;
+  quantidade_itens: number;
+  area_total_m2: number;
+  percentual_area: number;
+}
+
+export interface MaterialStatsKPIs {
+  total_itens: number;
+  total_area_m2: number;
+  material_mais_usado: string | null;
+  acabamento_mais_usado: string | null;
+  total_ilhos: number;
+  total_itens_com_ilhos: number;
+  data_pico: string | null;
+  m2_pico: number;
+}
+
+export interface MaterialStatsResponse {
+  kpis: MaterialStatsKPIs;
+  ranking_materiais: RankingItem[];
+  ranking_acabamentos: RankingItem[];
+  por_tipo_producao: Record<string, RankingItem[]>;
+}
+
+export interface MaterialEvolutionItem {
+  data: string;
+  total: number;
+  top_materiais: Record<string, number>;
+}
+
+export interface MaterialEvolutionResponse {
+  top_3_nomes: string[];
+  evolucao: MaterialEvolutionItem[];
+}

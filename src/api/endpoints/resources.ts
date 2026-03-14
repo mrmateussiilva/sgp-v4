@@ -25,7 +25,8 @@ import {
     FichaTemplatesConfig,
     RelatorioTemplatesConfig,
     ReportRequestPayload,
-    ReportResponse,
+    MaterialStatsResponse,
+    MaterialEvolutionResponse,
 } from '../types';
 import {
     mapMaterialFromApi,
@@ -583,6 +584,27 @@ export const resourcesApi = {
     }> => {
         requireSessionToken();
         const response = await apiClient.get(`/relatorios/fechamentos/rankings/${category}`, { params });
+        return response.data;
+    },
+
+    // --- Estatísticas de Materiais ---
+    getMaterialStats: async (params: {
+        data_inicio?: string;
+        data_fim?: string;
+        tipo_producao?: string;
+    }): Promise<MaterialStatsResponse> => {
+        requireSessionToken();
+        const response = await apiClient.get<MaterialStatsResponse>('/materiais/stats', { params });
+        return response.data;
+    },
+
+    getMaterialEvolution: async (params: {
+        data_inicio?: string;
+        data_fim?: string;
+        tipo_producao?: string;
+    }): Promise<MaterialEvolutionResponse> => {
+        requireSessionToken();
+        const response = await apiClient.get<MaterialEvolutionResponse>('/materiais/stats/evolucao', { params });
         return response.data;
     },
 };
