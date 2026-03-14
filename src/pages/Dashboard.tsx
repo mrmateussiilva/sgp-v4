@@ -63,6 +63,7 @@ const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
 const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
 const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
 const GestaoMaquinas = lazy(() => import('./admin/GestaoMaquinas'));
+const MaterialAnalysis = lazy(() => import('./MaterialAnalysis'));
 const ProducaoMaquinas = lazy(() =>
   import('./ProducaoMaquinas').then((module) => ({ default: module.ProducaoMaquinas }))
 );
@@ -229,6 +230,13 @@ export default function Dashboard() {
         path: '/dashboard/painel-designers',
         adminOnly: false,
         section: 'OPERACIONAL',
+      },
+      {
+        icon: BarChart,
+        label: 'Análise Materiais',
+        path: '/dashboard/analise-materiais',
+        adminOnly: true,
+        section: 'GESTÃO',
       },
       {
         icon: BarChart,
@@ -581,6 +589,14 @@ export default function Dashboard() {
                   element={
                     <ProtectedRoute requireAdmin={true}>
                       <GestaoMaquinas />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="analise-materiais"
+                  element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <MaterialAnalysis />
                     </ProtectedRoute>
                   }
                 />
