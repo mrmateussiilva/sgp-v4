@@ -5,15 +5,48 @@ import './index.css';
 import { enableDevtoolsShortcuts } from './utils/devtools';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-if (import.meta.env.PROD) {
-  enableDevtoolsShortcuts();
+// Desregistra os service workers e limpa os caches no desktop (Tauri)
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+async function clearCachesAndWorkers() {
+  if (!isTauri) return;
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        await registration.unregister();
+        console.log('ServiceWorker unregistered successfully in Tauri.');
+      }
+    }
+
+    if ('caches' in window) {
+      const names = await caches.keys();
+      for (const name of names) {
+        await caches.delete(name);
+        console.log(`Cache '${name}' cleared in Tauri.`);
+      }
+    }
+  } catch (err) {
+    console.error('Error clearing caches/workers:', err);
+  }
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+function renderApp() {
+  if (import.meta.env.PROD) {
+    enableDevtoolsShortcuts();
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}
+
+clearCachesAndWorkers().finally(() => {
+  renderApp();
+});
 

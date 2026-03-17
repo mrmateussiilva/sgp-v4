@@ -15,12 +15,13 @@ function getAppVersion(): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const base = env.VITE_BASE_PATH || '/';
+  const isTauri = !!process.env.TAURI_PLATFORM || !!process.env.TAURI_ENV_PLATFORM || !!process.env.TAURI_ENV_FAMILY;
+  const base = isTauri ? './' : env.VITE_BASE_PATH || '/';
 
   return {
     plugins: [
       react(),
-      VitePWA({
+      ...(!isTauri ? [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['changelog.md'],
         manifest: {
@@ -74,7 +75,7 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-      }),
+      })] : []),
     ],
     base,
     define: {
