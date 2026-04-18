@@ -26,7 +26,7 @@ apiClient.interceptors.request.use((config) => {
   }
 
   // Bypass ngrok browser warning for all requests
-  headers['ngrok-skip-browser-warning'] = 'true';
+  headers['ngrok-skip-browser-warning'] = 'any';
   
   config.headers = headers;
   return config;
