@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Users, ArrowLeft, Shield, User } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, ArrowLeft, Shield, User, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '../../store/authStore';
 import {
   getUsers,
@@ -22,11 +23,45 @@ import { formatDateForDisplay } from '@/utils/date';
 
 type Usuario = UserEntity;
 
+const SETORES = [
+  { value: 'admin', label: 'Administração' },
+  { value: 'financeiro', label: 'Financeiro' },
+  { value: 'conferencia', label: 'Conferência' },
+  { value: 'impressao', label: 'Impressão' },
+  { value: 'costura', label: 'Costura' },
+  { value: 'expedicao', label: 'Expedição' },
+  { value: 'designer', label: 'Designer' },
+  { value: 'vendas', label: 'Vendas' },
+  { value: 'geral', label: 'Geral' },
+] as const;
+
+const SETOR_COLORS: Record<string, string> = {
+  admin: 'bg-orange-500',
+  financeiro: 'bg-emerald-500',
+  conferencia: 'bg-blue-500',
+  impressao: 'bg-purple-500',
+  costura: 'bg-pink-500',
+  expedicao: 'bg-cyan-500',
+  designer: 'bg-indigo-500',
+  vendas: 'bg-amber-500',
+  geral: 'bg-gray-400',
+};
+
+const getSetorLabel = (setor?: string) => {
+  const found = SETORES.find(s => s.value === setor);
+  return found ? found.label : setor || 'Geral';
+};
+
 export default function GestaoUsuarios() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
+
+  const togglePasswordVisibility = (id: number) => {
+    setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }));
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,6 +75,7 @@ export default function GestaoUsuarios() {
     password: '',
     confirmPassword: '',
     is_admin: false,
+    setor: 'geral',
   });
 
   useEffect(() => {
@@ -77,6 +113,7 @@ export default function GestaoUsuarios() {
         password: '',
         confirmPassword: '',
         is_admin: usuario.is_admin,
+        setor: usuario.setor || 'geral',
       });
     } else {
       setIsEditing(false);
@@ -86,6 +123,7 @@ export default function GestaoUsuarios() {
         password: '',
         confirmPassword: '',
         is_admin: false,
+        setor: 'geral',
       });
     }
     setShowModal(true);
@@ -99,6 +137,7 @@ export default function GestaoUsuarios() {
       password: '',
       confirmPassword: '',
       is_admin: false,
+      setor: 'geral',
     });
   };
 
@@ -158,6 +197,7 @@ export default function GestaoUsuarios() {
           password: form.password || undefined,
           is_admin: form.is_admin,
           is_active: true,
+          setor: form.setor,
         });
         toast({
           title: 'Sucesso',
@@ -174,6 +214,7 @@ export default function GestaoUsuarios() {
           password: form.password,
           is_admin: form.is_admin,
           is_active: true,
+          setor: form.setor,
         });
         toast({
           title: 'Sucesso',
@@ -308,6 +349,8 @@ export default function GestaoUsuarios() {
                 <TableRow>
                   <TableHead>Usuário</TableHead>
                   <TableHead className="text-center">Tipo</TableHead>
+                  <TableHead className="text-center">Setor</TableHead>
+                  <TableHead>Senha</TableHead>
                   <TableHead>Criado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -315,7 +358,7 @@ export default function GestaoUsuarios() {
               <TableBody>
                 {filteredUsuarios.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       Nenhum usuário encontrado
                     </TableCell>
                   </TableRow>
@@ -336,6 +379,28 @@ export default function GestaoUsuarios() {
                         ) : (
                           <Badge variant="secondary">Usuário</Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`${SETOR_COLORS[usuario.setor || 'geral'] || 'bg-gray-400'} text-white`}>
+                          {getSetorLabel(usuario.setor)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 font-mono text-sm">
+                          {showPasswords[usuario.id] ? (
+                            <span>{usuario.password_plain || '********'}</span>
+                          ) : (
+                            <span>********</span>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6" 
+                            onClick={() => togglePasswordVisibility(usuario.id)}
+                          >
+                            {showPasswords[usuario.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         {formatDateForDisplay(usuario.created_at ?? null, '-')}
@@ -441,6 +506,28 @@ export default function GestaoUsuarios() {
                 ⚠️ Usuários administradores têm acesso completo ao sistema, incluindo configurações e gestão de outros usuários.
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="setor">Setor de Atuação *</Label>
+              <Select
+                value={form.setor}
+                onValueChange={(value) => handleChange('setor', value)}
+              >
+                <SelectTrigger id="setor">
+                  <SelectValue placeholder="Selecione o setor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SETORES.map((setor) => (
+                    <SelectItem key={setor.value} value={setor.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${SETOR_COLORS[setor.value]}`} />
+                        {setor.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter>

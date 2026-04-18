@@ -38,4 +38,13 @@ export const authApi = {
             useAuthStore.getState().logout();
         }
     },
+
+    changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+        requireSessionToken();
+        const response = await apiClient.post<{ success: boolean; message: string }>('/auth/change-password', {
+            current_password: currentPassword,
+            new_password: newPassword,
+        });
+        return response.data;
+    },
 };

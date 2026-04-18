@@ -418,6 +418,8 @@ export const mapUserFromApi = (user: UserApi): UserEntity => ({
     username: user.username,
     is_admin: Boolean(user.is_admin),
     is_active: Boolean(user.is_active),
+    setor: user.setor ?? undefined,
+    password_plain: user.password_plain ?? undefined,
     created_at: user.created_at ?? undefined,
 });
 
@@ -427,6 +429,7 @@ export const buildUserCreatePayload = (payload: UserCreatePayload): Record<strin
         password: payload.password,
         is_admin: payload.is_admin ?? false,
         is_active: payload.is_active ?? true,
+        setor: payload.setor ?? 'geral',
     });
 
 export const buildUserUpdatePayload = (payload: UserUpdatePayload): Record<string, any> => {
@@ -435,6 +438,7 @@ export const buildUserUpdatePayload = (payload: UserUpdatePayload): Record<strin
     if (payload.password) update.password = payload.password;
     if (payload.is_admin !== undefined) update.is_admin = payload.is_admin;
     if (payload.is_active !== undefined) update.is_active = payload.is_active;
+    if (payload.setor !== undefined) update.setor = payload.setor;
     return sanitizePayload(update);
 };
 

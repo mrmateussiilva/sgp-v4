@@ -288,6 +288,7 @@ export interface LoginResponse {
   user_id?: number;
   username?: string;
   is_admin?: boolean;
+  setor?: string;
   session_token?: string;
   message: string;
 }

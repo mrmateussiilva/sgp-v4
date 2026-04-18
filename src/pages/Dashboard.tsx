@@ -32,6 +32,7 @@ import {
   Loader2,
   Printer,
   Palette,
+  KeyRound,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -41,10 +42,15 @@ import { PwaLayout } from '@/components/layouts/PwaLayout';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 import { SafiraChat, SafiraPanel } from '@/components/Safira';
+import { useToast } from '@/hooks/use-toast';
+import { authApi } from '@/api/endpoints/auth';
 
 // Lazy load de todas as rotas para code-splitting
 const OrderList = lazy(() => import('../components/OrderList'));
@@ -92,6 +98,12 @@ export default function Dashboard() {
   const { username, isAdmin } = useAuthStore();
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+
+  // Estado do modal de troca de senha
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   // Obter versão do app
   useEffect(() => {
@@ -120,6 +132,33 @@ export default function Dashboard() {
       navigate('/login');
     }
   }, [navigate]);
+
+  const handleChangePassword = useCallback(async () => {
+    if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) {
+      toast({ title: 'Erro', description: 'Preencha todos os campos.', variant: 'destructive' });
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      toast({ title: 'Erro', description: 'As senhas não conferem.', variant: 'destructive' });
+      return;
+    }
+    if (pwForm.newPassword.length < 4) {
+      toast({ title: 'Erro', description: 'A nova senha deve ter ao menos 4 caracteres.', variant: 'destructive' });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await authApi.changePassword(pwForm.currentPassword, pwForm.newPassword);
+      toast({ title: 'Sucesso', description: 'Senha alterada com sucesso!' });
+      setShowChangePassword(false);
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail || 'Erro ao alterar senha.';
+      toast({ title: 'Erro', description: msg, variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
+    }
+  }, [pwForm, toast]);
 
   // Atalhos de teclado
   const dashboardShortcuts = useMemo(
@@ -338,6 +377,7 @@ export default function Dashboard() {
 
   // Desktop Tauri: layout com sidebar
   return (
+    <>
     <TooltipProvider delayDuration={300}>
       <div className="flex h-screen bg-background overflow-hidden">
         {/* Sidebar Desktop */}
@@ -447,6 +487,13 @@ export default function Dashboard() {
               <div className="mb-3 px-3">
                 <p className="text-sm font-medium">Usuário</p>
                 <p className="text-sm text-muted-foreground truncate">{username}</p>
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
+                >
+                  <KeyRound className="h-3 w-3" />
+                  Alterar Senha
+                </button>
               </div>
             )}
             {!sidebarExpanded ? (
@@ -614,5 +661,36 @@ export default function Dashboard() {
         <SafiraPanel />
       </div>
     </TooltipProvider>
+
+    {/* Modal Alterar Senha */}
+    <Dialog open={showChangePassword} onOpenChange={(open) => { if (!open) { setShowChangePassword(false); setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Alterar Senha</DialogTitle>
+          <DialogDescription>Digite sua senha atual e a nova senha desejada.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Senha Atual</Label>
+            <Input id="currentPassword" type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm(prev => ({ ...prev, currentPassword: e.target.value }))} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">Nova Senha</Label>
+            <Input id="newPassword" type="password" value={pwForm.newPassword} onChange={(e) => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+            <Input id="confirmPassword" type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm(prev => ({ ...prev, confirmPassword: e.target.value }))} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowChangePassword(false)}>Cancelar</Button>
+          <Button onClick={handleChangePassword} disabled={changingPassword}>
+            {changingPassword ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Salvar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

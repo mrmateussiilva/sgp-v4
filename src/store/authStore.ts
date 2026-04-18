@@ -8,6 +8,7 @@ interface AuthState {
   userId: number | null;
   username: string | null;
   isAdmin: boolean;
+  setor: string | null;
   sessionToken: string | null;
   sessionExpiresAt: number | null;
   login: (payload: {
@@ -15,6 +16,7 @@ interface AuthState {
     username: string;
     sessionToken: string;
     isAdmin?: boolean;
+    setor?: string;
     expiresInSeconds?: number;
   }) => void;
   logout: () => void;
@@ -25,6 +27,7 @@ const createInitialState = (): Omit<AuthState, 'login' | 'logout'> => ({
   userId: null,
   username: null,
   isAdmin: false,
+  setor: null,
   sessionToken: null,
   sessionExpiresAt: null,
 });
@@ -33,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       ...createInitialState(),
-      login: ({ userId, username, sessionToken, isAdmin = false, expiresInSeconds }) => {
+      login: ({ userId, username, sessionToken, isAdmin = false, setor, expiresInSeconds }) => {
         const ttlMs =
           typeof expiresInSeconds === 'number' && expiresInSeconds > 0
             ? expiresInSeconds * 1000
@@ -43,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
           userId,
           username,
           isAdmin,
+          setor: setor || 'geral',
           sessionToken,
           sessionExpiresAt: Date.now() + ttlMs,
         });
@@ -67,6 +71,7 @@ export const useAuthStore = create<AuthState>()(
         userId: state.userId,
         username: state.username,
         isAdmin: state.isAdmin,
+        setor: state.setor,
         sessionToken: state.sessionToken,
         sessionExpiresAt: state.sessionExpiresAt,
       }),

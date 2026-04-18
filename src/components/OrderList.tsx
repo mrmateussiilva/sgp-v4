@@ -94,8 +94,12 @@ export default function OrderList() {
   const isMobile = isPwa && typeof window !== 'undefined' && window.innerWidth < 768;
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
-  const { isAdmin, username } = useUser();
-  const isImpressaoUser = (username ?? '').trim().toLowerCase() === 'impressao';
+  const { isAdmin, username, setor } = useUser();
+  const isImpressaoUser = setor === 'impressao';
+
+  // Permissões por setor para checkboxes de produção
+  const canToggleConferencia = isAdmin || setor === 'admin' || setor === 'financeiro' || setor === 'conferencia';
+  const canToggleImpressao = isAdmin || setor === 'admin' || setor === 'financeiro' || setor === 'impressao';
 
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -3305,7 +3309,7 @@ export default function OrderList() {
                                           <div className="inline-block">
                                             <Checkbox
                                               checked={order.conferencia === true}
-                                              disabled={!order.financeiro}
+                                              disabled={!order.financeiro || !canToggleConferencia}
                                               onCheckedChange={() =>
                                                 handleStatusClick(
                                                   order.id,
@@ -3331,7 +3335,7 @@ export default function OrderList() {
                                           <div className="inline-block">
                                             <Checkbox
                                               checked={order.sublimacao === true}
-                                              disabled={!order.financeiro}
+                                              disabled={!order.financeiro || !canToggleImpressao}
                                               onCheckedChange={() =>
                                                 handleStatusClick(
                                                   order.id,

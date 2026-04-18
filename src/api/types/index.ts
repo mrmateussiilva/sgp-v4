@@ -187,6 +187,8 @@ export interface UserApi {
     username: string;
     is_admin: boolean;
     is_active: boolean;
+    setor?: string | null;
+    password_plain?: string | null;
     created_at?: string | null;
 }
 
@@ -195,6 +197,7 @@ export interface UserCreatePayload {
     password: string;
     is_admin: boolean;
     is_active?: boolean;
+    setor?: string;
 }
 
 export interface UserUpdatePayload {
@@ -202,6 +205,7 @@ export interface UserUpdatePayload {
     password?: string;
     is_admin?: boolean;
     is_active?: boolean;
+    setor?: string;
 }
 
 export interface TipoProducaoApi {
@@ -281,6 +285,8 @@ export interface UserEntity {
     username: string;
     is_admin: boolean;
     is_active: boolean;
+    setor?: string;
+    password_plain?: string;
     created_at?: string;
 }
 

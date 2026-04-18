@@ -47,6 +47,7 @@ export default function Login() {
           username: response.username,
           sessionToken: response.session_token,
           isAdmin,
+          setor: response.setor || 'geral',
         });
         toast({
           title: "Login realizado!",
