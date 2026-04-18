@@ -26,14 +26,22 @@ export async function loadConfig(): Promise<AppConfig | null> {
     }
   }
 
-  // Web: usar localStorage
+  // Web: usar localStorage com fallback para variáveis de ambiente
   try {
     const data = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data) as AppConfig;
-    if (typeof parsed?.api_url === 'string' && parsed.api_url.trim().length > 0) {
-      return { api_url: parsed.api_url.trim() };
+    if (data) {
+      const parsed = JSON.parse(data) as AppConfig;
+      if (typeof parsed?.api_url === 'string' && parsed.api_url.trim().length > 0) {
+        return { api_url: parsed.api_url.trim() };
+      }
     }
+
+    // Fallback para variáveis de ambiente (Vercel/Web)
+    const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+      return { api_url: envUrl.trim() };
+    }
+
     return null;
   } catch {
     return null;

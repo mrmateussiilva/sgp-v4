@@ -21,7 +21,7 @@ type StatusState =
   | { type: 'success'; message: string }
   | { type: 'error'; message: string };
 
-const DEFAULT_API_URL = import.meta.env.VITE_API_BASE_URL || '';
+const DEFAULT_API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '';
 
 export default function ConfigApi({ onConfigured, reason = 'no_config' }: ConfigApiProps) {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
