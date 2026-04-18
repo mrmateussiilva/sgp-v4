@@ -94,7 +94,7 @@ export default function OrderList() {
   const isMobile = isPwa && typeof window !== 'undefined' && window.innerWidth < 768;
   const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
   const logout = useAuthStore((state) => state.logout);
-  const { isAdmin, username, setor } = useUser();
+  const { isAdmin, setor } = useUser();
   const isImpressaoUser = setor === 'impressao';
 
   // Permissões por setor para checkboxes de produção

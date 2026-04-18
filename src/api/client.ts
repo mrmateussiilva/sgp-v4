@@ -19,11 +19,16 @@ const apiClient: AxiosInstance = axios.create({
 applyTauriAdapter(apiClient);
 
 apiClient.interceptors.request.use((config) => {
+  const headers = config.headers ?? {} as Record<string, string>;
+  
   if (authToken) {
-    const headers = config.headers ?? {} as Record<string, string>;
     headers.Authorization = `Bearer ${authToken}`;
-    config.headers = headers;
   }
+
+  // Bypass ngrok browser warning for all requests
+  headers['ngrok-skip-browser-warning'] = 'true';
+  
+  config.headers = headers;
   return config;
 });
 
