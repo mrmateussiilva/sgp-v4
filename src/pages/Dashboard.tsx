@@ -32,7 +32,6 @@ import {
   Loader2,
   Printer,
   Palette,
-  KeyRound,
   BellRing,
   Lock,
 } from 'lucide-react';
