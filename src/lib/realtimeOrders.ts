@@ -615,6 +615,30 @@ class OrdersWebSocketManager {
     };
     this.sendMessage(message);
   }
+
+  /**
+   * Envia uma notificação de teste para todos os outros clientes para validar o tempo real
+   */
+  sendTestBroadcast(): void {
+    const authState = useAuthStore.getState();
+    const userId = authState.userId;
+
+    const message: OrderEventMessage = {
+      type: 'order_created',
+      order_id: 0, // ID 0 indica teste
+      order_numero: 'TESTE-BROADCAST',
+      details: 'Isso é uma notificação de teste enviada de outro dispositivo.',
+      user_id: userId,
+      timestamp: Date.now(),
+      broadcast: true,
+    };
+
+    if (import.meta.env.DEV) {
+      logger.debug('📤 Enviando notificação de teste via broadcast');
+    }
+
+    this.sendMessage(message);
+  }
 }
 
 export const ordersSocket = new OrdersWebSocketManager();

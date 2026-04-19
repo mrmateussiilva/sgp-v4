@@ -52,6 +52,7 @@ import { cn } from '@/lib/utils';
 import { SafiraChat, SafiraPanel } from '@/components/Safira';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
+import { ordersSocket } from '@/lib/realtimeOrders';
 import { sendNativeNotification, requestNotificationPermission } from '@/utils/notifications';
 
 // Lazy load de todas as rotas para code-splitting
@@ -499,13 +500,18 @@ export default function Dashboard() {
                   onClick={async () => {
                     const granted = await requestNotificationPermission();
                     if (granted) {
+                      // Teste Local
                       sendNativeNotification({
                         title: 'Teste de Notificação',
                         body: 'Se você está vendo isso, as notificações nativas estão funcionando!'
                       });
+
+                      // Teste de REDE (Broadcast para outros)
+                      ordersSocket.sendTestBroadcast();
+
                       toast({
                         title: "Teste enviado",
-                        description: "A notificação deve aparecer no seu sistema.",
+                        description: "A notificação deve aparecer aqui e em outros dispositivos conectados.",
                       });
                     } else {
                       toast({

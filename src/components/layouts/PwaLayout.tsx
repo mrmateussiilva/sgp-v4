@@ -9,14 +9,15 @@ import {
   BarChart,
   Users,
   FileText,
+  BellRing,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { BellRing } from 'lucide-react';
 import { sendNativeNotification, requestNotificationPermission } from '@/utils/notifications';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/isTauri';
+import { ordersSocket } from '@/lib/realtimeOrders';
 import { BottomNavBar } from './BottomNavBar';
 import {
   DropdownMenu,
@@ -165,13 +166,18 @@ export function PwaLayout({ children }: PwaLayoutProps) {
             onClick={async () => {
               const granted = await requestNotificationPermission();
               if (granted) {
+                // Teste Local
                 sendNativeNotification({
                   title: 'Teste de Notificação',
                   body: 'Se você está vendo isso, as notificações nativas estão funcionando!'
                 });
+                
+                // Teste de REDE (Broadcast para outros)
+                ordersSocket.sendTestBroadcast();
+
                 toast({
                   title: "Teste enviado",
-                  description: "A notificação deve aparecer no seu sistema.",
+                  description: "A notificação deve aparecer aqui e em outros dispositivos conectados.",
                 });
               } else {
                 toast({
