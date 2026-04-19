@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
       react(),
       ...(!isTauri ? [VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['changelog.md'],
+        includeAssets: ['changelog.md', 'sw-push.js'],
         manifest: {
           name: 'SGP - Sistema de Gerenciamento de Pedidos',
           short_name: 'SGP',
@@ -56,7 +56,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,svg}'],
-          globIgnores: ['**/pwa-192x192.png', '**/pwa-512x512.png'],
+          globIgnores: ['**/pwa-192x192.png', '**/pwa-512x512.png', '**/sw-push.js'],
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           runtimeCaching: [
             {
