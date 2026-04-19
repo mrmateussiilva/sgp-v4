@@ -1,4 +1,5 @@
 import { useToast } from './use-toast';
+import { sendNativeNotification } from '@/utils/notifications';
 
 // ========================================
 // TIPOS DE NOTIFICAÇÃO (compartilhados)
@@ -272,6 +273,12 @@ export class NotificationManager {
       variant,
       duration: count > 3 ? 4000 : 3000, // Mais tempo se tiver muitos pedidos
     });
+
+    // Enviar notificação nativa para grupos importantes
+    sendNativeNotification({
+      title,
+      body: description
+    });
   }
 
   /**
@@ -321,6 +328,12 @@ export class NotificationManager {
       description,
       variant,
       duration,
+    });
+
+    // Enviar notificação nativa individual
+    sendNativeNotification({
+      title,
+      body: description
     });
   }
 

@@ -50,8 +50,8 @@ pub async fn generate_production_pdf(
         .collect();
 
     // 2. Create PDF generator
-    let generator = PdfGenerator::new()
-        .map_err(|e| format!("Failed to initialize PDF generator: {}", e))?;
+    let generator =
+        PdfGenerator::new().map_err(|e| format!("Failed to initialize PDF generator: {}", e))?;
 
     // 3. Render template with grouped data
     let html = render_template(&request.template_html, &pages)
@@ -76,13 +76,15 @@ pub async fn generate_production_pdf(
     let filename = format!("producao_{}.pdf", timestamp);
     let pdf_path = pdf_dir.join(&filename);
 
-    std::fs::write(&pdf_path, pdf_bytes)
-        .map_err(|e| format!("Failed to write PDF file: {}", e))?;
+    std::fs::write(&pdf_path, pdf_bytes).map_err(|e| format!("Failed to write PDF file: {}", e))?;
 
     Ok(pdf_path.to_string_lossy().to_string())
 }
 
-fn render_template(template: &str, pages: &[PageGroup]) -> Result<String, Box<dyn std::error::Error>> {
+fn render_template(
+    template: &str,
+    pages: &[PageGroup],
+) -> Result<String, Box<dyn std::error::Error>> {
     use handlebars::Handlebars;
 
     let mut handlebars = Handlebars::new();

@@ -3,31 +3,24 @@
 mod commands;
 mod pdf_generator;
 
-use tauri::Manager;
-use tracing::{info, warn};
 #[cfg(debug_assertions)]
 use commands::devtools::{
-    close_devtools,
-    is_devtools_open,
-    open_devtools,
-    test_devtools_system,
-    toggle_devtools,
+    close_devtools, is_devtools_open, open_devtools, test_devtools_system, toggle_devtools,
 };
-use commands::update::{get_app_version, fetch_changelog};
 use commands::images::{
-    save_image_locally,
-    get_local_image_path,
-    load_local_image_as_base64,
-    read_image_file,
-    cache_image_from_url,
-    process_and_save_image,
+    cache_image_from_url, get_local_image_path, load_local_image_as_base64, process_and_save_image,
+    read_image_file, save_image_locally,
 };
 use commands::pdf::generate_production_pdf;
+use commands::update::{fetch_changelog, get_app_version};
+use tauri::Manager;
+use tracing::{info, warn};
 
 fn main() {
     setup_tracing();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())

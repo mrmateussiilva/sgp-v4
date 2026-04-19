@@ -21,7 +21,7 @@ struct GitHubRelease {
 #[tauri::command]
 pub async fn fetch_changelog(version: String) -> Result<String, String> {
     info!("Buscando changelog para versão: {}", version);
-    
+
     let client = reqwest::Client::builder()
         .user_agent("SGP-Desktop-App")
         .build()
@@ -33,17 +33,17 @@ pub async fn fetch_changelog(version: String) -> Result<String, String> {
     } else {
         format!("v{}", version)
     };
-    
+
     // TENTATIVA 1: Buscar do GitHub Releases (Body da Tag)
     let release_url = format!(
         "https://api.github.com/repos/mrmateussiilva/sgp-v4/releases/tags/{}",
         tag
     );
-    
+
     info!("Tentativa 1: Buscando release no GitHub: {}", release_url);
-    
+
     let release_response = client.get(&release_url).send().await;
-    
+
     match release_response {
         Ok(response) if response.status().is_success() => {
             if let Ok(release) = response.json::<GitHubRelease>().await {
@@ -61,24 +61,25 @@ pub async fn fetch_changelog(version: String) -> Result<String, String> {
     }
 
     // TENTATIVA 2: Fallback para o arquivo CHANGELOG.md bruto no repositório
-    let raw_changelog_url = "https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/documentation/CHANGELOG.md";
-    info!("Tentativa 2: Buscando CHANGELOG.md bruto: {}", raw_changelog_url);
+    let raw_changelog_url =
+        "https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/documentation/CHANGELOG.md";
+    info!(
+        "Tentativa 2: Buscando CHANGELOG.md bruto: {}",
+        raw_changelog_url
+    );
 
     match client.get(raw_changelog_url).send().await {
-        Ok(response) if response.status().is_success() => {
-            match response.text().await {
-                Ok(content) => {
-                    info!("Changelog obtido via CHANGELOG.md (bruto)");
-                    Ok(content)
-                }
-                Err(e) => Err(format!("Erro ao ler conteúdo do CHANGELOG.md: {}", e)),
+        Ok(response) if response.status().is_success() => match response.text().await {
+            Ok(content) => {
+                info!("Changelog obtido via CHANGELOG.md (bruto)");
+                Ok(content)
             }
-        }
-        Ok(response) => {
-            Err(format!("Erro ao buscar CHANGELOG.md (Status: {})", response.status()))
-        }
-        Err(e) => {
-            Err(format!("Erro de rede ao buscar CHANGELOG.md: {}", e))
-        }
+            Err(e) => Err(format!("Erro ao ler conteúdo do CHANGELOG.md: {}", e)),
+        },
+        Ok(response) => Err(format!(
+            "Erro ao buscar CHANGELOG.md (Status: {})",
+            response.status()
+        )),
+        Err(e) => Err(format!("Erro de rede ao buscar CHANGELOG.md: {}", e)),
     }
 }

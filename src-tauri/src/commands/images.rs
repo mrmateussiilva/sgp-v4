@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
@@ -6,7 +7,6 @@ use std::path::Path;
 use tauri::{command, AppHandle, Manager};
 use tracing::{debug, error, info};
 use uuid::Uuid;
-use base64::{Engine as _, engine::general_purpose};
 
 // Estrutura para armazenar metadados de imagem
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +38,11 @@ pub async fn save_image_locally(
     image_data: Vec<u8>, // Bytes da imagem (não base64)
     mime_type: String,
 ) -> Result<ImageMetadata, String> {
-    info!("Salvando imagem localmente (tamanho: {} bytes, tipo: {})", image_data.len(), mime_type);
+    info!(
+        "Salvando imagem localmente (tamanho: {} bytes, tipo: {})",
+        image_data.len(),
+        mime_type
+    );
 
     // 1. Criar diretório de imagens locais se não existir
     let images_dir = get_images_dir(&app)?;
@@ -71,8 +75,7 @@ pub async fn save_image_locally(
     let file_path = images_dir.join(&file_name);
 
     // 3. Salvar arquivo localmente
-    fs::write(&file_path, image_data)
-        .map_err(|e| format!("Erro ao salvar imagem: {}", e))?;
+    fs::write(&file_path, image_data).map_err(|e| format!("Erro ao salvar imagem: {}", e))?;
 
     let file_size = fs::metadata(&file_path)
         .map_err(|e| format!("Erro ao obter metadados do arquivo: {}", e))?
@@ -105,11 +108,11 @@ pub async fn get_local_image_path(
 
     // 2. Verificar cache local por referência do servidor
     let images_dir = get_images_dir(&app)?;
-    
+
     // Tentar encontrar arquivo com nome baseado na referência
     // A referência pode ser um hash ou nome de arquivo
     let cache_file = images_dir.join(format!("{}.cache", image_reference));
-    
+
     if cache_file.exists() {
         match fs::read_to_string(&cache_file) {
             Ok(cached_path) => {
@@ -151,15 +154,14 @@ pub async fn load_local_image_as_base64(
     // Verificar se o caminho está dentro do diretório permitido
     let images_dir = get_images_dir(&app)?;
     let path = Path::new(&local_path);
-    
+
     // Verificar segurança: caminho deve estar dentro do diretório de imagens
     if !path.starts_with(&images_dir) && !path.exists() {
         return Err("Caminho de imagem inválido ou não autorizado".to_string());
     }
 
     // Carregar imagem do disco
-    let image_data = fs::read(&local_path)
-        .map_err(|e| format!("Erro ao ler imagem: {}", e))?;
+    let image_data = fs::read(&local_path).map_err(|e| format!("Erro ao ler imagem: {}", e))?;
 
     // Detectar mime type
     let mime_type = infer::get(&image_data)
@@ -170,28 +172,33 @@ pub async fn load_local_image_as_base64(
     let base64_data = general_purpose::STANDARD.encode(&image_data);
     let data_url = format!("data:{};base64,{}", mime_type, base64_data);
 
-    info!("Imagem carregada como base64: {} (tamanho: {} bytes)", local_path, image_data.len());
+    info!(
+        "Imagem carregada como base64: {} (tamanho: {} bytes)",
+        local_path,
+        image_data.len()
+    );
     Ok(data_url)
 }
 
 /// Lê arquivo de imagem como array de bytes
 #[command]
-pub async fn read_image_file(
-    app: AppHandle,
-    local_path: String,
-) -> Result<Vec<u8>, String> {
+pub async fn read_image_file(app: AppHandle, local_path: String) -> Result<Vec<u8>, String> {
     let images_dir = get_images_dir(&app)?;
     let path = Path::new(&local_path);
-    
+
     // Verificar segurança
     if !path.starts_with(&images_dir) && !path.exists() {
         return Err("Caminho de imagem inválido ou não autorizado".to_string());
     }
 
-    let image_data = fs::read(&local_path)
-        .map_err(|e| format!("Erro ao ler arquivo de imagem: {}", e))?;
+    let image_data =
+        fs::read(&local_path).map_err(|e| format!("Erro ao ler arquivo de imagem: {}", e))?;
 
-    info!("Arquivo de imagem lido: {} (tamanho: {} bytes)", local_path, image_data.len());
+    info!(
+        "Arquivo de imagem lido: {} (tamanho: {} bytes)",
+        local_path,
+        image_data.len()
+    );
     Ok(image_data)
 }
 
@@ -202,7 +209,11 @@ pub async fn cache_image_from_url(
     image_url: String,
     image_data: Vec<u8>,
 ) -> Result<ImageMetadata, String> {
-    debug!("Cacheando imagem da URL: {} (tamanho: {} bytes)", image_url, image_data.len());
+    debug!(
+        "Cacheando imagem da URL: {} (tamanho: {} bytes)",
+        image_url,
+        image_data.len()
+    );
 
     // Gerar hash da URL para usar como identificador
     let mut hasher = DefaultHasher::new();
@@ -311,4 +322,3 @@ pub async fn process_and_save_image(
         server_reference: None,
     })
 }
-

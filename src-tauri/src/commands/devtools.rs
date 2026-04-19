@@ -5,7 +5,7 @@ use tracing::{info, warn};
 #[tauri::command]
 pub async fn open_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Tentando abrir DevTools...");
-    
+
     // Obter a janela principal
     if let Some(window) = app_handle.get_webview_window("main") {
         window.open_devtools();
@@ -21,7 +21,7 @@ pub async fn open_devtools(app_handle: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn close_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Tentando fechar DevTools...");
-    
+
     // Obter a janela principal
     if let Some(window) = app_handle.get_webview_window("main") {
         window.close_devtools();
@@ -37,7 +37,7 @@ pub async fn close_devtools(app_handle: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn toggle_devtools(app_handle: AppHandle) -> Result<(), String> {
     info!("Alternando estado do DevTools...");
-    
+
     // Obter a janela principal
     if let Some(window) = app_handle.get_webview_window("main") {
         // Como não há toggle_devtools, vamos implementar uma lógica simples
@@ -69,13 +69,13 @@ pub async fn is_devtools_open(app_handle: AppHandle) -> Result<bool, String> {
 #[tauri::command]
 pub async fn test_devtools_system(app_handle: AppHandle) -> Result<String, String> {
     info!("Testando sistema DevTools...");
-    
+
     // Obter a janela principal
     if let Some(window) = app_handle.get_webview_window("main") {
         // Testa abrir DevTools
         window.open_devtools();
         info!("✅ DevTools aberto com sucesso no teste");
-        
+
         window.close_devtools();
         info!("✅ DevTools fechado com sucesso no teste");
         Ok("Sistema DevTools testado com sucesso!".to_string())

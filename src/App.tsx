@@ -17,6 +17,7 @@ import { ChangelogModal } from './components/ChangelogModal';
 import { logger } from './utils/logger';
 import { UpdateBanner } from './components/UpdateBanner';
 import { CommandPalette } from './components/CommandPalette';
+import { requestNotificationPermission } from './utils/notifications';
 import type { FallbackReason } from './pages/ConfigApi';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -188,6 +189,9 @@ function App() {
     };
 
     verifyConfig();
+    
+    // Solicitar permissão para notificações
+    requestNotificationPermission();
   }, []);
 
   useEffect(() => {
