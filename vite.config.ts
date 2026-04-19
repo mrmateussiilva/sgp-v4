@@ -59,6 +59,7 @@ export default defineConfig(({ mode }) => {
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,svg}'],
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
       })] : []),
     ],
