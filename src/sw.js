@@ -28,10 +28,8 @@ registerRoute(
 
 // Fallback de navegação: se a página não carregar (offline), retorna o index.html
 const navigationRoute = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  match: ({ request }: any) => request.mode === 'navigate',
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: async ({ event }: any) => {
+  match: ({ request }) => request.mode === 'navigate',
+  handler: async ({ event }) => {
     try {
       return await new NetworkFirst({
         cacheName: 'pages-cache',
