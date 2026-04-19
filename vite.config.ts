@@ -22,8 +22,11 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       ...(!isTauri ? [VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
         registerType: 'autoUpdate',
-        includeAssets: ['changelog.md', 'sw-push.js'],
+        includeAssets: ['changelog.md'],
         manifest: {
           name: 'SGP - Sistema de Gerenciamento de Pedidos',
           short_name: 'SGP',
@@ -54,26 +57,8 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-        workbox: {
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,svg}'],
-          globIgnores: ['**/pwa-192x192.png', '**/pwa-512x512.png', '**/sw-push.js'],
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-          runtimeCaching: [
-            {
-              urlPattern: /^https?:\/\/.*\/api\/.*/i,
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'api-cache',
-                expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 300,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-          ],
         },
       })] : []),
     ],

@@ -43,22 +43,16 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Registra o Service Worker de notificações push se ainda não estiver ativo.
- * Retorna o ServiceWorkerRegistration ou null se não suportado/falhou.
+ * Obtém a instância ativa do Service Worker registrado pelo PWA.
  */
 async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
-
+  
   try {
-    // Verificar se já existe um SW registrado (pode ser o do vite-plugin-pwa)
-    const existing = await navigator.serviceWorker.getRegistration('/');
-    if (existing) return existing;
-
-    // Registrar o SW de push customizado
-    const reg = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
-    return reg;
+    // navigator.serviceWorker.ready aguarda o SW do Vite PWA estar pronto
+    return await navigator.serviceWorker.ready;
   } catch (err) {
-    console.warn('[SGP Notifications] Erro ao obter/registrar service worker:', err);
+    console.warn('[SGP Notifications] Erro ao obter service worker:', err);
     return null;
   }
 }
