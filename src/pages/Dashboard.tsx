@@ -51,6 +51,7 @@ import { cn } from '@/lib/utils';
 import { SafiraChat, SafiraPanel } from '@/components/Safira';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
+import { sendNativeNotification, requestNotificationPermission } from '@/utils/notifications';
 
 // Lazy load de todas as rotas para code-splitting
 const OrderList = lazy(() => import('../components/OrderList'));
@@ -491,8 +492,31 @@ export default function Dashboard() {
                   onClick={() => setShowChangePassword(true)}
                   className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
                 >
-                  <KeyRound className="h-3 w-3" />
-                  Alterar Senha
+                  <Lock size={12} /> Alterar senha
+                </button>
+                <button
+                  onClick={async () => {
+                    const granted = await requestNotificationPermission();
+                    if (granted) {
+                      sendNativeNotification({
+                        title: 'Teste de Notificação',
+                        body: 'Se você está vendo isso, as notificações nativas estão funcionando!'
+                      });
+                      toast({
+                        title: "Teste enviado",
+                        description: "A notificação deve aparecer no seu sistema.",
+                      });
+                    } else {
+                      toast({
+                        title: "Sem permissão",
+                        description: "As notificações estão bloqueadas no seu navegador/celular.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
+                >
+                  <BellRing size={12} /> Testar Notificações
                 </button>
               </div>
             )}

@@ -116,7 +116,8 @@ export const useRealtimeNotifications = () => {
       return;
     }
 
-    // Filtrar notificações do próprio usuário (exceto delete que é sempre importante)
+    // Filtro do próprio usuário desativado TEMPORARIAMENTE para fins de teste
+    /*
     if (
       extractedUserId !== undefined &&
       userId !== undefined &&
@@ -124,10 +125,10 @@ export const useRealtimeNotifications = () => {
       notification.notification_type !== NotificationType.OrderDeleted
     ) {
       logger.debug('🔇 Notificação do próprio usuário ignorada:', notification);
-      // Ainda recarregar a lista, mas sem mostrar toast
       refreshOrders();
       return;
     }
+    */
 
     // Extrair informações adicionais do pedido para detalhes
     const statusDetails = extractStatusDetails(orderPayload);
