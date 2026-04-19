@@ -1,5 +1,14 @@
 # Changelog - SGP v4
 
+## [1.3.7] - 2026-04-19
+
+### 🔧 Melhorias no Service Worker & PWA
+- **Correção de Build**: Removida sintaxe TypeScript de arquivo JavaScript (`src/sw.js`) para corrigir erro de build.
+- **Resiliência Offline**: Implementada melhoria de resiliência quando o backend está offline, permitindo funcionamento offline do PWA.
+- **Aumento de Cache**: Limite de cache PWA aumentado para suportar bundles de vendor grandes.
+- **Notificações Push**: Implementado Service Worker com notificações push para suporte em background.
+- **Teste de Broadcast**: Implementada funcionalidade de teste de broadcast em tempo real para validação de notificações entre dispositivos.
+
 ## [1.3.5] - 2026-03-14
 
 ### ✨ SAFIRA - Assistente Inteligente V1 (Refinamento Completo)
