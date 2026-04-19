@@ -33,6 +33,8 @@ import {
   Printer,
   Palette,
   KeyRound,
+  BellRing,
+  Lock,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
