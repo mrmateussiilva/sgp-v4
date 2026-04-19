@@ -13,21 +13,21 @@ type ApiFailureListener = (error: AxiosError) => void;
 const listeners = new Set<ApiFailureListener>();
 
 const apiClient: AxiosInstance = axios.create({
-  timeout: 30000, // Aumentar timeout para 30 segundos para conexões de rede
+  timeout: 10000, // Reduzido para 10 segundos para falhar mais rápido no browser
 });
 
 applyTauriAdapter(apiClient);
 
 apiClient.interceptors.request.use((config) => {
   const headers = config.headers ?? {} as Record<string, string>;
-  
+
   if (authToken) {
     headers.Authorization = `Bearer ${authToken}`;
   }
 
   // Bypass ngrok browser warning for all requests
   headers['ngrok-skip-browser-warning'] = 'any';
-  
+
   config.headers = headers;
   return config;
 });
@@ -85,8 +85,8 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
   let lastError: unknown;
   let lastResponse: AxiosError | null = null;
 
-  // Aumentar timeout para 15 segundos para dar tempo em conexões de rede
-  const timeout = 15000;
+  // Reduzido para 8 segundos (metade do anterior) para evitar hang no browser
+  const timeout = 8000;
 
   for (const endpoint of STATUS_ENDPOINTS) {
     try {
@@ -144,9 +144,9 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
 
   if (lastError instanceof AxiosError) {
     // Melhorar mensagem de erro
-    const errorMessage = lastError.code === 'ECONNREFUSED'
+    const errorMessage = (lastError.code === 'ECONNREFUSED' || lastError.code === 'ERR_NETWORK')
       ? `Não foi possível conectar ao servidor em ${normalized}. Verifique:\n- Se a API está rodando na porta 8000\n- Se o IP está correto (ex: 192.168.15.2:8000)\n- Se o firewall permite conexões\n- Se está na mesma rede`
-      : lastError.code === 'ETIMEDOUT'
+      : lastError.code === 'ETIMEDOUT' || lastError.code === 'ECONNABORTED'
         ? `Timeout ao conectar ao servidor em ${normalized}. Verifique a conexão de rede.`
         : lastError.message || 'Erro desconhecido ao conectar à API';
 

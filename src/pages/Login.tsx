@@ -38,7 +38,11 @@ export default function Login() {
     setErrorStatus(null);
 
     try {
-      const response = await api.login({ username, password });
+      // Usar X-Silent-Request para evitar que o interceptor global onApiFailure
+      // redirecione para a tela de ConfigApi durante o login.
+      // Também definimos um timeout local mais curto para falhar rápido se offline.
+      const loginRequest = { username, password };
+      const response = await api.login(loginRequest);
 
       if (response.success && response.user_id && response.username && response.session_token) {
         const isAdmin = response.is_admin || false;
@@ -78,27 +82,27 @@ export default function Login() {
               SGP • FinderBit
             </CardTitle>
             <CardDescription className="text-slate-500 font-bold text-sm">
-                Entre com suas credenciais para acessar o sistema.
+              Entre com suas credenciais para acessar o sistema.
             </CardDescription>
           </div>
 
           {/* SaaS Benefits Section */}
           <div className="flex flex-col items-center gap-2 pt-2 pb-1">
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-                {[
-                    'Controle total da produção',
-                    'Gestão em tempo real',
-                    'Insights com SAFIRA'
-                ].map((benefit, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tight">
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        {benefit}
-                    </div>
-                ))}
+              {[
+                'Controle total da produção',
+                'Gestão em tempo real',
+                'Insights com SAFIRA'
+              ].map((benefit, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-tight">
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                  {benefit}
+                </div>
+              ))}
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="px-8 pb-10">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
@@ -170,24 +174,24 @@ export default function Login() {
             )}
 
             <div className="space-y-4">
-                <Button 
-                    type="submit" 
-                    className="w-full h-12 font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.97]" 
-                    disabled={loading}
-                >
+              <Button
+                type="submit"
+                className="w-full h-12 font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.97]"
+                disabled={loading}
+              >
                 {loading ? (
-                    <>
+                  <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Entrando...
-                    </>
+                  </>
                 ) : 'Acessar Sistema'}
-                </Button>
-                
-                <div className="text-center">
-                    <button type="button" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">
-                        Esqueceu sua senha?
-                    </button>
-                </div>
+              </Button>
+
+              <div className="text-center">
+                <button type="button" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">
+                  Esqueceu sua senha?
+                </button>
+              </div>
             </div>
           </form>
 
@@ -195,12 +199,12 @@ export default function Login() {
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3">
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-                    © FinderBit • SGP v1.3.5
+                  © FinderBit • SGP v1.3.5
                 </p>
                 <div className="h-1 w-1 rounded-full bg-slate-200" />
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[9px] font-black text-green-600 uppercase tracking-tight">Sistema operacional</span>
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[9px] font-black text-green-600 uppercase tracking-tight">Sistema operacional</span>
                 </div>
               </div>
               <a

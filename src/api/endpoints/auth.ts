@@ -12,7 +12,12 @@ const requireSessionToken = (): void => {
 
 export const authApi = {
     login: async (request: LoginRequest): Promise<LoginResponse> => {
-        const response = await apiClient.post<LoginResponse>('/auth/login', request);
+        // Permitir passar headers específicos na chamada
+        const response = await apiClient.post<LoginResponse>('/auth/login', request, {
+            headers: {
+                'X-Silent-Request': 'true'
+            }
+        });
         if (response.data.session_token) {
             setAuthToken(response.data.session_token);
         }

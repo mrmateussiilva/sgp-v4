@@ -6,13 +6,43 @@ import { NetworkFirst } from 'workbox-strategies';
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
-// Cache de API
+// Cache de API com timeout para falhar rápido se o backend estiver offline
 registerRoute(
   ({ url }) => url.pathname.includes('/api/'),
   new NetworkFirst({
     cacheName: 'api-cache',
+    networkTimeoutSeconds: 3, // Se não responder em 3s, usa cache (evita hang infinito)
+    plugins: [
+      {
+        cacheKeyWillBeUsed: async ({ request }) => {
+          // Não cachear chamadas de login ou multipart (uploads)
+          if (request.url.includes('/auth/login') || request.method === 'POST') {
+            return null;
+          }
+          return request;
+        }
+      }
+    ]
   })
 );
+
+// Fallback de navegação: se a página não carregar (offline), retorna o index.html
+const navigationRoute = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  match: ({ request }: any) => request.mode === 'navigate',
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: async ({ event }: any) => {
+    try {
+      return await new NetworkFirst({
+        cacheName: 'pages-cache',
+      }).handle({ event, request: event.request });
+    } catch {
+      // Se falhar tudo, tenta retornar o index.html do precache
+      return caches.match('/');
+    }
+  }
+};
+registerRoute(navigationRoute.match, navigationRoute.handler);
 
 /**
  * Notificações do SGP

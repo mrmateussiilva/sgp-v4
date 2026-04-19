@@ -189,21 +189,53 @@ function App() {
     };
 
     verifyConfig();
-    
+
     // Solicitar permissão para notificações
     requestNotificationPermission();
   }, []);
 
   useEffect(() => {
+    // Contador e timestamp para evitar redirecionamento por falhas pontuais (debounce)
+    let failureCount = 0;
+    let lastFailureTime = 0;
+    const FAILURE_THRESHOLD = 3; // Precisamos de 3 falhas seguidas
+    const RESET_TIMEOUT = 10000; // Resetar contador após 10s sem falhas
+
     const unsubscribe = onApiFailure(() => {
-      setApiUrl(null);
-      setFallbackReason('connection_lost');
-      setShowFallback(true);
+      const now = Date.now();
+
+      // Se a última falha foi há muito tempo, resetar o contador
+      if (now - lastFailureTime > RESET_TIMEOUT) {
+        failureCount = 1;
+      } else {
+        failureCount++;
+      }
+
+      lastFailureTime = now;
+      logger.warn(`[App] Falha de rede detectada (${failureCount}/${FAILURE_THRESHOLD})`);
+
+      // Somente mostrar fallback se atingir o threshold
+      if (failureCount >= FAILURE_THRESHOLD) {
+        logger.error('[App] Limite de falhas de rede atingido. Redirecionando para fallback.');
+        setApiUrl(null);
+        setFallbackReason('connection_lost');
+        setShowFallback(true);
+        failureCount = 0; // Resetar após acionar
+      } else {
+        // Mostrar um aviso discreto se logado
+        if (isAuthenticated) {
+          toast({
+            title: "Instabilidade de conexão",
+            description: "Detectamos falhas ao contatar o servidor. Tentando reconectar...",
+            variant: "destructive",
+          });
+        }
+      }
     });
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Listener para eventos de novo pedido (apenas desktop Tauri; web usa WebSocket via API)
   useEffect(() => {
