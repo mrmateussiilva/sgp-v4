@@ -13,6 +13,9 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { BellRing } from 'lucide-react';
+import { sendNativeNotification, requestNotificationPermission } from '@/utils/notifications';
+import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/isTauri';
 import { BottomNavBar } from './BottomNavBar';
 import {
@@ -47,6 +50,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { username, isAdmin } = useAuthStore();
+  const { toast } = useToast();
   const tauri = isTauri();
 
   const filteredNavItems = NAV_ITEMS.filter((item) => {
@@ -154,6 +158,34 @@ export function PwaLayout({ children }: PwaLayoutProps) {
           <span className="hidden md:inline text-sm text-muted-foreground truncate max-w-[120px]">
             {username}
           </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-[44px] min-w-[44px] text-primary"
+            onClick={async () => {
+              const granted = await requestNotificationPermission();
+              if (granted) {
+                sendNativeNotification({
+                  title: 'Teste de Notificação',
+                  body: 'Se você está vendo isso, as notificações nativas estão funcionando!'
+                });
+                toast({
+                  title: "Teste enviado",
+                  description: "A notificação deve aparecer no seu sistema.",
+                });
+              } else {
+                toast({
+                  title: "Sem permissão",
+                  description: "As notificações estão bloqueadas no seu navegador/celular.",
+                  variant: "destructive"
+                });
+              }
+            }}
+            aria-label="Testar Notificações"
+          >
+            <BellRing className="h-5 w-5" />
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
