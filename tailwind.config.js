@@ -15,7 +15,7 @@ export default {
     },
     extend: {
       screens: {
-        'hd': '1367px', // Breakpoint para telas HD (1366px e menores usam responsividade)
+        'hd': '1360px', // Breakpoint para telas HD (1366px e similares)
       },
       colors: {
         border: "hsl(var(--border))",

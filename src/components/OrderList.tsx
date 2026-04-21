@@ -27,6 +27,10 @@ import {
   Zap,
   AlertCircle,
   Keyboard,
+  DollarSign,
+  Scissors,
+  Truck,
+  ClipboardCheck,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
@@ -3003,9 +3007,9 @@ export default function OrderList() {
                   ) : (
                     <SmoothTableWrapper>
                       <Table className="w-full">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                        <TableHeader className="bg-muted">
+                          <TableRow className="hover:bg-transparent text-foreground">
+                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-muted border-r px-1 lg:px-2">
                               <Checkbox
                                 checked={
                                   selectedOrderIdsForPrint.length > 0 &&
@@ -3021,123 +3025,131 @@ export default function OrderList() {
                               />
                             </TableHead>
                             <TableHead
-                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2"
+                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-20 bg-background border-r cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2"
                               onClick={() => handleSort('id')}
                             >
-                              <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
                                 ID
                                 {getSortIcon('id')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] cursor-pointer hover:bg-muted/50 transition-colors px-2 lg:px-3 xl:px-4"
+                              className="min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] cursor-pointer hover:bg-muted transition-colors px-2 lg:px-3 xl:px-4"
                               onClick={() => handleSort('cliente')}
                             >
-                              <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                                Nome Cliente
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                                Cliente
                                 {getSortIcon('cliente')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden sm:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2 xl:px-3"
                               onClick={() => handleSort('data_entrega')}
                             >
-                              <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                                Data Entrega
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                Entrega
                                 {getSortIcon('data_entrega')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden md:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
+                              className="hidden hd:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2 xl:px-3"
                               onClick={() => handleSort('prioridade')}
                             >
-                              <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                                Prioridade
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                                <Zap className="h-3.5 w-3.5" />
+                                Prior.
                                 {getSortIcon('prioridade')}
                               </div>
                             </TableHead>
-                            <TableHead
-                              className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] cursor-pointer hover:bg-muted/50 transition-colors px-1 lg:px-2 xl:px-3"
-                              onClick={() => handleSort('cidade')}
-                            >
-                              <div className="flex items-center text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                              <div className="flex items-center justify-center gap-1 font-bold text-foreground">
                                 Cidade/UF
                                 {getSortIcon('cidade')}
                               </div>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Fin.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                                      <span className="text-[10px] uppercase font-bold">Fin.</span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Financeiro</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[70px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Hr. lib.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <Clock className="h-3.5 w-3.5 text-blue-600" />
+                                      <span className="text-[10px] uppercase font-bold">Lib.</span>
+                                    </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Hora liberação (financeiro)</TooltipContent>
+                                  <TooltipContent>Hora liberação</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Conf.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <ClipboardCheck className="h-3.5 w-3.5 text-orange-600" />
+                                      <span className="text-[10px] uppercase font-bold">Conf.</span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Conferência</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[40px] lg:min-w-[50px] lg:w-[50px] xl:min-w-[55px] xl:w-[55px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Imp.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <Printer className="h-3.5 w-3.5 text-purple-600" />
+                                      <span className="text-[10px] uppercase font-bold">Imp.</span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Impressão</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Cost.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <Scissors className="h-3.5 w-3.5 text-blue-500" />
+                                      <span className="text-[10px] uppercase font-bold">Cost.</span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Costura</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[35px] w-[35px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[50px] xl:w-[50px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="cursor-default">Exp.</span>
+                                    <div className="flex items-center justify-center gap-1 cursor-default">
+                                      <Truck className="h-3.5 w-3.5 text-amber-600" />
+                                      <span className="text-[10px] uppercase font-bold">Exp.</span>
+                                    </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Expedição</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="cursor-default">Status</span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Status do pedido (Pronto / Em andamento)
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                              Status
                             </TableHead>
-                            <TableHead className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-right whitespace-nowrap sticky right-0 z-20 bg-background border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground opacity-100">
                               Ações
                             </TableHead>
                           </TableRow>
@@ -3147,48 +3159,47 @@ export default function OrderList() {
                             <>
                               {Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
-                                  <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                                  <TableCell className="sticky left-0 z-10 bg-background border-r px-1 lg:px-2 py-3 lg:py-4">
                                     <Skeleton className="h-4 w-4" />
                                   </TableCell>
-                                  <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2">
+                                  <TableCell className="sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 py-3 lg:py-4">
                                     <Skeleton className="h-4 w-10 lg:w-12 xl:w-14 hd:w-16" />
                                   </TableCell>
-                                  <TableCell className="min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] px-2 lg:px-3 xl:px-4">
+                                  <TableCell className="min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] px-2 lg:px-3 xl:px-4 py-3 lg:py-4">
                                     <Skeleton className="h-4 w-24 lg:w-32" />
                                   </TableCell>
-                                  <TableCell className="hidden sm:table-cell">
-                                    <Skeleton className="h-4 w-24" />
-                                  </TableCell>
-                                  <TableCell className="hidden md:table-cell">
-                                    <Skeleton className="h-4 w-20" />
-                                  </TableCell>
-                                  <TableCell className="hidden hd:table-cell">
+                                  <TableCell className="hidden lg:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3">
                                     <Skeleton className="h-4 w-16" />
                                   </TableCell>
-                                  <TableCell>
-                                    <Skeleton className="h-4 w-24" />
+                                  <TableCell className="hidden hd:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
+                                    <Skeleton className="h-4 w-12 mx-auto" />
                                   </TableCell>
-                                  <TableCell className="hidden sm:table-cell text-center">
-                                    <Skeleton className="h-4 w-12" />
-                                  </TableCell>
-                                  <TableCell>
+                                  <TableCell className="hidden 2xl:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] px-1 lg:px-2 xl:px-3">
                                     <Skeleton className="h-4 w-20" />
                                   </TableCell>
-                                  <TableCell>
-                                    <Skeleton className="h-4 w-16" />
+                                  <TableCell className="text-center px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-4 mx-auto" />
                                   </TableCell>
-                                  <TableCell>
-                                    <Skeleton className="h-4 w-20" />
+                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-8 mx-auto" />
                                   </TableCell>
-                                  <TableCell>
-                                    <Skeleton className="h-4 w-24" />
+                                  <TableCell className="text-center px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-4 mx-auto" />
                                   </TableCell>
-                                  <TableCell className="hidden sm:table-cell text-center">
-                                    <Skeleton className="h-5 w-16 mx-auto" />
+                                  <TableCell className="text-center px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-4 mx-auto" />
                                   </TableCell>
-                                  <TableCell className="text-right sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                                  <TableCell className="text-center px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-4 mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="text-center px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
+                                    <Skeleton className="h-4 w-4 mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4">
+                                    <Skeleton className="h-5 w-20 mx-auto" />
+                                  </TableCell>
+                                  <TableCell className="text-right sticky right-0 z-20 bg-background border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 opacity-100">
                                     <div className="flex justify-end gap-2">
-                                      <Skeleton className="h-8 w-8" />
                                       <Skeleton className="h-8 w-8" />
                                       <Skeleton className="h-8 w-8" />
                                       <Skeleton className="h-8 w-8" />
@@ -3239,23 +3250,32 @@ export default function OrderList() {
                               const isHighPriority = order.prioridade === 'ALTA';
                               const isDelayed = isOverdue && !order.pronto;
 
+                              const completionCount = [
+                                order.financeiro,
+                                order.conferencia,
+                                order.sublimacao,
+                                order.costura,
+                                order.expedicao,
+                              ].filter(Boolean).length;
+                              const progressPercentage = (completionCount / 5) * 100;
+
                               const isSelected = selectedOrder?.id === order.id;
 
-                              // Classe base da linha com destaque visual baseado em urgência e prioridade
-                              const rowClassName = `
-                      hover:bg-muted/50 transition-all duration-200 cursor-pointer
-                      ${isSelected ? 'bg-primary/10 dark:bg-primary/20 ring-1 ring-primary/30 z-20' : ''}
-                       ${isDelayed ? 'bg-red-50/50 dark:bg-red-950/20 border-l-4 border-l-red-500' : ''}
-                       ${isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/40 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : ''}
-                      ${isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/30 dark:bg-blue-950/10' : ''}
-                    `
-                                .trim()
-                                .replace(/\s+/g, ' ');
+                              // Classe base da linha com destaque visual e listras zebra
+                              const rowClassName = cn(
+                                "group transition-all duration-200 cursor-pointer border-b border-border/40",
+                                isSelected
+                                  ? 'bg-primary/15 dark:bg-primary/25 ring-1 ring-primary/40 z-20'
+                                  : 'even:bg-muted/20 odd:bg-transparent hover:bg-muted/40',
+                                isDelayed ? 'bg-red-50/60 dark:bg-red-950/20 border-l-4 border-l-red-500' : '',
+                                isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/50 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : '',
+                                isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/40 dark:bg-blue-950/10' : ''
+                              );
 
                               return (
                                 <TableRow
                                   key={order.id}
-                                  className={rowClassName}
+                                  className={cn(rowClassName, "group/row")}
                                   data-overdue={isDelayed}
                                   data-urgent={isUrgent}
                                   data-priority={order.prioridade}
@@ -3267,7 +3287,10 @@ export default function OrderList() {
                                     if (index >= 0) setSelectedOrderIndex(index);
                                   }}
                                 >
-                                  <TableCell className="text-center sticky left-0 z-10 bg-background border-r px-1 lg:px-2">
+                                  <TableCell className={cn(
+                                    "text-center sticky left-0 z-20 border-r px-1 lg:px-2 py-3 lg:py-4 transition-colors",
+                                    isSelected ? "bg-primary/20" : "bg-background group-even/row:bg-muted"
+                                  )}>
                                     <Checkbox
                                       checked={selectedOrderIdsForPrint.includes(order.id)}
                                       onCheckedChange={(checked) => {
@@ -3282,9 +3305,13 @@ export default function OrderList() {
                                           );
                                         }
                                       }}
+                                      className="translate-y-[2px]"
                                     />
                                   </TableCell>
-                                  <TableCell className="font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-10 bg-background border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <TableCell className={cn(
+                                    "font-mono font-medium whitespace-nowrap sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-20 border-r w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] px-1 lg:px-2 py-3 lg:py-4 text-[10px] sm:text-xs lg:text-sm xl:text-base transition-colors",
+                                    isSelected ? "bg-primary/20" : "bg-background group-even/row:bg-muted"
+                                  )}>
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1 lg:gap-2">
                                         #{formatOrderNumber(order.numero, order.id)}
@@ -3320,14 +3347,26 @@ export default function OrderList() {
                                   </TableCell>
                                   <TableCell
                                     className={`
-                          font-medium min-w-[130px] max-w-[200px] lg:min-w-[180px] lg:max-w-[250px] xl:min-w-[220px] xl:max-w-[300px] truncate px-2 lg:px-3 xl:px-4 text-[10px] sm:text-xs lg:text-sm xl:text-base
-                          ${isDelayed ? 'font-semibold' : ''}
-                          ${isUrgent && !order.pronto ? 'font-semibold' : ''}
-                        `}
+                                      font-medium min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] truncate px-2 lg:px-3 xl:px-4 py-3 lg:py-4 text-[10px] sm:text-sm lg:text-base xl:text-lg
+                                      ${isDelayed ? 'font-bold text-red-700 dark:text-red-400' : ''}
+                                      ${isUrgent && !order.pronto ? 'font-bold text-orange-700 dark:text-orange-400' : ''}
+                                      text-foreground/90
+                                    `}
                                   >
-                                    {order.cliente || order.customer_name}
+                                    <div className="flex flex-col gap-1">
+                                      <span className="truncate">{order.cliente || order.customer_name}</span>
+                                      <div className="w-full bg-muted/50 rounded-full h-1 mt-1 overflow-hidden hidden sm:block">
+                                        <div
+                                          className={cn(
+                                            "h-full transition-all duration-500",
+                                            progressPercentage === 100 ? "bg-green-500" : "bg-primary/60"
+                                          )}
+                                          style={{ width: `${progressPercentage}%` }}
+                                        />
+                                      </div>
+                                    </div>
                                   </TableCell>
-                                  <TableCell className="hidden sm:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <TableCell className="hidden lg:table-cell whitespace-nowrap min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                                     <div className="flex items-center gap-1.5">
                                       {urgency.type === 'overdue' && !order.pronto && (
                                         <AlertTriangle
@@ -3368,7 +3407,7 @@ export default function OrderList() {
                                       )}
                                     </div>
                                   </TableCell>
-                                  <TableCell className="hidden md:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3">
+                                  <TableCell className="hidden hd:table-cell whitespace-nowrap min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4">
                                     <Badge
                                       variant={
                                         order.prioridade === 'ALTA' ? 'destructive' : 'secondary'
@@ -3382,7 +3421,7 @@ export default function OrderList() {
                                       {order.prioridade || 'NORMAL'}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="hidden hd:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <TableCell className="hidden 2xl:table-cell min-w-[100px] max-w-[130px] lg:min-w-[130px] lg:max-w-[160px] xl:min-w-[150px] xl:max-w-[180px] truncate px-1 lg:px-2 xl:px-3 py-3 lg:py-4 text-[10px] sm:text-xs lg:text-sm xl:text-base">
                                     {order.cidade_cliente && order.estado_cliente
                                       ? `${order.cidade_cliente}/${order.estado_cliente}`
                                       : order.cidade_cliente || '-'}
@@ -3390,7 +3429,7 @@ export default function OrderList() {
 
                                   {/* Checkboxes de Status */}
                                   {/* Financeiro - Apenas admins podem alterar */}
-                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3427,12 +3466,12 @@ export default function OrderList() {
                                   </TableCell>
 
                                   {/* Hr. liberação - persistido no backend */}
-                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[70px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[55px] max-w-[75px] lg:min-w-[60px] lg:max-w-[80px] xl:min-w-[65px] xl:max-w-[85px] px-0 lg:px-1 xl:px-2 py-3 lg:py-4 border-x border-border/10">
                                     {formatTimeHHmm(order.financeiro_liberado_em)}
                                   </TableCell>
 
                                   {/* Conferência - Só habilitado se Financeiro estiver marcado */}
-                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3458,7 +3497,7 @@ export default function OrderList() {
                                   </TableCell>
 
                                   {/* Impressão - Só habilitado se Financeiro estiver marcado */}
-                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3503,7 +3542,7 @@ export default function OrderList() {
                                   </TableCell>
 
                                   {/* Costura - Só habilitado se Financeiro estiver marcado */}
-                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3529,7 +3568,7 @@ export default function OrderList() {
                                   </TableCell>
 
                                   {/* Expedição - Só habilitado se Financeiro estiver marcado */}
-                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2">
+                                  <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3555,7 +3594,7 @@ export default function OrderList() {
                                   </TableCell>
 
                                   {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
-                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[75px] max-w-[90px] lg:min-w-[100px] lg:max-w-[120px] xl:min-w-[110px] xl:max-w-[130px] px-1 lg:px-2 xl:px-3">
+                                  <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 border-l border-border/10">
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -3597,7 +3636,10 @@ export default function OrderList() {
                                       </Tooltip>
                                     </TooltipProvider>
                                   </TableCell>
-                                  <TableCell className="text-right whitespace-nowrap sticky right-0 z-10 bg-background border-l min-w-[110px] max-w-[130px] lg:min-w-[140px] lg:max-w-[160px] xl:min-w-[160px] xl:max-w-[180px] hd:min-w-[190px] hd:max-w-[210px] px-1 lg:px-2 xl:px-3">
+                                  <TableCell className={cn(
+                                    "text-right whitespace-nowrap sticky right-0 z-30 border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 transition-colors",
+                                    isSelected ? "bg-primary/20" : "bg-background group-even/row:bg-muted"
+                                  )}>
                                     <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
                                       <TooltipProvider>
                                         <Tooltip>
@@ -3704,7 +3746,7 @@ export default function OrderList() {
                   )}
                 </div>
               </CardContent>
-            </Card>
+            </Card >
 
             {
               filteredOrders.length > 0 && (
