@@ -107,8 +107,9 @@ export type CanonicalProductionItem =
   | MochilinhaCanonicalItem
   | OtherCanonicalItem;
 
-export function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
-  const normalized = String(tipo ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+export function normalizeTipo(tipo?: string | null): string {
+  const raw = String(tipo ?? '').trim();
+  const normalized = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (normalized === 'painel') return 'painel';
   if (normalized === 'generica') return 'generica';
   if (normalized === 'totem') return 'totem';
@@ -119,7 +120,9 @@ export function normalizeTipo(tipo?: string | null): CanonicalTipoProducao {
   if (normalized === 'mochilinha' || normalized.includes('mochilinha')) return 'mochilinha';
   if (normalized === 'bolsinha' || normalized.includes('bolsinha')) return 'bolsinha';
   if (normalized === 'mesa_babado' || normalized === 'mesa de babado' || normalized.includes('mesa_babado')) return 'mesa_babado';
-  return 'other';
+
+  // Se não for um tipo canônico conhecido, retorna o valor original limpo
+  return normalized || 'other';
 }
 
 function normalizeString(value: unknown): string | undefined {

@@ -403,11 +403,31 @@ export const resourcesApi = {
 
     getTiposProducaoAtivos: async (): Promise<Array<{ value: string; label: string }>> => {
         try {
-            const response = await apiClient.get<TipoProducaoApi[]>('/producoes/ativos');
-            return (response.data ?? []).map(tipo => ({
-                value: tipo.name.toLowerCase(),
-                label: tipo.description || tipo.name,
-            }));
+            // Tenta buscar de /producoes/ativos primeiro
+            let response;
+            try {
+                response = await apiClient.get<any[]>('/producoes/ativos');
+            } catch (err) {
+                // Se falhar (ex: 404), tenta o endpoint base /producoes
+                response = await apiClient.get<any[]>('/producoes');
+            }
+
+            const data = response.data ?? [];
+            return data
+                .filter(tipo => {
+                    // Aceita active ou ativo (backend pode variar)
+                    const isActive = tipo.active !== undefined ? tipo.active : tipo.ativo;
+                    return isActive !== false; // Se for undefined (não informado), assume ativo
+                })
+                .map(tipo => {
+                    // Aceita name ou nome
+                    const name = tipo.name || tipo.nome || '';
+                    return {
+                        value: name.toLowerCase().trim(),
+                        label: tipo.description || name,
+                    };
+                })
+                .filter(item => item.value.length > 0);
         } catch (error) {
             logger.error('Erro ao buscar tipos de produção ativos:', error);
             return [];

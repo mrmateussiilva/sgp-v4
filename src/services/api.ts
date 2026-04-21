@@ -26,8 +26,8 @@ export const api = {
   },
   getPendingOrdersPaginated: async (page?: number, pageSize?: number) =>
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
-  getReadyOrdersPaginated: async (page?: number, pageSize?: number) =>
-    ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Concluido),
+  getReadyOrdersPaginated: async (page?: number, pageSize?: number, status?: OrderStatus, cliente?: string, date_from?: string, date_to?: string, tipo_producao?: string) =>
+    ordersApi.getOrdersPaginated(page, pageSize, status || OrderStatus.Concluido, cliente, date_from, date_to, tipo_producao),
   getReadyOrdersLight: async () => {
     const orders = await ordersApi.getOrders();
     return orders.filter(o => o.status === OrderStatus.Concluido);
@@ -45,9 +45,9 @@ export const api = {
   deleteAllOrders: async () => { await apiClient.delete('/pedidos/all'); return true; },
   resetOrderIds: async () => { await apiClient.post('/pedidos/reset-ids'); return true; },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getOrdersWithFilters: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
+  getOrdersWithFilters: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to, filters.tipo_producao),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getOrdersWithFiltersForTable: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to),
+  getOrdersWithFiltersForTable: async (filters: any) => ordersApi.getOrdersPaginated(filters.page, filters.page_size, filters.status, filters.cliente, filters.date_from, filters.date_to, filters.tipo_producao),
   getDashboardSummary: ordersApi.getDashboardSummary,
   getTotalOrdersCount: ordersApi.getTotalOrdersCount,
   getOrderHistory: async (_?: number) => [],

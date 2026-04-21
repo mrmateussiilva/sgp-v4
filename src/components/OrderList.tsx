@@ -86,6 +86,20 @@ import { ShortcutsHelp } from './ShortcutsHelp';
 
 import { cn } from '@/lib/utils';
 
+// Tipos de produção padrão como fallback caso a API não esteja disponível
+const TIPOS_PRODUCAO_DEFAULT = [
+  { value: 'painel', label: 'Tecido' },
+  { value: 'generica', label: 'Produção Genérica' },
+  { value: 'totem', label: 'Totem' },
+  { value: 'lona', label: 'Lona' },
+  { value: 'adesivo', label: 'Adesivo' },
+  { value: 'canga', label: 'Canga' },
+  { value: 'impressao_3d', label: 'Impressão 3D' },
+  { value: 'almofada', label: 'Almofada' },
+  { value: 'bolsinha', label: 'Bolsinha' },
+  { value: 'mesa_babado', label: 'Mesa de Babado' },
+];
+
 // Hr. liberação agora vem diretamente da API (financeiro_liberado_em)
 
 export default function OrderList() {
@@ -120,6 +134,7 @@ export default function OrderList() {
   const [selectedDesigner, setSelectedDesigner] = useState<string>('');
   const [selectedCidade, setSelectedCidade] = useState<string>('');
   const [selectedFormaEnvio, setSelectedFormaEnvio] = useState<string>('');
+  const [selectedTipoProducao, setSelectedTipoProducao] = useState<string>('');
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
   // Força re-render da tabela quando hr. liberação é gravada/removida (localStorage)
@@ -131,6 +146,7 @@ export default function OrderList() {
   const [formasEnvio, setFormasEnvio] = useState<
     Array<{ id: number; nome: string; valor: number }>
   >([]);
+  const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -175,6 +191,41 @@ export default function OrderList() {
   // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
+  const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(new Set());
+
+  // Tipos de produção detectados dinamicamente nos dados carregados
+  const derivedTiposProducao = useMemo(() => {
+    const typesMap = new Map<string, string>();
+
+    // 0. Incluir tipos padrão (fallback fixo)
+    TIPOS_PRODUCAO_DEFAULT.forEach(t => {
+      typesMap.set(t.value.toLowerCase(), t.label);
+    });
+
+    // 1. Incluir tipos vindos da API de recursos
+    tiposProducao.forEach(t => {
+      if (t.value) typesMap.set(t.value.toLowerCase(), t.label);
+    });
+
+    // 2. Fallback: extrair tipos dos pedidos atualmente na lista
+    orders.forEach(order => {
+      order.items?.forEach(item => {
+        if (item.tipo_producao) {
+          const val = item.tipo_producao.toLowerCase().trim();
+          if (val && !typesMap.has(val)) {
+            // Capitaliza o label para ficar bonito
+            const label = val.charAt(0).toUpperCase() + val.slice(1);
+            typesMap.set(val, label);
+          }
+        }
+      });
+    });
+
+    return Array.from(typesMap.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [tiposProducao, orders]);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const statusConfirmButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -202,10 +253,11 @@ export default function OrderList() {
     let isMounted = true;
     const loadFilterData = async () => {
       try {
-        const [vendedoresData, designersData, formasEnvioData] = await Promise.all([
+        const [vendedoresData, designersData, formasEnvioData, tiposProducaoData] = await Promise.all([
           api.getVendedoresAtivos(),
           api.getDesignersAtivos(),
           api.getFormasEnvioAtivas(),
+          api.getTiposProducaoAtivos(),
         ]);
         if (!isMounted) {
           return;
@@ -213,6 +265,7 @@ export default function OrderList() {
         setVendedores(vendedoresData);
         setDesigners(designersData);
         setFormasEnvio(formasEnvioData);
+        setTiposProducao(tiposProducaoData);
       } catch (error) {
         if (isMounted) {
           logger.error('Erro ao carregar dados para filtros:', error);
@@ -365,7 +418,8 @@ export default function OrderList() {
         Boolean(selectedVendedor) ||
         Boolean(selectedDesigner) ||
         Boolean(selectedCidade) ||
-        Boolean(selectedFormaEnvio);
+        Boolean(selectedFormaEnvio) ||
+        Boolean(selectedTipoProducao);
 
       // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
@@ -433,6 +487,7 @@ export default function OrderList() {
             cliente: hasSearch ? undefined : activeSearchTerm || undefined, // Não passar cliente se há busca - vamos filtrar localmente
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
+            tipo_producao: selectedTipoProducao || undefined,
             page: currentPage + 1,
             page_size: currentPageSize,
           };
@@ -463,6 +518,15 @@ export default function OrderList() {
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
         }
+      }
+
+      // Carregar logs de impressão para exibir badges
+      try {
+        const logs = await api.getAllLogs(1000);
+        const printedIds = new Set(logs.map((log) => log.pedido_id));
+        setPrintedOrderIds(printedIds);
+      } catch (logErr) {
+        logger.error('[OrderList] Erro ao carregar logs para badges:', logErr);
       }
     } catch (error) {
       const message = extractErrorMessage(error);
@@ -500,6 +564,7 @@ export default function OrderList() {
     selectedDesigner,
     selectedCidade,
     selectedFormaEnvio,
+    selectedTipoProducao,
     toast,
     logout,
     navigate,
@@ -1336,6 +1401,17 @@ export default function OrderList() {
     if (selectedFormaEnvio) {
       filtered = filtered.filter((order) => {
         return order.forma_envio === selectedFormaEnvio;
+      });
+    }
+
+    // Filtro por tipo de produção
+    if (selectedTipoProducao) {
+      filtered = filtered.filter((order) => {
+        // Se o pedido não tem itens carregados, mantemos na lista.
+        if (!order.items || order.items.length === 0) return true;
+        return order.items.some((item) =>
+          item.tipo_producao?.toLowerCase() === selectedTipoProducao.toLowerCase()
+        );
       });
     }
 
@@ -2366,6 +2442,24 @@ export default function OrderList() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="tipo-producao-mobile" className="text-sm font-semibold">Tipo de Produção</Label>
+                        <Select
+                          value={selectedTipoProducao || 'all'}
+                          onValueChange={(value) => setSelectedTipoProducao(value === 'all' ? '' : value)}
+                        >
+                          <SelectTrigger id="tipo-producao-mobile" className="h-11">
+                            <SelectValue placeholder="Todos os tipos" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            {derivedTiposProducao.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                   <DialogFooter className="p-4 border-t bg-muted/20">
@@ -2722,6 +2816,24 @@ export default function OrderList() {
                           <SelectItem value="all">Todas</SelectItem>
                           {formasEnvio.filter((f) => f.nome).map((forma) => (
                             <SelectItem key={forma.id} value={forma.nome}>{forma.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tipo-producao-filter-desktop" className="text-sm font-semibold">Tipo de Produção</Label>
+                      <Select
+                        value={selectedTipoProducao || 'all'}
+                        onValueChange={(value) => setSelectedTipoProducao(value === 'all' ? '' : value)}
+                      >
+                        <SelectTrigger id="tipo-producao-filter-desktop" className="h-9">
+                          <SelectValue placeholder="Todos os tipos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          {derivedTiposProducao.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -3177,6 +3289,24 @@ export default function OrderList() {
                                       <div className="flex items-center gap-1 lg:gap-2">
                                         #{formatOrderNumber(order.numero, order.id)}
                                         <EditingIndicator orderId={order.id} />
+                                        {printedOrderIds.has(order.id) && (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Badge
+                                                  variant="outline"
+                                                  className="h-4 p-0 px-1 text-[8px] lg:text-[9px] bg-green-50 text-green-700 border-green-200"
+                                                >
+                                                  <CheckCircle2 className="h-2.5 w-2.5 lg:h-3 lg:w-3 mr-0.5" />
+                                                  IMPRESSO
+                                                </Badge>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>Este pedido já possui registro de impressão no histórico.</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )}
                                       </div>
                                       {isReplacementOrder(order) && (
                                         <Badge

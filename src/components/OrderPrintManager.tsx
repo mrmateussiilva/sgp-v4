@@ -7,6 +7,11 @@ import { saveAndOpenPdf } from '../pdf/tauriPdfUtils';
 import { groupOrders } from '../pdf/groupOrders';
 import { imageToBase64 } from '@/utils/imageLoader';
 import { PrintPreviewModal } from './PrintPreviewModal';
+import { usePrintHistory } from '../hooks/usePrintHistory';
+import { ReprintWarningDialog } from './ReprintWarningDialog';
+import { printLogsApi } from '../api/endpoints/printLogs';
+import { PrintLogStatus } from '../types';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderPrintManagerProps {
   isOpen: boolean;
@@ -24,6 +29,11 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
   const [pdfFilename, setPdfFilename] = useState<string>('');
+  const [showReprintWarning, setShowReprintWarning] = useState(false);
+  const [pendingPrintMode, setPendingPrintMode] = useState<'preview' | 'save' | null>(null);
+
+  const { toast } = useToast();
+  const { lastPrint, alreadyPrinted, refreshHistory } = usePrintHistory(order?.id || null);
 
   // Inicializar com os itens do pedido quando o modal abrir
   useEffect(() => {
@@ -67,8 +77,15 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
   };
 
   // Gerar e Salvar/Imprimir PDF usando React-PDF
-  const generatePDF = async (mode: 'preview' | 'save' = 'preview') => {
+  const generatePDF = async (mode: 'preview' | 'save' = 'preview', skipCheck = false) => {
     if (!order) return;
+
+    // Se já foi impresso, mostrar aviso antes de gerar (a menos que skipCheck seja true)
+    if (alreadyPrinted && !skipCheck) {
+      setPendingPrintMode(mode);
+      setShowReprintWarning(true);
+      return;
+    }
 
     setIsGenerating(true);
     try {
@@ -131,6 +148,29 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
         setIsPreviewOpen(true);
       }
 
+      // Registrar o evento de impressão no log do sistema
+      try {
+        await printLogsApi.createPrintLog({
+          printer_id: order.items?.[0]?.machine_id || 0,
+          pedido_id: order.id,
+          item_id: null,
+          status: alreadyPrinted ? PrintLogStatus.REPRINT : PrintLogStatus.SUCCESS,
+        });
+
+        // Atualiza o estado local do histórico
+        refreshHistory();
+
+        if (alreadyPrinted) {
+          toast({
+            title: "Reimpressão registrada",
+            description: "Esta ficha foi marcada como REIMPRESSÃO no histórico.",
+          });
+        }
+      } catch (logError) {
+        // Falha no log não deve impedir o usuário, mas logamos para debug
+        console.error('[OrderPrintManager] Erro ao registrar log de impressão:', logError);
+      }
+
     } catch (error) {
 
       const errorMessage = error instanceof Error ? error.message : 'Erro ao gerar PDF. Tente novamente.';
@@ -145,6 +185,14 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
 
   // Abrir Preview de Impressão
   const handlePrint = () => generatePDF('preview');
+
+  // Confirmar reimpressão após o aviso
+  const handleConfirmReprint = () => {
+    setShowReprintWarning(false);
+    if (pendingPrintMode) {
+      generatePDF(pendingPrintMode, true);
+    }
+  };
 
   if (!order) return null;
 
@@ -278,6 +326,14 @@ export const OrderPrintManager: React.FC<OrderPrintManagerProps> = ({
           title={`Pré-visualização - Pedido #${order.numero || order.id}`}
         />
       )}
+
+      {/* Alerta de Reimpressão */}
+      <ReprintWarningDialog
+        isOpen={showReprintWarning}
+        onClose={() => setShowReprintWarning(false)}
+        onConfirm={handleConfirmReprint}
+        lastPrint={lastPrint}
+      />
     </>
   );
 };
