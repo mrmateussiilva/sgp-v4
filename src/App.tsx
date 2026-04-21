@@ -165,11 +165,10 @@ function App() {
             setShowFallback(false);
           } catch (error) {
             clearTimeout(safetyTimeoutId);
-            logger.error('Erro ao verificar conexão com a API:', error);
-            // Mesmo com erro na verificação, permite usar a URL configurada
-            applyApiUrl(normalizedUrl);
-            setApiUrl(normalizedUrl);
-            setShowFallback(false);
+            logger.error('API inacessível ao iniciar:', error);
+            setApiUrl(null);
+            setFallbackReason('connection_lost');
+            setShowFallback(true);
           }
         } else {
           clearTimeout(safetyTimeoutId);
