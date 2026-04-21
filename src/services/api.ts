@@ -100,6 +100,9 @@ export const api = {
 
   // Batch operations
   batchUpdateStatus: ordersApi.batchUpdateStatus,
+
+  // Resources (Production Types)
+  getTiposProducaoAtivos: resourcesApi.getTiposProducaoAtivos,
 };
 
 // Re-export deprecated standalone functions to maintain compatibility with existing imports
