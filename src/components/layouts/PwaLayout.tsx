@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { isTauri } from '@/utils/isTauri';
 import { BottomNavBar } from './BottomNavBar';
 import {
   DropdownMenu,

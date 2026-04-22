@@ -390,8 +390,9 @@ export default function Dashboard() {
           >
             <div className={cn('p-6 flex items-center', !sidebarExpanded && 'justify-center p-4')}>
               {sidebarExpanded ? (
-                <div>
-                  <h1 className="text-4xl font-bold text-primary">SGP</h1>
+                <div className="flex flex-col">
+                  <h1 className="text-4xl font-bold text-primary italic tracking-tighter">SGP</h1>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest -mt-1">v{appVersion}</span>
                 </div>
               ) : (
                 <h1 className="text-2xl font-bold text-primary">S</h1>
@@ -451,43 +452,21 @@ export default function Dashboard() {
               })}
             </nav>
 
-            <Separator />
-
-            {/* SAFIRA Assistant */}
+            {/* SAFIRA Assistant - Desativado conforme solicitação do usuário */}
+            {/* 
             <div className="px-4 py-2">
               <SafiraChat expanded={sidebarExpanded} />
             </div>
+            */}
 
-            <Separator />
-
-            {/* Versão do App */}
-            {appVersion && (
-              <div className={cn('px-4 py-2', !sidebarExpanded && 'flex justify-center')}>
-                {sidebarExpanded ? (
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Versão</p>
-                    <p className="text-xs font-semibold text-primary">v{appVersion}</p>
-                  </div>
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-center">
-                        <p className="text-xs font-semibold text-primary">v{appVersion}</p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Versão {appVersion}</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            )}
+            {/* Versão do App - Agora exibida no Logo */}
 
             <Separator />
 
             <div className="p-4">
               {sidebarExpanded && (
                 <div className="mb-3 px-3">
-                  <p className="text-sm font-medium">Usuário</p>
-                  <p className="text-sm text-muted-foreground truncate">{username}</p>
+                  <p className="text-sm font-bold text-slate-700">Usuário: <span className="font-normal text-muted-foreground">{username}</span></p>
                   <button
                     onClick={() => setShowChangePassword(true)}
                     className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
@@ -659,7 +638,7 @@ export default function Dashboard() {
               </Suspense>
             </main>
           </div>
-          <SafiraPanel />
+          {/* <SafiraPanel /> - Desativado */}
         </div>
       </TooltipProvider>
 
