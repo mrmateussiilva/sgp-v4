@@ -3012,11 +3012,13 @@ export default function OrderList() {
                           const progressPercentage = (completionCount / 5) * 100;
 
                           return (
-                            <Card
+                            <div
                               key={order.id}
                               onClick={() => handleViewOrder(order)}
+                              role="button"
+                              tabIndex={0}
                               className={cn(
-                                'relative overflow-hidden transition-all duration-300 border-none shadow-md bg-card active:scale-[0.98] cursor-pointer',
+                                'relative overflow-hidden transition-all duration-300 border-none shadow-md bg-card active:bg-accent/10 rounded-xl cursor-pointer select-none touch-manipulation',
                                 isDelayed && 'ring-2 ring-red-500/50',
                                 isUrgent && !order.pronto && 'ring-2 ring-amber-500/50'
                               )}
@@ -3024,14 +3026,14 @@ export default function OrderList() {
                               {/* Faixa de Urgência Superior */}
                               {(isDelayed || isUrgent) && !order.pronto && (
                                 <div className={cn(
-                                  "h-1 w-full absolute top-0 left-0",
+                                  "h-1 w-full absolute top-0 left-0 z-10",
                                   isDelayed ? "bg-red-500" : "bg-amber-500"
                                 )} />
                               )}
 
                               <div className="p-4 space-y-4">
                                 {/* Zona 1: Header do Card */}
-                                <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                <div className="flex items-center justify-between gap-2 overflow-hidden relative">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className="text-sm font-black text-primary shrink-0">
                                       #{formatOrderNumber(order.numero, order.id)}
@@ -3045,29 +3047,27 @@ export default function OrderList() {
                                     </Badge>
                                   </div>
 
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 rounded-full -mr-2"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40 font-bold">
-                                      <DropdownMenuItem onClick={() => handleViewOrder(order)} className="gap-2">
-                                        <Eye className="h-4 w-4" /> Visualizar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleEdit(order)} className="gap-2">
-                                        <Edit className="h-4 w-4" /> Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handlePrintIndividual(order.id)} className="gap-2">
-                                        <Printer className="h-4 w-4" /> Imprimir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  {/* Isolamos o menu para não disparar o clique do card */}
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full -mr-2 relative z-30">
+                                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-40 font-bold z-50">
+                                        <DropdownMenuItem onClick={() => handleViewOrder(order)} className="gap-2 focus:bg-primary/10">
+                                          <Eye className="h-4 w-4" /> Visualizar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleEdit(order)} className="gap-2 focus:bg-primary/10">
+                                          <Edit className="h-4 w-4" /> Editar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handlePrintIndividual(order.id)} className="gap-2 focus:bg-primary/10">
+                                          <Printer className="h-4 w-4" /> Imprimir
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
                                 </div>
 
                                 {/* Zona 2: Dados Principais */}
@@ -3097,7 +3097,6 @@ export default function OrderList() {
 
                                 {/* Zona 3: Produção */}
                                 <div className="space-y-3 pt-1">
-                                  {/* Pílulas de Status */}
                                   <div className="flex flex-wrap gap-1.5">
                                     {[
                                       { label: 'Fin', active: order.financeiro },
@@ -3120,7 +3119,6 @@ export default function OrderList() {
                                     ))}
                                   </div>
 
-                                  {/* Barra de Progresso */}
                                   <div className="space-y-1">
                                     <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground uppercase">
                                       <span>Progresso</span>
@@ -3138,7 +3136,7 @@ export default function OrderList() {
                                   </div>
                                 </div>
                               </div>
-                            </Card>
+                            </div>
                           );
                         })
                       )}
