@@ -54,6 +54,22 @@ export const useAutoRefresh = (callback: () => Promise<void>, intervalMs: number
     };
   }, [intervalMs]);
 
+  // Pausar auto-refresh quando a aba estiver em background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        pauseAutoRefresh();
+      } else {
+        resumeAutoRefresh();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Função para parar o auto-refresh temporariamente
   const pauseAutoRefresh = () => {
     if (intervalRef.current) {

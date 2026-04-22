@@ -78,17 +78,18 @@ export class NotificationManager {
     lastShown: new Map(),
     groups: new Map(),
   };
+  private groupTimers = new Map<NotificationType, NodeJS.Timeout>();
   private debounceTimer: NodeJS.Timeout | null = null;
   private queue: NotificationQueueItem[] = [];
 
-  constructor(private toastFn: ReturnType<typeof useToast>['toast']) {}
+  constructor(private toastFn: ReturnType<typeof useToast>['toast']) { }
 
   /**
    * Processa uma notificação usando o sistema inteligente
    */
   processNotification(notification: OrderNotification): boolean {
     const priority = PRIORITY_MAP[notification.notification_type];
-    
+
     // Notificações LOW (Updated) nunca mostram toast
     if (priority === NotificationPriority.LOW) {
       return false;
@@ -127,7 +128,7 @@ export class NotificationManager {
 
     // Separar por tipo
     const byType = new Map<NotificationType, NotificationQueueItem[]>();
-    
+
     for (const item of this.queue) {
       if (!byType.has(item.notification.notification_type)) {
         byType.set(item.notification.notification_type, []);
@@ -139,10 +140,10 @@ export class NotificationManager {
     for (const [type, items] of byType) {
       const priority = PRIORITY_MAP[type];
       const now = Date.now();
-      
+
       // Verificar throttle apenas para MEDIUM
       const lastShown = this.throttleState.lastShown.get(type) || 0;
-      
+
       if (priority === NotificationPriority.MEDIUM && now - lastShown < THROTTLE_MS) {
         // Throttle: agrupar em grupo temporário
         this.addToGroup(type, items);
@@ -156,7 +157,7 @@ export class NotificationManager {
         // Mostrar a mais recente (primeira na lista)
         this.showNotification(items[0].notification);
       }
-      
+
       this.throttleState.lastShown.set(type, now);
     }
 
@@ -170,9 +171,9 @@ export class NotificationManager {
    */
   private shouldGroup(items: NotificationQueueItem[]): boolean {
     if (items.length <= 1) return false;
-    
+
     const priority = PRIORITY_MAP[items[0].notification.notification_type];
-    
+
     // Agrupar apenas notificações HIGH (Created)
     return priority === NotificationPriority.HIGH && items.length > 1;
   }
@@ -183,6 +184,12 @@ export class NotificationManager {
   private addToGroup(type: NotificationType, items: NotificationQueueItem[]): void {
     const existing = this.throttleState.groups.get(type);
     const now = Date.now();
+
+    // Cancelar timer anterior se existir para este tipo
+    const existingTimer = this.groupTimers.get(type);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
 
     if (existing) {
       // Adicionar ao grupo existente
@@ -196,29 +203,32 @@ export class NotificationManager {
         firstTimestamp: items[0]?.timestamp || now,
         lastTimestamp: now,
       });
-
-      // Mostrar grupo após GROUP_WINDOW_MS se não houver novas notificações
-      setTimeout(() => {
-        const group = this.throttleState.groups.get(type);
-        if (group && group.lastTimestamp === now) {
-          // Converter para items para mostrar agrupado
-          const groupItems: NotificationQueueItem[] = group.notifications.map(n => ({
-            notification: n,
-            timestamp: group.firstTimestamp,
-            priority: PRIORITY_MAP[n.notification_type],
-          }));
-          
-          if (groupItems.length > 1) {
-            this.showGrouped(type, groupItems);
-          } else if (groupItems.length === 1) {
-            this.showNotification(groupItems[0].notification);
-          }
-          
-          this.throttleState.groups.delete(type);
-          this.throttleState.lastShown.set(type, Date.now());
-        }
-      }, GROUP_WINDOW_MS);
     }
+
+    // Mostrar grupo após GROUP_WINDOW_MS se não houver novas notificações
+    const timer = setTimeout(() => {
+      const group = this.throttleState.groups.get(type);
+      if (group && group.lastTimestamp === now) {
+        // Converter para items para mostrar agrupado
+        const groupItems: NotificationQueueItem[] = group.notifications.map(n => ({
+          notification: n,
+          timestamp: group.firstTimestamp,
+          priority: PRIORITY_MAP[n.notification_type],
+        }));
+
+        if (groupItems.length > 1) {
+          this.showGrouped(type, groupItems);
+        } else if (groupItems.length === 1) {
+          this.showNotification(groupItems[0].notification);
+        }
+
+        this.throttleState.groups.delete(type);
+        this.throttleState.lastShown.set(type, Date.now());
+      }
+      this.groupTimers.delete(type);
+    }, GROUP_WINDOW_MS);
+
+    this.groupTimers.set(type, timer);
   }
 
   /**
@@ -237,7 +247,7 @@ export class NotificationManager {
     let description = '';
     let title = '';
     let variant: "success" | "warning" | "info" | "destructive" = "success";
-    
+
     if (count === 1) {
       // Não deveria acontecer quando agrupando, mas por segurança
       this.showNotification(first);
@@ -286,7 +296,7 @@ export class NotificationManager {
    */
   private showNotification(notification: OrderNotification): void {
     const priority = PRIORITY_MAP[notification.notification_type];
-    
+
     // Não mostrar LOW
     if (priority === NotificationPriority.LOW) {
       return;
@@ -313,8 +323,8 @@ export class NotificationManager {
 
       case NotificationType.OrderStatusChanged:
         title = "Status Atualizado";
-        description = notification.details 
-          ? `#${orderNum} - ${notification.details}` 
+        description = notification.details
+          ? `#${orderNum} - ${notification.details}`
           : `#${orderNum}`;
         variant = "warning";
         break;
@@ -345,6 +355,8 @@ export class NotificationManager {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
+    this.groupTimers.forEach(timer => clearTimeout(timer));
+    this.groupTimers.clear();
     this.queue = [];
     this.throttleState = {
       lastShown: new Map(),

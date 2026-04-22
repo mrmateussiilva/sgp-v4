@@ -21,17 +21,23 @@ export const useRealtimeNotifications = () => {
   const [subscriberCount, setSubscriberCount] = useState(0);
   const subscriptionRef = useRef<(() => void) | null>(null);
   const statusSubscriptionRef = useRef<(() => void) | null>(null);
-  
+
   // Gerenciador inteligente de notificações
   const notificationManagerRef = useRef<NotificationManager | null>(null);
-  
+
+  // Manter referência estável do toast para o useCallback
+  const toastRef = useRef(toast);
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
   // Inicializar gerenciador de notificações
   useEffect(() => {
-    notificationManagerRef.current = new NotificationManager(toast);
+    notificationManagerRef.current = new NotificationManager(toastRef.current);
     return () => {
       notificationManagerRef.current?.clear();
     };
-  }, [toast]);
+  }, []); // manager usa ref interna do toast
 
   const updateStatusFromManager = useCallback(() => {
     const status = ordersSocket.getCurrentStatus();
@@ -60,7 +66,7 @@ export const useRealtimeNotifications = () => {
       broadcast: (message as Record<string, unknown>).broadcast,
       order: (message as Record<string, unknown>).order,
     });
-    
+
     if (!message || !message.type) {
       return;
     }
@@ -71,7 +77,7 @@ export const useRealtimeNotifications = () => {
       const messageUserId = typeof (message as Record<string, unknown>).user_id === 'number'
         ? (message as Record<string, unknown>).user_id as number
         : undefined;
-      
+
       // Se é do próprio usuário E tem flag broadcast, ignorar completamente
       // Essa mensagem foi enviada por nós e será redistribuída pelo servidor
       if (messageUserId !== undefined && userId !== undefined && messageUserId === userId) {
@@ -155,7 +161,7 @@ export const useRealtimeNotifications = () => {
       // Recarregar lista de pedidos para outras notificações
       refreshOrders();
     }
-  }, [parseOrderId, removeOrder, toast, userId]);
+  }, [parseOrderId, removeOrder, userId]);
 
   const connect = useCallback(() => {
     if (subscriptionRef.current) {
@@ -193,7 +199,7 @@ export const useRealtimeNotifications = () => {
   const refreshOrders = async () => {
     try {
       logger.debug('🔄 Disparando evento de refresh de pedidos...');
-      
+
       // Disparar evento customizado para que os componentes escutem
       window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
         detail: { timestamp: Date.now() }
@@ -243,7 +249,7 @@ export const useOrderRefresh = () => {
     };
 
     window.addEventListener('orders-refresh-requested', handleRefreshRequest as EventListener);
-    
+
     return () => {
       window.removeEventListener('orders-refresh-requested', handleRefreshRequest as EventListener);
     };
@@ -268,16 +274,16 @@ const normalizeEventType = (eventType: string): NotificationType => {
 // Função para extrair detalhes de mudanças de status
 const extractStatusDetails = (orderPayload: Record<string, unknown> | undefined): string | null => {
   if (!orderPayload) return null;
-  
+
   const changes: string[] = [];
-  
+
   if (orderPayload.financeiro) changes.push('Financeiro ✓');
   if (orderPayload.conferencia) changes.push('Conferência ✓');
   if (orderPayload.sublimacao) changes.push('Sublimação ✓');
   if (orderPayload.costura) changes.push('Costura ✓');
   if (orderPayload.expedicao) changes.push('Expedição ✓');
   if (orderPayload.pronto) changes.push('Pronto ✓');
-  
+
   if (orderPayload.status) {
     const statusMap: Record<string, string> = {
       'pendente': 'Pendente',
@@ -289,6 +295,6 @@ const extractStatusDetails = (orderPayload: Record<string, unknown> | undefined)
     const statusStr = String(orderPayload.status);
     changes.push(`Status: ${statusMap[statusStr] || statusStr}`);
   }
-  
+
   return changes.length > 0 ? changes.join(' • ') : null;
 };
