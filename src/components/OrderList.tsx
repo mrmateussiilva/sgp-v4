@@ -2888,7 +2888,7 @@ export default function OrderList() {
               className={cn('flex-1 flex flex-col min-h-0 flex-grow', isPwa && 'pwa-card border-0')}
             >
               <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-                <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative">
+                <div className="overflow-y-auto flex-1 min-h-0 overflow-x-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
                   {/* Indicador de loading sutil */}
                   {loading && paginatedOrders.length > 0 && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-primary/20 z-20 overflow-hidden">
@@ -3005,7 +3005,7 @@ export default function OrderList() {
                       )}
                     </div>
                   ) : (
-                    <SmoothTableWrapper>
+                    <SmoothTableWrapper isRefreshing={loading}>
                       <Table className="w-full">
                         <TableHeader className="bg-muted">
                           <TableRow className="hover:bg-transparent text-foreground">
