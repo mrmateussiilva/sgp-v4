@@ -55,8 +55,7 @@ export const designersApi = {
      */
     patchStatusArte: async (itemId: number, status: StatusArte): Promise<boolean> => {
         requireSessionToken();
-        const legenda = status === 'liberado' ? 'LIBERADO' : 'AGUARDANDO';
-        await apiClient.patch(`/designers/itens/${itemId}/status-arte`, { legenda_imagem: legenda });
+        await apiClient.patch(`/designers/itens/${itemId}/status-arte`, { status_arte: status });
         return true;
     },
 
