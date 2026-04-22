@@ -3321,8 +3321,8 @@ export default function OrderList() {
                                         <Badge
                                           variant="outline"
                                           className={cn(
-                                            "h-5 px-1.5 font-black text-[10px] tracking-tight border-none shadow-sm",
-                                            isSelected ? "bg-primary text-primary-foreground" : "bg-slate-800 text-white dark:bg-slate-700"
+                                            "h-6 px-2 font-bold text-xs tracking-tight border-slate-200 shadow-sm",
+                                            isSelected ? "bg-primary text-white border-primary" : "bg-slate-50 text-slate-900 border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
                                           )}
                                         >
                                           #{formatOrderNumber(order.numero, order.id)}
