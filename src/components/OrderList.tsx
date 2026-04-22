@@ -3009,7 +3009,7 @@ export default function OrderList() {
                       <Table className="w-full">
                         <TableHeader className="bg-muted">
                           <TableRow className="hover:bg-transparent text-foreground">
-                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky left-0 z-10 bg-muted border-r px-1 lg:px-2">
+                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky top-0 left-0 z-40 bg-muted border-r px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <Checkbox
                                 checked={
                                   selectedOrderIdsForPrint.length > 0 &&
@@ -3025,7 +3025,7 @@ export default function OrderList() {
                               />
                             </TableHead>
                             <TableHead
-                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-20 bg-background border-r cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2"
+                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky top-0 left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-40 bg-muted border-r cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                               onClick={() => handleSort('id')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
@@ -3034,7 +3034,7 @@ export default function OrderList() {
                               </div>
                             </TableHead>
                             <TableHead
-                              className="min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] cursor-pointer hover:bg-muted transition-colors px-2 lg:px-3 xl:px-4"
+                              className="min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-2 lg:px-3 xl:px-4 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                               onClick={() => handleSort('cliente')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
@@ -3043,7 +3043,7 @@ export default function OrderList() {
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2 xl:px-3"
+                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                               onClick={() => handleSort('data_entrega')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
@@ -3053,7 +3053,7 @@ export default function OrderList() {
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden hd:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] cursor-pointer hover:bg-muted transition-colors px-1 lg:px-2 xl:px-3"
+                              className="hidden hd:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
                               onClick={() => handleSort('prioridade')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
@@ -3062,13 +3062,13 @@ export default function OrderList() {
                                 {getSortIcon('prioridade')}
                               </div>
                             </TableHead>
-                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <div className="flex items-center justify-center gap-1 font-bold text-foreground">
                                 Cidade/UF
                                 {getSortIcon('cidade')}
                               </div>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3081,7 +3081,7 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3094,7 +3094,7 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3107,7 +3107,7 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3120,7 +3120,7 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3133,7 +3133,7 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base">
+                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -3146,10 +3146,10 @@ export default function OrderList() {
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               Status
                             </TableHead>
-                            <TableHead className="text-right whitespace-nowrap sticky right-0 z-20 bg-background border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground opacity-100">
+                            <TableHead className="text-right whitespace-nowrap sticky top-0 right-0 z-40 bg-muted border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground opacity-100 shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
                               Ações
                             </TableHead>
                           </TableRow>
@@ -3319,8 +3319,8 @@ export default function OrderList() {
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1 lg:gap-2">
                                         <span className={cn(
-                                          "font-black text-sm tracking-tight",
-                                          isSelected ? "text-primary" : "text-slate-700 dark:text-slate-300"
+                                          "font-black text-base lg:text-lg tracking-tighter",
+                                          isSelected ? "text-primary" : "text-slate-900 dark:text-slate-100"
                                         )}>
                                           #{formatOrderNumber(order.numero, order.id)}
                                         </span>
