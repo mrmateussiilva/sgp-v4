@@ -32,7 +32,6 @@ import {
   Loader2,
   Printer,
   Palette,
-  BellRing,
   Lock,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -53,7 +52,6 @@ import { SafiraChat, SafiraPanel } from '@/components/Safira';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
 import { ordersSocket } from '@/lib/realtimeOrders';
-import { sendNativeNotification, requestNotificationPermission } from '@/utils/notifications';
 
 // Lazy load de todas as rotas para code-splitting
 const OrderList = lazy(() => import('../components/OrderList'));
@@ -381,281 +379,253 @@ export default function Dashboard() {
   // Desktop Tauri: layout com sidebar
   return (
     <>
-    <TooltipProvider delayDuration={300}>
-      <div className="flex h-screen bg-background overflow-hidden">
-        {/* Sidebar Desktop */}
-        <aside
-          className={cn(
-            'hidden md:flex md:flex-col border-r bg-card transition-all duration-300',
-            sidebarExpanded ? 'md:w-64' : 'md:w-20'
-          )}
-        >
-          <div className={cn('p-6 flex items-center', !sidebarExpanded && 'justify-center p-4')}>
-            {sidebarExpanded ? (
-              <div>
-                <h1 className="text-4xl font-bold text-primary">SGP</h1>
-              </div>
-            ) : (
-              <h1 className="text-2xl font-bold text-primary">S</h1>
+      <TooltipProvider delayDuration={300}>
+        <div className="flex h-screen bg-background overflow-hidden">
+          {/* Sidebar Desktop */}
+          <aside
+            className={cn(
+              'hidden md:flex md:flex-col border-r bg-card transition-all duration-300',
+              sidebarExpanded ? 'md:w-64' : 'md:w-20'
             )}
-          </div>
-
-          <Separator />
-
-          {/* Botão de Toggle */}
-          <div className="px-4 py-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className={cn('w-full', !sidebarExpanded && 'justify-center px-0')}
-              aria-label={sidebarExpanded ? 'Recolher menu' : 'Expandir menu'}
-              aria-expanded={sidebarExpanded}
-            >
-              {sidebarExpanded ? (
-                <>
-                  <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Recolher
-                </>
-              ) : (
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              )}
-            </Button>
-          </div>
-
-          <Separator />
-
-          <nav
-            className="flex-1 p-4 space-y-1 overflow-y-auto"
-            role="navigation"
-            aria-label="Menu principal"
           >
-            {menuItems.map((item, index) => {
-              const active = isActive(item.path, item.exact);
-              const previousItem = menuItems[index - 1];
-              const isFirstInSection = !previousItem || previousItem.section !== item.section;
-
-              return (
-                <DashboardMenuItem
-                  key={item.path}
-                  icon={item.icon}
-                  label={item.label}
-                  path={item.path}
-                  active={active}
-                  expanded={sidebarExpanded}
-                  needsSeparator={isFirstInSection}
-                  separatorLabel={isFirstInSection ? item.section : undefined}
-                  showBadge={item.path === '/update-status' && isUpdateAvailable}
-                  isFirst={index === 0}
-                  shortcutLabel={item.shortcutLabel}
-                />
-              );
-            })}
-          </nav>
-
-          <Separator />
-
-          {/* SAFIRA Assistant */}
-          <div className="px-4 py-2">
-            <SafiraChat expanded={sidebarExpanded} />
-          </div>
-
-          <Separator />
-
-          {/* Versão do App */}
-          {appVersion && (
-            <div className={cn('px-4 py-2', !sidebarExpanded && 'flex justify-center')}>
+            <div className={cn('p-6 flex items-center', !sidebarExpanded && 'justify-center p-4')}>
               {sidebarExpanded ? (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Versão</p>
-                  <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                <div>
+                  <h1 className="text-4xl font-bold text-primary">SGP</h1>
                 </div>
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-primary">v{appVersion}</p>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Versão {appVersion}</TooltipContent>
-                </Tooltip>
+                <h1 className="text-2xl font-bold text-primary">S</h1>
               )}
             </div>
-          )}
 
-          <Separator />
+            <Separator />
 
-          <div className="p-4">
-            {sidebarExpanded && (
-              <div className="mb-3 px-3">
-                <p className="text-sm font-medium">Usuário</p>
-                <p className="text-sm text-muted-foreground truncate">{username}</p>
-                <button
-                  onClick={() => setShowChangePassword(true)}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
-                >
-                  <Lock size={12} /> Alterar senha
-                </button>
-                <button
-                  onClick={async () => {
-                    const granted = await requestNotificationPermission();
-                    if (granted) {
-                      // Teste Local
-                      sendNativeNotification({
-                        title: 'Teste de Notificação',
-                        body: 'Se você está vendo isso, as notificações nativas estão funcionando!'
-                      });
+            {/* Botão de Toggle */}
+            <div className="px-4 py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarExpanded(!sidebarExpanded)}
+                className={cn('w-full', !sidebarExpanded && 'justify-center px-0')}
+                aria-label={sidebarExpanded ? 'Recolher menu' : 'Expandir menu'}
+                aria-expanded={sidebarExpanded}
+              >
+                {sidebarExpanded ? (
+                  <>
+                    <ChevronLeft className="h-4 w-4 mr-2" aria-hidden="true" />
+                    Recolher
+                  </>
+                ) : (
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+            </div>
 
-                      // Teste de REDE (Broadcast para outros)
-                      ordersSocket.sendTestBroadcast();
+            <Separator />
 
-                      toast({
-                        title: "Teste enviado",
-                        description: "A notificação deve aparecer aqui e em outros dispositivos conectados.",
-                      });
-                    } else {
-                      toast({
-                        title: "Sem permissão",
-                        description: "As notificações estão bloqueadas no seu navegador/celular.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
-                >
-                  <BellRing size={12} /> Testar Notificações
-                </button>
+            <nav
+              className="flex-1 p-4 space-y-1 overflow-y-auto"
+              role="navigation"
+              aria-label="Menu principal"
+            >
+              {menuItems.map((item, index) => {
+                const active = isActive(item.path, item.exact);
+                const previousItem = menuItems[index - 1];
+                const isFirstInSection = !previousItem || previousItem.section !== item.section;
+
+                return (
+                  <DashboardMenuItem
+                    key={item.path}
+                    icon={item.icon}
+                    label={item.label}
+                    path={item.path}
+                    active={active}
+                    expanded={sidebarExpanded}
+                    needsSeparator={isFirstInSection}
+                    separatorLabel={isFirstInSection ? item.section : undefined}
+                    showBadge={item.path === '/update-status' && isUpdateAvailable}
+                    isFirst={index === 0}
+                    shortcutLabel={item.shortcutLabel}
+                  />
+                );
+              })}
+            </nav>
+
+            <Separator />
+
+            {/* SAFIRA Assistant */}
+            <div className="px-4 py-2">
+              <SafiraChat expanded={sidebarExpanded} />
+            </div>
+
+            <Separator />
+
+            {/* Versão do App */}
+            {appVersion && (
+              <div className={cn('px-4 py-2', !sidebarExpanded && 'flex justify-center')}>
+                {sidebarExpanded ? (
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">Versão</p>
+                    <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                  </div>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-primary">v{appVersion}</p>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Versão {appVersion}</TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             )}
-            {!sidebarExpanded ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
-                    onClick={handleLogout}
-                    aria-label={`Sair (${username})`}
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Sair ({username})</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-start"
-                onClick={handleLogout}
-                aria-label={`Sair (${username})`}
-              >
-                <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-                <span>Sair</span>
-              </Button>
-            )}
-          </div>
-        </aside>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Content Area */}
-          <main className="flex-1 overflow-y-auto p-6" role="main">
-            <Suspense fallback={<RouteLoadingFallback />}>
-              <Routes>
-                <Route path="/" element={<DashboardOverview />} />
-                <Route path="orders" element={<OrderList />} />
-                <Route
-                  path="orders/new"
-                  element={<Navigate to="/dashboard/pedido/novo" replace />}
-                />
-                <Route path="orders/edit/:id" element={<PedidoEditView />} />
-                {/* Rota canônica para novo pedido */}
-                <Route path="pedido/novo" element={<PedidoCreateView />} />
-                <Route path="pedido/editar/:id" element={<PedidoEditView />} />
-                <Route path="clientes" element={<Clientes />} />
-                <Route path="painel-producao" element={<ProducaoMaquinas />} />
-                <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
-                <Route
-                  path="painel-desempenho"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <PainelDesempenho />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/fechamentos"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <Fechamentos />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <Admin />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/materiais"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoMateriais />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/designers"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoDesigners />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/vendedores"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoVendedores />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/tipos-producao"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoTiposProducao />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/formas-envio"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoFormasEnvio />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/formas-pagamento"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoFormasPagamento />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/usuarios"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoUsuarios />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Desativado temporariamente */}
-                {/* <Route 
+            <Separator />
+
+            <div className="p-4">
+              {sidebarExpanded && (
+                <div className="mb-3 px-3">
+                  <p className="text-sm font-medium">Usuário</p>
+                  <p className="text-sm text-muted-foreground truncate">{username}</p>
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
+                  >
+                    <Lock size={12} /> Alterar senha
+                  </button>
+
+                </div>
+              )}
+              {!sidebarExpanded ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
+                      onClick={handleLogout}
+                      aria-label={`Sair (${username})`}
+                    >
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Sair ({username})</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-start"
+                  onClick={handleLogout}
+                  aria-label={`Sair (${username})`}
+                >
+                  <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
+                  <span>Sair</span>
+                </Button>
+              )}
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Content Area */}
+            <main className="flex-1 overflow-y-auto p-6" role="main">
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<DashboardOverview />} />
+                  <Route path="orders" element={<OrderList />} />
+                  <Route
+                    path="orders/new"
+                    element={<Navigate to="/dashboard/pedido/novo" replace />}
+                  />
+                  <Route path="orders/edit/:id" element={<PedidoEditView />} />
+                  {/* Rota canônica para novo pedido */}
+                  <Route path="pedido/novo" element={<PedidoCreateView />} />
+                  <Route path="pedido/editar/:id" element={<PedidoEditView />} />
+                  <Route path="clientes" element={<Clientes />} />
+                  <Route path="painel-producao" element={<ProducaoMaquinas />} />
+                  <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+                  <Route
+                    path="painel-desempenho"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <PainelDesempenho />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/fechamentos"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <Fechamentos />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <Admin />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/materiais"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoMateriais />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/designers"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoDesigners />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/vendedores"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoVendedores />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/tipos-producao"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoTiposProducao />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/formas-envio"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoFormasEnvio />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/formas-pagamento"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoFormasPagamento />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/usuarios"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoUsuarios />
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Desativado temporariamente */}
+                  {/* <Route 
                 path="/admin/template-ficha" 
                 element={
                   <ProtectedRoute requireAdmin={true}>
@@ -663,65 +633,65 @@ export default function Dashboard() {
                   </ProtectedRoute>
                 } 
               /> */}
-                <Route
-                  path="/admin/template-relatorios"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoTemplateRelatorios />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/maquinas"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <GestaoMaquinas />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="analise-materiais"
-                  element={<MaterialAnalysis />}
-                />
-                <Route path="painel-designers" element={<TelaPainelDesigners />} />
-                <Route path="print-logs" element={<PrintLogs />} />
-              </Routes>
-            </Suspense>
-          </main>
+                  <Route
+                    path="/admin/template-relatorios"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoTemplateRelatorios />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/maquinas"
+                    element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <GestaoMaquinas />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="analise-materiais"
+                    element={<MaterialAnalysis />}
+                  />
+                  <Route path="painel-designers" element={<TelaPainelDesigners />} />
+                  <Route path="print-logs" element={<PrintLogs />} />
+                </Routes>
+              </Suspense>
+            </main>
+          </div>
+          <SafiraPanel />
         </div>
-        <SafiraPanel />
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
 
-    {/* Modal Alterar Senha */}
-    <Dialog open={showChangePassword} onOpenChange={(open) => { if (!open) { setShowChangePassword(false); setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); } }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Alterar Senha</DialogTitle>
-          <DialogDescription>Digite sua senha atual e a nova senha desejada.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Senha Atual</Label>
-            <Input id="currentPassword" type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm(prev => ({ ...prev, currentPassword: e.target.value }))} />
+      {/* Modal Alterar Senha */}
+      <Dialog open={showChangePassword} onOpenChange={(open) => { if (!open) { setShowChangePassword(false); setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>Digite sua senha atual e a nova senha desejada.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Senha Atual</Label>
+              <Input id="currentPassword" type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm(prev => ({ ...prev, currentPassword: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input id="newPassword" type="password" value={pwForm.newPassword} onChange={(e) => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+              <Input id="confirmPassword" type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm(prev => ({ ...prev, confirmPassword: e.target.value }))} />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">Nova Senha</Label>
-            <Input id="newPassword" type="password" value={pwForm.newPassword} onChange={(e) => setPwForm(prev => ({ ...prev, newPassword: e.target.value }))} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-            <Input id="confirmPassword" type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm(prev => ({ ...prev, confirmPassword: e.target.value }))} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowChangePassword(false)}>Cancelar</Button>
-          <Button onClick={handleChangePassword} disabled={changingPassword}>
-            {changingPassword ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Salvar'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChangePassword(false)}>Cancelar</Button>
+            <Button onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
