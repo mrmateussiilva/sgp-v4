@@ -3014,8 +3014,9 @@ export default function OrderList() {
                           return (
                             <Card
                               key={order.id}
+                              onClick={() => handleViewOrder(order)}
                               className={cn(
-                                'relative overflow-hidden transition-all duration-300 border-none shadow-md bg-card active:scale-[0.98]',
+                                'relative overflow-hidden transition-all duration-300 border-none shadow-md bg-card active:scale-[0.98] cursor-pointer',
                                 isDelayed && 'ring-2 ring-red-500/50',
                                 isUrgent && !order.pronto && 'ring-2 ring-amber-500/50'
                               )}
@@ -3046,7 +3047,12 @@ export default function OrderList() {
 
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full -mr-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full -mr-2"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
                                         <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                       </Button>
                                     </DropdownMenuTrigger>
