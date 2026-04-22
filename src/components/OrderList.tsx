@@ -3263,13 +3263,17 @@ export default function OrderList() {
 
                               // Classe base da linha com destaque visual e listras zebra
                               const rowClassName = cn(
-                                "group transition-all duration-200 cursor-pointer border-b border-border/40",
+                                "group transition-all duration-300 cursor-pointer border-b border-border/40 relative overflow-hidden",
                                 isSelected
-                                  ? 'bg-primary/15 dark:bg-primary/25 ring-1 ring-primary/40 z-20'
-                                  : 'even:bg-muted/20 odd:bg-transparent hover:bg-muted/40',
-                                isDelayed ? 'bg-red-50/60 dark:bg-red-950/20 border-l-4 border-l-red-500' : '',
-                                isUrgent && !isOverdue && !order.pronto ? 'bg-yellow-50/50 dark:bg-yellow-950/15 border-l-2 border-l-yellow-400' : '',
-                                isHighPriority && !isDelayed && !isUrgent ? 'bg-blue-50/40 dark:bg-blue-950/10' : ''
+                                  ? 'bg-primary/[0.08] dark:bg-primary/[0.15] ring-inset ring-1 ring-primary/30 z-20 shadow-sm'
+                                  : 'even:bg-muted/[0.15] odd:bg-transparent hover:bg-muted/40 hover:shadow-md hover:z-10',
+                                isDelayed
+                                  ? 'bg-red-50/40 dark:bg-red-950/10 border-l-[6px] border-l-red-500 shadow-l-xl'
+                                  : isUrgent && !order.pronto
+                                    ? 'bg-amber-50/30 dark:bg-amber-950/10 border-l-[6px] border-l-amber-500'
+                                    : isHighPriority && !order.pronto
+                                      ? 'bg-blue-50/30 dark:bg-blue-950/10 border-l-[4px] border-l-blue-400'
+                                      : 'border-l-[4px] border-l-transparent'
                               );
 
                               return (
@@ -3314,7 +3318,15 @@ export default function OrderList() {
                                   )}>
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1 lg:gap-2">
-                                        #{formatOrderNumber(order.numero, order.id)}
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "h-5 px-1.5 font-black text-[10px] tracking-tight border-none shadow-sm",
+                                            isSelected ? "bg-primary text-primary-foreground" : "bg-slate-800 text-white dark:bg-slate-700"
+                                          )}
+                                        >
+                                          #{formatOrderNumber(order.numero, order.id)}
+                                        </Badge>
                                         <EditingIndicator orderId={order.id} />
                                         {printedOrderIds.has(order.id) && (
                                           <TooltipProvider>
@@ -3322,10 +3334,10 @@ export default function OrderList() {
                                               <TooltipTrigger asChild>
                                                 <Badge
                                                   variant="outline"
-                                                  className="h-4 p-0 px-1 text-[8px] lg:text-[9px] bg-green-50 text-green-700 border-green-200"
+                                                  className="h-4 p-0 px-1 text-[8px] lg:text-[9px] bg-green-100/80 text-green-700 border-green-200 shadow-none font-black"
                                                 >
                                                   <CheckCircle2 className="h-2.5 w-2.5 lg:h-3 lg:w-3 mr-0.5" />
-                                                  IMPRESSO
+                                                  VISTO
                                                 </Badge>
                                               </TooltipTrigger>
                                               <TooltipContent>
@@ -3353,13 +3365,20 @@ export default function OrderList() {
                                       text-foreground/90
                                     `}
                                   >
-                                    <div className="flex flex-col gap-1">
-                                      <span className="truncate">{order.cliente || order.customer_name}</span>
-                                      <div className="w-full bg-muted/50 rounded-full h-1 mt-1 overflow-hidden hidden sm:block">
+                                    <div className="flex flex-col gap-1.5">
+                                      <span className={cn(
+                                        "truncate tracking-tight",
+                                        isSelected ? "font-black" : "font-semibold"
+                                      )}>
+                                        {order.cliente || order.customer_name}
+                                      </span>
+                                      <div className="w-full bg-slate-200/50 dark:bg-slate-700/50 rounded-full h-[3px] mt-0.5 overflow-hidden hidden sm:block relative">
                                         <div
                                           className={cn(
-                                            "h-full transition-all duration-500",
-                                            progressPercentage === 100 ? "bg-green-500" : "bg-primary/60"
+                                            "h-full transition-all duration-1000 ease-in-out relative",
+                                            progressPercentage === 100
+                                              ? "bg-gradient-to-r from-green-400 to-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                                              : "bg-gradient-to-r from-primary/40 to-primary"
                                           )}
                                           style={{ width: `${progressPercentage}%` }}
                                         />
@@ -3445,19 +3464,21 @@ export default function OrderList() {
                                                   'Financeiro'
                                                 )
                                               }
-                                              className={`
-                                      transition-all duration-150
-                                      ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}
-                                      ${order.financeiro ? 'scale-110' : ''}
-                                    `}
+                                              className={cn(
+                                                "transition-all duration-300 h-5 w-5 rounded-full border-2",
+                                                !isAdmin ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                                                order.financeiro
+                                                  ? "bg-orange-500 border-orange-500 text-white shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+                                                  : "bg-transparent border-slate-300"
+                                              )}
                                             />
                                           </div>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          <p>Financeiro</p>
+                                          <p className="font-bold">Financeiro</p>
                                           {!isAdmin && (
-                                            <p className="text-xs mt-0.5">
-                                              Somente administradores podem alterar.
+                                            <p className="text-xs mt-0.5 opacity-80">
+                                              Somente administradores.
                                             </p>
                                           )}
                                         </TooltipContent>
@@ -3487,7 +3508,13 @@ export default function OrderList() {
                                                   'Conferência'
                                                 )
                                               }
-                                              className="transition-all duration-150 data-[state=checked]:scale-110"
+                                              className={cn(
+                                                "transition-all duration-300 h-5 w-5 rounded-full border-2",
+                                                (!order.financeiro || !canToggleConferencia) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                                                order.conferencia
+                                                  ? "bg-amber-600 border-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.4)]"
+                                                  : "bg-transparent border-slate-300"
+                                              )}
                                             />
                                           </div>
                                         </TooltipTrigger>
@@ -3513,7 +3540,13 @@ export default function OrderList() {
                                                   'Impressão'
                                                 )
                                               }
-                                              className="transition-all duration-150 data-[state=checked]:scale-110"
+                                              className={cn(
+                                                "transition-all duration-300 h-5 w-5 rounded-full border-2",
+                                                (!order.financeiro || !canToggleImpressao) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                                                order.sublimacao
+                                                  ? "bg-purple-600 border-purple-600 text-white shadow-[0_0_8px_rgba(147,51,234,0.4)]"
+                                                  : "bg-transparent border-slate-300"
+                                              )}
                                             />
                                           </div>
                                         </TooltipTrigger>
@@ -3558,7 +3591,13 @@ export default function OrderList() {
                                                   'Costura'
                                                 )
                                               }
-                                              className="transition-all duration-150 data-[state=checked]:scale-110"
+                                              className={cn(
+                                                "transition-all duration-300 h-5 w-5 rounded-full border-2",
+                                                !order.financeiro ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                                                order.costura
+                                                  ? "bg-blue-600 border-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+                                                  : "bg-transparent border-slate-300"
+                                              )}
                                             />
                                           </div>
                                         </TooltipTrigger>
@@ -3584,7 +3623,13 @@ export default function OrderList() {
                                                   'Expedição'
                                                 )
                                               }
-                                              className="transition-all duration-150 data-[state=checked]:scale-110"
+                                              className={cn(
+                                                "transition-all duration-300 h-5 w-5 rounded-full border-2",
+                                                !order.financeiro ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                                                order.expedicao
+                                                  ? "bg-green-600 border-green-600 text-white shadow-[0_0_8px_rgba(22,163,74,0.4)]"
+                                                  : "bg-transparent border-slate-300"
+                                              )}
                                             />
                                           </div>
                                         </TooltipTrigger>
@@ -3595,52 +3640,27 @@ export default function OrderList() {
 
                                   {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
                                   <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 border-l border-border/10">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="flex items-center justify-center gap-1.5">
-                                            {order.pronto && (
-                                              <CheckCircle2
-                                                className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0"
-                                                aria-hidden="true"
-                                              />
-                                            )}
-                                            <Badge
-                                              variant={
-                                                order.pronto
-                                                  ? 'success'
-                                                  : isDelayed
-                                                    ? 'destructive'
-                                                    : 'secondary'
-                                              }
-                                              className={`
-                                text-[10px] lg:text-xs xl:text-sm px-1.5 py-0 lg:px-2 lg:py-0.5 font-semibold
-                                ${order.pronto ? '' : isDelayed ? 'animate-pulse' : ''}
-                              `}
-                                            >
-                                              {order.pronto
-                                                ? 'Pronto'
-                                                : isDelayed
-                                                  ? 'Atrasado'
-                                                  : 'Em Andamento'}
-                                            </Badge>
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          {order.pronto
-                                            ? 'Pronto'
-                                            : isDelayed
-                                              ? 'Atrasado'
-                                              : 'Em Andamento'}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      {order.pronto ? (
+                                        <Badge className="bg-green-600 hover:bg-green-700 text-white border-none shadow-[0_0_8px_rgba(22,163,74,0.3)] h-6 px-3 uppercase text-[10px] font-black tracking-widest">
+                                          PRONTO
+                                        </Badge>
+                                      ) : isDelayed ? (
+                                        <Badge variant="destructive" className="animate-pulse h-6 px-3 uppercase text-[10px] font-black tracking-widest ring-1 ring-red-400 ring-offset-1">
+                                          ATRASADO
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="secondary" className="h-6 px-3 uppercase text-[10px] font-black tracking-widest border-none bg-slate-100 text-slate-500 dark:bg-slate-800">
+                                          EM CURSO
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell className={cn(
                                     "text-right whitespace-nowrap sticky right-0 z-30 border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 transition-colors",
                                     isSelected ? "bg-primary/20" : "bg-background group-even/row:bg-muted"
                                   )}>
-                                    <div className="flex justify-end gap-0.5 lg:gap-1 xl:gap-2">
+                                    <div className="flex justify-end gap-1 lg:gap-2">
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -3648,37 +3668,57 @@ export default function OrderList() {
                                               size="icon"
                                               variant="ghost"
                                               onClick={() => handleQuickShare(order)}
-                                              className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
+                                              className="h-8 w-8 lg:h-9 lg:w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary active:scale-95"
                                               title="Ação Rápida: Copiar itens para WhatsApp"
                                             >
-                                              <Camera className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
+                                              <Camera className="h-4 w-4 lg:h-5 lg:w-5" />
                                             </Button>
                                           </TooltipTrigger>
                                           <TooltipContent>
-                                            <p>Copiar itens do pedido para WhatsApp</p>
+                                            <p>Copiar para WhatsApp</p>
                                           </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleViewOrder(order)}
-                                        className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                        title="Visualizar Pedido"
-                                      >
-                                        <FileText className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEdit(order);
-                                        }}
-                                        className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8"
-                                      >
-                                        <Edit className="h-3 w-3 lg:h-4 lg:w-4 xl:h-4 xl:w-4" />
-                                      </Button>
+
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => handleViewOrder(order)}
+                                              className="h-8 w-8 lg:h-9 lg:w-9 transition-all duration-300 hover:scale-110 hover:bg-blue-500/10 hover:text-blue-600 active:scale-95"
+                                              title="Visualizar Pedido"
+                                            >
+                                              <FileText className="h-4 w-4 lg:h-5 lg:w-5" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Visualizar</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEdit(order);
+                                              }}
+                                              className="h-8 w-8 lg:h-9 lg:w-9 transition-all duration-300 hover:scale-110 hover:bg-amber-500/10 hover:text-amber-600 active:scale-95"
+                                            >
+                                              <Edit className="h-4 w-4 lg:h-5 lg:w-5" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Editar</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
