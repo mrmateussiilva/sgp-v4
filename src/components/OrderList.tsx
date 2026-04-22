@@ -31,6 +31,9 @@ import {
   Scissors,
   Truck,
   ClipboardCheck,
+  MoreVertical,
+  Eye,
+  MapPin,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
@@ -60,6 +63,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -122,7 +131,7 @@ export default function OrderList() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState(''); // Termo de busca ativo (após clicar em buscar)
-  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready'>(
+  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready' | 'delayed'>(
     'pending'
   );
   const [dateFrom, setDateFrom] = useState('');
@@ -1358,6 +1367,12 @@ export default function OrderList() {
         filtered = filtered.filter((order) => !order.pronto);
       } else if (productionStatusFilter === 'ready') {
         filtered = filtered.filter((order) => order.pronto);
+      } else if (productionStatusFilter === 'delayed') {
+        filtered = filtered.filter((order) => {
+          if (order.pronto) return false;
+          const urgency = getOrderUrgency(order.data_entrega);
+          return urgency.type === 'overdue';
+        });
       }
     }
 
@@ -1713,6 +1728,13 @@ export default function OrderList() {
     }
 
     await printSelectedOrders(ordersToPrint);
+  };
+
+  const handlePrintIndividual = async (orderId: number) => {
+    const orderToPrint = orders.find((o) => o.id === orderId);
+    if (orderToPrint) {
+      await printSelectedOrders([orderToPrint]);
+    }
   };
 
   const printSelectedOrders = async (ordersToPrint: OrderWithItems[]) => {
@@ -2535,20 +2557,28 @@ export default function OrderList() {
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+                    {loading ? 'Buscando...' : `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido' : 'pedidos'}`}
+                  </span>
+                </div>
+
                 {/* Status Chips - Mobile Only */}
                 <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-none -mx-3 px-3">
                   {[
                     { id: 'pending', label: 'Pendentes' },
+                    { id: 'delayed', label: 'Atrasados 🔴' },
                     { id: 'ready', label: 'Prontos' },
                     { id: 'all', label: 'Todos' },
                   ].map((chip) => (
                     <button
                       key={chip.id}
-                      onClick={() => setProductionStatusFilter(chip.id as 'pending' | 'ready' | 'all')}
+                      onClick={() => setProductionStatusFilter(chip.id as any)}
                       className={cn(
-                        "whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all border",
+                        "whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95",
                         productionStatusFilter === chip.id
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
                           : "bg-background text-muted-foreground border-border hover:bg-muted"
                       )}
                     >
@@ -2904,100 +2934,203 @@ export default function OrderList() {
                     <div className="p-4 space-y-3">
                       {loading && paginatedOrders.length === 0 ? (
                         Array.from({ length: 5 }).map((_, i) => (
-                          <Card key={`skeleton-${i}`} className="p-4">
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="space-y-2 flex-1">
-                                <Skeleton className="h-5 w-20" />
-                                <Skeleton className="h-4 w-32" />
-                                <Skeleton className="h-3 w-24" />
+                          <Card key={`skeleton-${i}`} className="p-4 space-y-4 border-none shadow-md">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-4 w-12" />
+                                <div className="h-4 w-[1px] bg-border mx-1" />
+                                <Skeleton className="h-5 w-16 rounded-full" />
                               </div>
-                              <Skeleton className="h-9 w-20" />
+                              <Skeleton className="h-8 w-8 rounded-full" />
+                            </div>
+                            <div className="space-y-2">
+                              <Skeleton className="h-5 w-2/3" />
+                              <div className="flex gap-3">
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-20" />
+                              </div>
+                            </div>
+                            <div className="space-y-3 pt-1">
+                              <div className="flex gap-1.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Skeleton key={s} className="h-4 w-8 rounded-md" />
+                                ))}
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between">
+                                  <Skeleton className="h-3 w-12" />
+                                  <Skeleton className="h-3 w-8" />
+                                </div>
+                                <Skeleton className="h-1.5 w-full rounded-full" />
+                              </div>
                             </div>
                           </Card>
                         ))
                       ) : paginatedOrders.length === 0 ? (
-                        <div className="flex flex-col items-center gap-3 py-12">
-                          <Inbox className="h-12 w-12 text-muted-foreground" />
-                          <h3 className="text-lg font-semibold">Nenhum pedido encontrado</h3>
-                          <p className="text-sm text-muted-foreground text-center max-w-sm">
-                            {activeSearchTerm ||
-                              dateFrom ||
-                              dateTo ||
-                              selectedStatuses.length > 0 ||
-                              selectedVendedor ||
-                              selectedDesigner ||
-                              selectedCidade ||
-                              selectedFormaEnvio
-                              ? 'Tente ajustar seus filtros de busca.'
-                              : 'Ainda não há pedidos.'}
-                          </p>
+                        <div className="flex flex-col items-center justify-center gap-4 py-20 px-6 text-center animate-in fade-in zoom-in duration-500">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
+                            <Inbox className="h-16 w-16 text-muted-foreground/40 relative z-10" />
+                          </div>
+                          <div className="space-y-1 relative z-10">
+                            <h3 className="text-xl font-black text-foreground">Xiiii, nada por aqui!</h3>
+                            <p className="text-sm text-muted-foreground max-w-[250px] mx-auto font-medium">
+                              {activeSearchTerm ||
+                                dateFrom ||
+                                dateTo ||
+                                selectedStatuses.length > 0 ||
+                                selectedVendedor ||
+                                selectedDesigner ||
+                                selectedCidade ||
+                                selectedFormaEnvio
+                                ? 'Não encontramos nenhum pedido com esses filtros. Que tal dar uma ajustada?'
+                                : 'Parece que ainda não há pedidos registrados no sistema.'}
+                            </p>
+                          </div>
+                          {!isPwa && (
+                            <Button
+                              onClick={() => navigate('/dashboard/pedido/novo')}
+                              className="mt-2 rounded-full px-8 font-bold shadow-lg shadow-primary/20"
+                            >
+                              Criar Primeiro Pedido
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         paginatedOrders.map((order: OrderWithItems) => {
                           const urgency = getOrderUrgency(order.data_entrega);
                           const isDelayed = urgency.type === 'overdue' && !order.pronto;
-                          const statusLabel = order.pronto
-                            ? 'Pronto'
-                            : isDelayed
-                              ? 'Atrasado'
-                              : 'Em Andamento';
+                          const isUrgent = urgency.type === 'today' || urgency.type === 'tomorrow';
+
+                          const completionCount = [
+                            order.financeiro,
+                            order.conferencia,
+                            order.sublimacao,
+                            order.costura,
+                            order.expedicao,
+                          ].filter(Boolean).length;
+                          const progressPercentage = (completionCount / 5) * 100;
+
                           return (
                             <Card
                               key={order.id}
                               className={cn(
-                                'p-3 transition-colors shadow-sm',
-                                isDelayed &&
-                                'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
-                                order.prioridade === 'ALTA' &&
-                                !isDelayed &&
-                                'border-l-4 border-l-orange-400'
+                                'relative overflow-hidden transition-all duration-300 border-none shadow-md bg-card active:scale-[0.98]',
+                                isDelayed && 'ring-2 ring-red-500/50',
+                                isUrgent && !order.pronto && 'ring-2 ring-amber-500/50'
                               )}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  {/* 1. Nome do Cliente - Foco principal */}
-                                  <p className="font-semibold text-sm text-foreground truncate">
-                                    {order.cliente || order.customer_name}
-                                  </p>
+                              {/* Faixa de Urgência Superior */}
+                              {(isDelayed || isUrgent) && !order.pronto && (
+                                <div className={cn(
+                                  "h-1 w-full absolute top-0 left-0",
+                                  isDelayed ? "bg-red-500" : "bg-amber-500"
+                                )} />
+                              )}
 
-                                  {/* 2. Status + 3. ID */}
-                                  <div className="flex items-center gap-2 mt-1.5">
-                                    <Badge
-                                      variant={
-                                        order.pronto
-                                          ? 'default'
-                                          : isDelayed
-                                            ? 'destructive'
-                                            : 'secondary'
-                                      }
-                                      className="text-[10px] px-1.5 py-0"
-                                    >
-                                      {statusLabel}
-                                    </Badge>
-                                    <span className="text-[11px] text-muted-foreground">
+                              <div className="p-4 space-y-4">
+                                {/* Zona 1: Header do Card */}
+                                <div className="flex items-center justify-between gap-2 overflow-hidden">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="text-sm font-black text-primary shrink-0">
                                       #{formatOrderNumber(order.numero, order.id)}
                                     </span>
-                                    {order.prioridade === 'ALTA' && (
-                                      <Badge variant="destructive" className="text-[9px] px-1">
-                                        ALTA
-                                      </Badge>
-                                    )}
+                                    <div className="h-4 w-[1px] bg-border mx-1" />
+                                    <Badge
+                                      variant={order.pronto ? "default" : isDelayed ? "destructive" : "secondary"}
+                                      className="text-[10px] px-2 py-0 h-5 font-bold whitespace-nowrap"
+                                    >
+                                      {order.pronto ? 'Pronto' : isDelayed ? 'Atrasado' : 'Produção'}
+                                    </Badge>
                                   </div>
 
-                                  {/* 4. Data */}
-                                  <p className="text-[11px] text-muted-foreground mt-1">
-                                    {formatDateForDisplay(order.data_entrega, '-')}
-                                  </p>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full -mr-2">
+                                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-40 font-bold">
+                                      <DropdownMenuItem onClick={() => handleViewOrder(order)} className="gap-2">
+                                        <Eye className="h-4 w-4" /> Visualizar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleEdit(order)} className="gap-2">
+                                        <Edit className="h-4 w-4" /> Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handlePrintIndividual(order.id)} className="gap-2">
+                                        <Printer className="h-4 w-4" /> Imprimir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
 
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 w-9 p-0 shrink-0"
-                                  onClick={() => handleViewOrder(order)}
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
+                                {/* Zona 2: Dados Principais */}
+                                <div className="space-y-1">
+                                  <h3 className="font-bold text-base text-foreground line-clamp-1 leading-tight">
+                                    {order.cliente || order.customer_name}
+                                  </h3>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground font-medium">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {formatDateForDisplay(order.data_entrega, '-')}
+                                    </div>
+                                    {order.cidade_cliente && (
+                                      <div className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        {order.cidade_cliente}
+                                      </div>
+                                    )}
+                                    {order.forma_envio && (
+                                      <div className="flex items-center gap-1">
+                                        <Truck className="h-3 w-3" />
+                                        {order.forma_envio}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Zona 3: Produção */}
+                                <div className="space-y-3 pt-1">
+                                  {/* Pílulas de Status */}
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {[
+                                      { label: 'Fin', active: order.financeiro },
+                                      { label: 'Conf', active: order.conferencia },
+                                      { label: 'Imp', active: order.sublimacao },
+                                      { label: 'Cost', active: order.costura },
+                                      { label: 'Exp', active: order.expedicao },
+                                    ].map((s) => (
+                                      <div
+                                        key={s.label}
+                                        className={cn(
+                                          "px-2 py-0.5 rounded-md text-[9px] font-black uppercase transition-colors border",
+                                          s.active
+                                            ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                            : "bg-muted text-muted-foreground border-transparent"
+                                        )}
+                                      >
+                                        {s.label}
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Barra de Progresso */}
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground uppercase">
+                                      <span>Progresso</span>
+                                      <span>{Math.round(progressPercentage)}%</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                      <div
+                                        className={cn(
+                                          "h-full transition-all duration-500 ease-out",
+                                          progressPercentage === 100 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-primary"
+                                        )}
+                                        style={{ width: `${progressPercentage}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </Card>
                           );
