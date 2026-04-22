@@ -72,13 +72,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-4">
-      <Card className="w-full max-w-[440px] shadow-2xl border-slate-200/50 bg-white/90 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-        <CardHeader className="space-y-4 text-center pb-8 pt-10">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2 transform transition-all hover:scale-110 hover:rotate-3 duration-300 shadow-inner">
-            <Lock className="w-8 h-8 text-primary drop-shadow-sm" />
+      <Card className="w-full max-w-[400px] shadow-2xl border-slate-200/50 bg-white/90 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+        <CardHeader className="space-y-3 text-center pb-6 pt-8">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-1 transform transition-all hover:scale-110 hover:rotate-3 duration-300 shadow-inner">
+            <Lock className="w-7 h-7 text-primary drop-shadow-sm" />
           </div>
           <div className="space-y-1.5">
-            <CardTitle className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">
+            <CardTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">
               SGP • FinderBit
             </CardTitle>
             <CardDescription className="text-slate-500 font-bold text-sm">
@@ -103,7 +103,7 @@ export default function Login() {
           </div>
         </CardHeader>
 
-        <CardContent className="px-8 pb-10">
+        <CardContent className="px-8 pb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário</Label>
@@ -176,7 +176,7 @@ export default function Login() {
             <div className="space-y-4">
               <Button
                 type="submit"
-                className="w-full h-12 font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.97]"
+                className="w-full h-11 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-[0.97]"
                 disabled={loading}
               >
                 {loading ? (
@@ -195,11 +195,11 @@ export default function Login() {
             </div>
           </form>
 
-          <div className="mt-10 pt-8 border-t border-slate-100">
+          <div className="mt-8 pt-6 border-t border-slate-100">
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3">
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-                  © FinderBit • SGP v1.3.5
+                  © FinderBit • SGP v1.4.0
                 </p>
                 <div className="h-1 w-1 rounded-full bg-slate-200" />
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">
