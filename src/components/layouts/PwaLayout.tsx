@@ -13,9 +13,6 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { isTauri } from '@/utils/isTauri';
-import { ordersSocket } from '@/lib/realtimeOrders';
 import { BottomNavBar } from './BottomNavBar';
 import {
   DropdownMenu,
@@ -49,7 +46,6 @@ export function PwaLayout({ children }: PwaLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { username, isAdmin } = useAuthStore();
-  const { toast } = useToast();
   const tauri = isTauri();
 
   const filteredNavItems = NAV_ITEMS.filter((item) => {
