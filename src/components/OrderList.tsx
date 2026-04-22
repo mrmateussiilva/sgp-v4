@@ -3318,15 +3318,12 @@ export default function OrderList() {
                                   )}>
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1 lg:gap-2">
-                                        <Badge
-                                          variant="outline"
-                                          className={cn(
-                                            "h-6 px-2 font-bold text-xs tracking-tight border-slate-200 shadow-sm",
-                                            isSelected ? "bg-primary text-white border-primary" : "bg-slate-50 text-slate-900 border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
-                                          )}
-                                        >
+                                        <span className={cn(
+                                          "font-black text-sm tracking-tight",
+                                          isSelected ? "text-primary" : "text-slate-700 dark:text-slate-300"
+                                        )}>
                                           #{formatOrderNumber(order.numero, order.id)}
-                                        </Badge>
+                                        </span>
                                         <EditingIndicator orderId={order.id} />
                                         {printedOrderIds.has(order.id) && (
                                           <TooltipProvider>
