@@ -48,10 +48,8 @@ import { Label } from '@/components/ui/label';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
-import { SafiraChat, SafiraPanel } from '@/components/Safira';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
-import { ordersSocket } from '@/lib/realtimeOrders';
 
 // Lazy load de todas as rotas para code-splitting
 const OrderList = lazy(() => import('../components/OrderList'));
