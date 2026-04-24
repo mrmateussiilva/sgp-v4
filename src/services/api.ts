@@ -21,16 +21,18 @@ export const api = {
   getOrdersPaginated: ordersApi.getOrdersPaginated,
   getOrdersPaginatedForTable: ordersApi.getOrdersPaginated, // Alias for now, as implementation is identical in logic
   getPendingOrdersLight: async () => {
-    const orders = await ordersApi.getOrders();
-    return orders.filter(o => o.pronto === false || o.pronto == null);
+    // Busca até 500 pedidos pendentes reais do backend
+    const paginated = await ordersApi.getOrdersPaginated(1, 500, undefined, undefined, undefined, undefined, undefined, false);
+    return paginated.orders;
   },
   getPendingOrdersPaginated: async (page?: number, pageSize?: number) =>
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
   getReadyOrdersPaginated: async (page?: number, pageSize?: number, status?: OrderStatus, cliente?: string, date_from?: string, date_to?: string, tipo_producao?: string) =>
     ordersApi.getOrdersPaginated(page, pageSize, status || OrderStatus.Concluido, cliente, date_from, date_to, tipo_producao),
   getReadyOrdersLight: async () => {
-    const orders = await ordersApi.getOrders();
-    return orders.filter(o => o.status === OrderStatus.Concluido);
+    // Busca até 500 pedidos prontos limpos do backend
+    const paginated = await ordersApi.getOrdersPaginated(1, 500, OrderStatus.Concluido);
+    return paginated.orders;
   },
   getOrderById: ordersApi.getOrderById,
   getOrderByIdFresh: ordersApi.getOrderByIdFresh,
