@@ -44,6 +44,7 @@ import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types'
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
+import { useFilterWorker } from '../hooks/useFilterWorker';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
@@ -1303,225 +1304,36 @@ export default function OrderList() {
     }
   }, [isAdmin, viewMode]);
 
-  const filteredOrders = useMemo(() => {
-    logger.debug('[OrderList] filteredOrders - orders.length:', orders.length);
-    logger.debug('[OrderList] filteredOrders - productionStatusFilter:', productionStatusFilter);
-    logger.debug('[OrderList] filteredOrders - isBackendPaginated:', isBackendPaginated);
-    logger.debug('[OrderList] filteredOrders - activeSearchTerm:', activeSearchTerm);
-    logger.debug('[OrderList] filteredOrders - selectedStatuses:', selectedStatuses);
 
-    // Se estamos usando paginação do backend, os pedidos já vêm filtrados e paginados
-    // Aplicar apenas filtros avançados que não estão disponíveis no backend
-    let filtered = orders;
-
-    const normalizeText = (value: string) =>
-      value
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-
-    // Aplicar busca apenas quando activeSearchTerm estiver definido (após clicar em buscar)
-    if (activeSearchTerm && activeSearchTerm.trim().length > 0) {
-      const normalizedTerm = normalizeText(activeSearchTerm);
-      const termDigits = normalizedTerm.replace(/\D/g, '');
-      const beforeCount = filtered.length;
-      filtered = filtered.filter((order) => {
-        const clienteName = order.cliente || order.customer_name || '';
-        const normalizedCliente = normalizeText(clienteName);
-        const idStr = String(order.id ?? '');
-        const numeroStr = order.numero ? String(order.numero) : '';
-        const numeroStrNoZeros = numeroStr.replace(/^0+/, '');
-
-        const matches =
-          (normalizedTerm.length > 0 && normalizedCliente.includes(normalizedTerm)) ||
-          (termDigits.length > 0 &&
-            (idStr.includes(termDigits) ||
-              numeroStr.includes(termDigits) ||
-              numeroStrNoZeros.includes(termDigits)));
-        return matches;
-      });
-      // Debug: log apenas em desenvolvimento
-      if (import.meta.env.DEV && beforeCount > 0) {
-        logger.debug(
-          `[OrderList] Busca "${activeSearchTerm}": ${beforeCount} -> ${filtered.length} pedidos`
-        );
-      }
-    }
-
-    // Se não estamos usando paginação do backend, aplicar todos os filtros localmente
-    if (!isBackendPaginated) {
-      if (dateFrom || dateTo) {
-        const startDate = dateFrom ? new Date(dateFrom) : null;
-        const endDate = dateTo ? new Date(dateTo) : null;
-        if (startDate) startDate.setHours(0, 0, 0, 0);
-        if (endDate) endDate.setHours(23, 59, 59, 999);
-
-        filtered = filtered.filter((order) => {
-          if (!order.data_entrega) return false;
-          const deliveryDate = new Date(order.data_entrega);
-          if (Number.isNaN(deliveryDate.getTime())) return false;
-          if (startDate && deliveryDate < startDate) return false;
-          if (endDate && deliveryDate > endDate) return false;
-          return true;
-        });
-      }
-
-      // Filtro por status de produção
-      if (productionStatusFilter === 'pending') {
-        filtered = filtered.filter((order) => !order.pronto);
-      } else if (productionStatusFilter === 'ready') {
-        filtered = filtered.filter((order) => order.pronto);
-      } else if (productionStatusFilter === 'delayed') {
-        filtered = filtered.filter((order) => {
-          if (order.pronto) return false;
-          const urgency = getOrderUrgency(order.data_entrega);
-          return urgency.type === 'overdue';
-        });
-      }
-    }
-
-    // Filtros avançados (sempre aplicados, pois não estão disponíveis no backend)
-    if (selectedStatuses.length > 0) {
-      filtered = filtered.filter((order) => {
-        const statusChecks = [];
-        if (selectedStatuses.includes('financeiro')) statusChecks.push(order.financeiro === true);
-        if (selectedStatuses.includes('conferencia')) statusChecks.push(order.conferencia === true);
-        if (selectedStatuses.includes('sublimacao')) statusChecks.push(order.sublimacao === true);
-        if (selectedStatuses.includes('costura')) statusChecks.push(order.costura === true);
-        if (selectedStatuses.includes('expedicao')) statusChecks.push(order.expedicao === true);
-        if (selectedStatuses.includes('pronto')) statusChecks.push(order.pronto === true);
-        return statusChecks.some((check) => check);
-      });
-    }
-
-    // Filtro por vendedor
-    if (selectedVendedor) {
-      filtered = filtered.filter((order) => {
-        // Se o pedido não tem itens carregados, não podemos filtrar por vendedor localmente.
-        // Neste caso, mantemos o pedido na lista para evitar que "suma" injustamente.
-        if (!order.items || order.items.length === 0) return true;
-        return order.items.some((item) => item.vendedor === selectedVendedor);
-      });
-    }
-
-    // Filtro por designer
-    if (selectedDesigner) {
-      filtered = filtered.filter((order) => {
-        // Se o pedido não tem itens carregados, mantemos na lista.
-        if (!order.items || order.items.length === 0) return true;
-        return order.items.some((item) => item.designer === selectedDesigner);
-      });
-    }
-
-    // Filtro por cidade
-    if (selectedCidade) {
-      filtered = filtered.filter((order) => {
-        return order.cidade_cliente === selectedCidade;
-      });
-    }
-
-    // Filtro por forma de envio
-    if (selectedFormaEnvio) {
-      filtered = filtered.filter((order) => {
-        return order.forma_envio === selectedFormaEnvio;
-      });
-    }
-
-    // Filtro por tipo de produção
-    if (selectedTipoProducao) {
-      filtered = filtered.filter((order) => {
-        // Se o pedido não tem itens carregados, mantemos na lista.
-        if (!order.items || order.items.length === 0) return true;
-        return order.items.some((item) =>
-          item.tipo_producao?.toLowerCase() === selectedTipoProducao.toLowerCase()
-        );
-      });
-    }
-
-    // Ordenação (sempre aplicada localmente para consistência)
-    if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        switch (sortColumn) {
-          case 'id':
-            aValue = a.id;
-            bValue = b.id;
-            break;
-          case 'cliente':
-            aValue = (a.cliente || a.customer_name || '').toLowerCase();
-            bValue = (b.cliente || b.customer_name || '').toLowerCase();
-            break;
-          case 'data_entrega':
-            aValue = a.data_entrega ? new Date(a.data_entrega).getTime() : 0;
-            bValue = b.data_entrega ? new Date(b.data_entrega).getTime() : 0;
-            break;
-          case 'prioridade':
-            aValue = a.prioridade === 'ALTA' ? 1 : 0;
-            bValue = b.prioridade === 'ALTA' ? 1 : 0;
-            break;
-          case 'cidade':
-            aValue = (a.cidade_cliente || '').toLowerCase();
-            bValue = (b.cidade_cliente || '').toLowerCase();
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      });
-    } else if (isAdmin) {
-      // Ordenação padrão para admin: Pedidos não financeiros primeiro, depois Prioridade ALTA, depois ID desc
-      filtered = [...filtered].sort((a, b) => {
-        // 1. Financeiro (false primeiro)
-        if (a.financeiro !== b.financeiro) {
-          return a.financeiro ? 1 : -1;
-        }
-        // 2. Prioridade (ALTA primeiro)
-        if (a.prioridade !== b.prioridade) {
-          return a.prioridade === 'ALTA' ? -1 : 1;
-        }
-        // 3. ID (descendente)
-        return (b.id || 0) - (a.id || 0);
-      });
-    } else if (isImpressaoUser) {
-      // Usuário impressao: pedidos sem Impressão marcada primeiro, depois prioridade ALTA, depois ID desc
-      filtered = [...filtered].sort((a, b) => {
-        const aPendente = a.sublimacao !== true;
-        const bPendente = b.sublimacao !== true;
-        if (aPendente !== bPendente) {
-          return aPendente ? -1 : 1;
-        }
-        if (a.prioridade !== b.prioridade) {
-          return a.prioridade === 'ALTA' ? -1 : 1;
-        }
-        return (b.id || 0) - (a.id || 0);
-      });
-    }
-
-    logger.debug('[OrderList] filteredOrders - resultado final length:', filtered.length);
-    return filtered;
-  }, [
-    orders,
+  const filterConfigs = useMemo(() => ({
     activeSearchTerm,
-    productionStatusFilter,
+    isBackendPaginated,
     dateFrom,
     dateTo,
+    productionStatusFilter,
     selectedStatuses,
     selectedVendedor,
     selectedDesigner,
     selectedCidade,
     selectedFormaEnvio,
+    selectedTipoProducao,
     sortColumn,
     sortDirection,
-    isBackendPaginated,
     isAdmin,
-    isImpressaoUser,
+    isImpressaoUser
+  }), [
+    activeSearchTerm, isBackendPaginated, dateFrom, dateTo, productionStatusFilter,
+    selectedStatuses, selectedVendedor, selectedDesigner, selectedCidade,
+    selectedFormaEnvio, selectedTipoProducao, sortColumn, sortDirection,
+    isAdmin, isImpressaoUser
   ]);
+
+  const { filteredOrders, isFiltering } = useFilterWorker(orders, filterConfigs);
+  
+  // Efeito adicional: Log
+  useEffect(() => {
+    logger.debug('[OrderList] Async Worker Filtering Concluded - length:', filteredOrders?.length || 0);
+  }, [filteredOrders]);
 
   // Calcular total de páginas baseado nos pedidos filtrados
   const totalPagesFiltered = useMemo(() => {
