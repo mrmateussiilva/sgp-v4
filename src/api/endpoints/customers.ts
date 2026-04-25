@@ -1,4 +1,3 @@
-import { apiClient } from '../client';
 import {
     Cliente,
     CreateClienteRequest,
@@ -9,24 +8,22 @@ import {
 } from '../types';
 import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
-import { AxiosError } from 'axios';
+import { rustClient } from '../../services/rustClient';
 
 const requireSessionToken = (): string => {
     const token = useAuthStore.getState().sessionToken;
     if (!token) {
         throw new Error('Sessão expirada. Faça login novamente.');
     }
+    // setAuthToken triggers the rustClient sync
     setAuthToken(token);
     return token;
 };
 
 const buildBulkImportError = (index: number, item: BulkClienteImportItem, error: unknown): BulkClienteImportError => {
-    const message =
-        error instanceof AxiosError
-            ? error.response?.data?.detail ?? error.message
-            : error instanceof Error
-                ? error.message
-                : 'Falha desconhecida ao importar cliente';
+    const message = error instanceof Error
+        ? error.message
+        : 'Falha nativa desconhecida ao importar cliente';
 
     return {
         index,
@@ -38,31 +35,28 @@ const buildBulkImportError = (index: number, item: BulkClienteImportItem, error:
 export const customersApi = {
     getClientes: async (): Promise<Cliente[]> => {
         requireSessionToken();
-        const response = await apiClient.get<Cliente[]>('/clientes/');
-        return response.data ?? [];
+        const response = await rustClient.get<Cliente[]>('/clientes/');
+        return response ?? [];
     },
 
     getClienteById: async (clienteId: number): Promise<Cliente> => {
         requireSessionToken();
-        const response = await apiClient.get<Cliente>(`/clientes/${clienteId}`);
-        return response.data;
+        return await rustClient.get<Cliente>(`/clientes/${clienteId}`);
     },
 
     createCliente: async (request: CreateClienteRequest): Promise<Cliente> => {
         requireSessionToken();
-        const response = await apiClient.post<Cliente>('/clientes/', request);
-        return response.data;
+        return await rustClient.post<Cliente>('/clientes/', request);
     },
 
     updateCliente: async (request: UpdateClienteRequest): Promise<Cliente> => {
         requireSessionToken();
-        const response = await apiClient.patch<Cliente>(`/clientes/${request.id}`, request);
-        return response.data;
+        return await rustClient.patch<Cliente>(`/clientes/${request.id}`, request);
     },
 
     deleteCliente: async (clienteId: number): Promise<boolean> => {
         requireSessionToken();
-        await apiClient.delete(`/clientes/${clienteId}`);
+        await rustClient.delete<null>(`/clientes/${clienteId}`);
         return true;
     },
 

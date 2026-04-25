@@ -14,7 +14,7 @@ use commands::images::{
 };
 use commands::pdf::generate_production_pdf;
 use commands::update::{fetch_changelog, get_app_version};
-use commands::api::{set_api_config, rust_api_get};
+use commands::api::{set_api_config, rust_api_get, rust_api_mutate};
 use tauri::Manager;
 use tracing::{info, warn};
 
@@ -54,6 +54,7 @@ fn main() {
             generate_production_pdf,
             set_api_config,
             rust_api_get,
+            rust_api_mutate,
         ])
         .setup(|app| {
             let version = env!("CARGO_PKG_VERSION");

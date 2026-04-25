@@ -62,7 +62,35 @@ describe('rustClient', () => {
         });
     });
 
-    describe('syncAuthAndConfig()', () => {
+    
+  describe('post()', () => {
+    it('deve disparar POST no core native', async () => {
+      vi.mocked(isTauri).mockReturnValue(true);
+      const mockResponse = { id: 2, obj: 'created' };
+      vi.mocked(invoke).mockResolvedValue(mockResponse);
+
+      const endpoint = '/clientes';
+      const body = { nome: 'José' };
+
+      const result = await rustClient.post(endpoint, body);
+      expect(invoke).toHaveBeenCalledWith('rust_api_mutate', { method: 'POST', endpoint, body });
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('patch() e delete()', () => {
+    it('devem despachar seus metodos mutadores no core native', async () => {
+      vi.mocked(isTauri).mockReturnValue(true);
+      vi.mocked(invoke).mockResolvedValue({ success: true });
+
+      await rustClient.patch('/abc', { x: 1 });
+      expect(invoke).toHaveBeenCalledWith('rust_api_mutate', { method: 'PATCH', endpoint: '/abc', body: { x: 1 }});
+
+      await rustClient.delete('/abc', { confirm: true });
+      expect(invoke).toHaveBeenCalledWith('rust_api_mutate', { method: 'DELETE', endpoint: '/abc', body: { confirm: true }});
+    });
+  });
+  describe('syncAuthAndConfig()', () => {
         it('deve comunicar baseUrl e jwt auth ao backend native', async () => {
             vi.mocked(isTauri).mockReturnValue(true);
 

@@ -27,6 +27,39 @@ export const rustClient = {
      * Sincroniza a URL Base e o Token atual da sessão do usuário
      * protegendo o Token dentro de um Mutex no Core Native em C++.
      */
+    
+    post: async <T>(endpoint: string, body?: any): Promise<T> => {
+        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        try {
+            return await invoke<T>('rust_api_mutate', { method: 'POST', endpoint, body });
+        } catch (err: any) {
+            const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
+            logger.error(`[Rust Client POST] Erro nativo em ${endpoint}:`, errorMsg);
+            throw new Error(errorMsg);
+        }
+    },
+
+    patch: async <T>(endpoint: string, body?: any): Promise<T> => {
+        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        try {
+            return await invoke<T>('rust_api_mutate', { method: 'PATCH', endpoint, body });
+        } catch (err: any) {
+            const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
+            logger.error(`[Rust Client PATCH] Erro nativo em ${endpoint}:`, errorMsg);
+            throw new Error(errorMsg);
+        }
+    },
+
+    delete: async <T>(endpoint: string, body?: any): Promise<T> => {
+        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        try {
+            return await invoke<T>('rust_api_mutate', { method: 'DELETE', endpoint, body });
+        } catch (err: any) {
+            const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
+            logger.error(`[Rust Client DELETE] Erro nativo em ${endpoint}:`, errorMsg);
+            throw new Error(errorMsg);
+        }
+    },
     syncAuthAndConfig: async (baseUrl: string, token: string | null): Promise<void> => {
         if (!isTauri()) return;
         try {

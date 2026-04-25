@@ -58,3 +58,65 @@ pub async fn rust_api_get(
 
     Ok(json)
 }
+
+
+#[command]
+pub async fn rust_api_mutate(
+    method: String,
+    endpoint: String,
+    body: Option<Value>,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let base_url = state.api_base_url.lock().unwrap().clone();
+    let token = state.auth_token.lock().unwrap().clone();
+
+    if base_url.is_empty() {
+        return Err("API Base URL não configurada no Rust Core".to_string());
+    }
+
+    let normalized_base = base_url.trim_end_matches('/');
+    let normalized_endpoint = if endpoint.starts_with('/') { &endpoint } else { &format!("/{}", endpoint) };
+    let url = format!("{}{}", normalized_base, normalized_endpoint);
+
+    let req_method = match method.to_uppercase().as_str() {
+        "POST" => reqwest::Method::POST,
+        "PUT" => reqwest::Method::PUT,
+        "PATCH" => reqwest::Method::PATCH,
+        "DELETE" => reqwest::Method::DELETE,
+        _ => return Err(format!("Método HTTP não suportado: {}", method)),
+    };
+
+    let mut request = state.client.request(req_method, &url);
+
+    if let Some(t) = token {
+        request = request.header("Authorization", format!("Bearer {}", t));
+    }
+    
+    // Bypass Ngrok limits if available
+    request = request.header("ngrok-skip-browser-warning", "any");
+    request = request.header("Accept", "application/json");
+
+    if let Some(b) = body {
+        request = request.json(&b);
+    }
+
+    let response = request.send().await.map_err(|e| format!("Network Erro: {}", e))?;
+    
+    let status = response.status();
+    if !status.is_success() {
+        let err_text = response.text().await.unwrap_or_default();
+        return Err(format!("{} - {}", status.as_u16(), err_text));
+    }
+
+    if status.as_u16() == 204 {
+        return Ok(Value::Null);
+    }
+
+    let text = response.text().await.unwrap_or_default();
+    if text.is_empty() {
+         return Ok(Value::Null);
+    }
+    
+    let json: Value = serde_json::from_str(&text).map_err(|e| format!("Falha no Parse JSON: {}", e))?;
+    Ok(json)
+}
