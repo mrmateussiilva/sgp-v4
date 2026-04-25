@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { applyTauriAdapter, setAdapterFallbackBaseUrl } from '../services/tauriAxiosAdapter';
 import { logger } from '../utils/logger';
+import { rustClient } from '../services/rustClient';
 
 // Endpoints para verificação de conexão (sem autenticação)
 const STATUS_ENDPOINTS = ['/health'];
@@ -65,6 +66,7 @@ export function setApiUrl(url: string): void {
   // Sincronizar o fallback do adaptador Tauri para garantir que requisições relativas
   // funcionem mesmo se o config.baseURL for perdido durante o merge do Axios
   setAdapterFallbackBaseUrl(API_BASE_URL);
+  rustClient.syncAuthAndConfig(API_BASE_URL, authToken);
 }
 
 export function getApiUrl(): string {
@@ -161,6 +163,7 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
 
 export function setAuthToken(token: string | null): void {
   authToken = token;
+  rustClient.syncAuthAndConfig(API_BASE_URL, authToken);
 }
 
 export { apiClient };
