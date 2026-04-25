@@ -59,8 +59,28 @@ export const parseNumericId = (value: unknown): number | null => {
 };
 
 export const deriveQuantity = (source: Record<string, unknown>): number => {
+    // 1. Priorizar quantidades baseadas no tipo de produção explícito
+    const tipo = (source.tipo_producao as string | undefined)?.toLowerCase();
+
+    if (tipo === 'painel' || tipo === 'generica' || tipo === 'mesa_babado') {
+        if (parseDecimal(source.quantidade_paineis) > 0) return parseDecimal(source.quantidade_paineis);
+    } else if (tipo === 'totem') {
+        if (parseDecimal(source.quantidade_totem) > 0) return parseDecimal(source.quantidade_totem);
+    } else if (tipo === 'lona') {
+        if (parseDecimal(source.quantidade_lona) > 0) return parseDecimal(source.quantidade_lona);
+    } else if (tipo === 'adesivo') {
+        if (parseDecimal(source.quantidade_adesivo) > 0) return parseDecimal(source.quantidade_adesivo);
+    } else if (tipo === 'canga') {
+        if (parseDecimal(source.quantidade_canga) > 0) return parseDecimal(source.quantidade_canga);
+    } else if (tipo === 'impressao_3d') {
+        if (parseDecimal(source.quantidade_impressao_3d) > 0) return parseDecimal(source.quantidade_impressao_3d);
+    } else if (tipo === 'mochilinha' || tipo === 'bolsinha') {
+        if (parseDecimal(source.quantidade_mochilinha) > 0) return parseDecimal(source.quantidade_mochilinha);
+    }
+
+    // 2. Fallback caso não seja detectado um tipo mapeado acima, buscando a primeira validada > 0
+    // Colocamos o genérico DEPOIS das específicas para não vazar um `quantity: 1` marretado do banco de dados falso
     const candidates = [
-        source.quantity,
         source.quantidade_paineis,
         source.quantidade_totem,
         source.quantidade_lona,
@@ -68,6 +88,7 @@ export const deriveQuantity = (source: Record<string, unknown>): number => {
         source.quantidade_canga,
         source.quantidade_impressao_3d,
         source.quantidade_mochilinha,
+        source.quantity,
         source.quantidade,
     ];
 
