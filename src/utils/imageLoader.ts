@@ -12,6 +12,28 @@ const blobUrlCache = new Map<string, string>();
  */
 const blobCache = new Map<string, Blob>();
 
+const MAX_CACHE_SIZE = 50;
+
+function addToCache(normalized: string, blobUrl: string, blob: Blob) {
+  if (blobUrlCache.has(normalized)) {
+    blobUrlCache.delete(normalized);
+    blobCache.delete(normalized);
+  }
+  
+  addToCache(normalized, blobUrl, blob);
+  
+  if (blobUrlCache.size > MAX_CACHE_SIZE) {
+    const oldestKey = blobUrlCache.keys().next().value;
+    if (oldestKey) {
+      const oldUrl = blobUrlCache.get(oldestKey);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      blobUrlCache.delete(oldestKey);
+      blobCache.delete(oldestKey);
+    }
+  }
+}
+
+
 /**
  * Detecta se é um local_path de outro sistema (não do sistema atual)
  * @param path - Caminho a verificar
@@ -131,8 +153,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         // Salvar usando apenas caminho normalizado (chave única)
-        blobUrlCache.set(normalized, blobUrl);
-        blobCache.set(normalized, blob);
+        addToCache(normalized, blobUrl, blob);
         return blobUrl;
       }
   }
@@ -147,8 +168,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
       const blobUrl = URL.createObjectURL(blob);
       // Salvar usando apenas caminho normalizado (chave única)
-      blobUrlCache.set(normalized, blobUrl);
-      blobCache.set(normalized, blob);
+      addToCache(normalized, blobUrl, blob);
 
       // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
       if (isTauri() && response.data) {
@@ -195,8 +215,7 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     const blobUrl = URL.createObjectURL(blob);
 
     // Armazenar no cache usando apenas caminho normalizado (chave única)
-    blobUrlCache.set(normalized, blobUrl);
-    blobCache.set(normalized, blob);
+    addToCache(normalized, blobUrl, blob);
 
     // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
     if (isTauri() && response.data) {

@@ -120,7 +120,11 @@ export default function OrderList() {
   const navigate = useNavigate();
   const isPwa = !isTauri();
   const isMobile = isPwa && typeof window !== 'undefined' && window.innerWidth < 768;
-  const { orders, setOrders, removeOrder, setSelectedOrder, updateOrder } = useOrderStore();
+  const orders = useOrderStore((state) => state.orders);
+  const setOrders = useOrderStore((state) => state.setOrders);
+  const removeOrder = useOrderStore((state) => state.removeOrder);
+  const setSelectedOrder = useOrderStore((state) => state.setSelectedOrder);
+  const updateOrder = useOrderStore((state) => state.updateOrder);
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin, setor } = useUser();
   const isImpressaoUser = setor === 'impressao';
