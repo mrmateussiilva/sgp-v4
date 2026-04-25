@@ -67,12 +67,12 @@ export const styles = StyleSheet.create({
     headerBottomRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'baseline',
+        alignItems: 'flex-end',
         marginTop: 4,
     },
     headerItem: {
         flexDirection: 'row',
-        alignItems: 'baseline',
+        alignItems: 'flex-end',
         gap: 4,
     },
     hLabel: {
@@ -205,7 +205,7 @@ export const styles = StyleSheet.create({
     footerField: {
         flex: 1,
         flexDirection: 'row',
-        alignItems: 'baseline',
+        alignItems: 'flex-end',
         gap: 6,
     },
     footerLabel: {

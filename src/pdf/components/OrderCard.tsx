@@ -111,7 +111,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             {/* SEÇÃO 1: CABEÇALHO (Meta & Identification) */}
             <View style={styles.header}>
                 <View style={[styles.headerTopRow, { marginBottom: 6 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16 }}>
                         <HeaderItem
                             label="PEDIDO"
                             value={`#${order.numero}`}
@@ -126,10 +126,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         {order.is_reposicao && <View style={styles.badge}><Text>REPOSIÇÃO</Text></View>}
                     </View>
 
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16 }}>
                         <HeaderItem label="ENT." value={formatDate(order.data_entrada)} />
                         <HeaderItem label="ENTRG." value={formatDate(order.data_envio)} />
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, maxWidth: 160, overflow: 'hidden' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, maxWidth: 160, overflow: 'hidden' }}>
                             <Text style={styles.hLabel}>FR.:</Text>
                             <Text style={[styles.hValue, { maxLines: 1 }]}>
                                 {order.forma_envio.toUpperCase()}
@@ -144,15 +144,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                             ? order.cliente.substring(0, 30).toUpperCase()
                             : order.cliente.toUpperCase()}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'baseline' }}>
+                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'flex-end' }}>
                         {order.telefone_cliente && (
-                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
                                 <Text style={styles.hLabel}>TEL:</Text>
                                 <Text style={styles.hValue}>{order.telefone_cliente}</Text>
                             </View>
                         )}
                         {order.cidade_estado && (
-                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
                                 <Text style={styles.hLabel}>CID:</Text>
                                 <Text style={styles.hValue}>
                                     {order.cidade_estado.length > 25
