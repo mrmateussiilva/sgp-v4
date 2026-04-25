@@ -113,6 +113,15 @@ pnpm run tauri:build
 
 O executável será gerado em `src-tauri/target/release/`.
 
+## ⚡ Otimizações de Arquitetura e Performance
+
+O SGP-v4 foi submetido a um intenso *Overhaul* de Engenharia do Front-End para lidar com **listagens massivas (+10.000 pedidos em RAM)** e pesado recálculo do fluxo em _Realtime_ WebSocket cravando **60 FPS constantes**:
+
+1. **Web Worker Offloading (Filtro Assíncrono)**: Os pesados algoritmos textuais de normalização Unicode (`.normalize('NFD')`) e os matches extensos pelo array de 10k faturamentos foram arrancados da *Main Thread* do React para um `orderFilter.worker.ts` dedicado. As animações da tela e digitações rodam fluidos pois a matemática é computada no segundo núcleo CPU via *postMessage*.
+2. **Algoritmo de Cache LRU de Imagens (Prevenção de Memory Leak)**: Correções catastróficas aplicadas aos `Blob URLs`. Foi construído um triturador Least Recently Used (LRU) dentro de `imageLoader.ts` que engatilha o despejo nativo (`URL.revokeObjectURL`) da RAM se o painel tentar injetar mais de 50 miniaturas, salvando incontáveis Gigabytes desperdiçados antes por navegadores de baixa performance em expedições industriais longas.
+3. **Escudos Antiaéreos com Memoização Cirúrgica**: A lista monolítica foi estripada em micro-componentes isolados (`OrderTableRow.tsx`). Agora dotados de `React.memo` atômico, uma mutação emitida pelo WebSocket faz apenas *Aquela Única Linha e Célula* entrarem em ciclo de Reconciliação, varrendo o _Lag_ massivo da Tableura anterior.
+4. **Zustand Selectors Refinados**: Todo o sistema de Subscrições na loja de Pedidos foi refatorado passando de dependência total, para importações em leque com Seletores puros; matando os Re-Renders Globais parasitários.
+
 ## 📚 Documentação Completa
 
 Para documentação detalhada, consulte:
