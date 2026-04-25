@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod state;
 mod pdf_generator;
 
 #[cfg(debug_assertions)]
@@ -13,6 +14,7 @@ use commands::images::{
 };
 use commands::pdf::generate_production_pdf;
 use commands::update::{fetch_changelog, get_app_version};
+use commands::api::{set_api_config, rust_api_get};
 use tauri::Manager;
 use tracing::{info, warn};
 
@@ -20,6 +22,7 @@ fn main() {
     setup_tracing();
 
     tauri::Builder::default()
+        .manage(state::AppState::new())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -49,6 +52,8 @@ fn main() {
             process_and_save_image,
             // Comando de geração de PDF
             generate_production_pdf,
+            set_api_config,
+            rust_api_get,
         ])
         .setup(|app| {
             let version = env!("CARGO_PKG_VERSION");
