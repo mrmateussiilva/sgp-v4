@@ -1,72 +1,72 @@
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from '../utils/logger';
 import { isTauri } from '../utils/isTauri';
+import { apiClient } from '../api/client';
 
-export const rustClient = {
-    /**
-     * Dispara uma requisição HTTP GET usando o pacote `reqwest` internamente no Rust.
-     * Evita headers CORS e limites do navegador.
-     */
-    get: async <T>(endpoint: string, params?: Record<string, string | number | boolean>): Promise<T> => {
+export const hybridClient = {
+    get: async <T>(endpoint: string, params?: Record<string, any>): Promise<T> => {
         if (!isTauri()) {
-            throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+            const resp = await apiClient.get<T>(endpoint, { params });
+            return resp.data as unknown as T;
         }
 
         try {
-            // Tauri serializa o params para Hashmap
-            const data = await invoke<T>('rust_api_get', { endpoint, params });
-            return data;
+            return await invoke<T>('rust_api_get', { endpoint, params });
         } catch (err: any) {
             const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
-            logger.error(`[Rust Client GET] Erro nativo em ${endpoint}:`, errorMsg);
+            logger.error(`[Hybrid Client GET] Erro nativo em ${endpoint}:`, errorMsg);
             throw new Error(errorMsg);
         }
     },
 
-    /**
-     * Sincroniza a URL Base e o Token atual da sessão do usuário
-     * protegendo o Token dentro de um Mutex no Core Native em C++.
-     */
-    
     post: async <T>(endpoint: string, body?: any): Promise<T> => {
-        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        if (!isTauri()) {
+            const resp = await apiClient.post<T>(endpoint, body);
+            return resp.data as unknown as T;
+        }
         try {
             return await invoke<T>('rust_api_mutate', { method: 'POST', endpoint, body });
         } catch (err: any) {
             const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
-            logger.error(`[Rust Client POST] Erro nativo em ${endpoint}:`, errorMsg);
+            logger.error(`[Hybrid Client POST] Erro nativo em ${endpoint}:`, errorMsg);
             throw new Error(errorMsg);
         }
     },
 
     patch: async <T>(endpoint: string, body?: any): Promise<T> => {
-        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        if (!isTauri()) {
+            const resp = await apiClient.patch<T>(endpoint, body);
+            return resp.data as unknown as T;
+        }
         try {
             return await invoke<T>('rust_api_mutate', { method: 'PATCH', endpoint, body });
         } catch (err: any) {
             const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
-            logger.error(`[Rust Client PATCH] Erro nativo em ${endpoint}:`, errorMsg);
+            logger.error(`[Hybrid Client PATCH] Erro nativo em ${endpoint}:`, errorMsg);
             throw new Error(errorMsg);
         }
     },
 
     delete: async <T>(endpoint: string, body?: any): Promise<T> => {
-        if (!isTauri()) throw new Error("Rust Client só funciona em ambiente Desktop (Tauri).");
+        if (!isTauri()) {
+            const resp = await apiClient.delete<T>(endpoint, { data: body });
+            return resp.data as unknown as T;
+        }
         try {
             return await invoke<T>('rust_api_mutate', { method: 'DELETE', endpoint, body });
         } catch (err: any) {
             const errorMsg = typeof err === 'string' ? err : JSON.stringify(err);
-            logger.error(`[Rust Client DELETE] Erro nativo em ${endpoint}:`, errorMsg);
+            logger.error(`[Hybrid Client DELETE] Erro nativo em ${endpoint}:`, errorMsg);
             throw new Error(errorMsg);
         }
     },
+
     syncAuthAndConfig: async (baseUrl: string, token: string | null): Promise<void> => {
         if (!isTauri()) return;
         try {
             await invoke('set_api_config', { baseUrl, token });
-            logger.debug('[Rust Client] Sync Auth bem sucedido no core native.');
         } catch (err: any) {
-            logger.error(`[Rust Client Config Sync] Erro:`, err);
+            logger.error(`[Hybrid Client Config Sync] Erro:`, err);
         }
     }
 };

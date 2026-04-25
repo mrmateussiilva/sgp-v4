@@ -8,7 +8,7 @@ import {
 } from '../types';
 import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
-import { rustClient } from '../../services/rustClient';
+import { hybridClient } from '../../services/hybridClient';
 
 const requireSessionToken = (): string => {
     const token = useAuthStore.getState().sessionToken;
@@ -35,28 +35,28 @@ const buildBulkImportError = (index: number, item: BulkClienteImportItem, error:
 export const customersApi = {
     getClientes: async (): Promise<Cliente[]> => {
         requireSessionToken();
-        const response = await rustClient.get<Cliente[]>('/clientes/');
+        const response = await hybridClient.get<Cliente[]>('/clientes/');
         return response ?? [];
     },
 
     getClienteById: async (clienteId: number): Promise<Cliente> => {
         requireSessionToken();
-        return await rustClient.get<Cliente>(`/clientes/${clienteId}`);
+        return await hybridClient.get<Cliente>(`/clientes/${clienteId}`);
     },
 
     createCliente: async (request: CreateClienteRequest): Promise<Cliente> => {
         requireSessionToken();
-        return await rustClient.post<Cliente>('/clientes/', request);
+        return await hybridClient.post<Cliente>('/clientes/', request);
     },
 
     updateCliente: async (request: UpdateClienteRequest): Promise<Cliente> => {
         requireSessionToken();
-        return await rustClient.patch<Cliente>(`/clientes/${request.id}`, request);
+        return await hybridClient.patch<Cliente>(`/clientes/${request.id}`, request);
     },
 
     deleteCliente: async (clienteId: number): Promise<boolean> => {
         requireSessionToken();
-        await rustClient.delete<null>(`/clientes/${clienteId}`);
+        await hybridClient.delete<null>(`/clientes/${clienteId}`);
         return true;
     },
 
