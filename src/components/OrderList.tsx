@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Edit,
-  Trash2,
+  
   FileText,
   Printer,
   Search,
@@ -12,14 +12,14 @@ import {
   Filter,
   CheckSquare,
   Inbox,
-  Camera,
+  
   ChevronDown,
   ChevronUp,
   Calendar,
-  AlertTriangle,
+  
   Clock,
-  CheckCircle2,
-  Copy,
+  
+  
   ChevronRight,
   Table2,
   RefreshCw,
@@ -49,11 +49,11 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
 import { OrderViewModal } from './OrderViewModal';
 import { OrderTableRow } from './OrderTableRow';
-import { EditingIndicator } from './EditingIndicator';
+
 import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderProductionPipeline } from './OrderProductionPipeline';
 // import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
-import { formatDateForDisplay, formatTimeHHmm } from '@/utils/date';
+import { formatDateForDisplay,  } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1328,7 +1328,7 @@ export default function OrderList() {
     isAdmin, isImpressaoUser
   ]);
 
-  const { filteredOrders, isFiltering } = useFilterWorker(orders, filterConfigs);
+  const { filteredOrders } = useFilterWorker(orders, filterConfigs);
   
   // Efeito adicional: Log
   useEffect(() => {

@@ -1,9 +1,9 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EditingIndicator } from './EditingIndicator';
@@ -16,12 +16,12 @@ import {
   Clock,
   Copy,
   Edit,
-  Eye,
-  MoreVertical,
-  Printer,
-  Scissors,
+  
+  
+  
+  
   Trash2,
-  Truck,
+  
   RefreshCw,
   Camera,
   FileText
@@ -62,9 +62,9 @@ export const OrderTableRow = React.memo((props: OrderTableRowProps) => {
     selectedOrderIdsForPrint,
     setSelectedOrderIdsForPrint,
     printedOrderIds,
-    isPwa,
+    
     isAdmin,
-    isImpressaoUser,
+    
     canToggleConferencia,
     canToggleImpressao,
     formatOrderNumber,
@@ -77,12 +77,12 @@ export const OrderTableRow = React.memo((props: OrderTableRowProps) => {
     handleDeleteClick,
     handleStatusClick,
     handleQuickShare,
-    setStatusConfirmModal,
+    
     setSelectedOrder,
     setSelectedOrderIndex
   } = props;
 
-  const navigate = useNavigate();
+  
 
                               const urgency = getOrderUrgency(order.data_entrega ?? null);
                               const isOverdue = urgency.type === 'overdue';
@@ -160,7 +160,7 @@ export const OrderTableRow = React.memo((props: OrderTableRowProps) => {
                                           "font-black text-base lg:text-lg tracking-tighter",
                                           isSelected ? "text-primary" : "text-slate-900 dark:text-slate-100"
                                         )}>
-                                          #{formatOrderNumber(order.numero, order.id)}
+                                          #{formatOrderNumber(order.numero ?? null, order.id)}
                                         </span>
                                         <EditingIndicator orderId={order.id} />
                                         {printedOrderIds.has(order.id) && (
