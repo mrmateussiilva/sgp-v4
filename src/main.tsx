@@ -32,6 +32,13 @@ async function clearCachesAndWorkers() {
   }
 }
 
+// Resolve o problema "TypeError: error loading dynamically imported module" em PWA / Web
+// Isso acontece quando a API sobe uma versão nova e o usuário navega tentando buscar o Javascript velho guardado em cache.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  window.location.reload();
+});
+
 function renderApp() {
   if (import.meta.env.PROD) {
     enableDevtoolsShortcuts();
