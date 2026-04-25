@@ -19,9 +19,10 @@ function addToCache(normalized: string, blobUrl: string, blob: Blob) {
     blobUrlCache.delete(normalized);
     blobCache.delete(normalized);
   }
-  
-  addToCache(normalized, blobUrl, blob);
-  
+
+  blobUrlCache.set(normalized, blobUrl);
+  blobCache.set(normalized, blob);
+
   if (blobUrlCache.size > MAX_CACHE_SIZE) {
     const oldestKey = blobUrlCache.keys().next().value;
     if (oldestKey) {
@@ -144,77 +145,30 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
   // Se estiver em Tauri, verificar cache local primeiro
   if (isTauri() && !isOtherSystemLocalPath(normalized)) {
-      const localPath = await getLocalImagePath(normalized);
-      if (localPath) {
-        // Carregar do cache local e converter para blob URL para compatibilidade
-        const base64 = await loadLocalImageAsBase64(localPath);
-        // Converter base64 para blob URL
-        const response = await fetch(base64);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        // Salvar usando apenas caminho normalizado (chave única)
-        addToCache(normalized, blobUrl, blob);
-        return blobUrl;
-      }
+    const localPath = await getLocalImagePath(normalized);
+    if (localPath) {
+      // Carregar do cache local e converter para blob URL para compatibilidade
+      const base64 = await loadLocalImageAsBase64(localPath);
+      // Converter base64 para blob URL
+      const response = await fetch(base64);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      // Salvar usando apenas caminho normalizado (chave única)
+      addToCache(normalized, blobUrl, blob);
+      return blobUrl;
+    }
   }
 
   // Se já for URL completa (http/https), usar diretamente sem baseURL
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-      const response = await apiClient.get(normalized, {
-        responseType: 'blob',
-        baseURL: '', // Não usar baseURL para URLs completas
-      });
-
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
-      const blobUrl = URL.createObjectURL(blob);
-      // Salvar usando apenas caminho normalizado (chave única)
-      addToCache(normalized, blobUrl, blob);
-
-      // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
-      if (isTauri() && response.data) {
-        try {
-          // Converter blob para Uint8Array
-          const arrayBuffer = await blob.arrayBuffer();
-          const imageData = new Uint8Array(arrayBuffer);
-
-          // Cachear localmente usando caminho normalizado
-          await cacheImageFromUrl(normalized, imageData);
-        } catch {
-          // Não falhar se o cache falhar
-        }
-      }
-
-      return blobUrl;
-    }
-
-    // Para caminhos relativos, usar o apiClient com baseURL configurado
-    // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
-    let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-
-    // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
-    // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
-    // IMPORTANTE: Verificar tanto o normalized quanto o relativePath para capturar todos os casos
-    const isPedidosTmp = relativePath.startsWith('/pedidos/tmp/') || normalized.startsWith('pedidos/tmp/');
-    const isPedidosId = /^\/pedidos\/\d+\//.test(relativePath) || /^pedidos\/\d+\//.test(normalized);
-
-    if (isPedidosTmp || isPedidosId) {
-      // Construir caminho para o endpoint /pedidos/media/{file_path}
-      // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
-      // Garantir que o caminho comece com / para construir corretamente
-      const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-      relativePath = `/pedidos/media${cleanPath}`;
-    }
-
-    // Carregar imagem com autenticação usando apiClient (que já tem baseURL configurado)
-    const response = await apiClient.get(relativePath, {
+    const response = await apiClient.get(normalized, {
       responseType: 'blob',
+      baseURL: '', // Não usar baseURL para URLs completas
     });
 
-    // Criar blob URL
     const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
     const blobUrl = URL.createObjectURL(blob);
-
-    // Armazenar no cache usando apenas caminho normalizado (chave única)
+    // Salvar usando apenas caminho normalizado (chave única)
     addToCache(normalized, blobUrl, blob);
 
     // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
@@ -230,6 +184,53 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
         // Não falhar se o cache falhar
       }
     }
+
+    return blobUrl;
+  }
+
+  // Para caminhos relativos, usar o apiClient com baseURL configurado
+  // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
+  let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+
+  // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
+  // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
+  // IMPORTANTE: Verificar tanto o normalized quanto o relativePath para capturar todos os casos
+  const isPedidosTmp = relativePath.startsWith('/pedidos/tmp/') || normalized.startsWith('pedidos/tmp/');
+  const isPedidosId = /^\/pedidos\/\d+\//.test(relativePath) || /^pedidos\/\d+\//.test(normalized);
+
+  if (isPedidosTmp || isPedidosId) {
+    // Construir caminho para o endpoint /pedidos/media/{file_path}
+    // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
+    // Garantir que o caminho comece com / para construir corretamente
+    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    relativePath = `/pedidos/media${cleanPath}`;
+  }
+
+  // Carregar imagem com autenticação usando apiClient (que já tem baseURL configurado)
+  const response = await apiClient.get(relativePath, {
+    responseType: 'blob',
+  });
+
+  // Criar blob URL
+  const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Armazenar no cache usando apenas caminho normalizado (chave única)
+  addToCache(normalized, blobUrl, blob);
+
+  // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
+  if (isTauri() && response.data) {
+    try {
+      // Converter blob para Uint8Array
+      const arrayBuffer = await blob.arrayBuffer();
+      const imageData = new Uint8Array(arrayBuffer);
+
+      // Cachear localmente usando caminho normalizado
+      await cacheImageFromUrl(normalized, imageData);
+    } catch {
+      // Não falhar se o cache falhar
+    }
+  }
 
   return blobUrl;
 }
@@ -271,59 +272,59 @@ export async function imageToBase64(
 ): Promise<string> {
   const normalized = normalizeImageUrl(imagePath);
 
-    // Se já for base64, retornar diretamente
-    if (normalized.startsWith('data:image/')) {
-      return normalized;
+  // Se já for base64, retornar diretamente
+  if (normalized.startsWith('data:image/')) {
+    return normalized;
+  }
+
+  // Verificar se já temos o blob em cache usando caminho normalizado
+  let blob: Blob | undefined = blobCache.get(normalized);
+
+  if (!blob) {
+    // Carregar a imagem autenticada (retorna blob URL)
+    // loadAuthenticatedImage já normaliza internamente, então pode passar imagePath original
+    const blobUrl = await loadAuthenticatedImage(imagePath);
+
+    // Se for base64, retornar diretamente
+    if (blobUrl.startsWith('data:image/')) {
+      return blobUrl;
     }
 
-    // Verificar se já temos o blob em cache usando caminho normalizado
-    let blob: Blob | undefined = blobCache.get(normalized);
+    // Tentar obter o blob do cache novamente usando caminho normalizado
+    // (pode ter sido adicionado durante loadAuthenticatedImage)
+    blob = blobCache.get(normalized);
 
+    // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
     if (!blob) {
-      // Carregar a imagem autenticada (retorna blob URL)
-      // loadAuthenticatedImage já normaliza internamente, então pode passar imagePath original
-      const blobUrl = await loadAuthenticatedImage(imagePath);
-
-      // Se for base64, retornar diretamente
-      if (blobUrl.startsWith('data:image/')) {
-        return blobUrl;
-      }
-
-      // Tentar obter o blob do cache novamente usando caminho normalizado
-      // (pode ter sido adicionado durante loadAuthenticatedImage)
-      blob = blobCache.get(normalized);
-
-      // Se ainda não temos o blob, fazer fetch da blob URL (fallback)
-      if (!blob) {
-        const response = await fetch(blobUrl);
-        blob = await response.blob();
-        // Salvar no cache usando caminho normalizado
-        blobCache.set(normalized, blob);
-      }
+      const response = await fetch(blobUrl);
+      blob = await response.blob();
+      // Salvar no cache usando caminho normalizado
+      blobCache.set(normalized, blob);
     }
+  }
 
-    // Se redimensionamento foi solicitado, processar antes de converter para base64
-    if (options?.resize && blob) {
-      try {
-        const blobUrl = URL.createObjectURL(blob);
-        const resizedBase64 = await resizeImageToBase64(blobUrl, options.fixedHeight || 75);
-        URL.revokeObjectURL(blobUrl);
-        return resizedBase64;
-      } catch (resizeError) {
-        // Continuar com conversão normal se redimensionamento falhar
-      }
+  // Se redimensionamento foi solicitado, processar antes de converter para base64
+  if (options?.resize && blob) {
+    try {
+      const blobUrl = URL.createObjectURL(blob);
+      const resizedBase64 = await resizeImageToBase64(blobUrl, options.fixedHeight || 75);
+      URL.revokeObjectURL(blobUrl);
+      return resizedBase64;
+    } catch (resizeError) {
+      // Continuar com conversão normal se redimensionamento falhar
     }
+  }
 
-    // Converter blob para base64
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        resolve(base64String);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob!);
-    });
+  // Converter blob para base64
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      resolve(base64String);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob!);
+  });
 }
 
 /**
