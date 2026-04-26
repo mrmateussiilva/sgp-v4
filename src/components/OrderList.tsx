@@ -39,6 +39,8 @@ import { logger } from '@/utils/logger';
 import { useOrderStore } from '../store/orderStore';
 import { useModalStore } from '@/store/useModalStore';
 import { OrderModalsProvider } from './modals/OrderModalsProvider';
+import { PrintPreviewModal } from './PrintPreviewModal';
+import { ShortcutsHelp } from './ShortcutsHelp';
 import { useAuthStore } from '../store/authStore';
 import { OrderWithItems, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
@@ -92,11 +94,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isTauri } from '@/utils/isTauri';
-import { PrintPreviewModal } from './PrintPreviewModal';
 import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
 import { loadAuthenticatedImage } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
-import { ShortcutsHelp } from './ShortcutsHelp';
 
 import { cn } from '@/lib/utils';
 
@@ -165,7 +165,7 @@ export default function OrderList() {
     Array<{ id: number; nome: string; valor: number }>
   >([]);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>([]);
-  const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal, openEditModal } = useModalStore();
+  const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal } = useModalStore();
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -177,9 +177,9 @@ export default function OrderList() {
 
   // Estados para navegação por teclado (painel lateral desabilitado)
   const [isBulkPreviewOpen, setIsBulkPreviewOpen] = useState(false);
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [bulkPdfBlob, setBulkPdfBlob] = useState<Blob | null>(null);
   const [bulkPdfFilename, setBulkPdfFilename] = useState('');
-  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
@@ -220,7 +220,6 @@ export default function OrderList() {
   }, [tiposProducao, orders]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const statusConfirmButtonRef = useRef<HTMLButtonElement>(null);
 
   const { toast } = useToast();
   const closeStatusConfirmModal = useCallback(() => {
@@ -2912,6 +2911,25 @@ export default function OrderList() {
 
 
 
+        {/* Modals restored locally */}
+        <PrintPreviewModal
+          isOpen={isBulkPreviewOpen}
+          onClose={() => setIsBulkPreviewOpen(false)}
+          pdfBlob={bulkPdfBlob}
+          filename={bulkPdfFilename}
+          title="Pré-visualização - Impressão em Lote"
+        />
+        
+        <ShortcutsHelp
+          open={useModalStore.getState().shortcutsModalOpen}
+          onOpenChange={(open) => {
+            if (open) useModalStore.getState().openShortcutsModal();
+            else useModalStore.getState().closeShortcutsModal();
+          }}
+          shortcuts={shortcuts}
+          title="Atalhos — Lista de pedidos"
+        />
+  
         {/* Modals unificados via store */}
         <OrderModalsProvider />
 
