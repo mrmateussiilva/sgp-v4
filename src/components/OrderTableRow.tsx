@@ -21,10 +21,10 @@ import {
 
 
   Trash2,
-
   RefreshCw,
   Camera,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 
 interface OrderTableRowProps {
@@ -34,7 +34,7 @@ interface OrderTableRowProps {
   selectedOrderIdsForPrint: number[];
   setSelectedOrderIdsForPrint: React.Dispatch<React.SetStateAction<number[]>>;
   printedOrderIds: Set<number>;
-  isPwa: boolean;
+
   isAdmin: boolean;
   isImpressaoUser: boolean;
   canToggleConferencia: boolean;
@@ -49,7 +49,7 @@ interface OrderTableRowProps {
   handleDeleteClick: (orderId: number) => void;
   handleStatusClick: (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => void;
   handleQuickShare: (order: OrderWithItems) => void;
-    setSelectedOrder: (order: OrderWithItems) => void;
+  setSelectedOrder: (order: OrderWithItems) => void;
   setSelectedOrderIndex: (index: number) => void;
 }
 
@@ -63,6 +63,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
     printedOrderIds,
 
     isAdmin,
+    isImpressaoUser,
 
     canToggleConferencia,
     canToggleImpressao,
@@ -181,14 +182,39 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               </TooltipProvider>
             )}
           </div>
-          {isReplacementOrder(order) && (
-            <Badge
-              variant="outline"
-              className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-orange-50 text-orange-700 border-orange-300 w-fit"
-            >
-              REPOSIÇÃO
-            </Badge>
-          )}
+          <div className="flex flex-wrap gap-1">
+            {isImpressaoUser && order.items?.some(i => i.data_impressao) && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="default"
+                      className="h-4 px-1 text-[8px] lg:text-[9px] bg-green-600 hover:bg-green-600 text-white border-none shadow-sm font-bold flex items-center gap-0.5 w-fit"
+                    >
+                      <Printer className="h-2.5 w-2.5 mr-0.5" />
+                      IMPRESSO
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Ficha de produção já impressa em: {
+                      (() => {
+                        const date = order.items?.find(i => i.data_impressao)?.data_impressao;
+                        return date ? formatDateForDisplay(date) : 'Data não disponível';
+                      })()
+                    }</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {isReplacementOrder(order) && (
+              <Badge
+                variant="outline"
+                className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-orange-50 text-orange-700 border-orange-300 w-fit"
+              >
+                REPOSIÇÃO
+              </Badge>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell
@@ -623,7 +649,7 @@ export const OrderTableRow = React.memo(OrderTableRowComponent, (prevProps, next
     prevProps.order === nextProps.order &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.index === nextProps.index &&
-    prevProps.isPwa === nextProps.isPwa &&
+
     prevProps.isAdmin === nextProps.isAdmin &&
     prevProps.canToggleConferencia === nextProps.canToggleConferencia &&
     prevProps.canToggleImpressao === nextProps.canToggleImpressao &&

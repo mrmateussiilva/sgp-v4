@@ -2796,7 +2796,7 @@ export default function OrderList() {
                                   selectedOrderIdsForPrint={selectedOrderIdsForPrint}
                                   setSelectedOrderIdsForPrint={setSelectedOrderIdsForPrint}
                                   printedOrderIds={printedOrderIds}
-                                  isPwa={isPwa}
+
                                   isAdmin={isAdmin}
                                   isImpressaoUser={isImpressaoUser}
                                   canToggleConferencia={canToggleConferencia}
@@ -2919,7 +2919,7 @@ export default function OrderList() {
           filename={bulkPdfFilename}
           title="Pré-visualização - Impressão em Lote"
         />
-        
+
         <ShortcutsHelp
           open={useModalStore.getState().shortcutsModalOpen}
           onOpenChange={(open) => {
@@ -2929,7 +2929,7 @@ export default function OrderList() {
           shortcuts={shortcuts}
           title="Atalhos — Lista de pedidos"
         />
-  
+
         {/* Modals unificados via store */}
         <OrderModalsProvider />
 

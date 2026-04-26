@@ -61,27 +61,33 @@ const hydrateOrderForPrint = async (
  * Converte todas as imagens dos pedidos para Base64 para garantir exibição no PDF
  */
 const preFetchImages = async (orders: OrderWithItems[]): Promise<OrderWithItems[]> => {
-  return Promise.all(
-    orders.map(async (order) => {
-      if (!order.items) return order;
+  const result: OrderWithItems[] = [];
+  // Processar pedidos SEQUENCIALMENTE para evitar explosão de requests
+  for (const order of orders) {
+    if (!order.items) {
+      result.push(order);
+      continue;
+    }
 
-      const itemsWithBase64 = await Promise.all(
-        order.items.map(async (item) => {
-          if (item.imagem && (item.imagem.startsWith('http') || !item.imagem.startsWith('data:'))) {
-            try {
-              const base64 = await imageToBase64(item.imagem);
-              return { ...item, imagem: base64 };
-            } catch {
-              // usar imagem original
-            }
-          }
-          return item;
-        })
-      );
+    const itemsWithBase64: OrderItem[] = [];
+    // Processar imagens de cada item SEQUENCIALMENTE
+    for (const item of order.items) {
+      if (item.imagem && (item.imagem.startsWith('http') || !item.imagem.startsWith('data:'))) {
+        try {
+          const base64 = await imageToBase64(item.imagem);
+          itemsWithBase64.push({ ...item, imagem: base64 });
+        } catch {
+          // Converter falhou: zerar imagem para evitar caixa azul quebrada no PDF
+          itemsWithBase64.push({ ...item, imagem: undefined });
+        }
+      } else {
+        itemsWithBase64.push(item);
+      }
+    }
 
-      return { ...order, items: itemsWithBase64 };
-    })
-  );
+    result.push({ ...order, items: itemsWithBase64 });
+  }
+  return result;
 };
 
 /**
@@ -134,12 +140,12 @@ export const generateMultipleOrdersPdfBlob = async (
     throw new Error('Nenhum pedido fornecido para geração de PDF');
   }
 
-  const hydratedOrders = await Promise.all(
-    orders.map(async (order) => {
-      const resolved = await hydrateOrderForPrint(order);
-      return resolved.order;
-    })
-  );
+  // Hidratar pedidos SEQUENCIALMENTE para evitar explosão de GETs
+  const hydratedOrders: OrderWithItems[] = [];
+  for (const order of orders) {
+    const resolved = await hydrateOrderForPrint(order);
+    hydratedOrders.push(resolved.order);
+  }
 
   // Pre-fetch de imagens (CONVERTER PARA BASE64)
   const ordersWithImages = await preFetchImages(hydratedOrders);
