@@ -10,16 +10,16 @@ export const COL_RIGHT_WIDTH = '55%';
 export const SPACING = {
     xs: 4,
     sm: 6,
-    md: 10,
-    lg: 16, // Increased for better rhythm
-    xl: 24, // Increased for better rhythm
+    md: 8,
+    lg: 12,
+    xl: 16,
 };
 
 export const FONT_SIZES = {
-    label: 10, // Increased from 9 for better legibility
-    meta: 11,
-    value: 12,
-    title: 18, // Increased from 16 for better header dominance
+    label: 9,
+    meta: 10,
+    value: 11,
+    title: 16,
 };
 
 export const COLORS = {
@@ -46,7 +46,7 @@ export const styles = StyleSheet.create({
     container: {
         width: '100%',
         height: '148mm',
-        padding: '8mm', // Increased padding
+        padding: '5mm',
         flexDirection: 'column',
     },
 
