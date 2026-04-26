@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Edit,
-  
+
   FileText,
   Printer,
   Search,
@@ -12,20 +12,18 @@ import {
   Filter,
   CheckSquare,
   Inbox,
-  
+
   ChevronDown,
   ChevronUp,
   Calendar,
-  
+
   Clock,
-  
-  
+
+
   ChevronRight,
   Table2,
   RefreshCw,
-  History,
   Zap,
-  AlertCircle,
   Keyboard,
   DollarSign,
   Scissors,
@@ -39,21 +37,22 @@ import html2canvas from 'html2canvas';
 import { api } from '../services/api';
 import { logger } from '@/utils/logger';
 import { useOrderStore } from '../store/orderStore';
+import { useModalStore } from '@/store/useModalStore';
+import { OrderModalsProvider } from './modals/OrderModalsProvider';
 import { useAuthStore } from '../store/authStore';
-import { OrderWithItems, UpdateOrderStatusRequest, OrderStatus } from '../types';
+import { OrderWithItems, OrderStatus } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
 import { useFilterWorker } from '../hooks/useFilterWorker';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { SmoothTableWrapper } from './SmoothTableWrapper';
-import { OrderViewModal } from './OrderViewModal';
+import { buildStatusUpdatePayload } from '@/utils/orderStatusUtils';
 import { OrderTableRow } from './OrderTableRow';
 
-import { OrderQuickEditDialog } from './OrderQuickEditDialog';
 import { OrderProductionPipeline } from './OrderProductionPipeline';
 // import { OrderContextPanel } from './OrderContextPanel'; // Painel lateral desabilitado
-import { formatDateForDisplay,  } from '@/utils/date';
+import { formatDateForDisplay, } from '@/utils/date';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,40 +165,15 @@ export default function OrderList() {
     Array<{ id: number; nome: string; valor: number }>
   >([]);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>([]);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedOrderForView, setSelectedOrderForView] = useState<OrderWithItems | null>(null);
-  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
-  const [orderToDuplicate, setOrderToDuplicate] = useState<OrderWithItems | null>(null);
-  const [duplicateDataEntrada, setDuplicateDataEntrada] = useState('');
-  const [duplicateDataEntrega, setDuplicateDataEntrega] = useState('');
-  const [duplicateDateError, setDuplicateDateError] = useState<string | null>(null);
+  const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal, openEditModal } = useModalStore();
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  // Estados para reposição
-  const [replacementDialogOpen, setReplacementDialogOpen] = useState(false);
-  const [orderToReplace, setOrderToReplace] = useState<OrderWithItems | null>(null);
   // Alternância entre tabela e pipeline de produção
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
-  const [statusConfirmModal, setStatusConfirmModal] = useState<{
-    show: boolean;
-    pedidoId: number;
-    campo: string;
-    novoValor: boolean;
-    nomeSetor: string;
-  }>({
-    show: false,
-    pedidoId: 0,
-    campo: '',
-    novoValor: false,
-    nomeSetor: '',
-  });
+  // state removed
 
   // Estados para navegação por teclado (painel lateral desabilitado)
   const [isBulkPreviewOpen, setIsBulkPreviewOpen] = useState(false);
@@ -250,18 +224,10 @@ export default function OrderList() {
 
   const { toast } = useToast();
   const closeStatusConfirmModal = useCallback(() => {
-    setStatusConfirmModal({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
+    ({ show: false, pedidoId: 0, campo: '', novoValor: false, nomeSetor: '' });
   }, []);
 
-  const isAnyDialogOpen =
-    deleteDialogOpen ||
-    viewModalOpen ||
-    duplicateDialogOpen ||
-    editDialogOpen ||
-    replacementDialogOpen ||
-    statusConfirmModal.show ||
-    isBulkPreviewOpen ||
-    shortcutsModalOpen;
+  const isAnyDialogOpen = useModalStore(state => state.isAnyModalOpen()) || isBulkPreviewOpen;
 
   // REMOVIDO: subscribeToOrderEvents duplicado
   // useOrderAutoSync já gerencia todas as atualizações via WebSocket
@@ -332,93 +298,6 @@ export default function OrderList() {
     }
     const normalized = message.toLowerCase();
     return normalized.includes('sessão inválida') || normalized.includes('sessão expirada');
-  };
-
-  const buildStatusUpdatePayload = (
-    order: OrderWithItems,
-    campo: string,
-    novoValor: boolean
-  ): UpdateOrderStatusRequest => {
-    // CRÍTICO: Não incluir campo financeiro no payload quando não está sendo alterado
-    // Isso evita erro 403 quando usuários comuns atualizam expedição, produção, etc.
-    // O campo financeiro só deve ser incluído quando está sendo explicitamente alterado
-
-    // Usar valor atual do pedido para cálculos internos
-    const financeiroAtual = order.financeiro === true;
-
-    // Construir payload - NÃO incluir financeiro se não está sendo alterado
-    const payload: UpdateOrderStatusRequest = {
-      id: order.id,
-      conferencia: campo === 'conferencia' ? novoValor : order.conferencia === true,
-      sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
-      costura: campo === 'costura' ? novoValor : order.costura === true,
-      expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
-    };
-
-    // Incluir financeiro APENAS se está sendo explicitamente alterado
-    if (campo === 'financeiro') {
-      payload.financeiro = novoValor;
-      // Marcar flag para buildStatusPayload saber que pode incluir
-      (payload as any)._isFinanceiroUpdate = true;
-    } else {
-      // NÃO incluir financeiro no payload quando não está sendo alterado
-      // Usar valor atual apenas para cálculos internos
-      (payload as any)._isFinanceiroUpdate = false;
-    }
-
-    // Manter valores existentes de máquina e data de impressão quando não está alterando sublimação
-    // Quando desmarcar sublimação, limpar esses campos
-    const existingMachine = order.sublimacao_maquina ?? null;
-    const existingDate = order.sublimacao_data_impressao ?? null;
-
-    if (campo === 'sublimacao') {
-      if (!novoValor) {
-        // Ao desmarcar, limpar máquina e data
-        payload.sublimacao_maquina = null;
-        payload.sublimacao_data_impressao = null;
-      } else {
-        // Ao marcar, manter valores existentes se houver, senão deixar null
-        payload.sublimacao_maquina = existingMachine;
-        payload.sublimacao_data_impressao = existingDate;
-      }
-    } else {
-      // Para outros campos, manter valores existentes
-      payload.sublimacao_maquina = existingMachine;
-      payload.sublimacao_data_impressao = existingDate;
-    }
-
-    // Para cálculo de "pronto", usar valor atual do pedido se financeiro não está sendo alterado
-    const financeiroParaCalculo = campo === 'financeiro' ? novoValor : financeiroAtual;
-    const allComplete =
-      financeiroParaCalculo &&
-      payload.conferencia &&
-      payload.sublimacao &&
-      payload.costura &&
-      payload.expedicao;
-
-    payload.pronto = allComplete;
-    if (allComplete) {
-      payload.status = OrderStatus.Concluido;
-    } else {
-      payload.status =
-        order.status === OrderStatus.Concluido ? OrderStatus.EmProcessamento : order.status;
-    }
-
-    // Se financeiro está sendo desmarcado, resetar todos os outros status
-    if (campo === 'financeiro' && !novoValor) {
-      payload.conferencia = false;
-      payload.sublimacao = false;
-      payload.costura = false;
-      payload.expedicao = false;
-      payload.sublimacao_maquina = null;
-      payload.sublimacao_data_impressao = null;
-      payload.pronto = false;
-      if (payload.status === OrderStatus.Concluido) {
-        payload.status = OrderStatus.EmProcessamento;
-      }
-    }
-
-    return payload;
   };
 
   const loadRequestRef = useRef(0);
@@ -601,7 +480,7 @@ export default function OrderList() {
   // Auto-refresh suave (fallback) a cada 15s.
   // Não executa enquanto modais estiverem abertos para evitar qualquer sensação de "piscada".
   useAutoRefresh(async () => {
-    if (viewModalOpen || editDialogOpen || deleteDialogOpen) {
+    if (isAnyDialogOpen) {
       return;
     }
     await loadOrders();
@@ -613,7 +492,7 @@ export default function OrderList() {
 
   // Recarregar pedidos quando o modal de visualização for fechado
   useEffect(() => {
-    if (!viewModalOpen) {
+    if (!useModalStore.getState().viewModalOpen) {
       // Pequeno delay para garantir que o modal foi completamente fechado
       const timeoutId = setTimeout(() => {
         logger.debug('[OrderList] Modal fechado, recarregando pedidos...');
@@ -622,7 +501,7 @@ export default function OrderList() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [viewModalOpen, loadOrders]);
+  }, [loadOrders]);
 
   useEffect(() => {
     setPage(0);
@@ -645,182 +524,19 @@ export default function OrderList() {
   };
 
   const handleViewOrder = (order: OrderWithItems) => {
-    setSelectedOrderForView(order);
-    setViewModalOpen(true);
+    openViewModal(order);
   };
 
   const handleDeleteClick = (orderId: number) => {
-    setOrderToDelete(orderId);
-    setDeleteDialogOpen(true);
-  };
-
-  const validateDuplicateDates = (dataEntrada: string, dataEntrega: string): string | null => {
-    if (!dataEntrada) return null; // Data de entrada é obrigatória mas validação será feita no submit
-    if (!dataEntrega) return null; // Data de entrega é opcional
-
-    const entrada = new Date(dataEntrada);
-    const saida = new Date(dataEntrega);
-
-    if (entrada > saida) {
-      return 'Data de entrada não pode ser maior que data de entrega';
-    }
-
-    return null;
+    openDeleteModal(orderId);
   };
 
   const handleDuplicateClick = (order: OrderWithItems) => {
-    setOrderToDuplicate(order);
-    // Inicializar datas: entrada = hoje, entrega = mesma do pedido original
-    const hoje = new Date().toISOString().split('T')[0];
-    const dataEntrega = order.data_entrega || '';
-    setDuplicateDataEntrada(hoje);
-    setDuplicateDataEntrega(dataEntrega);
-    setDuplicateDateError(validateDuplicateDates(hoje, dataEntrega));
-    setDuplicateDialogOpen(true);
-  };
-
-  const handleDuplicateDateChange = (field: 'entrada' | 'entrega', value: string) => {
-    if (field === 'entrada') {
-      setDuplicateDataEntrada(value);
-      if (duplicateDataEntrega) {
-        setDuplicateDateError(validateDuplicateDates(value, duplicateDataEntrega));
-      }
-    } else {
-      setDuplicateDataEntrega(value);
-      if (duplicateDataEntrada) {
-        setDuplicateDateError(validateDuplicateDates(duplicateDataEntrada, value));
-      }
-    }
-  };
-
-  const handleDuplicateConfirm = async () => {
-    if (!orderToDuplicate) return;
-
-    // Validar datas antes de confirmar
-    if (duplicateDataEntrada && duplicateDataEntrega) {
-      const dateError = validateDuplicateDates(duplicateDataEntrada, duplicateDataEntrega);
-      if (dateError) {
-        toast({
-          title: 'Erro de Validação',
-          description: dateError,
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    // Validar que data de entrada foi preenchida
-    if (!duplicateDataEntrada) {
-      toast({
-        title: 'Erro de Validação',
-        description: 'Data de entrada é obrigatória',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setDuplicateDialogOpen(false);
-
-      toast({
-        title: 'Duplicando pedido...',
-        description: 'Aguarde enquanto o pedido está sendo duplicado.',
-      });
-
-      // Chamar duplicateOrder com as datas personalizadas
-      const newOrder = await api.duplicateOrder(orderToDuplicate.id, {
-        data_entrada: duplicateDataEntrada || undefined,
-        data_entrega: duplicateDataEntrega || undefined,
-      });
-
-      // Não chamar addOrder diretamente - o WebSocket vai adicionar automaticamente
-      // Isso evita duplicação
-
-      toast({
-        title: 'Sucesso',
-        description: `Pedido duplicado com sucesso! Novo pedido #${newOrder.numero || newOrder.id}`,
-      });
-
-      // Limpar estado
-      setOrderToDuplicate(null);
-      setDuplicateDataEntrada('');
-      setDuplicateDataEntrega('');
-      setDuplicateDateError(null);
-    } catch (error) {
-      logger.error('Erro ao duplicar pedido:', error);
-      toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Erro ao duplicar pedido',
-        variant: 'destructive',
-      });
-    }
+    openDuplicateModal(order);
   };
 
   const handleCreateReplacementClick = (order: OrderWithItems) => {
-    setOrderToReplace(order);
-    setReplacementDialogOpen(true);
-  };
-
-  const handleReplacementConfirm = async (zeroValues: boolean) => {
-    if (!orderToReplace) return;
-
-    try {
-      setReplacementDialogOpen(false);
-      toast({
-        title: 'Criando ficha de reposição...',
-        description: zeroValues
-          ? 'Gerando reposição com valores zerados (Cortesia).'
-          : 'Gerando reposição com valores originais.',
-      });
-
-      // Criar o pedido de reposição com a opção escolhida
-      const newOrder = await api.createReplacementOrder(orderToReplace.id, { zeroValues });
-
-      toast({
-        title: 'Ficha de reposição criada',
-        description: `Pedido #${newOrder.numero || newOrder.id} criado com sucesso.`,
-      });
-
-      // Navegar para a página de edição do novo pedido
-      navigate(`/dashboard/pedido/editar/${newOrder.id}`);
-      setOrderToReplace(null);
-    } catch (error) {
-      logger.error('Erro ao criar ficha de reposição:', error);
-      toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Erro ao criar ficha de reposição',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (orderToDelete) {
-      try {
-        await api.deleteOrder(orderToDelete);
-        removeOrder(orderToDelete);
-        toast({
-          title: 'Pedido excluído',
-          description: 'O pedido foi excluído com sucesso!',
-          variant: 'info',
-        });
-      } catch (error: any) {
-        const errorMessage =
-          error?.response?.data?.detail || error?.message || 'Não foi possível excluir o pedido.';
-        const isForbidden = error?.response?.status === 403;
-
-        toast({
-          title: isForbidden ? 'Acesso negado' : 'Erro',
-          description: isForbidden
-            ? 'Somente administradores podem executar esta ação.'
-            : errorMessage,
-          variant: 'destructive',
-        });
-        logger.error('Error deleting order:', error);
-      }
-    }
-    setDeleteDialogOpen(false);
-    setOrderToDelete(null);
+    openReplacementModal(order);
   };
 
   const handleQuickShare = async (order: OrderWithItems) => {
@@ -1329,7 +1045,7 @@ export default function OrderList() {
   ]);
 
   const { filteredOrders } = useFilterWorker(orders, filterConfigs);
-  
+
   // Efeito adicional: Log
   useEffect(() => {
     logger.debug('[OrderList] Async Worker Filtering Concluded - length:', filteredOrders?.length || 0);
@@ -1636,11 +1352,6 @@ export default function OrderList() {
       {
         key: 'Enter',
         action: () => {
-          if (statusConfirmModal.show) {
-            statusConfirmButtonRef.current?.click();
-            return;
-          }
-
           if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
           if (selectedOrder) {
             handleViewOrder(selectedOrder);
@@ -1689,14 +1400,10 @@ export default function OrderList() {
           // if (contextPanelOpen) {
           //   handleCloseContextPanel();
           // } else
-          if (statusConfirmModal.show) {
-            closeStatusConfirmModal();
-          } else if (shortcutsModalOpen) {
+          if (shortcutsModalOpen) {
             setShortcutsModalOpen(false);
-          } else if (viewModalOpen) {
-            setViewModalOpen(false);
-          } else if (deleteDialogOpen) {
-            setDeleteDialogOpen(false);
+          } else {
+            useModalStore.getState().closeAllModals();
           }
         },
         description: 'Fechar modal',
@@ -1710,7 +1417,6 @@ export default function OrderList() {
     [
       navigate,
       shortcutsModalOpen,
-      statusConfirmModal.show,
       closeStatusConfirmModal,
       handleNavigateUp,
       handleNavigateDown,
@@ -1722,134 +1428,22 @@ export default function OrderList() {
       handleViewOrder,
       handlePrintSelected,
       setSelectedOrderIdsForPrint,
-      viewModalOpen,
-      deleteDialogOpen,
     ]
   );
 
   useKeyboardShortcuts(shortcuts);
 
-  const handleStatusClick = (
-    pedidoId: number,
-    campo: string,
-    valorAtual: boolean,
-    nomeSetor: string
-  ) => {
-    // Verificar se é ação financeira e se o usuário não é admin
+  const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
     if (campo === 'financeiro' && !isAdmin) {
-      toast({
-        title: 'Acesso negado',
-        description: 'Somente administradores podem executar esta ação.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Acesso negado', description: 'Somente administradores podem executar esta ação.', variant: 'destructive' });
       return;
     }
-
-    const targetOrder = orders.find((order) => order.id === pedidoId);
-    if (!targetOrder) {
-      return;
-    }
-
-    setStatusConfirmModal({
-      show: true,
+    openStatusConfirmModal({
       pedidoId,
       campo,
       novoValor: !valorAtual,
-      nomeSetor,
+      nomeSetor
     });
-  };
-
-  const handleConfirmStatusChange = async () => {
-    const { pedidoId, campo, novoValor } = statusConfirmModal;
-
-    // PROTEÇÃO CRÍTICA: Verificar se é tentativa de alterar financeiro sem permissão de admin
-    // Esta é uma camada extra de segurança além da verificação no handleStatusClick
-    if (campo === 'financeiro' && !isAdmin) {
-      toast({
-        title: 'Acesso negado',
-        description: 'Somente administradores podem alterar o status financeiro.',
-        variant: 'destructive',
-      });
-      closeStatusConfirmModal();
-      return;
-    }
-
-    const targetOrder = orders.find((order) => order.id === pedidoId);
-
-    if (!targetOrder) {
-      closeStatusConfirmModal();
-      return;
-    }
-
-    const payload = buildStatusUpdatePayload(targetOrder, campo, novoValor);
-
-    // Debug: verificar se financeiro está no payload quando não deveria
-    if (campo !== 'financeiro' && 'financeiro' in payload) {
-      logger.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
-    }
-
-    try {
-      const updatedOrder = await api.updateOrderStatus(payload);
-      updateOrder(updatedOrder);
-
-      if (campo === 'financeiro') {
-        // O timestamp agora é gerenciado pelo backend
-      }
-
-      const mensagensTodosSetores =
-        payload.pronto && payload.status === OrderStatus.Concluido && novoValor;
-
-      const mensagem = mensagensTodosSetores
-        ? 'Todos os setores foram marcados. Pedido concluído!'
-        : payload.financeiro === false && campo === 'financeiro'
-          ? 'Financeiro desmarcado. Todos os status foram resetados.'
-          : `${statusConfirmModal.nomeSetor} ${novoValor ? 'marcado' : 'desmarcado'} com sucesso!`;
-
-      toast({
-        title: 'Status atualizado',
-        description: mensagem,
-        variant: 'success',
-      });
-    } catch (error: unknown) {
-      const err = error as any;
-      const errorMessage =
-        err?.response?.data?.detail || err?.message || 'Não foi possível atualizar o status.';
-      const isForbidden = err?.response?.status === 403;
-      const campo = statusConfirmModal.campo;
-      const isFinanceiro = campo === 'financeiro';
-
-      if (isForbidden) {
-        if (isFinanceiro) {
-          toast({
-            title: 'Acesso negado',
-            description: 'Somente administradores podem atualizar o status financeiro.',
-            variant: 'destructive',
-          });
-        } else {
-          // Erro 403 para campos que não deveriam precisar de admin
-          // Isso indica que o backend está exigindo admin para todos os campos
-          const nomeCampo = statusConfirmModal.nomeSetor || campo;
-          toast({
-            title: '⚠️ Problema de permissão no servidor',
-            description: `O servidor está bloqueando a atualização de "${nomeCampo}" exigindo permissão de administrador, mas esse campo NÃO deveria precisar de admin. Apenas o campo "Financeiro" deveria exigir essa permissão. Entre em contato com o administrador do sistema para corrigir as permissões no backend.`,
-            variant: 'destructive',
-          });
-        }
-      } else {
-        toast({
-          title: 'Erro',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-      }
-
-      // Log apenas em desenvolvimento para não poluir o console em produção
-      if (import.meta.env.DEV) {
-        logger.error('Error updating status:', error);
-      }
-    } finally {
-      closeStatusConfirmModal();
-    }
   };
 
   const handleKanbanStatusChange = async (orderId: number, newStatus: string) => {
@@ -1879,11 +1473,7 @@ export default function OrderList() {
 
     // Se está movendo para uma coluna mais avançada, garantir que todos os status anteriores também sejam marcados
     // Construir payload baseado no status atual e novo status
-    const payload = buildStatusUpdatePayload(
-      targetOrder,
-      newStatus,
-      true // sempre marcar como true ao mover para a coluna
-    );
+    const payload = buildStatusUpdatePayload(targetOrder, newStatus, true);
 
     // Garantir que todos os status anteriores ao novo status também estejam marcados
     for (let i = 0; i < newStatusIndex; i++) {
@@ -3222,7 +2812,6 @@ export default function OrderList() {
                                   handleDeleteClick={handleDeleteClick}
                                   handleStatusClick={handleStatusClick}
                                   handleQuickShare={handleQuickShare}
-                                  setStatusConfirmModal={setStatusConfirmModal}
                                   setSelectedOrder={setSelectedOrder}
                                   setSelectedOrderIndex={setSelectedOrderIndex}
                                 />
@@ -3321,283 +2910,10 @@ export default function OrderList() {
 
         {/* Botão flutuante Novo Pedido - Removido no PWA conforme solicitado */}
 
-        <ShortcutsHelp
-          open={shortcutsModalOpen}
-          onOpenChange={setShortcutsModalOpen}
-          shortcuts={shortcuts}
-          title="Atalhos — Lista de pedidos"
-        />
 
-        {/* Modal de Confirmação de Exclusão */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmar Exclusão</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteConfirm}>
-                Excluir
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
-        {/* Modal de Duplicação */}
-        <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Duplicar Pedido</DialogTitle>
-              <DialogDescription>
-                Configure as datas para o novo pedido duplicado do pedido #
-                {orderToDuplicate?.numero || orderToDuplicate?.id}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
-                <Input
-                  id="duplicate-data-entrada"
-                  type="date"
-                  value={duplicateDataEntrada}
-                  onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
-                  className={duplicateDateError ? 'border-destructive' : ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
-                <Input
-                  id="duplicate-data-entrega"
-                  type="date"
-                  value={duplicateDataEntrega}
-                  onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
-                  className={duplicateDateError ? 'border-destructive' : ''}
-                />
-                {duplicateDateError && (
-                  <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDuplicateDialogOpen(false);
-                  setOrderToDuplicate(null);
-                  setDuplicateDataEntrada('');
-                  setDuplicateDataEntrega('');
-                  setDuplicateDateError(null);
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleDuplicateConfirm}
-                disabled={!!duplicateDateError || !duplicateDataEntrada}
-              >
-                Duplicar Pedido
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={statusConfirmModal.show}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeStatusConfirmModal();
-            }
-          }}
-        >
-          <DialogContent
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              statusConfirmButtonRef.current?.focus();
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey) {
-                return;
-              }
-
-              event.preventDefault();
-              event.stopPropagation();
-              handleConfirmStatusChange();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>Confirmar Alteração de Status</DialogTitle>
-              <DialogDescription asChild>
-                <div className="space-y-2">
-                  {statusConfirmModal.novoValor ? (
-                    <div>
-                      Deseja marcar <strong>{statusConfirmModal.nomeSetor}</strong> como concluído
-                      para o pedido #{statusConfirmModal.pedidoId}?
-                    </div>
-                  ) : (
-                    <div>
-                      <div>
-                        Deseja desmarcar <strong>{statusConfirmModal.nomeSetor}</strong> para o
-                        pedido #{statusConfirmModal.pedidoId}?
-                      </div>
-                      {statusConfirmModal.campo === 'financeiro' && (
-                        <div className="mt-3 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                          ⚠️ <strong>Atenção:</strong> Ao desmarcar o Financeiro, todos os outros
-                          status (Conferência, Impressão, Costura e Expedição) também serão
-                          desmarcados!
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={closeStatusConfirmModal} type="button">
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConfirmStatusChange}
-                ref={statusConfirmButtonRef}
-                type="button"
-              >
-                Confirmar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal de Opções de Reposição */}
-        <Dialog open={replacementDialogOpen} onOpenChange={setReplacementDialogOpen}>
-          <DialogContent className="sm:max-w-md border-none shadow-2xl p-0 overflow-hidden">
-            <div className="bg-gradient-to-br from-primary/10 via-background to-background p-6">
-              <DialogHeader className="mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2.5 rounded-xl">
-                    <RefreshCw className="h-6 w-6 text-primary animate-spin-slow" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-xl font-bold">Gerar Reposição</DialogTitle>
-                    <DialogDescription className="text-sm font-medium mt-1 break-words">
-                      Pedido #{orderToReplace?.numero || orderToReplace?.id} •{' '}
-                      {orderToReplace?.cliente || orderToReplace?.customer_name}
-                    </DialogDescription>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="grid grid-cols-1 gap-4 py-2">
-                <Button
-                  variant="outline"
-                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 rounded-2xl border-2 border-muted overflow-hidden whitespace-normal"
-                  onClick={() => handleReplacementConfirm(false)}
-                >
-                  <div className="bg-muted group-hover:bg-primary/10 p-3 rounded-2xl transition-colors duration-300 flex-shrink-0">
-                    <History className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-                  </div>
-                  <div className="flex-1 flex flex-col gap-1 pr-2">
-                    <span className="font-bold text-base leading-tight">Valores Originais</span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
-                      Copia integralmente os preços e frete do pedido original. Usar quando o
-                      cliente pagará pela nova peça.
-                    </span>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary/50 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="group relative flex items-center justify-start h-auto p-5 gap-4 text-left border-2 border-orange-100 hover:border-orange-400 hover:bg-orange-50/50 dark:border-orange-900/20 dark:hover:bg-orange-950/20 transition-all duration-300 rounded-2xl overflow-hidden whitespace-normal"
-                  onClick={() => handleReplacementConfirm(true)}
-                >
-                  <div className="absolute top-0 right-0">
-                    <div className="bg-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1 shadow-sm">
-                      <Zap className="h-3 w-3 fill-current" />
-                      RECOMENDADO
-                    </div>
-                  </div>
-                  <div className="bg-orange-100 dark:bg-orange-900/30 group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 p-3 rounded-2xl transition-colors duration-300 flex-shrink-0">
-                    <Zap className="h-6 w-6 text-orange-600 dark:text-orange-400 transition-colors duration-300 fill-current" />
-                  </div>
-                  <div className="flex-1 flex flex-col gap-1 mt-1 pr-2">
-                    <span className="font-bold text-base text-orange-700 dark:text-orange-400 leading-tight">
-                      Cortesia (Zero Vinte)
-                    </span>
-                    <span className="text-xs text-muted-foreground font-normal leading-relaxed whitespace-normal">
-                      Zera todos os preços unitários e o frete. Ideal para casos de erro interno,
-                      garantia ou cortesia.
-                    </span>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-orange-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
-                </Button>
-              </div>
-
-              <div className="mt-6 flex items-start gap-2.5 p-3.5 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-900/20 rounded-xl">
-                <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <p className="text-[11px] text-blue-700/80 dark:text-blue-400/80 leading-normal italic">
-                  Independente da escolha, o status será resetado para <strong>Pendente</strong> e
-                  uma nova ficha numerada será gerada.
-                </p>
-              </div>
-            </div>
-
-            <DialogFooter className="bg-muted/30 p-4 border-t border-muted">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReplacementDialogOpen(false)}
-                className="hover:bg-background/80"
-              >
-                Cancelar Operação
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <OrderViewModal
-          isOpen={viewModalOpen}
-          onClose={() => setViewModalOpen(false)}
-          order={selectedOrderForView}
-          onOrderUpdate={(updatedOrder) => {
-            // Atualizar o pedido selecionado para visualização
-            setSelectedOrderForView(updatedOrder);
-
-            // Atualizar também na lista de pedidos se existir
-            updateOrder(updatedOrder);
-          }}
-        />
-
-        <PrintPreviewModal
-          isOpen={isBulkPreviewOpen}
-          onClose={() => {
-            setIsBulkPreviewOpen(false);
-          }}
-          pdfBlob={bulkPdfBlob}
-          filename={bulkPdfFilename}
-          title="Pré-visualização - Impressão em Lote"
-        />
-
-        <OrderQuickEditDialog
-          orderId={editOrderId}
-          open={editDialogOpen}
-          onOpenChange={(open) => {
-            setEditDialogOpen(open);
-            if (!open) {
-              setEditOrderId(null);
-            }
-          }}
-          onUpdated={(order) => {
-            updateOrder(order);
-            setSelectedOrder(order);
-            if (selectedOrderForView && selectedOrderForView.id === order.id) {
-              setSelectedOrderForView(order);
-            }
-          }}
-        />
+        {/* Modals unificados via store */}
+        <OrderModalsProvider />
 
         {/* Painel Lateral de Contexto - DESABILITADO */}
         {/* 

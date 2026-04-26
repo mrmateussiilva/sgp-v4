@@ -49,8 +49,7 @@ interface OrderTableRowProps {
   handleDeleteClick: (orderId: number) => void;
   handleStatusClick: (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => void;
   handleQuickShare: (order: OrderWithItems) => void;
-  setStatusConfirmModal: (modal: any) => void;
-  setSelectedOrder: (order: OrderWithItems) => void;
+    setSelectedOrder: (order: OrderWithItems) => void;
   setSelectedOrderIndex: (index: number) => void;
 }
 
