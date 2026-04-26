@@ -12,7 +12,35 @@ const blobUrlCache = new Map<string, string>();
  */
 const blobCache = new Map<string, Blob>();
 
-const MAX_CACHE_SIZE = 50;
+/**
+ * Contagem das instâncias usando cada imagem para limpeza de memória segura
+ */
+const referenceCount = new Map<string, number>();
+
+const MAX_CACHE_SIZE = 25;
+
+export function retainImageUrl(imagePath: string): void {
+  const normalized = normalizeImageUrl(imagePath);
+  if (blobUrlCache.has(normalized)) {
+    const count = referenceCount.get(normalized) || 0;
+    referenceCount.set(normalized, count + 1);
+  }
+}
+
+export function releaseImageUrl(imagePath: string): void {
+  const normalized = normalizeImageUrl(imagePath);
+  const count = referenceCount.get(normalized);
+
+  if (count !== undefined) {
+    if (count <= 1) {
+      referenceCount.delete(normalized);
+      // Seguro revogar porque ninguém mais na tela usa essa imagem
+      revokeImageUrl(normalized);
+    } else {
+      referenceCount.set(normalized, count - 1);
+    }
+  }
+}
 
 function addToCache(normalized: string, blobUrl: string, blob: Blob) {
   if (blobUrlCache.has(normalized)) {
@@ -23,18 +51,19 @@ function addToCache(normalized: string, blobUrl: string, blob: Blob) {
   blobUrlCache.set(normalized, blobUrl);
   blobCache.set(normalized, blob);
 
+  // Somente aplicar guilhotina em imagens que NINGUÉM está olhando (refCount === 0)
   if (blobUrlCache.size > MAX_CACHE_SIZE) {
-    const oldestKey = blobUrlCache.keys().next().value;
-    if (oldestKey) {
-      const oldUrl = blobUrlCache.get(oldestKey);
-      if (oldUrl) URL.revokeObjectURL(oldUrl);
-      blobUrlCache.delete(oldestKey);
-      blobCache.delete(oldestKey);
+    for (const key of blobUrlCache.keys()) {
+      if ((referenceCount.get(key) || 0) === 0) {
+        const oldUrl = blobUrlCache.get(key);
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+        blobUrlCache.delete(key);
+        blobCache.delete(key);
+        if (blobUrlCache.size <= MAX_CACHE_SIZE) break;
+      }
     }
   }
 }
-
-
 /**
  * Detecta se é um local_path de outro sistema (não do sistema atual)
  * @param path - Caminho a verificar
@@ -135,7 +164,14 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
 
   // Verificar cache usando apenas caminho normalizado
   if (blobUrlCache.has(normalized)) {
-    return blobUrlCache.get(normalized)!;
+    // Re-inserir para atualizar a ordem no LRU Map
+    const url = blobUrlCache.get(normalized)!;
+    const blob = blobCache.get(normalized)!;
+    blobUrlCache.delete(normalized);
+    blobCache.delete(normalized);
+    blobUrlCache.set(normalized, url);
+    blobCache.set(normalized, blob);
+    return url;
   }
 
   // Se for base64, retornar diretamente
@@ -244,6 +280,7 @@ export function clearImageCache(): void {
   });
   blobUrlCache.clear();
   blobCache.clear();
+  referenceCount.clear();
 }
 
 /**

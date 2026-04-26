@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { loadAuthenticatedImage, retainImageUrl, releaseImageUrl } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 
 interface UseLazyImageOptions {
@@ -116,6 +116,7 @@ export function useLazyImage(
 
       try {
         const blobUrl = await loadAuthenticatedImage(imagePath);
+        retainImageUrl(imagePath);
         setImageSrc(blobUrl);
         setError(false);
       } catch (err) {
@@ -174,6 +175,11 @@ export function useLazyImage(
       }
       // Resetar estado de loading para permitir recarregamento se necessário
       loadingRef.current = false;
+
+      // Liberar memória da imagem ao desmontar (Garbage Collection Imediato)
+      if (imageSrcRef.current && !imageSrcRef.current.startsWith('data:image/')) {
+        releaseImageUrl(imagePath);
+      }
     };
   }, [imagePath, eager, threshold, rootMargin]);
 
