@@ -1,0 +1,81 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Build and publish Windows release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect package manager
+        id: package-manager
+        shell: pwsh
+        run: |
+          if (Test-Path "pnpm-lock.yaml") {
+            "manager=pnpm" >> $env:GITHUB_OUTPUT
+            "install-command=pnpm install --frozen-lockfile" >> $env:GITHUB_OUTPUT
+            "tauri-script=pnpm tauri" >> $env:GITHUB_OUTPUT
+          } elseif (Test-Path "yarn.lock") {
+            "manager=yarn" >> $env:GITHUB_OUTPUT
+            "install-command=yarn install --frozen-lockfile" >> $env:GITHUB_OUTPUT
+            "tauri-script=yarn tauri" >> $env:GITHUB_OUTPUT
+          } elseif (Test-Path "package-lock.json") {
+            "manager=npm" >> $env:GITHUB_OUTPUT
+            "install-command=npm ci" >> $env:GITHUB_OUTPUT
+            "tauri-script=npm run tauri" >> $env:GITHUB_OUTPUT
+          } else {
+            "No supported lockfile found. Expected pnpm-lock.yaml, yarn.lock, or package-lock.json." | Write-Error
+            exit 1
+          }
+
+      - name: Install pnpm
+        if: steps.package-manager.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        if: steps.package-manager.outputs.manager == 'yarn'
+        shell: pwsh
+        run: corepack enable
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        shell: pwsh
+        run: ${{ steps.package-manager.outputs.install-command }}
+
+      - name: Build Tauri app and publish GitHub Release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "SGP ${{ github.ref_name }}"
+          releaseBody: "Instalador Windows e artefatos do updater para ${{ github.ref_name }}."
+          releaseDraft: false
+          prerelease: false
+          tauriScript: ${{ steps.package-manager.outputs.tauri-script }}
+          args: --bundles msi
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
+          updaterJsonPreferNsis: false

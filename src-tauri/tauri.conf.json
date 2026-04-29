@@ -35,7 +35,7 @@
         "updater": {
             "active": true,
             "endpoints": [
-                "https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/updater/latest.json"
+                "https://github.com/mrmateussiilva/sgp-v4/releases/latest/download/latest.json"
             ],
             "dialog": true,
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcyNTFERTEzMzdGOTlDNEIKUldSTG5QazNFOTVSY3U0QnRmQnJoMEl6dnBNdGxwazN3MU5QSisvbmJDZWxQdGlTNFJmQjEzdnQK"
