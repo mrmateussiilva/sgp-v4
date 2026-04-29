@@ -1,7 +1,9 @@
 /// <reference lib="webworker" />
 
+import type { OrderWithItems } from '../types';
+
 export interface FilterWorkerInput {
-    orders: any[];
+    orders: OrderWithItems[];
     filters: {
         activeSearchTerm: string;
         isBackendPaginated: boolean;
@@ -105,14 +107,14 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
     if (filters.selectedVendedor) {
         filtered = filtered.filter((order) => {
             if (!order.items || order.items.length === 0) return true;
-            return order.items.some((item: any) => item.vendedor === filters.selectedVendedor);
+            return order.items.some((item) => item.vendedor === filters.selectedVendedor);
         });
     }
 
     if (filters.selectedDesigner) {
         filtered = filtered.filter((order) => {
             if (!order.items || order.items.length === 0) return true;
-            return order.items.some((item: any) => item.designer === filters.selectedDesigner);
+            return order.items.some((item) => item.designer === filters.selectedDesigner);
         });
     }
 
@@ -127,7 +129,7 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
     if (filters.selectedTipoProducao) {
         filtered = filtered.filter((order) => {
             if (!order.items || order.items.length === 0) return true;
-            return order.items.some((item: any) =>
+            return order.items.some((item) =>
                 item.tipo_producao?.toLowerCase() === filters.selectedTipoProducao.toLowerCase()
             );
         });
@@ -136,8 +138,8 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
     // Ordenação
     if (filters.sortColumn) {
         filtered = [...filtered].sort((a, b) => {
-            let aValue: any;
-            let bValue: any;
+            let aValue: string | number;
+            let bValue: string | number;
 
             switch (filters.sortColumn) {
                 case 'id':

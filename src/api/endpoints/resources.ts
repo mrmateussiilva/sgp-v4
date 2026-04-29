@@ -404,12 +404,20 @@ export const resourcesApi = {
     getTiposProducaoAtivos: async (): Promise<Array<{ value: string; label: string }>> => {
         try {
             // Tenta buscar de /producoes/ativos primeiro
+            type TipoProducaoAtivoApi = {
+                name?: string | null;
+                nome?: string | null;
+                description?: string | null;
+                active?: boolean;
+                ativo?: boolean;
+            };
+
             let response;
             try {
-                response = await apiClient.get<any[]>('/producoes/ativos');
+                response = await apiClient.get<TipoProducaoAtivoApi[]>('/producoes/ativos');
             } catch (err) {
                 // Se falhar (ex: 404), tenta o endpoint base /producoes
-                response = await apiClient.get<any[]>('/producoes');
+                response = await apiClient.get<TipoProducaoAtivoApi[]>('/producoes');
             }
 
             const data = response.data ?? [];

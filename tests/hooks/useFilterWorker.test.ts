@@ -37,17 +37,16 @@ describe('useFilterWorker Hook', () => {
 
     it('deve capturar resultado do worker no onmessage e atualizar estado', () => {
         // Para testar o hook alterando apos onmessage, capturamos a instancia criada do worker no global object
-        let capturedWorker: MockWorker | null = null;
-        (global as any).Worker = class {
-            onmessage: any = null;
-            postMessage = vi.fn();
-            terminate = vi.fn();
+        const workers: MockWorker[] = [];
+        (global as any).Worker = class extends MockWorker {
             constructor() {
-                capturedWorker = this;
+                super();
+                workers.push(this);
             }
         };
 
         const { result } = renderHook(() => useFilterWorker(mockOrders, mockFilters));
+        const capturedWorker = workers[0];
 
         // Agora forçamos o worker responder
         act(() => {
@@ -62,7 +61,7 @@ describe('useFilterWorker Hook', () => {
     });
 
     it('deve matar (terminate) o worker quando o componente desmontar impedindo leak zombie', () => {
-        let capturedTerminate = vi.fn();
+        const capturedTerminate = vi.fn();
         (global as any).Worker = class {
             onmessage: any = null;
             postMessage = vi.fn();

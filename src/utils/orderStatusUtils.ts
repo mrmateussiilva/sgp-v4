@@ -23,10 +23,10 @@ export const buildStatusUpdatePayload = (
     // Incluir financeiro APENAS se está sendo explicitamente alterado
     if (campo === 'financeiro') {
         payload.financeiro = novoValor;
-        (payload as any)._isFinanceiroUpdate = true;
+        payload._isFinanceiroUpdate = true;
     } else {
         // NÃO incluir financeiro no payload quando não está sendo alterado
-        (payload as any)._isFinanceiroUpdate = false;
+        payload._isFinanceiroUpdate = false;
     }
 
     // Manter valores existentes de máquina e data de impressão quando não está alterando sublimação

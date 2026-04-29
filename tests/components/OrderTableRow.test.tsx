@@ -36,7 +36,7 @@ describe('OrderTableRow', () => {
         canToggleImpressao: true,
         formatOrderNumber: (num: string | null, id: number) => num || String(id),
         isReplacementOrder: vi.fn().mockReturnValue(false),
-        getOrderUrgency: (date: string | null) => ({ type: 'normal' }),
+        getOrderUrgency: (_date: string | null) => ({ type: 'normal' }),
         handleViewOrder: vi.fn(),
         handleEdit: vi.fn(),
         handleDuplicateClick: vi.fn(),

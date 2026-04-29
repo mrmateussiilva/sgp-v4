@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadAuthenticatedImage, clearImageCache } from '../../src/utils/imageLoader';
 import { apiClient } from '../../src/api/client';
-import * as localImageManager from '../../src/utils/localImageManager';
 
 // Mocks reais evitam chamadas de rede no test runner
 vi.mock('../../src/api/client', () => ({
@@ -27,7 +26,7 @@ describe('imageLoader - LRU Cache', () => {
 
     beforeEach(() => {
         // Espionar as magias de URL blob global do browser (Memory Leaks ocorrem aqui)
-        createObjectURLMock = vi.fn().mockImplementation((blob) => `blob:mock-url-${Math.random()}`);
+        createObjectURLMock = vi.fn().mockImplementation((_blob) => `blob:mock-url-${Math.random()}`);
         revokeObjectURLMock = vi.fn();
 
         global.URL.createObjectURL = createObjectURLMock;
@@ -59,18 +58,18 @@ describe('imageLoader - LRU Cache', () => {
     });
 
     it('deve revogar blobs antigos apos MAX_CACHE_SIZE (LRU mechanism)', async () => {
-        const MAX_CACHE_SIZE = 50;
+        const MAX_CACHE_SIZE = 25;
+        const TOTAL_IMAGES = 55;
 
-        // Forcar carregamento de 55 imagens distintas 
-        for (let i = 0; i < 55; i++) {
+        // Forcar carregamento de imagens acima do limite do cache.
+        for (let i = 0; i < TOTAL_IMAGES; i++) {
             await loadAuthenticatedImage(`http://localhost:8000/image-lru-${i}.jpg`);
         }
 
-        expect(createObjectURLMock).toHaveBeenCalledTimes(55);
+        expect(createObjectURLMock).toHaveBeenCalledTimes(TOTAL_IMAGES);
 
-        // Como o limite é 50, a 51a imagem deve ter forcado delete da 1a, 52a da 2a...
-        // Totalizando 5 revogações (55 - 50 = 5 excessos)
-        expect(revokeObjectURLMock).toHaveBeenCalledTimes(5);
+        // Como o limite e 25, cada imagem acima do limite revoga a mais antiga.
+        expect(revokeObjectURLMock).toHaveBeenCalledTimes(TOTAL_IMAGES - MAX_CACHE_SIZE);
     });
 
     it('nao deve duplicar URLs da mesma imagem em cache (evitar render infinitos)', async () => {

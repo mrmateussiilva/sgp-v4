@@ -8,7 +8,7 @@ export interface SafiraResponse {
   recognized: boolean;
   intent: string;
   answer: string;
-  meta?: any;
+  meta?: Record<string, unknown>;
 }
 
 export const safiraApi = {

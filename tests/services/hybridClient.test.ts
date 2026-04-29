@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { hybridClient } from '@/services/hybridClient';
 import { isTauri } from '@/utils/isTauri';
 import { apiClient } from '@/api/client';
-import { logger } from '@/utils/logger';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@/utils/isTauri', () => ({ isTauri: vi.fn() }));
