@@ -4,10 +4,10 @@ Este projeto usa Tauri v2 e publica releases Windows pelo GitHub Actions quando 
 
 ## Chaves do updater
 
-Gere o par de chaves do updater:
+Gere o par de chaves do updater com a versão atual do Tauri CLI:
 
 ```bash
-npm run tauri signer generate
+pnpm tauri signer generate
 ```
 
 A chave publica gerada deve ficar em `src-tauri/tauri.conf.json`, em `plugins.updater.pubkey`.
@@ -39,6 +39,8 @@ https://github.com/mrmateussiilva/sgp-v4/releases/latest/download/latest.json
 ```
 
 O arquivo `latest.json` e gerado pela `tauri-apps/tauri-action` durante o release.
+
+Se o build falhar com erro de assinatura do tipo `Missing comment in secret key` ou `incorrect updater private key password`, regenere a chave privada com o `@tauri-apps/cli` atual e substitua o secret no GitHub. Chaves geradas por versões antigas do CLI podem nao ser aceitas pelo processo de build.
 
 ## Como publicar
 
