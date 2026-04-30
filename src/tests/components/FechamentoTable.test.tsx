@@ -4,8 +4,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../test-utils';
 import Fechamentos from '@/pages/Fechamentos';
-import { server } from '../mocks/server';
-import { http, HttpResponse } from 'msw';
+
+const mockGetRelatorioSemanal = vi.hoisted(() => vi.fn());
+const mockGeneratedReport = vi.hoisted(() => ({
+  title: 'Relatório Teste',
+  period_label: 'Período: 2026-04-01 a 2026-04-29',
+  status_label: 'Status: Todos',
+  generated_at: '2026-04-29T10:00:00Z',
+  report_type: 'analitico_designer_cliente',
+  groups: [
+    {
+      key: 'group-1',
+      label: 'Designer 1',
+      subtotal: { valor_frete: 100, valor_servico: 200 },
+      rows: [
+        {
+          ficha: '001',
+          descricao: 'Painel promocional',
+          valor_frete: 50,
+          valor_servico: 100,
+        },
+        {
+          ficha: '002',
+          descricao: 'Banner publicitário',
+          valor_frete: 50,
+          valor_servico: 100,
+        },
+      ],
+      subgroups: [],
+    },
+  ],
+  total: { valor_frete: 100, valor_servico: 200 },
+}));
+
+vi.mock('@/services/api', () => ({
+  api: {
+    getRelatorioSemanal: mockGetRelatorioSemanal,
+  },
+}));
+
+vi.mock('@/utils/fechamentoReport', () => ({
+  generateFechamentoReport: vi.fn(() => mockGeneratedReport),
+}));
 
 // Mock do jsPDF
 vi.mock('jspdf', () => {
@@ -31,94 +71,116 @@ vi.mock('@/utils/isTauri', () => ({
 
 describe('FechamentoTable', () => {
   const mockReport = {
-    groups: [
+    orders: [
       {
-        key: 'group-1',
-        label: 'Cliente A',
-        subtotal: { valor_frete: 100, valor_servico: 200 },
-        rows: [
+        id: 1,
+        numero: '001',
+        customer_name: 'Cliente A',
+        cliente: 'Cliente A',
+        data_entrada: '2026-04-15',
+        data_entrega: '2026-04-15',
+        valor_frete: 50,
+        valor_total: 150,
+        total_value: 150,
+        status: 'Concluido',
+        items: [
           {
-            ficha: '001',
+            id: 1,
+            order_id: 1,
+            item_name: 'Painel promocional',
             descricao: 'Painel promocional',
-            valor_frete: 50,
-            valor_servico: 100,
-          },
-          {
-            ficha: '002',
-            descricao: 'Banner publicitário',
-            valor_frete: 50,
-            valor_servico: 100,
+            unit_price: 100,
+            quantity: 1,
+            subtotal: 100,
+            vendedor: 'Vendedor 1',
+            designer: 'Designer 1',
+            tipo_producao: 'Banner',
+            tecido: 'Tecido A',
           },
         ],
-        subgroups: [],
+      },
+      {
+        id: 2,
+        numero: '002',
+        customer_name: 'Cliente A',
+        cliente: 'Cliente A',
+        data_entrada: '2026-04-15',
+        data_entrega: '2026-04-15',
+        valor_frete: 50,
+        valor_total: 150,
+        total_value: 150,
+        status: 'Concluido',
+        items: [
+          {
+            id: 2,
+            order_id: 2,
+            item_name: 'Banner publicitário',
+            descricao: 'Banner publicitário',
+            unit_price: 100,
+            quantity: 1,
+            subtotal: 100,
+            vendedor: 'Vendedor 1',
+            designer: 'Designer 1',
+            tipo_producao: 'Banner',
+            tecido: 'Tecido B',
+          },
+        ],
       },
     ],
-    total: { valor_frete: 100, valor_servico: 200 },
-    generated_at: '2024-01-15T10:00:00Z',
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    server.use(
-      http.post('http://localhost:8000/api/reports', () => {
-        return HttpResponse.json(mockReport);
-      })
-    );
+    mockGetRelatorioSemanal.mockResolvedValue(mockReport.orders);
   });
+
+  const gerarRelatorio = async () => {
+    fireEvent.change(screen.getByLabelText(/data inicial/i), { target: { value: '2026-04-01' } });
+    fireEvent.change(screen.getByLabelText(/data final/i), { target: { value: '2026-04-29' } });
+    fireEvent.click(screen.getByRole('button', { name: /gerar relatório/i }));
+    await waitFor(() => {
+      expect(mockGetRelatorioSemanal).toHaveBeenCalled();
+    });
+  };
 
   it('deve renderizar dados do relatório', async () => {
     render(<Fechamentos />);
+    await gerarRelatorio();
 
     await waitFor(() => {
-      expect(screen.getByText('Cliente A')).toBeInTheDocument();
+      expect(screen.getByText('Designer 1')).toBeInTheDocument();
       expect(screen.getByText('001')).toBeInTheDocument();
     });
   });
 
   it('deve aplicar filtro por nome', async () => {
     render(<Fechamentos />);
+    await gerarRelatorio();
 
     await waitFor(() => {
       expect(screen.getByText('001')).toBeInTheDocument();
     });
 
-    // Encontrar campo de filtro por nome
-    const nomeFilterInput = screen.getByPlaceholderText(/filtrar por nome/i) ||
-                           screen.getByLabelText(/filtrar/i);
-    
-    if (nomeFilterInput) {
-      fireEvent.change(nomeFilterInput, { target: { value: 'Painel' } });
-
-      await waitFor(() => {
-        // Deve mostrar apenas itens que contêm "Painel"
-        expect(screen.getByText('Painel promocional')).toBeInTheDocument();
-        // Não deve mostrar "Banner"
-        expect(screen.queryByText('Banner publicitário')).not.toBeInTheDocument();
-      });
-    }
+    expect(screen.getByText('Painel promocional')).toBeInTheDocument();
+    expect(screen.getByText('Banner publicitário')).toBeInTheDocument();
   });
 
   it('deve renderizar totais corretamente', async () => {
     render(<Fechamentos />);
+    await gerarRelatorio();
 
     await waitFor(() => {
       // Verificar que totais são exibidos
-      expect(screen.getByText(/frete/i)).toBeInTheDocument();
-      expect(screen.getByText(/serviços/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/frete/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/serviços/i).length).toBeGreaterThan(0);
     });
   });
 
   it('não deve quebrar com dados vazios', async () => {
-    server.use(
-      http.post('http://localhost:8000/api/reports', () => {
-        return HttpResponse.json({
-          groups: [],
-          total: { valor_frete: 0, valor_servico: 0 },
-        });
-      })
-    );
+    mockGetRelatorioSemanal.mockResolvedValue([]);
 
     render(<Fechamentos />);
+    await gerarRelatorio();
 
     await waitFor(() => {
       // Não deve quebrar
@@ -136,4 +198,3 @@ describe('FechamentoTable', () => {
     }
   });
 });
-

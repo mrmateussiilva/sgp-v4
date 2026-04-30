@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Dashboard from '@/pages/Dashboard';
 import { useAuthStore } from '@/store/authStore';
-import React from 'react';
 
 // Mock do Tauri invoke
 vi.mock('@tauri-apps/api/core', () => ({
@@ -17,41 +16,45 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
+vi.mock('@/utils/isTauri', () => ({
+  isTauri: () => true,
+}));
+
 // Mock das rotas lazy - usando React.lazy mock
 vi.mock('@/components/OrderList', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>OrderList Component</div> })),
+  default: () => <div>OrderList Component</div>,
 }));
 
 vi.mock('@/views/PedidoCreateView', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>PedidoCreateView Component</div> })),
+  default: () => <div>PedidoCreateView Component</div>,
 }));
 
 vi.mock('@/views/PedidoEditView', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>PedidoEditView Component</div> })),
+  default: () => <div>PedidoEditView Component</div>,
 }));
 
 vi.mock('@/pages/DashboardOverview', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>DashboardOverview Component</div> })),
+  default: () => <div>DashboardOverview Component</div>,
 }));
 
 vi.mock('@/pages/Clientes', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>Clientes Component</div> })),
+  default: () => <div>Clientes Component</div>,
 }));
 
 vi.mock('@/pages/RelatoriosEnvios', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>RelatoriosEnvios Component</div> })),
+  default: () => <div>RelatoriosEnvios Component</div>,
 }));
 
 vi.mock('@/pages/Fechamentos', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>Fechamentos Component</div> })),
+  default: () => <div>Fechamentos Component</div>,
 }));
 
 vi.mock('@/pages/PainelDesempenho', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>PainelDesempenho Component</div> })),
+  default: () => <div>PainelDesempenho Component</div>,
 }));
 
 vi.mock('@/pages/Admin', () => ({
-  default: React.lazy(() => Promise.resolve({ default: () => <div>Admin Component</div> })),
+  default: () => <div>Admin Component</div>,
 }));
 
 describe('Dashboard - Lazy Loading', () => {
@@ -69,7 +72,9 @@ describe('Dashboard - Lazy Loading', () => {
   const renderDashboard = (initialPath = '/dashboard') => {
     return render(
       <MemoryRouter initialEntries={[initialPath]}>
-        <Dashboard />
+        <Routes>
+          <Route path="/dashboard/*" element={<Dashboard />} />
+        </Routes>
       </MemoryRouter>
     );
   };
@@ -151,4 +156,3 @@ describe('Dashboard - Lazy Loading', () => {
     });
   });
 });
-

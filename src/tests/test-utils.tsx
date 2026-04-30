@@ -5,13 +5,16 @@ import React from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 // Provider wrapper para testes
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <BrowserRouter>
-      {children}
-      <Toaster />
+      <TooltipProvider>
+        {children}
+        <Toaster />
+      </TooltipProvider>
     </BrowserRouter>
   );
 };
@@ -23,4 +26,3 @@ const customRender = (
 
 export * from '@testing-library/react';
 export { customRender as render };
-

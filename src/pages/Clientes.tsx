@@ -548,12 +548,18 @@ export default function Clientes() {
           <Button
             variant="outline"
             onClick={() => handleImportDialogToggle(true)}
+            aria-label="Importar CSV"
             className="gap-2"
           >
             <Upload className="h-4 w-4" />
             Importar CSV
           </Button>
-          <Button onClick={() => abrirModal()} className="gap-2" title="Novo cliente (Ctrl+Shift+N)">
+          <Button
+            onClick={() => abrirModal()}
+            className="gap-2"
+            title="Novo cliente (Ctrl+Shift+N)"
+            aria-label="Novo cliente"
+          >
             <Plus className="h-4 w-4" />
             Novo Cliente
           </Button>
@@ -568,8 +574,12 @@ export default function Clientes() {
         </CardHeader>
         <CardContent className="pt-4 bg-blue-50/20">
           <div className="relative">
+            <Label htmlFor="clientes-search" className="sr-only">
+              Buscar clientes
+            </Label>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="clientes-search"
               placeholder="Digite para buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -646,6 +656,7 @@ export default function Clientes() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            aria-label={`Visualizar cliente ${cliente.nome}`}
                             onClick={() => {
                               setClienteParaVisualizar(cliente);
                               setShowViewModal(true);
@@ -657,6 +668,7 @@ export default function Clientes() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            aria-label={`Editar cliente ${cliente.nome}`}
                             onClick={() => abrirModal(cliente)}
                             className="h-8 w-8"
                           >
@@ -665,6 +677,7 @@ export default function Clientes() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            aria-label={`Excluir cliente ${cliente.nome}`}
                             onClick={() => {
                               setClienteParaExcluir(cliente);
                               setShowDeleteModal(true);
@@ -727,7 +740,7 @@ export default function Clientes() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="csvFile">Arquivo CSV</Label>
+              <Label htmlFor="csvFile">Importar arquivo CSV</Label>
               <Input
                 id="csvFile"
                 type="file"

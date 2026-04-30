@@ -3,8 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Clientes from '@/pages/Clientes';
 
+type PapaParseOptions = {
+  complete?: (result: {
+    data: Array<{ nome: string; telefone: string; email: string }>;
+    errors: Array<{ row: number; message: string }>;
+  }) => void;
+};
+
 // Mock de papaparse
-const mockParse = vi.fn((_file: unknown, options?: unknown) => {
+const mockParse = vi.fn((_file: unknown, options?: PapaParseOptions) => {
   const result: {
     data: Array<{ nome: string; telefone: string; email: string }>;
     errors: Array<{ row: number; message: string }>;
@@ -36,11 +43,10 @@ vi.mock('@/services/api', () => ({
     createCliente: vi.fn(() => Promise.resolve({ id: 1 })),
     updateCliente: vi.fn(() => Promise.resolve({ id: 1 })),
     deleteCliente: vi.fn(() => Promise.resolve()),
-    bulkImportClientes: vi.fn(() =>
+    importClientesBulk: vi.fn(() =>
       Promise.resolve({
-        success: 2,
+        imported: [{ id: 1 }, { id: 2 }],
         errors: [],
-        skipped: 0,
       })
     ),
   },
@@ -62,6 +68,7 @@ describe('Clientes - Lazy Loading CSV', () => {
     const user = userEvent.setup();
     
     render(<Clientes />);
+    await user.click(screen.getByRole('button', { name: /importar csv/i }));
 
     // Cria um arquivo CSV mock
     const file = new File(
@@ -71,7 +78,7 @@ describe('Clientes - Lazy Loading CSV', () => {
     );
 
     // Encontra o input de arquivo
-    const fileInput = screen.getByLabelText(/importar/i) as HTMLInputElement;
+    const fileInput = screen.getByLabelText(/importar arquivo csv/i) as HTMLInputElement;
     
     // Simula upload de arquivo
     await user.upload(fileInput, file);
@@ -87,6 +94,7 @@ describe('Clientes - Lazy Loading CSV', () => {
     const user = userEvent.setup();
     
     render(<Clientes />);
+    await user.click(screen.getByRole('button', { name: /importar csv/i }));
 
     const file = new File(
       ['nome,telefone,email\nCliente 1,11999999999,cliente1@test.com'],
@@ -94,7 +102,7 @@ describe('Clientes - Lazy Loading CSV', () => {
       { type: 'text/csv' }
     );
 
-    const fileInput = screen.getByLabelText(/importar/i) as HTMLInputElement;
+    const fileInput = screen.getByLabelText(/importar arquivo csv/i) as HTMLInputElement;
     await user.upload(fileInput, file);
 
     await waitFor(() => {
@@ -112,7 +120,7 @@ describe('Clientes - Lazy Loading CSV', () => {
     const user = userEvent.setup();
     
     // Mock de erro no parsing
-    mockParse.mockImplementationOnce((_file: unknown, options?: unknown) => {
+    mockParse.mockImplementationOnce((_file: unknown, options?: PapaParseOptions) => {
       const result: {
         data: Array<{ nome: string; telefone: string; email: string }>;
         errors: Array<{ row: number; message: string }>;
@@ -129,9 +137,10 @@ describe('Clientes - Lazy Loading CSV', () => {
     });
 
     render(<Clientes />);
+    await user.click(screen.getByRole('button', { name: /importar csv/i }));
 
     const file = new File(['invalid,csv,data'], 'clientes.csv', { type: 'text/csv' });
-    const fileInput = screen.getByLabelText(/importar/i) as HTMLInputElement;
+    const fileInput = screen.getByLabelText(/importar arquivo csv/i) as HTMLInputElement;
     await user.upload(fileInput, file);
 
     await waitFor(() => {
@@ -139,4 +148,3 @@ describe('Clientes - Lazy Loading CSV', () => {
     });
   });
 });
-

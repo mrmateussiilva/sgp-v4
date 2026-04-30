@@ -4,10 +4,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '../test-utils';
 import Fechamentos from '@/pages/Fechamentos';
-import { server } from '../mocks/server';
-import { http, HttpResponse } from 'msw';
 import { useAuthStore } from '@/store/authStore';
 import { setApiUrl } from '@/api/client';
+
+const mockGetRelatorioSemanal = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/api', () => ({
+  api: {
+    getRelatorioSemanal: mockGetRelatorioSemanal,
+    batchUpdateStatus: vi.fn(() => Promise.resolve()),
+  },
+}));
 
 // Mock do jsPDF
 vi.mock('jspdf', () => {
@@ -54,11 +61,7 @@ describe('FechamentoView', () => {
   });
 
   it('deve renderizar a view de fechamentos', async () => {
-    server.use(
-      http.get('*/api/relatorios-fechamentos/pedidos/relatorio-semanal', () => {
-        return HttpResponse.json([]);
-      })
-    );
+    mockGetRelatorioSemanal.mockResolvedValue([]);
 
     render(<Fechamentos />);
 
@@ -69,11 +72,7 @@ describe('FechamentoView', () => {
   });
 
   it('deve aplicar filtros corretamente', async () => {
-    server.use(
-      http.get('*/api/relatorios-fechamentos/pedidos/relatorio-semanal', () => {
-        return HttpResponse.json([]);
-      })
-    );
+    mockGetRelatorioSemanal.mockResolvedValue([]);
 
     render(<Fechamentos />);
 
@@ -121,14 +120,7 @@ describe('FechamentoView', () => {
       }
     ];
 
-    server.use(
-      http.get('http://localhost:8000/api/relatorios-fechamentos/pedidos/relatorio-semanal*', () => {
-        return HttpResponse.json(mockPedidos);
-      }),
-      http.get('http://localhost:8000/api/clientes*', () => {
-        return HttpResponse.json([]);
-      })
-    );
+    mockGetRelatorioSemanal.mockResolvedValue(mockPedidos);
 
     render(<Fechamentos />);
 
@@ -162,8 +154,8 @@ describe('FechamentoView', () => {
         expect(screen.getByText(/Cliente A/i)).toBeTruthy();
 
         // Valores - usando regex flexível para separador decimal e ignorando R$ / espaços
-        expect(screen.getByText(/100[.,]00/)).toBeTruthy();
-        expect(screen.getByText(/200[.,]00/)).toBeTruthy();
+        expect(screen.getAllByText(/100[.,]00/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/200[.,]00/).length).toBeGreaterThan(0);
       }, { timeout: 15000 });
     } catch (error) {
       console.log('Teste falhou. Conteúdo atual da tela:');

@@ -5,6 +5,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '../test-utils';
 import OrderList from '@/components/OrderList';
 
+vi.mock('../../services/api', () => ({
+  api: {
+    getVendedoresAtivos: vi.fn(() => Promise.resolve([])),
+    getDesignersAtivos: vi.fn(() => Promise.resolve([])),
+    getFormasEnvioAtivas: vi.fn(() => Promise.resolve([])),
+    getTiposProducaoAtivos: vi.fn(() => Promise.resolve([])),
+    getFormasPagamentoAtivas: vi.fn(() => Promise.resolve([])),
+    getPendingOrdersLight: vi.fn(() => Promise.resolve([])),
+    getReadyOrdersLight: vi.fn(() => Promise.resolve([])),
+    getOrdersPaginatedForTable: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    getOrdersWithFiltersForTable: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    getReadyOrdersPaginated: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    getAllLogs: vi.fn(() => Promise.resolve([])),
+  },
+}));
+
 describe('FichasView (OrderList)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -15,7 +31,7 @@ describe('FichasView (OrderList)', () => {
 
     await waitFor(() => {
       // Verificar que a lista é renderizada
-      expect(screen.getByText(/pedidos/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
     });
   });
 
@@ -34,11 +50,9 @@ describe('FichasView (OrderList)', () => {
 
     await waitFor(() => {
       // Verificar mensagem de lista vazia
-      screen.queryByText(/nenhum pedido/i) || 
-      screen.queryByText(/sem pedidos/i) ||
-      screen.queryByText(/vazio/i);
+      expect(screen.getByText(/ainda não há pedidos/i)).toBeInTheDocument();
       // Pode não ter mensagem específica, então apenas verificar que não quebra
-      expect(screen.getByText(/pedidos/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
     });
   });
 
@@ -47,12 +61,11 @@ describe('FichasView (OrderList)', () => {
 
     await waitFor(() => {
       // Verificar que lista é renderizada
-      expect(screen.getByText(/pedidos/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
     });
 
     // Simular criação de pedido (seria feito via mock ou evento)
     // Por enquanto, apenas verificar que não quebra
-    expect(screen.getByText(/pedidos/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
   });
 });
-

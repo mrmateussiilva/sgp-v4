@@ -41,7 +41,7 @@ describe('FormPainelCompleto', () => {
     );
 
     expect(screen.getByLabelText(/descrição do tecido/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/tecido/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^tecido$/i)).toBeInTheDocument();
   });
 
   it('deve chamar onDataChange quando campo é alterado', () => {
@@ -59,7 +59,7 @@ describe('FormPainelCompleto', () => {
     const descricaoInput = screen.getByLabelText(/descrição do tecido/i);
     fireEvent.change(descricaoInput, { target: { value: 'Nova descrição' } });
 
-    expect(mockHandlers.onDataChange).toHaveBeenCalledWith('descricao', 'Nova descrição');
+    expect(mockHandlers.onDataChange).toHaveBeenCalledWith('descricao', 'NOVA DESCRIÇÃO');
   });
 
   it('deve desativar campo desconto quando descontoAtivo é false', () => {
@@ -151,4 +151,3 @@ describe('FormPainelCompleto', () => {
     }
   });
 });
-

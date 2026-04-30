@@ -1673,6 +1673,7 @@ export default function OrderList() {
                     className="h-9 w-9 md:h-10 md:w-10"
                     onClick={() => loadOrders()}
                     disabled={loading}
+                    aria-label="Atualizar pedidos"
                   >
                     <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                   </Button>

@@ -113,13 +113,16 @@ export function FormPainelCompleto({
     return (valorPainel + valorAdicionais + valorTotalIlhos + valorTotalCordinha) * quantidade;
   }, [tabData?.valor_painel, tabData?.valores_adicionais, tabData?.quantidade_paineis, valorTotalIlhos, valorTotalCordinha]);
 
+  const fieldId = (field: string) => `${field}-${tabId}`;
+
   return (
     <div className="space-y-6">
       {/* === TOPO: DESCRIÇÃO + MEDIDAS === */}
       <div className="flex items-end gap-4">
         <div className="flex-1 space-y-2">
-          <Label className="text-base font-medium">Descrição do tecido *</Label>
+          <Label htmlFor={fieldId('descricao-tecido')} className="text-base font-medium">Descrição do tecido *</Label>
           <Input
+            id={fieldId('descricao-tecido')}
             value={tabData?.descricao || ''}
             onChange={(e) => onDataChange('descricao', e.target.value)}
             placeholder="Ex: Tecido promocional para evento"
@@ -143,12 +146,12 @@ export function FormPainelCompleto({
       <div className="grid grid-cols-3 gap-4">
         {/* Tecido */}
         <div className="space-y-2">
-          <Label className="text-base font-medium">Tecido</Label>
+          <Label htmlFor={fieldId('tecido')} className="text-base font-medium">Tecido</Label>
           <Select
             value={tabData?.tecido || ''}
             onValueChange={(value) => onDataChange('tecido', value)}
           >
-            <SelectTrigger className="bg-white h-12 text-base">
+            <SelectTrigger id={fieldId('tecido')} aria-label="Tecido" className="bg-white h-12 text-base">
               <SelectValue placeholder="Selecione o tecido" />
             </SelectTrigger>
             <SelectContent>
@@ -161,6 +164,7 @@ export function FormPainelCompleto({
 
         {/* Vendedor (reutilizável) */}
         <SelectVendedor
+          id={fieldId('vendedor')}
           label="Vendedor"
           vendedores={vendedores}
           value={tabData?.vendedor || ''}
@@ -169,6 +173,7 @@ export function FormPainelCompleto({
 
         {/* Designer (reutilizável) */}
         <SelectDesigner
+          id={fieldId('designer')}
           label="Designer"
           designers={designers}
           value={tabData?.designer || ''}
@@ -213,12 +218,12 @@ export function FormPainelCompleto({
 
             {/* Emenda */}
             <div className="space-y-2">
-              <Label className="text-base font-medium">Emenda</Label>
+              <Label htmlFor={fieldId('emenda')} className="text-base font-medium">Emenda</Label>
               <Select
                 value={tabData?.emenda || 'sem-emenda'}
                 onValueChange={(value) => onDataChange('emenda', value)}
               >
-                <SelectTrigger className="bg-white h-12 text-base">
+                <SelectTrigger id={fieldId('emenda')} aria-label="Emenda" className="bg-white h-12 text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,10 +236,11 @@ export function FormPainelCompleto({
               {/* Campo condicional para quantidade de emendas */}
               {tabData?.emenda !== 'sem-emenda' && (
                 <div className="mt-2 p-3 bg-yellow-50 rounded-lg border border-yellow-300">
-                  <Label className="text-sm font-medium text-yellow-800">
+                  <Label htmlFor={fieldId('emenda-qtd')} className="text-sm font-medium text-yellow-800">
                     Quantidade de emendas:
                   </Label>
                   <Input
+                    id={fieldId('emenda-qtd')}
                     type="number"
                     min="1"
                     value={tabData?.emendaQtd || ''}
@@ -266,8 +272,9 @@ export function FormPainelCompleto({
                 <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-300 space-y-2">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Quantidade</Label>
+                      <Label htmlFor={fieldId('quantidade-ilhos')} className="text-xs">Quantidade</Label>
                       <Input
+                        id={fieldId('quantidade-ilhos')}
                         type="number"
                         min="1"
                         value={tabData?.quantidade_ilhos || ''}
@@ -277,8 +284,9 @@ export function FormPainelCompleto({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Distância (cm)</Label>
+                      <Label htmlFor={fieldId('espaco-ilhos')} className="text-xs">Distância (cm)</Label>
                       <Input
+                        id={fieldId('espaco-ilhos')}
                         type="number"
                         step="0.1"
                         value={tabData?.espaco_ilhos || ''}
@@ -288,8 +296,9 @@ export function FormPainelCompleto({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Valor Unit.</Label>
+                      <Label htmlFor={fieldId('valor-ilhos')} className="text-xs">Valor Unit.</Label>
                       <CurrencyInput
+                        id={fieldId('valor-ilhos')}
                         value={tabData?.valor_ilhos ?? '0,00'}
                         onValueChange={(formatted) => onDataChange('valor_ilhos', formatted)}
                         placeholder="0,50"
@@ -321,8 +330,9 @@ export function FormPainelCompleto({
                 <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-300 space-y-2">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Quantidade</Label>
+                      <Label htmlFor={fieldId('quantidade-cordinha')} className="text-xs">Quantidade</Label>
                       <Input
+                        id={fieldId('quantidade-cordinha')}
                         type="number"
                         min="1"
                         value={tabData?.quantidade_cordinha || ''}
@@ -332,8 +342,9 @@ export function FormPainelCompleto({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Distância (cm)</Label>
+                      <Label htmlFor={fieldId('espaco-cordinha')} className="text-xs">Distância (cm)</Label>
                       <Input
+                        id={fieldId('espaco-cordinha')}
                         type="number"
                         step="0.1"
                         value={tabData?.espaco_cordinha || ''}
@@ -343,8 +354,9 @@ export function FormPainelCompleto({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Valor Unit.</Label>
+                      <Label htmlFor={fieldId('valor-cordinha')} className="text-xs">Valor Unit.</Label>
                       <CurrencyInput
+                        id={fieldId('valor-cordinha')}
                         value={tabData?.valor_cordinha ?? '0,00'}
                         onValueChange={(formatted) => onDataChange('valor_cordinha', formatted)}
                         placeholder="1,50"
@@ -411,7 +423,7 @@ export function FormPainelCompleto({
 
         {/* COLUNA DIREITA - CONTAINER IMAGEM */}
         <div className="space-y-2 flex flex-col">
-          <Label className="text-base font-semibold">Container Imagem</Label>
+          <Label htmlFor={`upload-imagem-${tabId}`} className="text-base font-semibold">Container Imagem</Label>
           <div className="relative flex-1 min-h-[320px]">
             <Input
               type="file"
@@ -573,6 +585,7 @@ export function FormPainelCompleto({
                   />
                   <button
                     type="button"
+                    aria-label="Remover imagem"
                     onClick={(e) => {
                       e.preventDefault();
                       onDataChange('imagem', '');
@@ -595,8 +608,9 @@ export function FormPainelCompleto({
             </label>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-700">Legenda da imagem</Label>
+            <Label htmlFor={fieldId('legenda-imagem')} className="text-sm font-medium text-slate-700">Legenda da imagem</Label>
             <Input
+              id={fieldId('legenda-imagem')}
               value={tabData?.legenda_imagem || ''}
               onChange={(e) => onDataChange('legenda_imagem', e.target.value)}
               placeholder="Ex: TACTEL 100X100"
@@ -617,8 +631,9 @@ export function FormPainelCompleto({
         {/* Valores */}
         <div className="grid grid-cols-4 gap-4">
           <div className="space-y-2">
-            <Label className="text-base font-medium">Valor tecido</Label>
+            <Label htmlFor={fieldId('valor-tecido')} className="text-base font-medium">Valor tecido</Label>
             <CurrencyInput
+              id={fieldId('valor-tecido')}
               value={tabData?.valor_painel ?? '0,00'}
               onValueChange={(formatted) => onDataChange('valor_painel', formatted)}
               placeholder="150,00"
@@ -627,8 +642,9 @@ export function FormPainelCompleto({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-base font-medium">Quantidade de tecidos?</Label>
+            <Label htmlFor={fieldId('quantidade-tecidos')} className="text-base font-medium">Quantidade de tecidos?</Label>
             <Input
+              id={fieldId('quantidade-tecidos')}
               type="number"
               min="1"
               value={tabData?.quantidade_paineis || '1'}
@@ -639,8 +655,9 @@ export function FormPainelCompleto({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-base font-medium">Outros Valores</Label>
+            <Label htmlFor={fieldId('outros-valores')} className="text-base font-medium">Outros Valores</Label>
             <CurrencyInput
+              id={fieldId('outros-valores')}
               value={tabData?.valores_adicionais ?? '0,00'}
               onValueChange={(formatted) => onDataChange('valores_adicionais', formatted)}
               placeholder="10,00"
