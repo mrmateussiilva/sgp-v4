@@ -18,6 +18,8 @@ A chave privada nunca deve ser commitada. Coloque o conteudo dela no secret do G
 TAURI_SIGNING_PRIVATE_KEY
 ```
 
+Esse secret precisa conter o arquivo completo da chave privada minisign, incluindo a linha `untrusted comment: minisign secret key`. Se voce colar apenas a linha base64, o build falha com `Missing comment in secret key`.
+
 Se a chave tiver senha, coloque a senha em:
 
 ```text

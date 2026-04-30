@@ -63,6 +63,19 @@ jobs:
         shell: pwsh
         run: ${{ steps.package-manager.outputs.install-command }}
 
+      - name: Validate updater signing key
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY is empty."
+          }
+
+          if ($env:TAURI_SIGNING_PRIVATE_KEY -notmatch 'untrusted comment: minisign secret key') {
+            throw "TAURI_SIGNING_PRIVATE_KEY must contain the full minisign secret key, including the 'untrusted comment' header."
+          }
+
       - name: Build Tauri app and publish release
         uses: tauri-apps/tauri-action@v0
         env:
