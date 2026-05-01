@@ -49,11 +49,14 @@ jobs:
           "EOF" >> $env:GITHUB_ENV
 
       - name: Build MSI
+        id: build-msi
+        continue-on-error: true
         env:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build --bundles msi
 
       - name: Upload MSI artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sgp-v4-windows-msi
@@ -62,3 +65,7 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi.sig
             src-tauri/target/release/bundle/msi/latest.json
           if-no-files-found: error
+
+      - name: Fail when MSI build command failed
+        if: steps.build-msi.outcome == 'failure'
+        run: exit 1

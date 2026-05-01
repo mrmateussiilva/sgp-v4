@@ -96,6 +96,7 @@ jobs:
           updaterJsonPreferNsis: false
 
       - name: Upload MSI artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sgp-v4-windows-msi-${{ github.ref_name }}
