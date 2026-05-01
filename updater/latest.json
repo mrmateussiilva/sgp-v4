@@ -1,11 +1,15 @@
 {
-  "version": "1.3.6",
-  "notes": "CORRECOES ERROS REPORTADOS PELO MAICON",
-  "pub_date": "2026-03-17T01:00:00Z",
+  "version": "1.4.0",
+  "notes": "",
+  "pub_date": "2026-05-01T20:17:27.579Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/1.3.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.3.6_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3JaclZvd2FuZGdydUJRZEd3UFpYQ1ZmbmhaZkcyYUFKMzRTdFRvdVhkK0kweUUrQmZ4a2I5MW9wWkdRNTJFN3ViSXkybVRRRUNKTjJTZ1RiWjQvNFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzczNzE2OTQ4CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS4zLjZfeDY0X2VuLVVTLm1zaQpzOExvTmYzODhhUi94eUYrUXdKWDk1QVBRMnlkeDZsSkZnd2pRUCtnOHdFa2NQd1hKRUozbnlCWkpyclNDdFFPV2FKT0JtdzNiMll2ZjloL3N2WVlBdz09Cg=="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2xEVnZvMkVXcXVlYWRFVGhiODkwYTB1bHpNbnE5M3N2Wno4end0V21JNmEwejVBa05VRXNqSXdyOE1DUE1JU0FKYkx4SnIzd0llWGQ2WWV5NHZZVnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NjY2NjQ1CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjBfeDY0X2VuLVVTLm1zaQpyUlNYNHE4citkaXgydG9iYmtpTm1aRHlVd2N5ejdoQ3BDakJab2tjUVRCL2E3T3hmdk4rZk9VUGx5blQ4ZXRSa2ZIVCttS01QZ2FrNGFZb2k3YnhBUT09Cg==",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.0/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.0_x64_en-US.msi"
+    },
+    "windows-x86_64-msi": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2xEVnZvMkVXcXVlYWRFVGhiODkwYTB1bHpNbnE5M3N2Wno4end0V21JNmEwejVBa05VRXNqSXdyOE1DUE1JU0FKYkx4SnIzd0llWGQ2WWV5NHZZVnc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc3NjY2NjQ1CWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjBfeDY0X2VuLVVTLm1zaQpyUlNYNHE4citkaXgydG9iYmtpTm1aRHlVd2N5ejdoQ3BDakJab2tjUVRCL2E3T3hmdk4rZk9VUGx5blQ4ZXRSa2ZIVCttS01QZ2FrNGFZb2k3YnhBUT09Cg==",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.0/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.0_x64_en-US.msi"
     }
   }
 }

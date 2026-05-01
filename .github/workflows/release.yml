@@ -95,6 +95,38 @@ jobs:
           uploadUpdaterSignatures: true
           updaterJsonPreferNsis: false
 
+      - name: Update updater manifest on main
+        shell: pwsh
+        run: |
+          $manifestSource = "src-tauri/target/release/bundle/msi/latest.json"
+          if (!(Test-Path $manifestSource)) {
+            throw "Generated updater manifest not found at $manifestSource."
+          }
+
+          $manifestTemp = Join-Path $env:RUNNER_TEMP "latest.json"
+          Copy-Item $manifestSource $manifestTemp -Force
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+
+          Copy-Item $manifestTemp "updater/latest.json" -Force
+          git add updater/latest.json
+          git diff --cached --quiet
+
+          if ($LASTEXITCODE -eq 0) {
+            "updater/latest.json already matches $env:GITHUB_REF_NAME."
+            exit 0
+          }
+
+          if ($LASTEXITCODE -ne 1) {
+            throw "Failed to check updater/latest.json changes."
+          }
+
+          git commit -m "chore: update updater manifest for $env:GITHUB_REF_NAME"
+          git push origin HEAD:main
+
       - name: Upload MSI artifacts
         if: always()
         uses: actions/upload-artifact@v4
