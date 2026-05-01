@@ -38,17 +38,22 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+          $privateKey = $env:TAURI_SIGNING_PRIVATE_KEY -replace '\\n', "`n"
+
+          if ([string]::IsNullOrWhiteSpace($privateKey)) {
             throw "TAURI_SIGNING_PRIVATE_KEY is empty."
           }
 
-          if ($env:TAURI_SIGNING_PRIVATE_KEY -notmatch 'untrusted comment: minisign secret key') {
+          if ($privateKey -notmatch 'untrusted comment: minisign secret key') {
             throw "TAURI_SIGNING_PRIVATE_KEY must contain the full minisign secret key, including the 'untrusted comment' header."
           }
 
+          "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $env:GITHUB_ENV
+          $privateKey >> $env:GITHUB_ENV
+          "EOF" >> $env:GITHUB_ENV
+
       - name: Build MSI
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build --bundles msi
 
