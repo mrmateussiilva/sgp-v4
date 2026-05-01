@@ -93,3 +93,13 @@ jobs:
           uploadUpdaterJson: true
           uploadUpdaterSignatures: true
           updaterJsonPreferNsis: false
+
+      - name: Upload MSI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sgp-v4-windows-msi-${{ github.ref_name }}
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/msi/*.msi.sig
+            src-tauri/target/release/bundle/msi/latest.json
+          if-no-files-found: error
