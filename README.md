@@ -113,6 +113,84 @@ pnpm run tauri:build
 
 O executável será gerado em `src-tauri/target/release/`.
 
+## 🔄 Publicar Update
+
+Use este fluxo quando precisar liberar uma nova versão para os usuários. O app consulta o manifest em `updater/latest.json`, publicado em:
+
+```text
+https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/updater/latest.json
+```
+
+O arquivo `updater/latest.json` não deve ser editado manualmente no fluxo normal. O workflow `Release` gera o MSI, cria a GitHub Release, assina o update e atualiza esse manifest na `main`.
+
+### 1. Atualizar a versão do app
+
+Troque `1.4.1` pela próxima versão que será publicada:
+
+```bash
+git pull origin main
+
+export VERSION=1.4.1
+
+node -e "const fs = require('fs'); for (const file of ['package.json', 'src-tauri/tauri.conf.json']) { const json = JSON.parse(fs.readFileSync(file, 'utf8')); json.version = process.env.VERSION; fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n'); }"
+
+perl -0pi -e 's/^version = "[^"]+"/version = "$ENV{VERSION}"/m' src-tauri/Cargo.toml
+```
+
+### 2. Commitar a nova versão
+
+```bash
+git status --short
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git commit -m "chore: bump version to v$VERSION"
+git push origin main
+```
+
+### 3. Criar a tag da release
+
+```bash
+git tag "v$VERSION"
+git push origin "v$VERSION"
+```
+
+Esse push dispara `.github/workflows/release.yml`. O workflow faz:
+
+1. build Windows MSI;
+2. assinatura do updater;
+3. criação da GitHub Release;
+4. upload do `.msi`, `.msi.sig` e `latest.json`;
+5. atualização automática de `updater/latest.json` na `main`.
+
+### 4. Acompanhar o workflow
+
+```bash
+gh run list --workflow Release --limit 1
+gh run watch <RUN_ID> --exit-status
+```
+
+Substitua `<RUN_ID>` pelo `databaseId` mostrado no primeiro comando.
+
+### 5. Validar o update publicado
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mrmateussiilva/sgp-v4/main/updater/latest.json
+```
+
+Confirme que o campo `version` retornou a versão nova e que a URL aponta para a release correta.
+
+Para conferir a release:
+
+```bash
+gh release view "v$VERSION" --json tagName,url,assets
+```
+
+Se precisar repetir a mesma versão porque a tag foi criada no commit errado, mova a tag explicitamente:
+
+```bash
+git tag -f "v$VERSION"
+git push origin "refs/tags/v$VERSION" --force
+```
+
 ## ⚡ Otimizações de Arquitetura e Performance
 
 O SGP-v4 foi submetido a um intenso *Overhaul* de Engenharia do Front-End para lidar com **listagens massivas (+10.000 pedidos em RAM)** e pesado recálculo do fluxo em _Realtime_ WebSocket cravando **60 FPS constantes**:
@@ -169,4 +247,3 @@ sgp_v4/
 ## 📄 Licença
 
 [Adicione informações de licença aqui]
-
