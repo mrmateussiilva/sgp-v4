@@ -63,7 +63,7 @@ jobs:
         shell: pwsh
         run: ${{ steps.package-manager.outputs.install-command }}
 
-      - name: Validate updater signing key
+      - name: Prepare updater signing key
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -72,10 +72,6 @@ jobs:
 
           if ([string]::IsNullOrWhiteSpace($privateKey)) {
             throw "TAURI_SIGNING_PRIVATE_KEY is empty."
-          }
-
-          if ($privateKey -notmatch 'untrusted comment: minisign secret key') {
-            throw "TAURI_SIGNING_PRIVATE_KEY must contain the full minisign secret key, including the 'untrusted comment' header."
           }
 
           "TAURI_SIGNING_PRIVATE_KEY<<EOF" >> $env:GITHUB_ENV
