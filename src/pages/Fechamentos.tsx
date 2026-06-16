@@ -1296,7 +1296,7 @@ export default function Fechamentos() {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(8);
           doc.text('Ficha', colFicha, cursorY);
-          doc.text('Descrição Painel', colDescricao, cursorY);
+          doc.text('Descrição', colDescricao, cursorY);
           doc.text('Vr.Frete (R$)', colFrete + colFreteWidth, cursorY, { align: 'right' });
           doc.text('Vr.Serviços (R$)', colServicos + colServicosWidth, cursorY, { align: 'right' });
           cursorY += 2;
