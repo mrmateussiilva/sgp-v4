@@ -188,10 +188,28 @@ function App() {
     };
 
     verifyConfig();
-
-    // Solicitar permissão para notificações
-    requestNotificationPermission();
   }, []);
+
+  // Solicitar permissão para notificações apenas quando o usuário está autenticado
+  // e após uma interação do usuário (política de segurança dos browsers)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const requestOnInteraction = () => {
+      requestNotificationPermission();
+      window.removeEventListener('click', requestOnInteraction);
+      window.removeEventListener('keydown', requestOnInteraction);
+    };
+
+    // Aguardar a próxima interação do usuário para pedir permissão
+    window.addEventListener('click', requestOnInteraction, { once: true });
+    window.addEventListener('keydown', requestOnInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener('click', requestOnInteraction);
+      window.removeEventListener('keydown', requestOnInteraction);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // Contador e timestamp para evitar redirecionamento por falhas pontuais (debounce)
