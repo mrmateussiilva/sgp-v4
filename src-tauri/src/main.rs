@@ -21,6 +21,15 @@ use tracing::{info, warn};
 fn main() {
     setup_tracing();
 
+    // ─── Limpa cache WebView2 ANTES de iniciar o builder ─────────────────────
+    // CRÍTICO: esta limpeza DEVE ocorrer antes de tauri::Builder::default(),
+    // pois o WebView2 trava (file lock) os arquivos de EBWebView assim que
+    // a janela é criada. Dentro de .setup() já é tarde demais — o remove_dir_all
+    // falha silenciosamente com "Access Denied" no Windows.
+    #[cfg(target_os = "windows")]
+    clear_webview2_cache_if_version_changed();
+    // ─────────────────────────────────────────────────────────────────────────
+
     tauri::Builder::default()
         .manage(state::AppState::new())
         .plugin(tauri_plugin_notification::init())
@@ -60,59 +69,113 @@ fn main() {
             let version = env!("CARGO_PKG_VERSION");
             let title = format!("SGP - Sistema de Gerenciamento de Pedidos v{}", version);
 
-            // ─── Limpa cache WebView2 quando a versão do app muda ─────────────────
-            // O WebView2 mantém cache em AppData (pasta EBWebView). Ao reinstalar
-            // via MSI sem limpar esse cache, o Windows continua exibindo a interface
-            // antiga. Aqui detectamos mudança de versão e forçamos limpeza do cache.
-            #[cfg(target_os = "windows")]
-            {
-                if let Ok(data_dir) = app.path().app_local_data_dir() {
-                    let version_file = data_dir.join("last_version.txt");
-                    let webview_cache = data_dir.join("EBWebView");
-
-                    // Lê a versão anterior gravada em disco
-                    let last_version = std::fs::read_to_string(&version_file)
-                        .unwrap_or_default();
-                    let last_version = last_version.trim();
-
-                    if last_version != version {
-                        // Versão MUDOU → limpa o cache do WebView2
-                        if webview_cache.exists() {
-                            match std::fs::remove_dir_all(&webview_cache) {
-                                Ok(_) => info!("Cache WebView2 limpo (versão {} → {})", last_version, version),
-                                Err(e) => warn!("Falha ao limpar cache WebView2: {}", e),
-                            }
-                        }
-                        // Grava a versão atual para a próxima inicialização
-                        let _ = std::fs::create_dir_all(&data_dir);
-                        let _ = std::fs::write(&version_file, version);
-                        info!("Versão atualizada para {} em {:?}", version, version_file);
-                    } else {
-                        info!("Versão {} sem alteração, cache mantido.", version);
-                    }
-                }
-            }
-            // ─────────────────────────────────────────────────────────────────────
-
             if let Some(window) = app.get_webview_window("main") {
                 window.set_title(&title).unwrap_or_else(|e| {
                     warn!("Erro ao definir título da janela: {}", e);
                 });
-                
+
                 // Maximizar a janela ao abrir
                 window.maximize().unwrap_or_else(|e| {
                     warn!("Erro ao maximizar janela: {}", e);
                 });
-                
+
                 info!("Título da janela definido: {}", title);
             }
-            
+
             info!("Janela principal pronta: {:?}", app.get_webview_window("main").is_some());
             info!("Backend Rust apenas inicializa a interface. Toda comunicação de rede acontece no frontend.");
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("Erro ao iniciar aplicação Tauri");
+}
+
+/// Limpa o cache do WebView2 quando a versão do app muda.
+///
+/// Esta função DEVE ser chamada antes de `tauri::Builder::default()`.
+/// O WebView2 trava todos os arquivos de `EBWebView` no momento em que a
+/// janela é criada. Tentar remover depois (ex: dentro de `.setup()`) resulta
+/// em "Access Denied" silencioso no Windows.
+///
+/// O path do cache é procurado em múltiplos locais porque o WebView2
+/// pode gravar em subdiretórios variados dependendo do identificador do app
+/// e do modo de instalação (per-user vs machine-wide).
+#[cfg(target_os = "windows")]
+fn clear_webview2_cache_if_version_changed() {
+    let version = env!("CARGO_PKG_VERSION");
+
+    // Resolve o %LOCALAPPDATA% do usuário atual via variável de ambiente,
+    // sem depender do handle do app Tauri (que ainda não existe nesse ponto).
+    let local_app_data = match std::env::var("LOCALAPPDATA") {
+        Ok(p) => std::path::PathBuf::from(p),
+        Err(_) => {
+            warn!("[WebView2Cache] LOCALAPPDATA não encontrado, pulando limpeza.");
+            return;
+        }
+    };
+
+    // Identificador do bundle definido em tauri.conf.json → "identifier"
+    // O Tauri v2 grava os dados do app em: %LOCALAPPDATA%\<identifier>\
+    let app_identifier = "com.sgp.desktop";
+    let data_dir = local_app_data.join(app_identifier);
+    let version_file = data_dir.join("last_version.txt");
+
+    // Lê a versão anterior gravada em disco
+    let last_version = std::fs::read_to_string(&version_file)
+        .unwrap_or_default();
+    let last_version = last_version.trim().to_string();
+
+    if last_version == version {
+        info!("[WebView2Cache] Versão {} sem alteração, cache mantido.", version);
+        return;
+    }
+
+    info!(
+        "[WebView2Cache] Versão mudou ({} → {}). Limpando cache WebView2...",
+        if last_version.is_empty() { "nova instalação".to_string() } else { last_version.clone() },
+        version
+    );
+
+    // O WebView2 pode colocar EBWebView em diferentes sub-pastas.
+    // Tentamos todos os caminhos conhecidos para garantir a limpeza.
+    let candidate_paths = [
+        // Padrão Tauri v2: %LOCALAPPDATA%\<identifier>\EBWebView
+        data_dir.join("EBWebView"),
+        // Alguns builds usam o nome do produto como pasta pai
+        local_app_data
+            .join("SGP - Sistema de Gerenciamento de Pedidos")
+            .join("EBWebView"),
+    ];
+
+    let mut cleaned_any = false;
+    for cache_path in &candidate_paths {
+        // Confirma que é realmente uma pasta WebView2 checando subpasta "Default"
+        if cache_path.exists() && cache_path.join("Default").exists() {
+            match std::fs::remove_dir_all(cache_path) {
+                Ok(_) => {
+                    info!("[WebView2Cache] Cache removido: {:?}", cache_path);
+                    cleaned_any = true;
+                }
+                Err(e) => {
+                    // Isso não deveria acontecer aqui (antes do builder),
+                    // mas registramos caso haja problema de permissão.
+                    warn!("[WebView2Cache] Falha ao remover {:?}: {}", cache_path, e);
+                }
+            }
+        }
+    }
+
+    if !cleaned_any {
+        info!("[WebView2Cache] Nenhuma pasta de cache encontrada — pode ser primeira instalação.");
+    }
+
+    // Persiste a versão atual para comparação na próxima inicialização
+    let _ = std::fs::create_dir_all(&data_dir);
+    if let Err(e) = std::fs::write(&version_file, version) {
+        warn!("[WebView2Cache] Falha ao gravar version file: {}", e);
+    } else {
+        info!("[WebView2Cache] Versão {} registrada em {:?}", version, version_file);
+    }
 }
 
 fn setup_tracing() {
