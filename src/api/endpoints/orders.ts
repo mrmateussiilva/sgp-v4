@@ -99,6 +99,7 @@ interface FetchOrdersParams {
     data_fim?: string;
     tipo_producao?: string;
     is_pronto?: boolean;
+    date_mode?: string;
 }
 
 const fetchOrdersPaginated = async (
@@ -109,7 +110,8 @@ const fetchOrdersPaginated = async (
     data_inicio?: string,
     data_fim?: string,
     tipo_producao?: string,
-    is_pronto?: boolean
+    is_pronto?: boolean,
+    date_mode?: string
 ): Promise<PaginatedOrders> => {
     requireSessionToken();
 
@@ -136,6 +138,9 @@ const fetchOrdersPaginated = async (
     }
     if (is_pronto !== undefined) {
         params.is_pronto = is_pronto;
+    }
+    if (date_mode) {
+        params.date_mode = date_mode;
     }
 
     const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
@@ -195,9 +200,10 @@ export const ordersApi = {
         data_inicio?: string,
         data_fim?: string,
         tipo_producao?: string,
-        is_pronto?: boolean
+        is_pronto?: boolean,
+        date_mode?: string
     ): Promise<PaginatedOrders> => {
-        return await fetchOrdersPaginated(page, pageSize, status, cliente, data_inicio, data_fim, tipo_producao, is_pronto);
+        return await fetchOrdersPaginated(page, pageSize, status, cliente, data_inicio, data_fim, tipo_producao, is_pronto, date_mode);
     },
 
     getOrderById: async (orderId: number): Promise<OrderWithItems> => {
