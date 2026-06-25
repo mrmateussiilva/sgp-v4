@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
-import { Printer, Check, ShoppingBag, MapPin, Truck, AlertTriangle } from 'lucide-react';
+import { Check, ShoppingBag, MapPin, Truck, AlertTriangle } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
 

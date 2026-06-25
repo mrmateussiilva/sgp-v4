@@ -18,10 +18,8 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
-  Printer,
   ChevronDown,
   ChevronUp,
-  Filter,
 } from 'lucide-react';
 import { logger } from '@/utils/logger';
 
@@ -36,9 +34,8 @@ export default function Expedicao() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [apenasProntos, setApenasProntos] = useState(false);
+  const apenasProntos = false;
   const [ocultarExpedidos, setOcultarExpedidos] = useState(true);
-  const [showFiltros, setShowFiltros] = useState(false);
 
   // Estados dos dados e UI
   const [orders, setOrders] = useState<OrderWithItems[]>([]);

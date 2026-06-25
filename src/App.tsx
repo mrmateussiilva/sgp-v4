@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { loadConfig } from '@/utils/config';
-import { normalizeApiUrl, onApiFailure, verifyApiConnection } from './api/client';
+import { normalizeApiUrl, onApiFailure, verifyApiConnection, getApiUrl } from './api/client';
 import { setApiUrl as applyApiUrl } from './services/api';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -224,7 +224,8 @@ function App() {
       // Se a última falha foi há muito tempo, resetar o contador
       if (now - lastFailureTime > RESET_TIMEOUT) {
         failureCount = 1;
-      } else {
+      } else if (now - lastFailureTime > 2000) {
+        // Evita que falhas em requisições paralelas simultâneas incrementem o contador juntas
         failureCount++;
       }
 
@@ -233,11 +234,29 @@ function App() {
 
       // Somente mostrar fallback se atingir o threshold
       if (failureCount >= FAILURE_THRESHOLD) {
-        logger.error('[App] Limite de falhas de rede atingido. Redirecionando para fallback.');
-        setApiUrl(null);
-        setFallbackReason('connection_lost');
-        setShowFallback(true);
-        failureCount = 0; // Resetar após acionar
+        const activeApiUrl = getApiUrl();
+        if (activeApiUrl) {
+          logger.warn(`[App] Limite de falhas de rede atingido (${failureCount}/${FAILURE_THRESHOLD}). Verificando se a API está ativa em ${activeApiUrl} antes de desconectar...`);
+          
+          verifyApiConnection(activeApiUrl)
+            .then(() => {
+              logger.info('[App] API está acessível na verificação ativa. Desconsiderando falhas pontuais como oscilações temporárias.');
+              failureCount = 0; // Resetar contador
+            })
+            .catch((err) => {
+              logger.error('[App] Verificação de conexão ativa falhou. API está realmente inacessível. Redirecionando para fallback.', err);
+              setApiUrl(null);
+              setFallbackReason('connection_lost');
+              setShowFallback(true);
+              failureCount = 0; // Resetar após acionar
+            });
+        } else {
+          logger.error('[App] Limite de falhas atingido e sem URL configurada. Redirecionando para fallback.');
+          setApiUrl(null);
+          setFallbackReason('connection_lost');
+          setShowFallback(true);
+          failureCount = 0;
+        }
       } else {
         // Mostrar um aviso discreto se logado
         if (isAuthenticated) {
