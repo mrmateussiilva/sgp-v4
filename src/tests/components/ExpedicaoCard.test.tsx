@@ -36,20 +36,18 @@ describe('ExpedicaoCard Component', () => {
   it('renders order information correctly', () => {
     const onOpenDetails = vi.fn();
     const onToggleExpedition = vi.fn();
-    const onPrintFicha = vi.fn();
 
     render(
       <ExpedicaoCard 
         order={mockOrder} 
         onOpenDetails={onOpenDetails}
         onToggleExpedition={onToggleExpedition}
-        onPrintFicha={onPrintFicha}
         isUpdating={false}
       />
     );
 
     // Verificar dados do cabeçalho
-    expect(screen.getByText('#1234')).toBeInTheDocument();
+    expect(screen.getByText('Pedido #1234')).toBeInTheDocument();
     expect(screen.getByText('Cliente Teste')).toBeInTheDocument();
     
     // Verificar observação
@@ -68,7 +66,6 @@ describe('ExpedicaoCard Component', () => {
         order={mockOrder} 
         onOpenDetails={vi.fn()}
         onToggleExpedition={onToggleExpedition}
-        onPrintFicha={vi.fn()}
         isUpdating={false}
       />
     );
@@ -90,7 +87,6 @@ describe('ExpedicaoCard Component', () => {
         order={expeditedOrder} 
         onOpenDetails={vi.fn()}
         onToggleExpedition={onToggleExpedition}
-        onPrintFicha={vi.fn()}
         isUpdating={false}
       />
     );
