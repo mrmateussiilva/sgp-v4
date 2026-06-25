@@ -33,6 +33,7 @@ import {
   Printer,
   Palette,
   Lock,
+  Package,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -75,6 +76,7 @@ const ProducaoMaquinas = lazy(() =>
 );
 const PrintLogs = lazy(() => import('./PrintLogs'));
 const TelaPainelDesigners = lazy(() => import('./TelaPainelDesigners'));
+const Expedicao = lazy(() => import('./Expedicao'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
@@ -257,6 +259,13 @@ export default function Dashboard() {
         section: 'OPERACIONAL',
       },
       {
+        icon: Package,
+        label: 'Expedição',
+        path: '/dashboard/expedicao',
+        adminOnly: false,
+        section: 'OPERACIONAL',
+      },
+      {
         icon: Printer,
         label: 'Logs de Impressão',
         path: '/dashboard/print-logs',
@@ -348,6 +357,7 @@ export default function Dashboard() {
               <Route path="pedido/novo" element={<PedidoCreateView />} />
               <Route path="pedido/editar/:id" element={<PedidoEditView />} />
               <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+              <Route path="expedicao" element={<Expedicao />} />
               <Route
                 path="painel-desempenho"
                 element={
@@ -521,6 +531,7 @@ export default function Dashboard() {
                   <Route path="clientes" element={<Clientes />} />
                   <Route path="painel-producao" element={<ProducaoMaquinas />} />
                   <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
+                  <Route path="expedicao" element={<Expedicao />} />
                   <Route
                     path="painel-desempenho"
                     element={
