@@ -7,6 +7,7 @@ import {
     Truck,
     BarChart,
     FileText,
+    Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/utils/isTauri';
@@ -36,6 +37,7 @@ export function BottomNavBar() {
 
     const moreItems = [
         { path: '/dashboard/relatorios-envios', label: 'Envios', icon: Truck },
+        { path: '/dashboard/expedicao', label: 'Expedição', icon: Package },
         { path: '/dashboard/painel-desempenho', label: 'Desempenho', icon: BarChart, adminOnly: true },
         { path: '/dashboard/fechamentos', label: 'Fechamentos', icon: FileText, adminOnly: true },
         // Apenas mostrar Novo Pedido no menu "Mais" se estiver no Tauri

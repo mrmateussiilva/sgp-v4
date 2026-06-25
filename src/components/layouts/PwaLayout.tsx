@@ -9,6 +9,7 @@ import {
   BarChart,
   Users,
   FileText,
+  Package,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/services/api';
@@ -39,6 +40,7 @@ const NAV_ITEMS: Array<{
     { path: '/dashboard/pedido/novo', label: 'Novo', icon: ShoppingCart },
     { path: '/dashboard/clientes', label: 'Clientes', icon: Users },
     { path: '/dashboard/relatorios-envios', label: 'Envios', icon: Truck },
+    { path: '/dashboard/expedicao', label: 'Expedição', icon: Package },
     { path: '/dashboard/painel-desempenho', label: 'Desempenho', icon: BarChart, adminOnly: true },
     { path: '/dashboard/fechamentos', label: 'Fechamentos', icon: FileText, adminOnly: true },
   ];
