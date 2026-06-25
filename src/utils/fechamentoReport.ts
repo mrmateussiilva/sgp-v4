@@ -593,8 +593,9 @@ const buildRowsFromOrder = (
   });
 
   // Cálculo de ajuste (Valor Excedente)
-  // Alguns pedidos tem valor total maior que a soma dos itens (ex: pedidos antigos ou ajustes manuais)
-  // No Relatório de Fechamento, o total do cabeçalho é soberano (Faturamento Bruto)
+  // Alguns pedidos têm valor total maior que a soma dos itens (ex: pedidos antigos ou ajustes manuais).
+  // Em vez de criar uma linha separada "Complemento de valor" (que confunde os clientes),
+  // o ajuste é silenciosamente absorvido no último item real do pedido, mantendo os totais corretos.
   const valorTotalPedido = parseCurrencyCached(order.total_value ?? order.valor_total ?? 0);
 
   // Só aplicamos ajuste se houver um valor total definido para o pedido (> 0)
@@ -604,26 +605,10 @@ const buildRowsFromOrder = (
     const expectedServicoTotal = roundToTwoDecimals(valorTotalPedido - valorFreteTotal);
     const adjustment = roundToTwoDecimals(expectedServicoTotal - sumItemsValue);
 
-    if (adjustment > 0.01) {
-      // Tentar herdar designer/vendedor do primeiro item real se existir
-      const firstItem = items[0];
-      const adjustmentDesigner = firstItem?.designer || 'Sem designer';
-      const adjustmentVendedor = firstItem?.vendedor || 'Sem vendedor';
-
-      rows.push({
-        orderId: order.id,
-        ficha: order.numero ?? order.id.toString(),
-        cliente,
-        designer: adjustmentDesigner,
-        vendedor: adjustmentVendedor,
-        tipo: 'Ajuste',
-        formaEnvio,
-        data: ordemDataRef ?? '',
-        dataLabel,
-        descricao: 'Complemento de valor (Diferença Pedido x Itens)',
-        valorFrete: 0, // Ajuste não carrega frete — o frete já está nos itens reais
-        valorServico: adjustment,
-      });
+    if (adjustment > 0.01 && rows.length > 0) {
+      // Absorver a diferença no último item real, sem criar uma linha extra visível ao cliente
+      const lastRow = rows[rows.length - 1];
+      lastRow.valorServico = roundToTwoDecimals(lastRow.valorServico + adjustment);
     }
   }
 
