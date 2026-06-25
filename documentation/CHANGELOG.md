@@ -1,6 +1,6 @@
 # Changelog - SGP v4
 
-## [1.3.8] - 2026-06-24
+## [1.4.0] - 2026-06-24
 
 ### ✨ Tela de Expedição (Refinamento de Fluxo)
 - **Foco em Datas**: O filtro de Período de Entrega foi movido para fora do menu colapsável, ficando sempre visível e acessível ao lado da barra de busca.
