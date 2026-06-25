@@ -1,5 +1,14 @@
 # Changelog - SGP v4
 
+## [1.3.8] - 2026-06-24
+
+### ✨ Tela de Expedição (Refinamento de Fluxo)
+- **Foco em Datas**: O filtro de Período de Entrega foi movido para fora do menu colapsável, ficando sempre visível e acessível ao lado da barra de busca.
+- **Padrão Inteligente**: A tela agora abre automaticamente filtrando pedidos com data de entrega configurada para "Hoje".
+- **Fluxo de Status**: Ajustada a lógica para não depender do status "Pronto" como filtro. O ato de marcar um pedido como "Expedido" agora sinaliza-o automaticamente como "Pronto" no sistema.
+- **Simplificação Visual**: Removidas todas as opções e botões de impressão de fichas da tela de Expedição para manter o foco estritamente na visualização e no despacho.
+- **Adequação de Textos**: Os cards de estatísticas foram renomeados de "Prontos" para "Aguardando" e "Para Hoje", refletindo o número de pedidos aguardando expedição.
+
 ## [1.3.7] - 2026-04-19
 
 ### 🔧 Melhorias no Service Worker & PWA

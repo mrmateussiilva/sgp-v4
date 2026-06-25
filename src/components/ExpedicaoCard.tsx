@@ -2,14 +2,13 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Check, Printer, Eye, MapPin, Clock, AlertTriangle, Undo2 } from 'lucide-react';
+import { Check, Eye, MapPin, Clock, AlertTriangle, Undo2 } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 
 interface ExpedicaoCardProps {
   order: OrderWithItems;
   onOpenDetails: (order: OrderWithItems) => void;
   onToggleExpedition: (orderId: number, currentStatus: boolean) => Promise<void>;
-  onPrintFicha: (orderId: number) => void;
   isUpdating: boolean;
 }
 
@@ -17,7 +16,6 @@ export default function ExpedicaoCard({
   order,
   onOpenDetails,
   onToggleExpedition,
-  onPrintFicha,
   isUpdating,
 }: ExpedicaoCardProps) {
   const isAtrasado = () => {
@@ -101,15 +99,7 @@ export default function ExpedicaoCard({
             
             {/* Ações Secundárias (Ficha e Detalhes) */}
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onPrintFicha(order.id)}
-                className="h-8 w-8 text-slate-500 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
-                title="Imprimir Ficha"
-              >
-                <Printer className="h-4 w-4" />
-              </Button>
+
               <Button
                 variant="ghost"
                 size="icon"

@@ -41,7 +41,6 @@ interface ExpedicaoDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmExpedition: (orderId: number) => Promise<void>;
-  onPrintFicha: (orderId: number) => void;
   isConfirming: boolean;
 }
 
@@ -50,7 +49,6 @@ export default function ExpedicaoDrawer({
   isOpen,
   onClose,
   onConfirmExpedition,
-  onPrintFicha,
   isConfirming,
 }: ExpedicaoDrawerProps) {
   // Estado para checklist individual dos itens para conferência
@@ -274,16 +272,7 @@ export default function ExpedicaoDrawer({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              onClick={() => onPrintFicha(order.id)}
-              className="h-12 text-sm font-semibold gap-2 border-border/80 text-foreground hover:bg-muted"
-            >
-              <Printer className="h-4 w-4" />
-              Ficha
-            </Button>
-            
+          <div className="grid grid-cols-1 gap-3">
             <Button
               onClick={handleConfirm}
               disabled={isConfirming}

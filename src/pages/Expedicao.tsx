@@ -5,8 +5,6 @@ import { useOrderRefresh } from '../hooks/useRealtimeNotifications';
 import { useToast } from '@/hooks/use-toast';
 import ExpedicaoCard from '../components/ExpedicaoCard';
 import ExpedicaoDrawer from '../components/ExpedicaoDrawer';
-import { PrintPreviewModal } from '../components/PrintPreviewModal';
-import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -38,7 +36,7 @@ export default function Expedicao() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [apenasProntos, setApenasProntos] = useState(true);
+  const [apenasProntos, setApenasProntos] = useState(false);
   const [ocultarExpedidos, setOcultarExpedidos] = useState(true);
   const [showFiltros, setShowFiltros] = useState(false);
 
@@ -54,10 +52,7 @@ export default function Expedicao() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isConfirmingExpedition, setIsConfirmingExpedition] = useState(false);
 
-  // Estados do PDF Preview
-  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [pdfFilename, setPdfFilename] = useState('');
+
 
   // Sincronizar datas com base no preset selecionado
   useEffect(() => {
@@ -129,7 +124,7 @@ export default function Expedicao() {
   const stats = useMemo(() => {
     const hojeStr = new Date().toISOString().split('T')[0];
     
-    const totalProntos = orders.filter((o) => o.pronto && !o.expedicao).length;
+    const totalAguardando = orders.filter((o) => !o.expedicao).length;
     const expedidosHoje = orders.filter((o) => {
       if (!o.expedicao) return false;
       return o.data_entrega && o.data_entrega.split('T')[0] === hojeStr;
@@ -142,13 +137,12 @@ export default function Expedicao() {
       return entrega < hojeStr;
     }).length;
 
-    const prontosHoje = orders.filter((o) => {
+    const aguardandoHoje = orders.filter((o) => {
       if (o.expedicao) return false;
-      if (!o.pronto) return false;
       return o.data_entrega && o.data_entrega.split('T')[0] === hojeStr;
     }).length;
 
-    return { totalProntos, expedidosHoje, atrasados, prontosHoje };
+    return { totalAguardando, expedidosHoje, atrasados, aguardandoHoje };
   }, [orders]);
 
   // Filtrar e agrupar pedidos por forma de envio
@@ -201,7 +195,7 @@ export default function Expedicao() {
         sublimacao: order.sublimacao || false,
         costura: order.costura || false,
         expedicao: newStatus,
-        pronto: order.pronto || false,
+        pronto: newStatus ? true : (order.pronto || false),
         status: newStatus ? OrderStatus.Concluido : order.status,
       });
 
@@ -251,7 +245,7 @@ export default function Expedicao() {
           sublimacao: order.sublimacao || false,
           costura: order.costura || false,
           expedicao: true,
-          pronto: order.pronto || false,
+          pronto: true,
           status: OrderStatus.Concluido,
         }).then(updated => ({ id: order.id, updated }))
       );
@@ -311,51 +305,6 @@ export default function Expedicao() {
     setDrawerOpen(true);
   };
 
-  const handlePrintFicha = async (orderId: number) => {
-    const orderToPrint = orders.find((o) => o.id === orderId);
-    if (!orderToPrint) return;
-
-    try {
-      toast({
-        title: 'Carregando Ficha',
-        description: 'Gerando pré-visualização da ficha de produção...',
-      });
-
-      const { blob, filename } = await generateMultipleOrdersPdfBlob([orderToPrint]);
-      setPdfBlob(blob);
-      setPdfFilename(filename);
-      setIsPdfPreviewOpen(true);
-    } catch (error) {
-      logger.error('Erro ao gerar ficha:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível gerar a ficha.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handlePrintGroup = async (groupName: string, groupOrdersList: OrderWithItems[]) => {
-    try {
-      toast({
-        title: 'Preparando Impressão',
-        description: `Gerando fichas dos ${groupOrdersList.length} pedidos de ${groupName}...`,
-      });
-
-      const { blob, filename } = await generateMultipleOrdersPdfBlob(groupOrdersList);
-      setPdfBlob(blob);
-      setPdfFilename(filename);
-      setIsPdfPreviewOpen(true);
-    } catch (error) {
-      logger.error('Erro ao gerar impressão em lote do grupo:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível gerar o PDF em lote.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const toggleGroupCollapse = (groupName: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
@@ -373,7 +322,7 @@ export default function Expedicao() {
             Expedição
           </h1>
           <p className="text-muted-foreground text-sm">
-            Conferência e expedição de pedidos prontos para entrega (otimizado para tablets)
+            Conferência e expedição de pedidos aguardando entrega (otimizado para tablets)
           </p>
         </div>
         <div className="flex gap-2">
@@ -399,9 +348,9 @@ export default function Expedicao() {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Prontos Hoje
+                Para Hoje
               </span>
-              <span className="text-2xl font-black text-foreground">{stats.prontosHoje}</span>
+              <span className="text-2xl font-black text-foreground">{stats.aguardandoHoje}</span>
             </div>
           </CardContent>
         </Card>
@@ -413,9 +362,9 @@ export default function Expedicao() {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                Aguardando
+                Total Aguardando
               </span>
-              <span className="text-2xl font-black text-foreground">{stats.totalProntos}</span>
+              <span className="text-2xl font-black text-foreground">{stats.totalAguardando}</span>
             </div>
           </CardContent>
         </Card>
@@ -453,7 +402,7 @@ export default function Expedicao() {
       <Card className="border border-border/80 shadow-sm">
         <CardContent className="p-4 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Busca textual com foco maior */}
+            {/* Busca textual */}
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -465,8 +414,25 @@ export default function Expedicao() {
               />
             </div>
 
+            {/* Filtro Principal: Data de Entrega */}
+            <div className="flex gap-1 bg-muted p-1 rounded-xl border w-fit shrink-0 items-center">
+              {(['hoje', 'semana', 'todos', 'customizado'] as DatePreset[]).map((preset) => (
+                <Button
+                  key={preset}
+                  variant={datePreset === preset ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setDatePreset(preset)}
+                  className={`h-11 px-4 text-xs font-bold capitalize rounded-lg ${
+                    datePreset === preset ? 'bg-white dark:bg-slate-800 shadow-sm' : 'text-muted-foreground'
+                  }`}
+                >
+                  {preset === 'todos' ? 'Todos' : preset}
+                </Button>
+              ))}
+            </div>
+
             <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 py-2.5 rounded-lg border">
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 h-12 rounded-xl border">
                 <Checkbox
                   id="ocultarExpedidos"
                   checked={ocultarExpedidos}
@@ -478,79 +444,36 @@ export default function Expedicao() {
                 </Label>
               </div>
 
-              <Button
-                variant="outline"
-                onClick={() => setShowFiltros(!showFiltros)}
-                className={`h-12 px-4 gap-2 transition-colors ${showFiltros ? 'bg-muted' : ''}`}
-              >
-                <Filter className="h-4 w-4" />
-                Filtros
-                {showFiltros ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
-              </Button>
+              {/* Removido botão de "Filtros" colapsável se não tiver mais filtros úteis lá, mas vamos manter os customizados abaixo */}
             </div>
           </div>
 
-          {/* Filtros Avançados Expandíveis */}
-          {showFiltros && (
-            <div className="pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
+          {/* Filtros Customizados que aparecem apenas quando "Customizado" está selecionado */}
+          {datePreset === 'customizado' && (
+            <div className="pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Período de Entrega
-                  </Label>
-                  <div className="flex gap-1 bg-muted p-1 rounded-lg border w-fit">
-                    {(['hoje', 'semana', 'todos', 'customizado'] as DatePreset[]).map((preset) => (
-                      <Button
-                        key={preset}
-                        variant={datePreset === preset ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setDatePreset(preset)}
-                        className="h-9 px-3 text-xs font-semibold capitalize"
-                      >
-                        {preset === 'todos' ? 'Todos' : preset}
-                      </Button>
-                    ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dataInicio" className="text-[10px] font-bold text-muted-foreground">DE</Label>
+                    <Input
+                      id="dataInicio"
+                      type="date"
+                      value={dataInicio}
+                      onChange={(e) => setDataInicio(e.target.value)}
+                      className="h-10 text-sm min-w-[130px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dataFim" className="text-[10px] font-bold text-muted-foreground">ATÉ</Label>
+                    <Input
+                      id="dataFim"
+                      type="date"
+                      value={dataFim}
+                      onChange={(e) => setDataFim(e.target.value)}
+                      className="h-10 text-sm min-w-[130px]"
+                    />
                   </div>
                 </div>
-
-                {datePreset === 'customizado' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="dataInicio" className="text-[10px] font-bold text-muted-foreground">DE</Label>
-                      <Input
-                        id="dataInicio"
-                        type="date"
-                        value={dataInicio}
-                        onChange={(e) => setDataInicio(e.target.value)}
-                        className="h-10 text-sm min-w-[130px]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="dataFim" className="text-[10px] font-bold text-muted-foreground">ATÉ</Label>
-                      <Input
-                        id="dataFim"
-                        type="date"
-                        value={dataFim}
-                        onChange={(e) => setDataFim(e.target.value)}
-                        className="h-10 text-sm min-w-[130px]"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="apenasProntos"
-                  checked={apenasProntos}
-                  onCheckedChange={(checked) => setApenasProntos(checked === true)}
-                />
-                <Label
-                  htmlFor="apenasProntos"
-                  className="text-xs font-semibold text-slate-600 dark:text-slate-400 cursor-pointer select-none"
-                >
-                  Exibir apenas pedidos marcados como prontos no fluxo
-                </Label>
               </div>
             </div>
           )}
@@ -570,7 +493,7 @@ export default function Expedicao() {
               <Truck className="h-12 w-12 text-slate-400 mx-auto" />
               <h3 className="font-bold text-lg text-foreground">Nenhum pedido encontrado</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Não há pedidos que correspondam aos filtros ativos ou não foram marcados como prontos.
+                Não há pedidos que correspondam aos filtros ativos.
               </p>
             </CardContent>
           </Card>
@@ -619,17 +542,6 @@ export default function Expedicao() {
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto pl-8 sm:pl-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePrintGroup(groupName, list)}
-                      className="h-10 px-3 gap-2 text-xs font-bold shrink-0 bg-white dark:bg-transparent"
-                      title={`Imprimir todas as fichas de ${groupName}`}
-                    >
-                      <Printer className="h-4 w-4 text-slate-500" />
-                      Fichas
-                    </Button>
-
                     {pendentesGrupo > 0 && (
                       <Button
                         size="sm"
@@ -657,7 +569,6 @@ export default function Expedicao() {
                         order={order}
                         onOpenDetails={handleOpenDetails}
                         onToggleExpedition={handleToggleExpedition}
-                        onPrintFicha={handlePrintFicha}
                         isUpdating={updatingOrderId === order.id}
                       />
                     ))}
@@ -678,22 +589,9 @@ export default function Expedicao() {
           setSelectedOrder(null);
         }}
         onConfirmExpedition={handleConfirmExpeditionFromDrawer}
-        onPrintFicha={handlePrintFicha}
         isConfirming={isConfirmingExpedition}
       />
 
-      {/* Preview do PDF */}
-      <PrintPreviewModal
-        isOpen={isPdfPreviewOpen}
-        onClose={() => {
-          setIsPdfPreviewOpen(false);
-          setPdfBlob(null);
-          setPdfFilename('');
-        }}
-        pdfBlob={pdfBlob}
-        filename={pdfFilename}
-        title="Visualização da Ficha de Produção"
-      />
     </div>
   );
 }
