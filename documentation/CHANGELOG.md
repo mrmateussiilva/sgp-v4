@@ -1,5 +1,13 @@
 # Changelog - SGP v4
 
+## [1.4.1] - 2026-06-24
+
+### 🔧 Resiliência de Conexão (Versão Web/PWA)
+- **Ignorar Requisições Canceladas**: Ajustado o interceptor global do Axios para ignorar requisições explicitamente canceladas pelo cliente (ex: ao navegar de tela rápida). Isso previne alertas indevidos de instabilidade de servidor.
+- **Ping Ativo de Conexão**: Implementado um teste ativo de ping (`verifyApiConnection`) antes de deslogar o usuário ou mostrar a tela de conexão perdida. O sistema agora confirma se a API está realmente offline antes de redirecionar para a tela de fallback.
+- **Debounce de Falhas**: Adicionado intervalo mínimo de 2 segundos para contagem de falhas. Isso impede que falhas simultâneas de chamadas paralelas resultem em logout imediato em caso de oscilações pontuais de rede.
+- **Compilação Clean**: Corrigidos erros de compilação do TypeScript causados por importações e variáveis não utilizadas no módulo de expedição.
+
 ## [1.4.0] - 2026-06-24
 
 ### ✨ Tela de Expedição (Refinamento de Fluxo)
@@ -8,12 +16,6 @@
 - **Fluxo de Status**: Ajustada a lógica para não depender do status "Pronto" como filtro. O ato de marcar um pedido como "Expedido" agora sinaliza-o automaticamente como "Pronto" no sistema.
 - **Simplificação Visual**: Removidas todas as opções e botões de impressão de fichas da tela de Expedição para manter o foco estritamente na visualização e no despacho.
 - **Adequação de Textos**: Os cards de estatísticas foram renomeados de "Prontos" para "Aguardando" e "Para Hoje", refletindo o número de pedidos aguardando expedição.
-
-### 🔧 Resiliência de Conexão (Versão Web/PWA)
-- **Ignorar Requisições Canceladas**: Ajustado o interceptor global do Axios para ignorar requisições explicitamente canceladas pelo cliente (ex: ao navegar de tela rápida). Isso previne alertas indevidos de instabilidade de servidor.
-- **Ping Ativo de Conexão**: Implementado um teste ativo de ping (`verifyApiConnection`) antes de deslogar o usuário ou mostrar a tela de conexão perdida. O sistema agora confirma se a API está realmente offline antes de redirecionar para a tela de fallback.
-- **Debounce de Falhas**: Adicionado intervalo mínimo de 2 segundos para contagem de falhas. Isso impede que falhas simultâneas de chamadas paralelas resultem em logout imediato em caso de oscilações pontuais de rede.
-- **Compilação Clean**: Corrigidos erros de compilação do TypeScript causados por importações e variáveis não utilizadas no módulo de expedição.
 
 ## [1.3.7] - 2026-04-19
 
