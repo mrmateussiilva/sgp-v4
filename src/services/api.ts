@@ -105,6 +105,12 @@ export const api = {
 
   // Resources (Production Types)
   getTiposProducaoAtivos: resourcesApi.getTiposProducaoAtivos,
+
+  // ─── Rascunhos ────────────────────────────────────────────────────────────
+  salvarRascunho: ordersApi.salvarRascunho,
+  atualizarRascunho: ordersApi.atualizarRascunho,
+  listarRascunhos: ordersApi.listarRascunhos,
+  promoverRascunho: ordersApi.promoverRascunho,
 };
 
 // Re-export deprecated standalone functions to maintain compatibility with existing imports

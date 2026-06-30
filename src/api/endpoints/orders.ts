@@ -629,4 +629,99 @@ export const ordersApi = {
 
         return response.data;
     },
+
+    // ─── Rascunhos ────────────────────────────────────────────────────────────
+
+    /**
+     * Salva o formulário atual como rascunho (sem validações obrigatórias).
+     * O rascunho fica armazenado no banco mas fora do fluxo de produção.
+     */
+    salvarRascunho: async (request: Partial<CreateOrderRequest>): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        const payload = {
+            cliente: request.cliente || '',
+            cidade_cliente: request.cidade_cliente || '',
+            estado_cliente: request.estado_cliente || '',
+            telefone_cliente: request.telefone_cliente || '',
+            data_entrada: request.data_entrada || new Date().toISOString().split('T')[0],
+            data_entrega: request.data_entrega || '',
+            forma_envio: request.forma_envio || '',
+            forma_pagamento_id: request.forma_pagamento_id,
+            prioridade: request.prioridade || 'NORMAL',
+            observacao: request.observacao || '',
+            status: 'pendente',
+            valor_frete: request.valor_frete ?? 0,
+            items: request.items ?? [],
+            rascunho: true,
+        };
+
+        logger.debug('[api.salvarRascunho] Payload:', payload);
+        const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
+        const order = mapPedidoFromApi(response.data);
+        return order;
+    },
+
+    /**
+     * Atualiza um rascunho existente sem validações obrigatórias.
+     */
+    atualizarRascunho: async (id: number, request: Partial<CreateOrderRequest>): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        const payload: Record<string, unknown> = {
+            rascunho: true,
+        };
+
+        if (request.cliente !== undefined) payload.cliente = request.cliente;
+        if (request.cidade_cliente !== undefined) payload.cidade_cliente = request.cidade_cliente;
+        if (request.estado_cliente !== undefined) payload.estado_cliente = request.estado_cliente;
+        if (request.telefone_cliente !== undefined) payload.telefone_cliente = request.telefone_cliente;
+        if (request.data_entrada !== undefined) payload.data_entrada = request.data_entrada;
+        if (request.data_entrega !== undefined) payload.data_entrega = request.data_entrega;
+        if (request.forma_envio !== undefined) payload.forma_envio = request.forma_envio;
+        if (request.forma_pagamento_id !== undefined) payload.forma_pagamento_id = request.forma_pagamento_id;
+        if (request.prioridade !== undefined) payload.prioridade = request.prioridade;
+        if (request.observacao !== undefined) payload.observacao = request.observacao;
+        if (request.valor_frete !== undefined) payload.valor_frete = request.valor_frete;
+        if (request.items !== undefined) payload.items = request.items;
+
+        const response = await apiClient.patch<ApiPedido>(`/pedidos/${id}`, payload);
+        clearOrderCache(id);
+        return mapPedidoFromApi(response.data);
+    },
+
+    /**
+     * Lista todos os rascunhos salvos.
+     */
+    listarRascunhos: async (): Promise<OrderWithItems[]> => {
+        requireSessionToken();
+        const response = await apiClient.get<ApiPedido[]>('/pedidos/rascunhos');
+        return (response.data ?? []).map(mapPedidoFromApi);
+    },
+
+    /**
+     * Promove um rascunho para pedido ativo.
+     * Valida campos obrigatórios e o insere no fluxo de produção.
+     */
+    promoverRascunho: async (id: number): Promise<OrderWithItems> => {
+        requireSessionToken();
+        const response = await apiClient.post<ApiPedido>(`/pedidos/${id}/promover`);
+        clearOrderCache(id);
+        const order = mapPedidoFromApi(response.data);
+
+        try {
+            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+        } catch (error) {
+            logger.warn('[api.promoverRascunho] Erro ao salvar JSON:', error);
+        }
+
+        try {
+            ordersSocket.broadcastOrderCreated(order.id, order);
+        } catch (error) {
+            logger.warn('[api.promoverRascunho] Erro ao enviar broadcast WebSocket:', error);
+        }
+
+        return order;
+    },
 };
+

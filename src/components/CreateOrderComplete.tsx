@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, Save, Copy } from 'lucide-react';
+import { Plus, X, Save, Copy, FileText, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -552,6 +552,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       setTabs(generatedTabs);
       setTabsData(data);
       setActiveTab(generatedTabs[0]);
+      // Marcar se o pedido carregado é um rascunho
+      setIsRascunho(Boolean(order.rascunho));
       // Salvar estado inicial para comparação
       setInitialFormData(formData);
       setInitialTabsData(data);
@@ -636,6 +638,10 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Estado para controlar se a ficha está bloqueada (concluída)
   const [isLocked, setIsLocked] = useState(false);
   const [_localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
+
+  // Estado de rascunho
+  const [isRascunho, setIsRascunho] = useState(false);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
@@ -1800,6 +1806,83 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
 
 
+  const handleSalvarRascunho = async () => {
+    setIsDraftSaving(true);
+    try {
+      const currentItems = tabs.map((tabId) => tabsData[tabId]).filter(Boolean);
+      const items = currentItems.map((tab) => ({
+        ...tab,
+        item_name: tab.descricao || tab.tipo_producao || 'Item',
+        quantity: Number(tab.quantidade_paineis || tab.quantidade_totem || tab.quantidade_lona || 1),
+        unit_price: 0,
+      }));
+
+      const draftPayload = {
+        cliente: formData.cliente || '',
+        cidade_cliente: formData.cidade_cliente || '',
+        estado_cliente: formData.estado_cliente || '',
+        telefone_cliente: formData.telefone_cliente || '',
+        data_entrada: formData.data_entrada || new Date().toISOString().split('T')[0],
+        data_entrega: formData.data_entrega || undefined,
+        forma_envio: formData.forma_envio || '',
+        prioridade: formData.prioridade || 'NORMAL',
+        observacao: formData.observacao || '',
+        status: OrderStatus.Pendente,
+        valor_frete: parseMonetary(formData.valor_frete) || 0,
+        items: items as any[],
+        rascunho: true,
+      };
+
+      if (isRascunho && selectedOrderId) {
+        // Atualizar rascunho existente
+        await api.atualizarRascunho(selectedOrderId, draftPayload);
+      } else {
+        // Criar novo rascunho
+        const savedDraft = await api.salvarRascunho(draftPayload);
+        // Navegar para modo de edição do rascunho criado
+        navigate(`/dashboard/orders/${savedDraft.id}/edit`);
+      }
+
+      setIsRascunho(true);
+      toast({
+        title: '✅ Rascunho salvo!',
+        description: 'O pedido foi salvo como rascunho. Você pode continuar editando depois.',
+      });
+    } catch (error) {
+      logger.error('Erro ao salvar rascunho:', error);
+      toast({
+        title: 'Erro ao salvar rascunho',
+        description: 'Não foi possível salvar o rascunho. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
+  const handlePromoverRascunho = async () => {
+    if (!selectedOrderId) return;
+    try {
+      setIsSaving(true);
+      await api.promoverRascunho(selectedOrderId);
+      setIsRascunho(false);
+      toast({
+        title: '🚀 Pedido publicado!',
+        description: 'O rascunho foi promovido para pedido ativo e entrou no fluxo de produção.',
+      });
+      navigate('/dashboard/orders');
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || String(error);
+      toast({
+        title: 'Erro ao publicar pedido',
+        description: detail,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSalvar = () => {
     if (isEditMode && !selectedOrderId) {
       toast({
@@ -2657,6 +2740,32 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         </div>
       )}
 
+      {/* Banner de Rascunho */}
+      {isRascunho && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-amber-800">Rascunho</h3>
+                <p className="text-sm text-amber-700 mt-0.5">
+                  Este pedido está salvo como rascunho e não aparece no fluxo de produção.
+                  Preencha os dados obrigatórios e publique quando estiver pronto.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handlePromoverRascunho}
+              disabled={isSaving}
+              className="bg-amber-500 hover:bg-amber-600 text-white gap-2 flex-shrink-0"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {isSaving ? 'Publicando...' : 'Publicar Pedido'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Indicador de Validação */}
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
         <div className="flex items-center justify-between">
@@ -3393,6 +3502,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         </Button>
 
         <Button
+          id="btn-salvar-rascunho"
+          variant="outline"
+          onClick={handleSalvarRascunho}
+          disabled={isDraftSaving}
+          className="gap-2 h-11 text-base border-amber-400 text-amber-700 hover:bg-amber-50"
+        >
+          <FileText className="h-5 w-5" />
+          {isDraftSaving ? 'Salvando...' : isRascunho ? 'Atualizar Rascunho' : 'Salvar Rascunho'}
+        </Button>
+
+        <Button
+          id="btn-salvar-pedido"
           onClick={handleSalvar}
           className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
         >

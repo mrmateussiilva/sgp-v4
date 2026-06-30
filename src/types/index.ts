@@ -112,6 +112,9 @@ export interface OrderWithItems {
   designer?: string;
   vendedor?: string;
 
+  // Modo rascunho: pedido incompleto, fora do fluxo de produção
+  rascunho?: boolean;
+
   items: OrderItem[];
 }
 
@@ -133,6 +136,8 @@ export interface CreateOrderRequest {
   telefone_cliente?: string;
   estado_cliente?: string;
   valor_frete?: number;
+  // Modo rascunho: salvar sem validações obrigatórias
+  rascunho?: boolean;
 }
 
 export interface CreateOrderItemRequest {
