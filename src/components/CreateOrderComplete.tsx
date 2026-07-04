@@ -599,12 +599,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   // Restaurar rascunho do cache apenas uma vez na montagem do componente (modo criação)
 
+  // Flag para saber se os dados foram restaurados do cache (disparar toast na montagem)
+  const wasRestoredFromCacheRef = useRef(false);
+
   const [formData, setFormData] = useState(() => {
     // Verificar se há rascunho cacheado antes de inicializar
     if (!routeOrderId) {
       try {
         const cached = loadCachedDraft();
         if (cached?.formData) {
+          wasRestoredFromCacheRef.current = true;
           return cached.formData as typeof defaultFormData;
         }
       } catch {
@@ -667,6 +671,17 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     saveDraft({ formData: formData as any, tabs, tabsData: tabsData as any, activeTab });
   }, [isEditMode, formData, tabs, tabsData, activeTab, saveDraft]);
 
+  // Toast de boas-vindas quando o formulário é restaurado do cache
+  useEffect(() => {
+    if (wasRestoredFromCacheRef.current) {
+      toast({
+        title: '📋 Formulário restaurado',
+        description: 'Continuando de onde você parou antes de sair da tela.',
+      });
+    }
+    // Executar apenas na montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
