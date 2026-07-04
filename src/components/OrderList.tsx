@@ -387,23 +387,49 @@ export default function OrderList() {
     return normalized.includes('sessão inválida') || normalized.includes('sessão expirada');
   };
 
-  const loadOrders = useCallback(async () => {
-    if (orders.length === 0) {
+  const prevFilterRef = useRef(productionStatusFilter);
+  const prevServerQueryKeyRef = useRef<string>('');
+
+  const loadOrders = useCallback(async (forceRefresh: boolean = false) => {
+    // Identifica exatamentes quais parâmetros vão para o backend
+    const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
+    const clientSideFiltersActive =
+      hasSearch ||
+      selectedStatuses.length > 0 ||
+      Boolean(selectedVendedor) ||
+      Boolean(selectedDesigner) ||
+      Boolean(selectedCidade) ||
+      Boolean(selectedFormaEnvio) ||
+      Boolean(selectedTipoProducao);
+
+    const serverQueryKey = JSON.stringify({
+      productionStatusFilter,
+      dateFrom,
+      dateTo,
+      activeSearchTerm: hasSearch ? undefined : activeSearchTerm,
+      clientSideFiltersActive,
+      page: clientSideFiltersActive || productionStatusFilter === 'all' ? 1 : page,
+      rowsPerPage: clientSideFiltersActive || productionStatusFilter === 'all' ? undefined : rowsPerPage,
+    });
+
+    // Se a query pro backend for EXATAMENTE a mesma e já temos dados, não faz nova requisição (exceto se forceRefresh for true)
+    if (!forceRefresh && serverQueryKey === prevServerQueryKeyRef.current && orders.length > 0) {
+      logger.debug('[OrderList] Evitando requisição de rede desnecessária (filtros apenas locais)');
+      return;
+    }
+    prevServerQueryKeyRef.current = serverQueryKey;
+
+    const isChangingTab = prevFilterRef.current !== productionStatusFilter;
+    if (isChangingTab) {
+      setOrders([]);
+      setLoading(true);
+      prevFilterRef.current = productionStatusFilter;
+    } else if (orders.length === 0) {
       setLoading(true);
     }
     try {
       const currentPage = page;
       const currentPageSize = rowsPerPage;
-      // Se houver busca ativa, sempre carregar dataset maior para filtrar localmente
-      const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
-      const clientSideFiltersActive =
-        hasSearch ||
-        selectedStatuses.length > 0 ||
-        Boolean(selectedVendedor) ||
-        Boolean(selectedDesigner) ||
-        Boolean(selectedCidade) ||
-        Boolean(selectedFormaEnvio) ||
-        Boolean(selectedTipoProducao);
 
       // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
