@@ -235,6 +235,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
   // ========================================
   const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPollingRef = useRef(false);
+  const currentIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     const stopPolling = () => {
@@ -242,11 +243,21 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
         clearInterval(pollingTimerRef.current);
         pollingTimerRef.current = null;
       }
+      currentIntervalRef.current = null;
     };
 
     const startPolling = (intervalMs: number) => {
-      if (pollingTimerRef.current) return;
+      // Se o polling já está rodando com o mesmo intervalo, não faz nada
+      if (pollingTimerRef.current && currentIntervalRef.current === intervalMs) {
+        return;
+      }
 
+      // Se o intervalo mudou, reinicia
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+      }
+
+      currentIntervalRef.current = intervalMs;
       pollingTimerRef.current = setInterval(async () => {
         if (isPollingRef.current) return;
 
@@ -258,7 +269,6 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
           await fn(true); // Forçar atualização ignorando o cache do serverQueryKey
         } catch (error) {
           // Não quebrar polling por erro pontual
-
         } finally {
           isPollingRef.current = false;
         }
@@ -266,14 +276,13 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     };
 
     const unsubscribe = ordersSocket.onStatus((status) => {
-      const blockedByOtherSession =
-        !status.isConnected &&
-        typeof status.lastError === 'string' &&
-        status.lastError.includes('Outra sessão ativa');
+      if (!status.isConnected) {
+        // Habilitar polling de fallback sempre que estiver desconectado
+        const blockedByOtherSession =
+          typeof status.lastError === 'string' &&
+          status.lastError.includes('Outra sessão ativa');
 
-      if (blockedByOtherSession) {
-        // WS bloqueado por login duplicado -> usar polling
-        startPolling(8000);
+        startPolling(blockedByOtherSession ? 8000 : 12000);
       } else {
         stopPolling();
       }
