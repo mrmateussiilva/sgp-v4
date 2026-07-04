@@ -1,5 +1,23 @@
 # Changelog - SGP v4
 
+## [1.4.2] - 2026-07-04
+
+### 🚀 Otimizações de Performance & Filtros em Memória
+- **Cache de ServerQueryKey**: Implementada inteligência que evita chamadas redundantes ao servidor quando o usuário altera apenas filtros locais (Vendedor, Cidade, Designer, Etapas).
+- **Zero Flicker de Carregamento**: Eliminado o estado temporário de "0 pedidos encontrados" durante a troca de abas (Pendentes, Prontos, Todos, Rascunhos), exibindo Skeletons suaves de transição.
+- **Filtragem Off-Thread Instantânea**: Ajustes no WebWorker para isolar rascunhos e processar filtros complexos em 0ms.
+
+### ✨ Produtividade & Rascunhos
+- **Contadores em Tempo Real**: Adicionadas contagens vivas nos chips de filtro (`Pendentes (12)`, `Atrasados 🔴 (2)`, `Prontos (45)`, `📝 Rascunhos (3)`).
+- **Auto-Save Inteligente**: Rascunhos agora contam com salvamento automático a cada 25 segundos em background com indicador visual na barra de ação.
+- **Duplicação de Rascunhos**: Possibilidade de duplicar rascunhos sem gerar número de OS prematuro.
+- **Persistência de Visão**: O modo de exibição selecionado (Pipeline ou Tabela) é salvo na sessão.
+
+### 🐛 Correções & Estabilidade
+- **Mapeamento SQLite (0/1)**: Corrigida falha no mapeamento de flags booleanas vindas do SQLite que causava pedidos não concluídos aparecendo como "Prontos".
+- **Inicialização getOrderUrgency**: Corrigido erro de inicialização hoisted do cálculo de urgência de entrega.
+- **Auto-Sync Resiliente**: Ajustado o hook `useOrderAutoSync` para utilizar `forceRefresh` no polling de background sem conflitar com o cache local.
+
 ## [1.4.1] - 2026-06-24
 
 ### 🔧 Resiliência de Conexão (Versão Web/PWA)
