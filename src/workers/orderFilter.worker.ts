@@ -73,20 +73,22 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
             });
         }
 
-        // Status de Produção (pending, ready, delayed)
+        // Status de Produção (pending, ready, delayed, drafts)
         if (filters.productionStatusFilter === 'pending') {
-            filtered = filtered.filter((order) => !order.pronto);
+            filtered = filtered.filter((order) => !order.pronto && !order.rascunho);
         } else if (filters.productionStatusFilter === 'ready') {
-            filtered = filtered.filter((order) => order.pronto);
+            filtered = filtered.filter((order) => order.pronto && !order.rascunho);
         } else if (filters.productionStatusFilter === 'delayed') {
             filtered = filtered.filter((order) => {
-                if (order.pronto || !order.data_entrega) return false;
+                if (order.pronto || order.rascunho || !order.data_entrega) return false;
                 const limitDate = new Date(order.data_entrega);
                 limitDate.setHours(0, 0, 0, 0);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 return limitDate < today;
             });
+        } else if (filters.productionStatusFilter === 'drafts') {
+            filtered = filtered.filter((order) => order.rascunho === true);
         }
     }
 

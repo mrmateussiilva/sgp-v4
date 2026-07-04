@@ -26,6 +26,7 @@ import { normalizeItemFieldsByTipo } from '../../utils/order-item-display';
 import { ordersSocket } from '../../lib/realtimeOrders';
 import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
+import { toCurrencyString } from '../utils';
 
 // Cache constants
 const ORDER_BY_ID_CACHE_TTL_MS = 2_000;
@@ -102,6 +103,8 @@ interface FetchOrdersParams {
     date_mode?: string;
 }
 
+const inFlightRequests = new Map<string, Promise<PaginatedOrders>>();
+
 const fetchOrdersPaginated = async (
     page: number = 1,
     pageSize: number = DEFAULT_PAGE_SIZE,
@@ -143,45 +146,47 @@ const fetchOrdersPaginated = async (
         params.date_mode = date_mode;
     }
 
-    const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
-    logger.debug('[fetchOrdersPaginated] Response status:', response.status);
-    logger.debug('[fetchOrdersPaginated] Response data type:', typeof response.data);
-    logger.debug('[fetchOrdersPaginated] Response data is array:', Array.isArray(response.data));
-    logger.debug('[fetchOrdersPaginated] Response data length:', Array.isArray(response.data) ? response.data.length : 'not array');
-    logger.debug('[fetchOrdersPaginated] Response data sample:', Array.isArray(response.data) && response.data.length > 0 ? response.data[0] : 'empty');
-
-    const allData = (response.data ?? []).map(mapPedidoFromApi);
-    logger.debug('[fetchOrdersPaginated] Mapped data length:', allData.length);
-    logger.debug('[fetchOrdersPaginated] Mapped data sample:', allData.length > 0 ? allData[0] : 'empty');
-
-    // Verifica se há mais páginas
-    const hasNextPage = allData.length > pageSize;
-    const paginatedData = hasNextPage ? allData.slice(0, pageSize) : allData;
-
-    // Estimativa conservadora do total
-    // Se estamos na página 1 e não tem próxima, sabemos o total exato
-    // Caso contrário, estimamos baseado no que temos
-    let total: number;
-    let totalPages: number;
-
-    if (!hasNextPage) {
-        // Última página - sabemos o total exato
-        total = skip + paginatedData.length;
-        totalPages = Math.max(1, Math.ceil(total / pageSize));
-    } else {
-        // Há mais páginas - estimativa baseada na página atual
-        // Assume pelo menos mais uma página
-        total = skip + pageSize + pageSize;
-        totalPages = Math.ceil(total / pageSize);
+    const cacheKey = JSON.stringify(params);
+    const existing = inFlightRequests.get(cacheKey);
+    if (existing) {
+        logger.debug('[fetchOrdersPaginated] Reaproveitando requisição idêntica em andamento:', cacheKey);
+        return existing;
     }
 
-    return {
-        orders: paginatedData,
-        total,
-        page,
-        page_size: pageSize,
-        total_pages: totalPages,
-    };
+    const promise = (async () => {
+        try {
+            const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
+            const allData = (response.data ?? []).map(mapPedidoFromApi);
+
+            // Verifica se há mais páginas
+            const hasNextPage = allData.length > pageSize;
+            const paginatedData = hasNextPage ? allData.slice(0, pageSize) : allData;
+
+            let total: number;
+            let totalPages: number;
+
+            if (!hasNextPage) {
+                total = skip + paginatedData.length;
+                totalPages = Math.max(1, Math.ceil(total / pageSize));
+            } else {
+                total = skip + pageSize + pageSize;
+                totalPages = Math.ceil(total / pageSize);
+            }
+
+            return {
+                orders: paginatedData,
+                total,
+                page,
+                page_size: pageSize,
+                total_pages: totalPages,
+            };
+        } finally {
+            inFlightRequests.delete(cacheKey);
+        }
+    })();
+
+    inFlightRequests.set(cacheKey, promise);
+    return promise;
 };
 
 // Exporting the API object
@@ -272,6 +277,10 @@ export const ordersApi = {
             logger.warn('[api.createOrder] Erro ao enviar broadcast WebSocket:', error);
         }
 
+        clearOrderCache(order.id);
+        setCacheWithLimit(order.id, order);
+        inFlightRequests.clear();
+
         return order;
     },
 
@@ -307,6 +316,10 @@ export const ordersApi = {
             logger.warn('[api.updateOrder] Erro ao enviar broadcast WebSocket:', error);
         }
 
+        clearOrderCache(order.id);
+        setCacheWithLimit(order.id, order);
+        inFlightRequests.clear();
+
         return order;
     },
 
@@ -330,6 +343,10 @@ export const ordersApi = {
         } catch (error) {
             logger.warn('[api.updateOrderMetadata] Erro ao salvar JSON do pedido na API:', error);
         }
+
+        clearOrderCache(order.id);
+        setCacheWithLimit(order.id, order);
+        inFlightRequests.clear();
 
         return order;
     },
@@ -372,6 +389,10 @@ export const ordersApi = {
             logger.warn('[api.updateOrderStatus] Erro ao enviar broadcast WebSocket:', error);
         }
 
+        clearOrderCache(updatedOrder.id);
+        setCacheWithLimit(updatedOrder.id, updatedOrder);
+        inFlightRequests.clear();
+
         return updatedOrder;
     },
 
@@ -380,6 +401,7 @@ export const ordersApi = {
         await apiClient.delete(`/pedidos/${orderId}`);
 
         clearOrderCache(orderId);
+        inFlightRequests.clear();
 
         try {
             ordersSocket.broadcastOrderDeleted(orderId);
@@ -629,4 +651,105 @@ export const ordersApi = {
 
         return response.data;
     },
+
+    // ─── Rascunhos ────────────────────────────────────────────────────────────
+
+    /**
+     * Salva o formulário atual como rascunho (sem validações obrigatórias).
+     * O rascunho fica armazenado no banco mas fora do fluxo de produção.
+     */
+    salvarRascunho: async (request: Partial<CreateOrderRequest>): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        const payload = {
+            cliente: request.cliente || '',
+            cidade_cliente: request.cidade_cliente || '',
+            estado_cliente: request.estado_cliente || '',
+            telefone_cliente: request.telefone_cliente || '',
+            data_entrada: request.data_entrada || new Date().toISOString().split('T')[0],
+            data_entrega: request.data_entrega || null,
+            forma_envio: request.forma_envio || '',
+            prioridade: request.prioridade || 'NORMAL',
+            observacao: request.observacao || '',
+            status: 'pendente',
+            valor_frete: request.valor_frete ?? 0,
+            items: request.items ?? [],
+            rascunho: true,
+        };
+
+        logger.debug('[api.salvarRascunho] Payload:', payload);
+        // Endpoint dedicado para rascunho — sem ambiguidade de validação
+        const response = await apiClient.post<ApiPedido>('/pedidos/rascunho', payload);
+        const order = mapPedidoFromApi(response.data);
+        return order;
+    },
+
+
+    /**
+     * Atualiza um rascunho existente sem validações obrigatórias.
+     */
+    atualizarRascunho: async (id: number, request: Partial<CreateOrderRequest>): Promise<OrderWithItems> => {
+        requireSessionToken();
+
+        const payload: Record<string, unknown> = {
+            rascunho: true,
+        };
+
+        if (request.cliente !== undefined) payload.cliente = request.cliente;
+        if (request.cidade_cliente !== undefined) payload.cidade_cliente = request.cidade_cliente;
+        if (request.estado_cliente !== undefined) payload.estado_cliente = request.estado_cliente;
+        if (request.telefone_cliente !== undefined) payload.telefone_cliente = request.telefone_cliente;
+        if (request.data_entrada !== undefined) payload.data_entrada = request.data_entrada;
+        if (request.data_entrega !== undefined) payload.data_entrega = request.data_entrega;
+        if (request.forma_envio !== undefined) payload.forma_envio = request.forma_envio;
+        if (request.forma_pagamento_id !== undefined) payload.forma_pagamento_id = request.forma_pagamento_id;
+        if (request.prioridade !== undefined) payload.prioridade = request.prioridade;
+        if (request.observacao !== undefined) payload.observacao = request.observacao;
+        if (request.valor_frete !== undefined) payload.valor_frete = toCurrencyString(request.valor_frete);
+        if (request.items !== undefined) payload.items = request.items;
+
+        const response = await apiClient.patch<ApiPedido>(`/pedidos/${id}`, payload);
+        const order = mapPedidoFromApi(response.data);
+        clearOrderCache(id);
+        setCacheWithLimit(id, order);
+        inFlightRequests.clear();
+        return order;
+    },
+
+    /**
+     * Lista todos os rascunhos salvos.
+     */
+    listarRascunhos: async (): Promise<OrderWithItems[]> => {
+        requireSessionToken();
+        const response = await apiClient.get<ApiPedido[]>('/pedidos/rascunhos');
+        return (response.data ?? []).map(mapPedidoFromApi);
+    },
+
+    /**
+     * Promove um rascunho para pedido ativo.
+     * Valida campos obrigatórios e o insere no fluxo de produção.
+     */
+    promoverRascunho: async (id: number): Promise<OrderWithItems> => {
+        requireSessionToken();
+        const response = await apiClient.post<ApiPedido>(`/pedidos/${id}/promover`);
+        const order = mapPedidoFromApi(response.data);
+        clearOrderCache(id);
+        setCacheWithLimit(id, order);
+        inFlightRequests.clear();
+
+        try {
+            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
+        } catch (error) {
+            logger.warn('[api.promoverRascunho] Erro ao salvar JSON:', error);
+        }
+
+        try {
+            ordersSocket.broadcastOrderCreated(order.id, order);
+        } catch (error) {
+            logger.warn('[api.promoverRascunho] Erro ao enviar broadcast WebSocket:', error);
+        }
+
+        return order;
+    },
 };
+

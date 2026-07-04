@@ -114,7 +114,40 @@ const TIPOS_PRODUCAO_DEFAULT = [
   { value: 'mesa_babado', label: 'Mesa de Babado' },
 ];
 
-// Hr. liberação agora vem diretamente da API (financeiro_liberado_em)
+// Helper puro para calcular urgência do pedido
+const calcOrderUrgency = (dataEntrega: string | null | undefined) => {
+  if (!dataEntrega) return { type: 'no-date', days: null };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let deliveryDate: Date;
+  const dateMatch = dataEntrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (dateMatch) {
+    const [, y, m, d] = dateMatch.map(Number);
+    deliveryDate = new Date(y, m - 1, d);
+  } else {
+    deliveryDate = new Date(dataEntrega);
+  }
+
+  deliveryDate.setHours(0, 0, 0, 0);
+
+  const diffTime = deliveryDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { type: 'overdue', days: Math.abs(diffDays) };
+  } else if (diffDays === 0) {
+    return { type: 'today', days: 0 };
+  } else if (diffDays === 1) {
+    return { type: 'tomorrow', days: 1 };
+  } else if (diffDays <= 3) {
+    return { type: 'soon', days: diffDays };
+  } else {
+    return { type: 'ok', days: diffDays };
+  }
+};
 
 export default function OrderList() {
   const navigate = useNavigate();
@@ -136,9 +169,25 @@ export default function OrderList() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState(''); // Termo de busca ativo (após clicar em buscar)
-  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready' | 'delayed'>(
-    'pending'
-  );
+  const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready' | 'delayed' | 'drafts'>(() => {
+    try {
+      const saved = sessionStorage.getItem('sgp_production_status_filter');
+      if (saved === 'all' || saved === 'pending' || saved === 'ready' || saved === 'delayed' || saved === 'drafts') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'pending';
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('sgp_production_status_filter', productionStatusFilter);
+    } catch {
+      // ignore
+    }
+  }, [productionStatusFilter]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -171,8 +220,26 @@ export default function OrderList() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  // Alternância entre tabela e pipeline de produção
-  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
+  // Alternância entre tabela e pipeline de produção (persistido no sessionStorage)
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>(() => {
+    try {
+      const saved = sessionStorage.getItem('sgp_view_mode');
+      if (saved === 'table' || saved === 'pipeline') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'table';
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('sgp_view_mode', viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
   // state removed
 
   // Estados para navegação por teclado (painel lateral desabilitado)
@@ -181,10 +248,31 @@ export default function OrderList() {
   const [bulkPdfBlob, setBulkPdfBlob] = useState<Blob | null>(null);
   const [bulkPdfFilename, setBulkPdfFilename] = useState('');
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
-  // const [contextPanelOpen, setContextPanelOpen] = useState(false);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
   const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(new Set());
+  const [draftsCount, setDraftsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api.listarRascunhos().then((drafts) => {
+      if (active) setDraftsCount(drafts.length);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [orders.length]);
+
+  const filterCounts = useMemo(() => {
+    const drafts = draftsCount ?? orders.filter(o => o.rascunho).length;
+    const pending = orders.filter(o => !o.pronto && !o.rascunho).length;
+    const ready = orders.filter(o => o.pronto && !o.rascunho).length;
+    const delayed = orders.filter(o => {
+      const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
+      return isOverdue && !o.pronto && !o.rascunho;
+    }).length;
+    const all = totalOrders || orders.length;
+
+    return { drafts, pending, ready, delayed, all };
+  }, [orders, draftsCount, totalOrders]);
 
   // Tipos de produção detectados dinamicamente nos dados carregados
   const derivedTiposProducao = useMemo(() => {
@@ -299,24 +387,49 @@ export default function OrderList() {
     return normalized.includes('sessão inválida') || normalized.includes('sessão expirada');
   };
 
-  const loadRequestRef = useRef(0);
+  const prevFilterRef = useRef(productionStatusFilter);
+  const prevServerQueryKeyRef = useRef<string>('');
 
-  const loadOrders = useCallback(async () => {
-    const requestId = ++loadRequestRef.current;
-    setLoading(true);
+  const loadOrders = useCallback(async (forceRefresh: boolean = false) => {
+    // Identifica exatamentes quais parâmetros vão para o backend
+    const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
+    const clientSideFiltersActive =
+      hasSearch ||
+      selectedStatuses.length > 0 ||
+      Boolean(selectedVendedor) ||
+      Boolean(selectedDesigner) ||
+      Boolean(selectedCidade) ||
+      Boolean(selectedFormaEnvio) ||
+      Boolean(selectedTipoProducao);
+
+    const serverQueryKey = JSON.stringify({
+      productionStatusFilter,
+      dateFrom,
+      dateTo,
+      activeSearchTerm: hasSearch ? undefined : activeSearchTerm,
+      clientSideFiltersActive,
+      page: clientSideFiltersActive || productionStatusFilter === 'all' ? 1 : page,
+      rowsPerPage: clientSideFiltersActive || productionStatusFilter === 'all' ? undefined : rowsPerPage,
+    });
+
+    // Se a query pro backend for EXATAMENTE a mesma e já temos dados, não faz nova requisição (exceto se forceRefresh for true)
+    if (!forceRefresh && serverQueryKey === prevServerQueryKeyRef.current && orders.length > 0) {
+      logger.debug('[OrderList] Evitando requisição de rede desnecessária (filtros apenas locais)');
+      return;
+    }
+    prevServerQueryKeyRef.current = serverQueryKey;
+
+    const isChangingTab = prevFilterRef.current !== productionStatusFilter;
+    if (isChangingTab) {
+      setOrders([]);
+      setLoading(true);
+      prevFilterRef.current = productionStatusFilter;
+    } else if (orders.length === 0) {
+      setLoading(true);
+    }
     try {
       const currentPage = page;
       const currentPageSize = rowsPerPage;
-      // Se houver busca ativa, sempre carregar dataset maior para filtrar localmente
-      const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
-      const clientSideFiltersActive =
-        hasSearch ||
-        selectedStatuses.length > 0 ||
-        Boolean(selectedVendedor) ||
-        Boolean(selectedDesigner) ||
-        Boolean(selectedCidade) ||
-        Boolean(selectedFormaEnvio) ||
-        Boolean(selectedTipoProducao);
 
       // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
@@ -336,9 +449,6 @@ export default function OrderList() {
           'Total:',
           paginatedData.total
         );
-        if (loadRequestRef.current !== requestId) {
-          return;
-        }
 
         // Quando buscamos 'all' com bigPageSize, sempre paginar no frontend
         // Os filtros client-side serão aplicados através de filteredOrders
@@ -349,9 +459,6 @@ export default function OrderList() {
         setTotalOrders(paginatedData.orders.length);
       } else if (productionStatusFilter === 'pending') {
         const all = await api.getPendingOrdersLight();
-        if (loadRequestRef.current !== requestId) {
-          return;
-        }
         logger.debug('[OrderList] getPendingOrdersLight retornou:', {
           ordersLength: all.length,
         });
@@ -372,9 +479,6 @@ export default function OrderList() {
             dateFrom || undefined, // data_inicio
             dateTo || undefined // data_fim
           );
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
           setOrders(paginatedData.orders);
           setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
           setTotalOrders(paginatedData.orders.length);
@@ -390,9 +494,6 @@ export default function OrderList() {
           };
 
           const paginatedData = await api.getOrdersWithFiltersForTable(filters);
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
@@ -400,31 +501,32 @@ export default function OrderList() {
       } else if (productionStatusFilter === 'ready') {
         if (clientSideFiltersActive || hasSearch) {
           const all = await api.getReadyOrdersLight();
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
           setOrders(all);
           setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
           setTotalOrders(all.length);
         } else {
           const paginatedData = await api.getReadyOrdersPaginated(currentPage + 1, currentPageSize);
-          if (loadRequestRef.current !== requestId) {
-            return;
-          }
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
         }
+      } else if (productionStatusFilter === 'drafts') {
+        const drafts = await api.listarRascunhos();
+        setOrders((prev) => {
+          const nonDrafts = prev.filter((o) => !o.rascunho);
+          return [...drafts, ...nonDrafts];
+        });
+        setTotalPages(Math.ceil(drafts.length / currentPageSize) || 1);
+        setTotalOrders(drafts.length);
       }
 
-      // Carregar logs de impressão para exibir badges
-      try {
-        const logs = await api.getAllLogs(1000);
+      // Carregar logs de impressão em segundo plano para badges (não bloqueia a renderização)
+      api.getAllLogs(200).then((logs) => {
         const printedIds = new Set(logs.map((log) => log.pedido_id));
         setPrintedOrderIds(printedIds);
-      } catch (logErr) {
+      }).catch((logErr) => {
         logger.error('[OrderList] Erro ao carregar logs para badges:', logErr);
-      }
+      });
     } catch (error) {
       const message = extractErrorMessage(error);
       if (isSessionError(message)) {
@@ -445,9 +547,7 @@ export default function OrderList() {
         logger.error('Error loading orders:', error);
       }
     } finally {
-      if (loadRequestRef.current === requestId) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, [
     dateFrom,
@@ -500,6 +600,16 @@ export default function OrderList() {
 
       return () => clearTimeout(timeoutId);
     }
+  }, [loadOrders]);
+
+  // Revalidar pedidos silenciosamente quando a aba/janela ganha foco
+  useEffect(() => {
+    const handleFocus = () => {
+      logger.debug('[OrderList] Foco na janela detectado, revalidando lista silenciosamente...');
+      loadOrders();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [loadOrders]);
 
   useEffect(() => {
@@ -844,41 +954,7 @@ export default function OrderList() {
   };
 
   // Calcular estado de urgência do pedido baseado na data de entrega
-  const getOrderUrgency = useCallback((dataEntrega: string | null | undefined) => {
-    if (!dataEntrega) return { type: 'no-date', days: null };
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Tratar dataEntrega com cuidado para evitar problemas de fuso horário
-    // Se for YYYY-MM-DD, extrair os componentes e criar data local
-    let deliveryDate: Date;
-    const dateMatch = dataEntrega.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
-    if (dateMatch) {
-      const [, y, m, d] = dateMatch.map(Number);
-      deliveryDate = new Date(y, m - 1, d);
-    } else {
-      deliveryDate = new Date(dataEntrega);
-    }
-
-    deliveryDate.setHours(0, 0, 0, 0);
-
-    const diffTime = deliveryDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) {
-      return { type: 'overdue', days: Math.abs(diffDays) };
-    } else if (diffDays === 0) {
-      return { type: 'today', days: 0 };
-    } else if (diffDays === 1) {
-      return { type: 'tomorrow', days: 1 };
-    } else if (diffDays <= 3) {
-      return { type: 'soon', days: diffDays };
-    } else {
-      return { type: 'ok', days: diffDays };
-    }
-  }, []);
+  const getOrderUrgency = useCallback((dataEntrega: string | null | undefined) => calcOrderUrgency(dataEntrega), []);
 
   // Obter lista de filtros ativos para exibição
   const activeFiltersList = useMemo(() => {
@@ -1974,22 +2050,33 @@ export default function OrderList() {
                 {/* Status Chips - Mobile Only */}
                 <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-none -mx-3 px-3">
                   {[
-                    { id: 'pending', label: 'Pendentes' },
-                    { id: 'delayed', label: 'Atrasados 🔴' },
-                    { id: 'ready', label: 'Prontos' },
-                    { id: 'all', label: 'Todos' },
+                    { id: 'pending', label: 'Pendentes', count: filterCounts.pending },
+                    { id: 'delayed', label: 'Atrasados 🔴', count: filterCounts.delayed },
+                    { id: 'ready', label: 'Prontos', count: filterCounts.ready },
+                    { id: 'all', label: 'Todos', count: filterCounts.all },
+                    { id: 'drafts', label: '📝 Rascunhos', count: filterCounts.drafts },
                   ].map((chip) => (
                     <button
                       key={chip.id}
                       onClick={() => setProductionStatusFilter(chip.id as any)}
                       className={cn(
-                        "whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95",
+                        "whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 flex items-center gap-1.5",
                         productionStatusFilter === chip.id
-                          ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
+                          ? chip.id === 'drafts'
+                            ? "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-500/20"
+                            : "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
                           : "bg-background text-muted-foreground border-border hover:bg-muted"
                       )}
                     >
-                      {chip.label}
+                      <span>{chip.label}</span>
+                      <span className={cn(
+                        "px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none",
+                        productionStatusFilter === chip.id
+                          ? "bg-white/25 text-white"
+                          : "bg-muted text-muted-foreground"
+                      )}>
+                        {chip.count}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -2027,20 +2114,29 @@ export default function OrderList() {
                         </Button>
                       </div>
 
-                      <div className="w-full sm:w-[180px]">
+                      <div className="w-full sm:w-[210px]">
                         <Select
                           value={productionStatusFilter}
                           onValueChange={(value) =>
-                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready')
+                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready' | 'drafts')
                           }
                         >
                           <SelectTrigger className="h-10">
                             <SelectValue placeholder="Status de produção" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pending">Pendentes (não prontos)</SelectItem>
-                            <SelectItem value="ready">Prontos para entrega</SelectItem>
-                            <SelectItem value="all">Todos os pedidos</SelectItem>
+                            <SelectItem value="pending">
+                              Pendentes ({filterCounts.pending})
+                            </SelectItem>
+                            <SelectItem value="ready">
+                              Prontos ({filterCounts.ready})
+                            </SelectItem>
+                            <SelectItem value="all">
+                              Todos ({filterCounts.all})
+                            </SelectItem>
+                            <SelectItem value="drafts">
+                              📝 Rascunhos ({filterCounts.drafts})
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

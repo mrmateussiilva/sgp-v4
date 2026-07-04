@@ -40,6 +40,64 @@ class OrdersWebSocketManager {
   private lastReconnectAttempt = 0; // Timestamp da última tentativa de reconexão
   private minReconnectInterval = 2000; // Mínimo de 2 segundos entre tentativas
 
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        if (import.meta.env.DEV) {
+          logger.debug('🌐 Navegador online detectado. Resetando e tentando conectar WebSocket...');
+        }
+        this.handleNetworkOrVisibilityChange();
+      });
+
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          if (import.meta.env.DEV) {
+            logger.debug('👀 Tab visível detectada. Resetando e tentando conectar WebSocket...');
+          }
+          this.handleNetworkOrVisibilityChange();
+        }
+      });
+    }
+  }
+
+  private handleNetworkOrVisibilityChange(): void {
+    if (!this.shouldStayConnected) return;
+
+    const now = Date.now();
+    // Se estiver desconectado, tentar reconectar imediatamente
+    if (!this.status.isConnected && !this.isConnecting) {
+      this.consecutiveFailures = 0;
+      this.lastReconnectAttempt = 0;
+      this.clearReconnectTimer();
+      this.ensureConnection(true);
+    } else if (this.status.isConnected && this.socket && this.socket.readyState === WebSocket.OPEN) {
+      // Se estiver conectado, enviar um ping rápido para verificar se a conexão está realmente ativa
+      try {
+        if (import.meta.env.DEV) {
+          logger.debug('⚡ Enviando ping de verificação pós-retorno de visibilidade/rede');
+        }
+        this.socket.send(JSON.stringify({ type: 'ping', timestamp: now }));
+      } catch (e) {
+        this.forceDisconnectForReconnect();
+      }
+    }
+  }
+
+  private forceDisconnectForReconnect(): void {
+    this.stopPing();
+    if (this.socket) {
+      try {
+        this.socket.close(4000, 'Heartbeat timeout');
+      } catch (error) {
+        // ignore
+      }
+      this.socket = null;
+    }
+    this.isConnecting = false;
+    this.updateStatus({ isConnected: false, lastError: 'Heartbeat timeout' });
+    this.scheduleReconnect();
+  }
+
   subscribe(listener: MessageListener): () => void {
     this.listeners.add(listener);
     this.shouldStayConnected = true;
@@ -344,6 +402,23 @@ class OrdersWebSocketManager {
 
         const message = JSON.parse(payload) as OrderEventMessage;
 
+        // Tratar mensagens de controle internas (ping/pong) e não propagar para os listeners do app
+        if (message.type === 'ping') {
+          // Responder com pong para o servidor
+          if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            try {
+              this.socket.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+            } catch (error) {
+              // ignore
+            }
+          }
+          return; // Aborta propagação
+        }
+
+        if (message.type === 'pong') {
+          return; // Aborta propagação
+        }
+
         // Log detalhado em desenvolvimento
         if (import.meta.env.DEV) {
           logger.debug('📨 WebSocket mensagem recebida:', {
@@ -411,35 +486,31 @@ class OrdersWebSocketManager {
       return;
     }
 
-    // CORREÇÃO 4: Limitar número de tentativas de reconexão
-    if (this.consecutiveFailures >= this.maxReconnectAttempts) {
-      if (import.meta.env.DEV) {
-        // noop
-      }
-      this.updateStatus({
-        lastError: `WebSocket não disponível após ${this.maxReconnectAttempts} tentativas - funcionando sem tempo real`,
-      });
-      return;
-    }
-
-    // CORREÇÃO 3: Implementar exponential backoff
-    // Calcular delay: 1s, 2s, 4s, 8s... máximo 30s
-    const baseDelay = 1000; // 1 segundo base
-    const maxDelay = 30000; // 30 segundos máximo
-    const exponentialDelay = Math.min(
-      baseDelay * Math.pow(2, this.consecutiveFailures - 1),
-      maxDelay
-    );
-
-    // CORREÇÃO 2: Garantir delay mínimo de 2-3 segundos
-    const finalDelay = Math.max(exponentialDelay, this.minReconnectInterval);
-
     this.updateStatus({
       reconnectAttempts: this.status.reconnectAttempts + 1,
     });
 
+    let finalDelay = 2000;
+
+    if (this.consecutiveFailures >= this.maxReconnectAttempts) {
+      // Reconexão lenta permanente após o limite de tentativas rápidas (jitter de 45-60s)
+      finalDelay = 45000 + Math.random() * 15000;
+      this.updateStatus({
+        lastError: `WebSocket instável após ${this.maxReconnectAttempts} tentativas. Tentando reconectar a cada 1min...`,
+      });
+    } else {
+      // Exponential backoff
+      const baseDelay = 1000; // 1 segundo base
+      const maxDelay = 30000; // 30 segundos máximo
+      const exponentialDelay = Math.min(
+        baseDelay * Math.pow(2, this.consecutiveFailures - 1),
+        maxDelay
+      );
+      finalDelay = Math.max(exponentialDelay, this.minReconnectInterval);
+    }
+
     if (import.meta.env.DEV) {
-      logger.debug(`🔄 WebSocket: Agendando reconexão em ${finalDelay}ms (tentativa ${this.consecutiveFailures + 1}/${this.maxReconnectAttempts})`);
+      logger.debug(`🔄 WebSocket: Agendando reconexão em ${Math.round(finalDelay)}ms (falhas consecutivas: ${this.consecutiveFailures})`);
     }
 
     this.reconnectTimer = setTimeout(() => {
@@ -462,13 +533,21 @@ class OrdersWebSocketManager {
     this.stopPing();
     this.pingTimer = setInterval(() => {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        // Watchdog: se não recebermos nada do servidor por mais de 35s, consideramos a conexão morta
+        const now = Date.now();
+        if (this.status.lastEventAt && now - this.status.lastEventAt > 35000) {
+          logger.warn('⚠️ WebSocket: Heartbeat timeout. Nenhuma mensagem recebida há mais de 35s. Forçando reconexão...');
+          this.forceDisconnectForReconnect();
+          return;
+        }
+
         try {
-          this.socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+          this.socket.send(JSON.stringify({ type: 'ping', timestamp: now }));
         } catch (error) {
           logger.warn('Falha ao enviar ping do WebSocket:', error);
         }
       }
-    }, 30000);
+    }, 15000); // 15 segundos para Cloudflare
   }
 
   private stopPing(): void {

@@ -206,6 +206,14 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                 </Tooltip>
               </TooltipProvider>
             )}
+            {order.rascunho && (
+              <Badge
+                variant="outline"
+                className="text-[8px] lg:text-[9px] px-1 py-0 h-4 bg-amber-100 text-amber-800 border-amber-300 w-fit font-bold"
+              >
+                RASCUNHO
+              </Badge>
+            )}
             {isReplacementOrder(order) && (
               <Badge
                 variant="outline"
@@ -307,7 +315,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
       </TableCell>
 
       {/* Checkboxes de Status */}
-      {/* Financeiro - Apenas admins podem alterar */}
+      {/* Financeiro - Apenas admins podem alterar em pedidos ativos */}
       <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
         <TooltipProvider>
           <Tooltip>
@@ -315,7 +323,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               <div className="inline-block">
                 <Checkbox
                   checked={order.financeiro === true}
-                  disabled={!isAdmin}
+                  disabled={order.rascunho || !isAdmin}
                   onCheckedChange={() =>
                     handleStatusClick(
                       order.id,
@@ -326,7 +334,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                   }
                   className={cn(
                     "transition-all duration-300 h-5 w-5 rounded-full border-2",
-                    !isAdmin ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                    (!isAdmin || order.rascunho) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
                     order.financeiro
                       ? "bg-orange-500 border-orange-500 text-white shadow-[0_0_8px_rgba(249,115,22,0.4)]"
                       : "bg-transparent border-slate-300"
@@ -336,11 +344,13 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
             </TooltipTrigger>
             <TooltipContent>
               <p className="font-bold">Financeiro</p>
-              {!isAdmin && (
+              {order.rascunho ? (
+                <p className="text-xs text-amber-600 font-medium">Rascunhos não entram no fluxo de produção.</p>
+              ) : !isAdmin ? (
                 <p className="text-xs mt-0.5 opacity-80">
                   Somente administradores.
                 </p>
-              )}
+              ) : null}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -351,7 +361,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
         {formatTimeHHmm(order.financeiro_liberado_em)}
       </TableCell>
 
-      {/* Conferência - Só habilitado se Financeiro estiver marcado */}
+      {/* Conferência - Só habilitado se ativo e Financeiro marcado */}
       <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
         <TooltipProvider>
           <Tooltip>
@@ -359,7 +369,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               <div className="inline-block">
                 <Checkbox
                   checked={order.conferencia === true}
-                  disabled={!order.financeiro || !canToggleConferencia}
+                  disabled={order.rascunho || !order.financeiro || !canToggleConferencia}
                   onCheckedChange={() =>
                     handleStatusClick(
                       order.id,
@@ -370,7 +380,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                   }
                   className={cn(
                     "transition-all duration-300 h-5 w-5 rounded-full border-2",
-                    (!order.financeiro || !canToggleConferencia) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                    (order.rascunho || !order.financeiro || !canToggleConferencia) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
                     order.conferencia
                       ? "bg-amber-600 border-amber-600 text-white shadow-[0_0_8px_rgba(217,119,6,0.4)]"
                       : "bg-transparent border-slate-300"
@@ -378,12 +388,15 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>Conferência</TooltipContent>
+            <TooltipContent>
+              <p className="font-bold">Conferência</p>
+              {order.rascunho && <p className="text-xs text-amber-600 font-medium">Rascunhos não entram no fluxo de produção.</p>}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </TableCell>
 
-      {/* Impressão - Só habilitado se Financeiro estiver marcado */}
+      {/* Impressão - Só habilitado se ativo e Financeiro marcado */}
       <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
         <TooltipProvider>
           <Tooltip>
@@ -391,7 +404,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               <div className="inline-block">
                 <Checkbox
                   checked={order.sublimacao === true}
-                  disabled={!order.financeiro || !canToggleImpressao}
+                  disabled={order.rascunho || !order.financeiro || !canToggleImpressao}
                   onCheckedChange={() =>
                     handleStatusClick(
                       order.id,
@@ -402,7 +415,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                   }
                   className={cn(
                     "transition-all duration-300 h-5 w-5 rounded-full border-2",
-                    (!order.financeiro || !canToggleImpressao) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                    (order.rascunho || !order.financeiro || !canToggleImpressao) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
                     order.sublimacao
                       ? "bg-purple-600 border-purple-600 text-white shadow-[0_0_8px_rgba(147,51,234,0.4)]"
                       : "bg-transparent border-slate-300"
@@ -410,7 +423,10 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>Impressão</TooltipContent>
+            <TooltipContent>
+              <p className="font-bold">Impressão</p>
+              {order.rascunho && <p className="text-xs text-amber-600 font-medium">Rascunhos não entram no fluxo de produção.</p>}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
         {order.sublimacao &&
@@ -434,7 +450,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
           )}
       </TableCell>
 
-      {/* Costura - Só habilitado se Financeiro estiver marcado */}
+      {/* Costura - Só habilitado se ativo e Financeiro marcado */}
       <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
         <TooltipProvider>
           <Tooltip>
@@ -442,7 +458,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               <div className="inline-block">
                 <Checkbox
                   checked={order.costura === true}
-                  disabled={!order.financeiro}
+                  disabled={order.rascunho || !order.financeiro}
                   onCheckedChange={() =>
                     handleStatusClick(
                       order.id,
@@ -453,7 +469,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                   }
                   className={cn(
                     "transition-all duration-300 h-5 w-5 rounded-full border-2",
-                    !order.financeiro ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                    (order.rascunho || !order.financeiro) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
                     order.costura
                       ? "bg-blue-600 border-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
                       : "bg-transparent border-slate-300"
@@ -461,12 +477,15 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>Costura</TooltipContent>
+            <TooltipContent>
+              <p className="font-bold">Costura</p>
+              {order.rascunho && <p className="text-xs text-amber-600 font-medium">Rascunhos não entram no fluxo de produção.</p>}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </TableCell>
 
-      {/* Expedição - Só habilitado se Financeiro estiver marcado */}
+      {/* Expedição - Só habilitado se ativo e Financeiro marcado */}
       <TableCell className="text-center whitespace-nowrap px-0 lg:px-1 xl:px-2 py-3 lg:py-4">
         <TooltipProvider>
           <Tooltip>
@@ -474,7 +493,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
               <div className="inline-block">
                 <Checkbox
                   checked={order.expedicao === true}
-                  disabled={!order.financeiro}
+                  disabled={order.rascunho || !order.financeiro}
                   onCheckedChange={() =>
                     handleStatusClick(
                       order.id,
@@ -485,7 +504,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                   }
                   className={cn(
                     "transition-all duration-300 h-5 w-5 rounded-full border-2",
-                    !order.financeiro ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
+                    (order.rascunho || !order.financeiro) ? "opacity-30 cursor-not-allowed" : "cursor-pointer hover:scale-110",
                     order.expedicao
                       ? "bg-green-600 border-green-600 text-white shadow-[0_0_8px_rgba(22,163,74,0.4)]"
                       : "bg-transparent border-slate-300"
@@ -493,15 +512,22 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent>Expedição</TooltipContent>
+            <TooltipContent>
+              <p className="font-bold">Expedição</p>
+              {order.rascunho && <p className="text-xs text-amber-600 font-medium">Rascunhos não entram no fluxo de produção.</p>}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </TableCell>
 
-      {/* Status (Pronto / Em andamento) - Campo calculado automaticamente */}
+      {/* Status (Pronto / Em andamento / Rascunho) - Campo calculado automaticamente */}
       <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 border-l border-border/10">
         <div className="flex items-center justify-center gap-1.5">
-          {order.pronto ? (
+          {order.rascunho ? (
+            <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none shadow-[0_0_8px_rgba(245,158,11,0.3)] h-6 px-3 uppercase text-[10px] font-black tracking-widest">
+              RASCUNHO
+            </Badge>
+          ) : order.pronto ? (
             <Badge className="bg-green-600 hover:bg-green-700 text-white border-none shadow-[0_0_8px_rgba(22,163,74,0.3)] h-6 px-3 uppercase text-[10px] font-black tracking-widest">
               PRONTO
             </Badge>

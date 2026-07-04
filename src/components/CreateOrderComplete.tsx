@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, Save, Copy } from 'lucide-react';
+import { Plus, X, Save, Copy, FileText, CheckCircle2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,7 @@ import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
 import { parseMonetary, formatMonetary } from '@/utils/currency';
 import { normalizeItemFieldsByTipo } from '@/utils/order-item-display';
+import { useFormDraftCache } from '@/hooks/useFormDraftCache';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -141,7 +142,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const navigate = useNavigate();
   const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
-  const { updateOrder: updateOrderInStore } = useOrderStore();
+  const { updateOrder: updateOrderInStore, addOrder: addOrderInStore } = useOrderStore();
 
 
   logger.debug('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
@@ -552,6 +553,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       setTabs(generatedTabs);
       setTabsData(data);
       setActiveTab(generatedTabs[0]);
+      // Marcar se o pedido carregado é um rascunho
+      setIsRascunho(Boolean(order.rascunho));
       // Salvar estado inicial para comparação
       setInitialFormData(formData);
       setInitialTabsData(data);
@@ -565,7 +568,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   }
 
-  const [formData, setFormData] = useState({
+  // Valor padrão do formulário (reutilizado no cache e no clearForm)
+  const defaultFormData = {
     numero: '',
     cliente: '',
     telefone_cliente: '',
@@ -581,13 +585,69 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     tipo_pagamento: '',
     desconto_tipo: '',
     valor_frete: '0,00',
+  };
+
+  // -------------------------------------------------------------------------
+  // CACHE DE RASCUNHO LOCAL (sessionStorage)
+  // Salva automaticamente o estado do formulário quando o usuário troca de rota
+  // antes de salvar. Só funciona em modo criação; em edição os dados já estão
+  // no banco e são carregados via API.
+  // -------------------------------------------------------------------------
+  const { hasCachedDraft: _hasCachedDraft, loadCachedDraft, saveDraft, clearDraft } = useFormDraftCache({
+    enabled: !isEditMode,
   });
 
-  const [tabs, setTabs] = useState<string[]>(['tab-1']);
-  const [activeTab, setActiveTab] = useState('tab-1');
-  const [tabsData, setTabsData] = useState<Record<string, TabItem>>({
-    'tab-1': createEmptyTab('tab-1'),
+  // Restaurar rascunho do cache apenas uma vez na montagem do componente (modo criação)
+
+  // Flag para saber se os dados foram restaurados do cache (disparar toast na montagem)
+  const wasRestoredFromCacheRef = useRef(false);
+
+  const [formData, setFormData] = useState(() => {
+    // Verificar se há rascunho cacheado antes de inicializar
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.formData) {
+          wasRestoredFromCacheRef.current = true;
+          return cached.formData as typeof defaultFormData;
+        }
+      } catch {
+        // se falhar, começar com o padrão
+      }
+    }
+    return defaultFormData;
   });
+
+  const [tabs, setTabs] = useState<string[]>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.tabs) return cached.tabs;
+      } catch { /* noop */ }
+    }
+    return ['tab-1'];
+  });
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.activeTab) return cached.activeTab;
+      } catch { /* noop */ }
+    }
+    return 'tab-1';
+  });
+
+  const [tabsData, setTabsData] = useState<Record<string, TabItem>>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.tabsData) return cached.tabsData as Record<string, TabItem>;
+      } catch { /* noop */ }
+    }
+    return { 'tab-1': createEmptyTab('tab-1') };
+  });
+
 
   // Estado para gerenciar mudanças não salvas de cada item
 
@@ -601,6 +661,27 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Desabilitado - não usado atualmente (comentado no useEffect beforeunload)
   const [_initialFormData, setInitialFormData] = useState(formData);
   const [_initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
+
+  // -------------------------------------------------------------------------
+  // AUTO-PERSISTÊNCIA DO FORMULÁRIO NO CACHE (somente em modo criação)
+  // Salva automaticamente toda vez que os dados mudam (com debounce interno).
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (isEditMode) return; // modo edição não precisa de cache local
+    saveDraft({ formData: formData as any, tabs, tabsData: tabsData as any, activeTab });
+  }, [isEditMode, formData, tabs, tabsData, activeTab, saveDraft]);
+
+  // Toast de boas-vindas quando o formulário é restaurado do cache
+  useEffect(() => {
+    if (wasRestoredFromCacheRef.current) {
+      toast({
+        title: '📋 Formulário restaurado',
+        description: 'Continuando de onde você parou antes de sair da tela.',
+      });
+    }
+    // Executar apenas na montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
@@ -636,6 +717,11 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Estado para controlar se a ficha está bloqueada (concluída)
   const [isLocked, setIsLocked] = useState(false);
   const [_localStatus, setLocalStatus] = useState<OrderStatus>(OrderStatus.Pendente);
+
+  // Estado de rascunho
+  const [isRascunho, setIsRascunho] = useState(false);
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string | null>(null);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
@@ -1800,6 +1886,137 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
 
 
+  const handleSalvarRascunho = async () => {
+    setIsDraftSaving(true);
+    try {
+      const currentItems = tabs.map((tabId) => tabsData[tabId]).filter(Boolean);
+      const items = currentItems.map((tab) => {
+        // Desestruturar para excluir `id` (string como "tab-1") e `orderItemId`
+        // que podem quebrar a validação do Pydantic no backend (espera id: int | null)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id: _tabStringId, orderItemId, ...rest } = tab;
+        return {
+          ...rest,
+          // Se o item já existe no banco, incluir o id numérico real
+          ...(orderItemId ? { id: orderItemId } : {}),
+          item_name: tab.descricao || tab.tipo_producao || 'Item',
+          quantity: Number(tab.quantidade_paineis || tab.quantidade_totem || tab.quantidade_lona || tab.quantidade_adesivo || tab.quantidade_canga || tab.quantidade_impressao_3d || tab.quantidade_mochilinha || 1),
+          unit_price: 0,
+        };
+      });
+
+      const draftPayload = {
+        cliente: formData.cliente || '',
+        cidade_cliente: formData.cidade_cliente || '',
+        estado_cliente: formData.estado_cliente || '',
+        telefone_cliente: formData.telefone_cliente || '',
+        data_entrada: formData.data_entrada || new Date().toISOString().split('T')[0],
+        data_entrega: formData.data_entrega || undefined,
+        forma_envio: formData.forma_envio || '',
+        prioridade: formData.prioridade || 'NORMAL',
+        observacao: formData.observacao || '',
+        status: OrderStatus.Pendente,
+        valor_frete: parseMonetary(formData.valor_frete) || 0,
+        items: items as any[],
+        rascunho: true,
+      };
+
+      if (isRascunho && selectedOrderId) {
+        // Atualizar rascunho existente
+        await api.atualizarRascunho(selectedOrderId, draftPayload);
+      } else {
+        // Criar novo rascunho
+        const savedDraft = await api.salvarRascunho(draftPayload);
+        // Limpar cache local — o rascunho agora está no banco
+        clearDraft();
+        // Navegar para modo de edição do rascunho criado
+        navigate(`/dashboard/orders/${savedDraft.id}/edit`);
+      }
+
+
+      setIsRascunho(true);
+      toast({
+        title: '✅ Rascunho salvo!',
+        description: 'O pedido foi salvo como rascunho. Você pode continuar editando depois.',
+      });
+    } catch (error) {
+      logger.error('Erro ao salvar rascunho:', error);
+      toast({
+        title: 'Erro ao salvar rascunho',
+        description: 'Não foi possível salvar o rascunho. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDraftSaving(false);
+    }
+  };
+
+  // Auto-save silencioso em rascunhos (a cada 25 segundos)
+  const lastSavedHashRef = useRef<string>('');
+  useEffect(() => {
+    if (!isRascunho || !selectedOrderId) return;
+
+    const currentHash = JSON.stringify({ formData, tabsData });
+    if (!lastSavedHashRef.current) {
+      lastSavedHashRef.current = currentHash;
+      return;
+    }
+    if (lastSavedHashRef.current === currentHash) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setAutoSaveStatus('saving');
+        const items = tabs.map((tabId) => {
+          const tabData = tabsData[tabId] || createEmptyTab(tabId);
+          return {
+            id: tabData.orderItemId,
+            item_name: (tabData as any).item_name || tabData.tipo_producao || 'Item',
+            quantity: Number.parseInt(tabData.quantidade_paineis || tabData.quantidade_lona || tabData.quantidade_totem || tabData.quantidade_adesivo || '1', 10) || 1,
+            unit_price: parseMonetary(tabData.valor_unitario) || 0,
+            largura: parseMonetary(tabData.largura) || 0,
+            altura: parseMonetary(tabData.altura) || 0,
+            tecido: tabData.tecido || '',
+            acabamento: tabData.tipo_acabamento || '',
+            observacao: tabData.observacao || '',
+          };
+        });
+
+        await api.atualizarRascunho(selectedOrderId, {
+          cliente: formData.cliente || '',
+          cidade_cliente: formData.cidade_cliente || '',
+          estado_cliente: formData.estado_cliente || '',
+          telefone_cliente: formData.telefone_cliente || '',
+          data_entrada: formData.data_entrada || new Date().toISOString().split('T')[0],
+          data_entrega: formData.data_entrega || undefined,
+          forma_envio: formData.forma_envio || '',
+          prioridade: formData.prioridade || 'NORMAL',
+          observacao: formData.observacao || '',
+          status: OrderStatus.Pendente,
+          valor_frete: parseMonetary(formData.valor_frete) || 0,
+          items: items as any[],
+          rascunho: true,
+        });
+
+        lastSavedHashRef.current = currentHash;
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setAutoSaveStatus(`✓ Auto-salvo às ${timeStr}`);
+      } catch (err) {
+        logger.warn('[AutoSave] Erro ao auto-salvar rascunho:', err);
+        setAutoSaveStatus(null);
+      }
+    }, 25000);
+
+    return () => clearTimeout(timer);
+  }, [isRascunho, selectedOrderId, formData, tabsData, tabs]);
+
+  const handlePromoverRascunho = () => {
+    if (!selectedOrderId) return;
+    // Forçar o fluxo completo de validação (validateItemComplete + validateAll)
+    // Se a ficha não estiver completa com todos os campos obrigatórios de produção, o salvamento/publicação é bloqueado
+    handleSalvar();
+  };
+
   const handleSalvar = () => {
     if (isEditMode && !selectedOrderId) {
       toast({
@@ -1897,6 +2114,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     setActiveTab('tab-1');
     setErrors({});
 
+    // Limpar cache do sessionStorage — pedido foi salvo/descartado com sucesso
+    clearDraft();
   };
 
   /**
@@ -2473,10 +2692,29 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           }
         }
 
+        // Se era um rascunho, promover para pedido ativo (gera número de OS e entra na produção)
+        if (isRascunho) {
+          try {
+            finalOrder = await api.promoverRascunho(selectedOrderId);
+            setIsRascunho(false);
+          } catch (promoteError: any) {
+            const detail = promoteError?.response?.data?.detail || String(promoteError);
+            toast({
+              title: 'Erro ao publicar pedido',
+              description: detail,
+              variant: 'destructive',
+            });
+            setShowResumoModal(false);
+            return;
+          }
+        }
+
         const orderIdentifier = finalOrder.numero ?? finalOrder.id.toString();
         toast({
-          title: 'Pedido atualizado!',
-          description: `Pedido ${orderIdentifier} atualizado com sucesso.`,
+          title: isRascunho ? '🚀 Pedido publicado!' : 'Pedido atualizado!',
+          description: isRascunho
+            ? `Rascunho ${orderIdentifier} promovido para pedido ativo com sucesso.`
+            : `Pedido ${orderIdentifier} atualizado com sucesso.`,
         });
 
         setShowResumoModal(false);
@@ -2535,6 +2773,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       };
 
       const createdOrder = await api.createOrder(createOrderRequest);
+      addOrderInStore(createdOrder);
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
       // Imagens já foram enviadas antes de criar o pedido, então estão prontas
@@ -2652,6 +2891,32 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
               className="bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200"
             >
               Reabrir Ficha
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de Rascunho */}
+      {isRascunho && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-amber-800">Rascunho</h3>
+                <p className="text-sm text-amber-700 mt-0.5">
+                  Este pedido está salvo como rascunho e não aparece no fluxo de produção.
+                  Preencha os dados obrigatórios e publique quando estiver pronto.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handlePromoverRascunho}
+              disabled={isSaving}
+              className="bg-amber-500 hover:bg-amber-600 text-white gap-2 flex-shrink-0"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {isSaving ? 'Publicando...' : 'Publicar Pedido'}
             </Button>
           </div>
         </div>
@@ -3383,7 +3648,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       </Card>
 
       {/* Botões de Ação */}
-      <div className="flex gap-4 flex-wrap justify-end">
+      <div className="flex gap-4 flex-wrap items-center justify-end">
+        {autoSaveStatus && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-700 text-xs font-semibold border border-amber-300 shadow-sm animate-in fade-in">
+            <Check className="h-3.5 w-3.5 text-amber-600" />
+            <span>{autoSaveStatus === 'saving' ? 'Salvando rascunho em background...' : autoSaveStatus}</span>
+          </div>
+        )}
+
         <Button
           variant="outline"
           className="h-11 text-base"
@@ -3393,6 +3665,18 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         </Button>
 
         <Button
+          id="btn-salvar-rascunho"
+          variant="outline"
+          onClick={handleSalvarRascunho}
+          disabled={isDraftSaving}
+          className="gap-2 h-11 text-base border-amber-400 text-amber-700 hover:bg-amber-50"
+        >
+          <FileText className="h-5 w-5" />
+          {isDraftSaving ? 'Salvando...' : isRascunho ? 'Atualizar Rascunho' : 'Salvar Rascunho'}
+        </Button>
+
+        <Button
+          id="btn-salvar-pedido"
           onClick={handleSalvar}
           className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-11 text-base"
         >

@@ -200,6 +200,9 @@ export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
     const totalValue = valorItens || items.reduce((sum, item) => sum + item.subtotal, 0);
     const status = mapStatusFromApi(pedido.status);
     const prontoFromApi = (pedido as unknown as { pronto?: unknown }).pronto;
+    const isProntoCalculated = prontoFromApi !== undefined && prontoFromApi !== null
+        ? (prontoFromApi === true || prontoFromApi === 1 || prontoFromApi === 'true' || prontoFromApi === '1')
+        : status === OrderStatus.Concluido;
 
     return {
         id: pedido.id,
@@ -227,10 +230,11 @@ export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
         sublimacao: Boolean(pedido.sublimacao),
         costura: Boolean(pedido.costura),
         expedicao: Boolean(pedido.expedicao),
-        pronto: typeof prontoFromApi === 'boolean' ? prontoFromApi : status === OrderStatus.Concluido,
+        pronto: isProntoCalculated,
         sublimacao_maquina: pedido.sublimacao_maquina ?? undefined,
         sublimacao_data_impressao: pedido.sublimacao_data_impressao ?? undefined,
         financeiro_liberado_em: pedido.financeiro_liberado_em ?? undefined,
+        rascunho: Boolean((pedido as unknown as Record<string, unknown>).rascunho),
         items,
     };
 };

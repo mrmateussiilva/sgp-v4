@@ -85,9 +85,43 @@ export function OrderDuplicateModal() {
             closeDuplicateModal();
 
             toast({
-                title: 'Duplicando pedido...',
-                description: 'Aguarde enquanto o pedido está sendo duplicado.',
+                title: orderToDuplicate.rascunho ? 'Duplicando rascunho...' : 'Duplicando pedido...',
+                description: 'Aguarde enquanto o registro está sendo duplicado.',
             });
+
+            if (orderToDuplicate.rascunho) {
+                const itemsPayload = (orderToDuplicate.items || []).map((item) => ({
+                    item_name: item.item_name || item.descricao || 'Item',
+                    quantity: item.quantity || 1,
+                    unit_price: item.unit_price || 0,
+                    largura: item.largura || 0,
+                    altura: item.altura || 0,
+                    tecido: item.tecido || '',
+                    acabamento: (item as any).acabamento || (item as any).tipo_acabamento || '',
+                    observacao: item.observacao || '',
+                }));
+
+                const newDraft = await api.salvarRascunho({
+                    cliente: orderToDuplicate.cliente ? `${orderToDuplicate.cliente} (Cópia)` : 'Rascunho (Cópia)',
+                    cidade_cliente: orderToDuplicate.cidade_cliente || '',
+                    estado_cliente: orderToDuplicate.estado_cliente || '',
+                    telefone_cliente: orderToDuplicate.telefone_cliente || '',
+                    data_entrada: duplicateDataEntrada || new Date().toISOString().split('T')[0],
+                    data_entrega: duplicateDataEntrega || undefined,
+                    forma_envio: orderToDuplicate.forma_envio || '',
+                    prioridade: orderToDuplicate.prioridade || 'NORMAL',
+                    observacao: orderToDuplicate.observacao || '',
+                    valor_frete: typeof orderToDuplicate.valor_frete === 'number' ? orderToDuplicate.valor_frete : 0,
+                    items: itemsPayload as any[],
+                    rascunho: true,
+                });
+
+                toast({
+                    title: 'Rascunho duplicado!',
+                    description: `Novo rascunho criado para ${newDraft.cliente || 'o cliente'}.`,
+                });
+                return;
+            }
 
             const newOrder = await api.duplicateOrder(orderToDuplicate.id, {
                 data_entrada: duplicateDataEntrada || undefined,
