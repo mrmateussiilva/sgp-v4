@@ -214,7 +214,7 @@ interface UseOrderAutoSyncProps {
   setOrders: (orders: OrderWithItems[] | ((prev: OrderWithItems[]) => OrderWithItems[])) => void;
   removeOrder: (orderId: number) => void;
   updateOrder: (order: OrderWithItems) => void;
-  loadOrders?: () => Promise<void>;
+  loadOrders?: (forceRefresh?: boolean) => Promise<void>;
 }
 
 export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, loadOrders }: UseOrderAutoSyncProps) => {
@@ -255,7 +255,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
 
         try {
           isPollingRef.current = true;
-          await fn();
+          await fn(true); // Forçar atualização ignorando o cache do serverQueryKey
         } catch (error) {
           // Não quebrar polling por erro pontual
 
