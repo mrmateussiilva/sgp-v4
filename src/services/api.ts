@@ -28,10 +28,10 @@ export const api = {
   getPendingOrdersPaginated: async (page?: number, pageSize?: number) =>
     ordersApi.getOrdersPaginated(page, pageSize, OrderStatus.Pendente),
   getReadyOrdersPaginated: async (page?: number, pageSize?: number, status?: OrderStatus, cliente?: string, date_from?: string, date_to?: string, tipo_producao?: string) =>
-    ordersApi.getOrdersPaginated(page, pageSize, status || OrderStatus.Concluido, cliente, date_from, date_to, tipo_producao),
+    ordersApi.getOrdersPaginated(page, pageSize, status, cliente, date_from, date_to, tipo_producao, true),
   getReadyOrdersLight: async () => {
-    // Busca até 500 pedidos prontos limpos do backend
-    const paginated = await ordersApi.getOrdersPaginated(1, 500, OrderStatus.Concluido);
+    // Busca até 500 pedidos prontos limpos do backend (is_pronto = true)
+    const paginated = await ordersApi.getOrdersPaginated(1, 500, undefined, undefined, undefined, undefined, undefined, true);
     return paginated.orders;
   },
   getOrderById: ordersApi.getOrderById,

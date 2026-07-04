@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, X, Save, Copy, FileText, CheckCircle2 } from 'lucide-react';
+import { Plus, X, Save, Copy, FileText, CheckCircle2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,7 +141,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   const navigate = useNavigate();
   const { id: routeOrderId } = useParams<{ id?: string }>();
   const { toast } = useToast();
-  const { updateOrder: updateOrderInStore } = useOrderStore();
+  const { updateOrder: updateOrderInStore, addOrder: addOrderInStore } = useOrderStore();
 
 
   logger.debug('[CreateOrderComplete] Renderizando. Mode:', mode, 'RouteOrderId:', routeOrderId);
@@ -642,6 +642,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Estado de rascunho
   const [isRascunho, setIsRascunho] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<string | null>(null);
 
   const [vendedores, setVendedores] = useState<string[]>([]);
   const [designers, setDesigners] = useState<string[]>([]);
@@ -1810,12 +1811,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     setIsDraftSaving(true);
     try {
       const currentItems = tabs.map((tabId) => tabsData[tabId]).filter(Boolean);
-      const items = currentItems.map((tab) => ({
-        ...tab,
-        item_name: tab.descricao || tab.tipo_producao || 'Item',
-        quantity: Number(tab.quantidade_paineis || tab.quantidade_totem || tab.quantidade_lona || 1),
-        unit_price: 0,
-      }));
+      const items = currentItems.map((tab) => {
+        // Desestruturar para excluir `id` (string como "tab-1") e `orderItemId`
+        // que podem quebrar a validação do Pydantic no backend (espera id: int | null)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id: _tabStringId, orderItemId, ...rest } = tab;
+        return {
+          ...rest,
+          // Se o item já existe no banco, incluir o id numérico real
+          ...(orderItemId ? { id: orderItemId } : {}),
+          item_name: tab.descricao || tab.tipo_producao || 'Item',
+          quantity: Number(tab.quantidade_paineis || tab.quantidade_totem || tab.quantidade_lona || tab.quantidade_adesivo || tab.quantidade_canga || tab.quantidade_impressao_3d || tab.quantidade_mochilinha || 1),
+          unit_price: 0,
+        };
+      });
 
       const draftPayload = {
         cliente: formData.cliente || '',
@@ -1860,27 +1869,70 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   };
 
-  const handlePromoverRascunho = async () => {
-    if (!selectedOrderId) return;
-    try {
-      setIsSaving(true);
-      await api.promoverRascunho(selectedOrderId);
-      setIsRascunho(false);
-      toast({
-        title: '🚀 Pedido publicado!',
-        description: 'O rascunho foi promovido para pedido ativo e entrou no fluxo de produção.',
-      });
-      navigate('/dashboard/orders');
-    } catch (error: any) {
-      const detail = error?.response?.data?.detail || String(error);
-      toast({
-        title: 'Erro ao publicar pedido',
-        description: detail,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
+  // Auto-save silencioso em rascunhos (a cada 25 segundos)
+  const lastSavedHashRef = useRef<string>('');
+  useEffect(() => {
+    if (!isRascunho || !selectedOrderId) return;
+
+    const currentHash = JSON.stringify({ formData, tabsData });
+    if (!lastSavedHashRef.current) {
+      lastSavedHashRef.current = currentHash;
+      return;
     }
+    if (lastSavedHashRef.current === currentHash) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setAutoSaveStatus('saving');
+        const items = tabs.map((tabId) => {
+          const tabData = tabsData[tabId] || createEmptyTab(tabId);
+          return {
+            id: tabData.orderItemId,
+            item_name: (tabData as any).item_name || tabData.tipo_producao || 'Item',
+            quantity: Number.parseInt(tabData.quantidade_paineis || tabData.quantidade_lona || tabData.quantidade_totem || tabData.quantidade_adesivo || '1', 10) || 1,
+            unit_price: parseMonetary(tabData.valor_unitario) || 0,
+            largura: parseMonetary(tabData.largura) || 0,
+            altura: parseMonetary(tabData.altura) || 0,
+            tecido: tabData.tecido || '',
+            acabamento: tabData.tipo_acabamento || '',
+            observacao: tabData.observacao || '',
+          };
+        });
+
+        await api.atualizarRascunho(selectedOrderId, {
+          cliente: formData.cliente || '',
+          cidade_cliente: formData.cidade_cliente || '',
+          estado_cliente: formData.estado_cliente || '',
+          telefone_cliente: formData.telefone_cliente || '',
+          data_entrada: formData.data_entrada || new Date().toISOString().split('T')[0],
+          data_entrega: formData.data_entrega || undefined,
+          forma_envio: formData.forma_envio || '',
+          prioridade: formData.prioridade || 'NORMAL',
+          observacao: formData.observacao || '',
+          status: OrderStatus.Pendente,
+          valor_frete: parseMonetary(formData.valor_frete) || 0,
+          items: items as any[],
+          rascunho: true,
+        });
+
+        lastSavedHashRef.current = currentHash;
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setAutoSaveStatus(`✓ Auto-salvo às ${timeStr}`);
+      } catch (err) {
+        logger.warn('[AutoSave] Erro ao auto-salvar rascunho:', err);
+        setAutoSaveStatus(null);
+      }
+    }, 25000);
+
+    return () => clearTimeout(timer);
+  }, [isRascunho, selectedOrderId, formData, tabsData, tabs]);
+
+  const handlePromoverRascunho = () => {
+    if (!selectedOrderId) return;
+    // Forçar o fluxo completo de validação (validateItemComplete + validateAll)
+    // Se a ficha não estiver completa com todos os campos obrigatórios de produção, o salvamento/publicação é bloqueado
+    handleSalvar();
   };
 
   const handleSalvar = () => {
@@ -2556,10 +2608,29 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           }
         }
 
+        // Se era um rascunho, promover para pedido ativo (gera número de OS e entra na produção)
+        if (isRascunho) {
+          try {
+            finalOrder = await api.promoverRascunho(selectedOrderId);
+            setIsRascunho(false);
+          } catch (promoteError: any) {
+            const detail = promoteError?.response?.data?.detail || String(promoteError);
+            toast({
+              title: 'Erro ao publicar pedido',
+              description: detail,
+              variant: 'destructive',
+            });
+            setShowResumoModal(false);
+            return;
+          }
+        }
+
         const orderIdentifier = finalOrder.numero ?? finalOrder.id.toString();
         toast({
-          title: 'Pedido atualizado!',
-          description: `Pedido ${orderIdentifier} atualizado com sucesso.`,
+          title: isRascunho ? '🚀 Pedido publicado!' : 'Pedido atualizado!',
+          description: isRascunho
+            ? `Rascunho ${orderIdentifier} promovido para pedido ativo com sucesso.`
+            : `Pedido ${orderIdentifier} atualizado com sucesso.`,
         });
 
         setShowResumoModal(false);
@@ -2618,6 +2689,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       };
 
       const createdOrder = await api.createOrder(createOrderRequest);
+      addOrderInStore(createdOrder);
       const orderIdentifier = createdOrder.numero ?? createdOrder.id.toString();
 
       // Imagens já foram enviadas antes de criar o pedido, então estão prontas
@@ -3492,7 +3564,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       </Card>
 
       {/* Botões de Ação */}
-      <div className="flex gap-4 flex-wrap justify-end">
+      <div className="flex gap-4 flex-wrap items-center justify-end">
+        {autoSaveStatus && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-700 text-xs font-semibold border border-amber-300 shadow-sm animate-in fade-in">
+            <Check className="h-3.5 w-3.5 text-amber-600" />
+            <span>{autoSaveStatus === 'saving' ? 'Salvando rascunho em background...' : autoSaveStatus}</span>
+          </div>
+        )}
+
         <Button
           variant="outline"
           className="h-11 text-base"
