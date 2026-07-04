@@ -43,6 +43,7 @@ import { uploadImageToServer, needsUpload } from '@/utils/imageUploader';
 import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
 import { parseMonetary, formatMonetary } from '@/utils/currency';
 import { normalizeItemFieldsByTipo } from '@/utils/order-item-display';
+import { useFormDraftCache } from '@/hooks/useFormDraftCache';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -567,7 +568,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   }
 
-  const [formData, setFormData] = useState({
+  // Valor padrão do formulário (reutilizado no cache e no clearForm)
+  const defaultFormData = {
     numero: '',
     cliente: '',
     telefone_cliente: '',
@@ -583,13 +585,65 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     tipo_pagamento: '',
     desconto_tipo: '',
     valor_frete: '0,00',
+  };
+
+  // -------------------------------------------------------------------------
+  // CACHE DE RASCUNHO LOCAL (sessionStorage)
+  // Salva automaticamente o estado do formulário quando o usuário troca de rota
+  // antes de salvar. Só funciona em modo criação; em edição os dados já estão
+  // no banco e são carregados via API.
+  // -------------------------------------------------------------------------
+  const { hasCachedDraft: _hasCachedDraft, loadCachedDraft, saveDraft, clearDraft } = useFormDraftCache({
+    enabled: !isEditMode,
   });
 
-  const [tabs, setTabs] = useState<string[]>(['tab-1']);
-  const [activeTab, setActiveTab] = useState('tab-1');
-  const [tabsData, setTabsData] = useState<Record<string, TabItem>>({
-    'tab-1': createEmptyTab('tab-1'),
+  // Restaurar rascunho do cache apenas uma vez na montagem do componente (modo criação)
+
+  const [formData, setFormData] = useState(() => {
+    // Verificar se há rascunho cacheado antes de inicializar
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.formData) {
+          return cached.formData as typeof defaultFormData;
+        }
+      } catch {
+        // se falhar, começar com o padrão
+      }
+    }
+    return defaultFormData;
   });
+
+  const [tabs, setTabs] = useState<string[]>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.tabs) return cached.tabs;
+      } catch { /* noop */ }
+    }
+    return ['tab-1'];
+  });
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.activeTab) return cached.activeTab;
+      } catch { /* noop */ }
+    }
+    return 'tab-1';
+  });
+
+  const [tabsData, setTabsData] = useState<Record<string, TabItem>>(() => {
+    if (!routeOrderId) {
+      try {
+        const cached = loadCachedDraft();
+        if (cached?.tabsData) return cached.tabsData as Record<string, TabItem>;
+      } catch { /* noop */ }
+    }
+    return { 'tab-1': createEmptyTab('tab-1') };
+  });
+
 
   // Estado para gerenciar mudanças não salvas de cada item
 
@@ -603,6 +657,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // Desabilitado - não usado atualmente (comentado no useEffect beforeunload)
   const [_initialFormData, setInitialFormData] = useState(formData);
   const [_initialTabsData, setInitialTabsData] = useState<Record<string, TabItem>>({});
+
+  // -------------------------------------------------------------------------
+  // AUTO-PERSISTÊNCIA DO FORMULÁRIO NO CACHE (somente em modo criação)
+  // Salva automaticamente toda vez que os dados mudam (com debounce interno).
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (isEditMode) return; // modo edição não precisa de cache local
+    saveDraft({ formData: formData as any, tabs, tabsData: tabsData as any, activeTab });
+  }, [isEditMode, formData, tabs, tabsData, activeTab, saveDraft]);
+
 
   // Função para confirmar navegação se houver mudanças não salvas
   const handleNavigateWithConfirm = (path: string) => {
@@ -1848,9 +1912,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       } else {
         // Criar novo rascunho
         const savedDraft = await api.salvarRascunho(draftPayload);
+        // Limpar cache local — o rascunho agora está no banco
+        clearDraft();
         // Navegar para modo de edição do rascunho criado
         navigate(`/dashboard/orders/${savedDraft.id}/edit`);
       }
+
 
       setIsRascunho(true);
       toast({
@@ -2032,6 +2099,8 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     setActiveTab('tab-1');
     setErrors({});
 
+    // Limpar cache do sessionStorage — pedido foi salvo/descartado com sucesso
+    clearDraft();
   };
 
   /**
