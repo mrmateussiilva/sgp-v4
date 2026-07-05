@@ -265,18 +265,6 @@ export const ordersApi = {
         const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
         const order = mapPedidoFromApi(response.data);
 
-        try {
-            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-        } catch (error) {
-            logger.warn('[api.createOrder] Erro ao salvar JSON do pedido na API:', error);
-        }
-
-        try {
-            ordersSocket.broadcastOrderCreated(order.id, order);
-        } catch (error) {
-            logger.warn('[api.createOrder] Erro ao enviar broadcast WebSocket:', error);
-        }
-
         clearOrderCache(order.id);
         setCacheWithLimit(order.id, order);
         inFlightRequests.clear();
@@ -293,28 +281,7 @@ export const ordersApi = {
         logger.debug('[api.updateOrder] Request original:', JSON.stringify(request, null, 2));
 
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-
-        // Buscar dados completos para o backup JSON
-        let order: OrderWithItems;
-        try {
-            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
-            order = mapPedidoFromApi(jsonResponse.data);
-        } catch (error) {
-            logger.warn('[api.updateOrder] Erro ao buscar JSON completo, usando retorno do PATCH:', error);
-            order = mapPedidoFromApi(response.data);
-        }
-
-        try {
-            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-        } catch (error) {
-            logger.warn('[api.updateOrder] Erro ao salvar JSON do pedido na API:', error);
-        }
-
-        try {
-            ordersSocket.broadcastOrderUpdate(order.id, order);
-        } catch (error) {
-            logger.warn('[api.updateOrder] Erro ao enviar broadcast WebSocket:', error);
-        }
+        const order = mapPedidoFromApi(response.data);
 
         clearOrderCache(order.id);
         setCacheWithLimit(order.id, order);
@@ -327,22 +294,7 @@ export const ordersApi = {
         requireSessionToken();
         const payload = buildMetadataPayload(request);
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-
-        // Buscar dados completos para o backup JSON
-        let order: OrderWithItems;
-        try {
-            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
-            order = mapPedidoFromApi(jsonResponse.data);
-        } catch (error) {
-            logger.warn('[api.updateOrderMetadata] Erro ao buscar JSON completo, usando retorno do PATCH:', error);
-            order = mapPedidoFromApi(response.data);
-        }
-
-        try {
-            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-        } catch (error) {
-            logger.warn('[api.updateOrderMetadata] Erro ao salvar JSON do pedido na API:', error);
-        }
+        const order = mapPedidoFromApi(response.data);
 
         clearOrderCache(order.id);
         setCacheWithLimit(order.id, order);
@@ -362,32 +314,8 @@ export const ordersApi = {
             delete payload.financeiroStatus;
         }
 
-        await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
-
-        clearOrderCache(request.id);
-
-        // Buscar dados completos para o backup JSON e retorno
-        let updatedOrder: OrderWithItems;
-        try {
-            const jsonResponse = await apiClient.get(`/pedidos/${request.id}/json`);
-            updatedOrder = mapPedidoFromApi(jsonResponse.data);
-        } catch (error) {
-            logger.warn('[api.updateOrderStatus] Erro ao buscar JSON completo, usando GET padrão:', error);
-            const freshResponse = await apiClient.get<ApiPedido>(`/pedidos/${request.id}`);
-            updatedOrder = mapPedidoFromApi(freshResponse.data);
-        }
-
-        try {
-            await apiClient.post(`/pedidos/save-json/${updatedOrder.id}`, updatedOrder);
-        } catch (error) {
-            logger.warn('[api.updateOrderStatus] Erro ao salvar JSON do pedido na API:', error);
-        }
-
-        try {
-            ordersSocket.broadcastOrderStatusUpdate(updatedOrder.id, updatedOrder);
-        } catch (error) {
-            logger.warn('[api.updateOrderStatus] Erro ao enviar broadcast WebSocket:', error);
-        }
+        const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
+        const updatedOrder = mapPedidoFromApi(response.data);
 
         clearOrderCache(updatedOrder.id);
         setCacheWithLimit(updatedOrder.id, updatedOrder);
@@ -395,6 +323,7 @@ export const ordersApi = {
 
         return updatedOrder;
     },
+
 
     deleteOrder: async (orderId: number): Promise<boolean> => {
         requireSessionToken();
@@ -725,10 +654,6 @@ export const ordersApi = {
         return (response.data ?? []).map(mapPedidoFromApi);
     },
 
-    /**
-     * Promove um rascunho para pedido ativo.
-     * Valida campos obrigatórios e o insere no fluxo de produção.
-     */
     promoverRascunho: async (id: number): Promise<OrderWithItems> => {
         requireSessionToken();
         const response = await apiClient.post<ApiPedido>(`/pedidos/${id}/promover`);
@@ -736,18 +661,6 @@ export const ordersApi = {
         clearOrderCache(id);
         setCacheWithLimit(id, order);
         inFlightRequests.clear();
-
-        try {
-            await apiClient.post(`/pedidos/save-json/${order.id}`, order);
-        } catch (error) {
-            logger.warn('[api.promoverRascunho] Erro ao salvar JSON:', error);
-        }
-
-        try {
-            ordersSocket.broadcastOrderCreated(order.id, order);
-        } catch (error) {
-            logger.warn('[api.promoverRascunho] Erro ao enviar broadcast WebSocket:', error);
-        }
 
         return order;
     },
