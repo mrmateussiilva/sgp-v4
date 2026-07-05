@@ -598,53 +598,34 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   });
 
   // Restaurar rascunho do cache apenas uma vez na montagem do componente (modo criação)
+  // IMPORTANTE: ler o cache UMA única vez e reutilizar em todos os useState — evita
+  // 4 chamadas ao sessionStorage + 4 JSON.parse do mesmo objeto na inicialização.
+  const cachedDraftSnapshot = !routeOrderId ? (() => {
+    try { return loadCachedDraft(); } catch { return null; }
+  })() : null;
 
   // Flag para saber se os dados foram restaurados do cache (disparar toast na montagem)
-  const wasRestoredFromCacheRef = useRef(false);
+  const wasRestoredFromCacheRef = useRef(!!cachedDraftSnapshot?.formData);
 
   const [formData, setFormData] = useState(() => {
-    // Verificar se há rascunho cacheado antes de inicializar
-    if (!routeOrderId) {
-      try {
-        const cached = loadCachedDraft();
-        if (cached?.formData) {
-          wasRestoredFromCacheRef.current = true;
-          return cached.formData as typeof defaultFormData;
-        }
-      } catch {
-        // se falhar, começar com o padrão
-      }
+    if (cachedDraftSnapshot?.formData) {
+      return cachedDraftSnapshot.formData as typeof defaultFormData;
     }
     return defaultFormData;
   });
 
   const [tabs, setTabs] = useState<string[]>(() => {
-    if (!routeOrderId) {
-      try {
-        const cached = loadCachedDraft();
-        if (cached?.tabs) return cached.tabs;
-      } catch { /* noop */ }
-    }
+    if (cachedDraftSnapshot?.tabs) return cachedDraftSnapshot.tabs;
     return ['tab-1'];
   });
 
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (!routeOrderId) {
-      try {
-        const cached = loadCachedDraft();
-        if (cached?.activeTab) return cached.activeTab;
-      } catch { /* noop */ }
-    }
+    if (cachedDraftSnapshot?.activeTab) return cachedDraftSnapshot.activeTab;
     return 'tab-1';
   });
 
   const [tabsData, setTabsData] = useState<Record<string, TabItem>>(() => {
-    if (!routeOrderId) {
-      try {
-        const cached = loadCachedDraft();
-        if (cached?.tabsData) return cached.tabsData as Record<string, TabItem>;
-      } catch { /* noop */ }
-    }
+    if (cachedDraftSnapshot?.tabsData) return cachedDraftSnapshot.tabsData as Record<string, TabItem>;
     return { 'tab-1': createEmptyTab('tab-1') };
   });
 
