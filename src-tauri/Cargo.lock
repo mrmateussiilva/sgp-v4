@@ -4482,7 +4482,7 @@ dependencies = [
 
 [[package]]
 name = "sgp-v4"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "base64 0.21.7",
  "chrono",
