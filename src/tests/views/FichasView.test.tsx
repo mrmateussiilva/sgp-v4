@@ -17,6 +17,7 @@ vi.mock('../../services/api', () => ({
     getOrdersPaginatedForTable: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
     getOrdersWithFiltersForTable: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
     getReadyOrdersPaginated: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
+    listarRascunhos: vi.fn(() => Promise.resolve([])),
     getAllLogs: vi.fn(() => Promise.resolve([])),
   },
 }));
