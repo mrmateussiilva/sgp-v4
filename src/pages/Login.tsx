@@ -199,7 +199,7 @@ export default function Login() {
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3">
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-                  © FinderBit • SGP v1.4.2
+                  © FinderBit • SGP v1.4.3
                 </p>
                 <div className="h-1 w-1 rounded-full bg-slate-200" />
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">
