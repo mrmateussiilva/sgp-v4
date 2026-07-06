@@ -91,20 +91,20 @@ jobs:
           prerelease: false
           tauriScript: ${{ steps.package-manager.outputs.tauri-script }}
           args: --bundles msi
-          uploadUpdaterJson: true
-          uploadUpdaterSignatures: true
+          includeUpdaterJson: true
           updaterJsonPreferNsis: false
 
       - name: Update updater manifest on main
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $manifestSource = "src-tauri/target/release/bundle/msi/latest.json"
-          if (!(Test-Path $manifestSource)) {
-            throw "Generated updater manifest not found at $manifestSource."
-          }
-
           $manifestTemp = Join-Path $env:RUNNER_TEMP "latest.json"
-          Copy-Item $manifestSource $manifestTemp -Force
+          gh release download $env:GITHUB_REF_NAME --pattern latest.json --dir $env:RUNNER_TEMP --clobber
+
+          if (!(Test-Path $manifestTemp)) {
+            throw "Generated updater manifest not found at $manifestTemp."
+          }
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
