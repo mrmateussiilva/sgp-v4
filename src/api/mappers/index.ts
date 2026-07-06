@@ -702,7 +702,6 @@ export const buildPedidoUpdatePayload = (request: UpdateOrderRequest): Record<st
         }
     }
     if (request.forma_pagamento_id !== undefined) {
-        payload.forma_pagamento_id = request.forma_pagamento_id;
         payload.tipo_pagamento = request.forma_pagamento_id ? String(request.forma_pagamento_id) : '';
     }
     if (request.observacao !== undefined) {
@@ -754,7 +753,6 @@ export const buildMetadataPayload = (request: UpdateOrderMetadataRequest): Recor
         payload.data_entrega = request.data_entrega ?? null;
     }
     if (request.forma_pagamento_id !== undefined) {
-        payload.forma_pagamento_id = request.forma_pagamento_id;
         payload.tipo_pagamento = request.forma_pagamento_id ? String(request.forma_pagamento_id) : '';
     }
     if (request.valor_frete !== undefined) {
