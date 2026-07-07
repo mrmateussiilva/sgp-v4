@@ -220,17 +220,10 @@ export const ordersApi = {
             return cached.data;
         }
 
-        try {
-            const jsonResponse = await apiClient.get(`/pedidos/${orderId}/json`);
-            const mappedOrder = mapPedidoFromApi(jsonResponse.data);
-            setCacheWithLimit(orderId, mappedOrder);
-            return mappedOrder;
-        } catch {
-            const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
-            const mappedOrder = mapPedidoFromApi(response.data);
-            setCacheWithLimit(orderId, mappedOrder);
-            return mappedOrder;
-        }
+        const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
+        const mappedOrder = mapPedidoFromApi(response.data);
+        setCacheWithLimit(orderId, mappedOrder);
+        return mappedOrder;
     },
     getOrderByIdFresh: async (orderId: number): Promise<OrderWithItems> => {
         requireSessionToken();
