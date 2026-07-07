@@ -406,7 +406,7 @@ export default function OrderList() {
       productionStatusFilter,
       dateFrom,
       dateTo,
-      activeSearchTerm: hasSearch ? undefined : activeSearchTerm,
+      activeSearchTerm: activeSearchTerm || undefined,
       clientSideFiltersActive,
       page: clientSideFiltersActive || productionStatusFilter === 'all' ? 1 : page,
       rowsPerPage: clientSideFiltersActive || productionStatusFilter === 'all' ? undefined : rowsPerPage,
@@ -439,7 +439,7 @@ export default function OrderList() {
           1, // Sempre começar da página 1 quando buscando 'all'
           bigPageSize,
           undefined, // status - todos
-          hasSearch ? undefined : activeSearchTerm || undefined, // cliente
+          activeSearchTerm || undefined, // cliente
           dateFrom || undefined, // data_inicio
           dateTo || undefined // data_fim
         );
@@ -458,8 +458,23 @@ export default function OrderList() {
         setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
         setTotalOrders(paginatedData.orders.length);
       } else if (productionStatusFilter === 'pending') {
-        const all = await api.getPendingOrdersLight();
-        logger.debug('[OrderList] getPendingOrdersLight retornou:', {
+        let all;
+        if (hasSearch) {
+          const paginated = await api.getOrdersPaginatedForTable(
+            1,
+            500,
+            undefined, // status
+            activeSearchTerm || undefined, // cliente
+            undefined, // data_inicio
+            undefined, // data_fim
+            undefined, // tipo_producao
+            false // is_pronto
+          );
+          all = paginated.orders;
+        } else {
+          all = await api.getPendingOrdersLight();
+        }
+        logger.debug('[OrderList] carregamento de pedidos pendentes concluído:', {
           ordersLength: all.length,
         });
         setOrders(all);
@@ -470,12 +485,11 @@ export default function OrderList() {
         // precisamos trazer um conjunto maior e filtrar localmente.
         if (clientSideFiltersActive) {
           const bigPageSize = 5000;
-          // Não passar cliente para backend quando há busca - vamos filtrar localmente
           const paginatedData = await api.getOrdersPaginatedForTable(
             1,
             bigPageSize,
             undefined, // status
-            hasSearch ? undefined : activeSearchTerm || undefined, // cliente - só se não houver busca
+            activeSearchTerm || undefined, // cliente
             dateFrom || undefined, // data_inicio
             dateTo || undefined // data_fim
           );
@@ -485,7 +499,7 @@ export default function OrderList() {
         } else {
           const filters = {
             status: OrderStatus.Concluido,
-            cliente: hasSearch ? undefined : activeSearchTerm || undefined, // Não passar cliente se há busca - vamos filtrar localmente
+            cliente: activeSearchTerm || undefined,
             date_from: dateFrom || undefined,
             date_to: dateTo || undefined,
             tipo_producao: selectedTipoProducao || undefined,
@@ -500,7 +514,22 @@ export default function OrderList() {
         }
       } else if (productionStatusFilter === 'ready') {
         if (clientSideFiltersActive || hasSearch) {
-          const all = await api.getReadyOrdersLight();
+          let all;
+          if (hasSearch) {
+            const paginated = await api.getOrdersPaginatedForTable(
+              1,
+              500,
+              undefined, // status
+              activeSearchTerm || undefined, // cliente
+              undefined, // data_inicio
+              undefined, // data_fim
+              undefined, // tipo_producao
+              true // is_pronto
+            );
+            all = paginated.orders;
+          } else {
+            all = await api.getReadyOrdersLight();
+          }
           setOrders(all);
           setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
           setTotalOrders(all.length);
