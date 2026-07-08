@@ -1,6 +1,23 @@
 # Release
 
-Este projeto usa Tauri v2 e publica releases Windows pelo GitHub Actions quando uma tag `v*` e enviada ao repositorio.
+## v1.4.3 — 2026-07-08
+
+### 🐛 Correções críticas
+
+**Relatórios de Fechamento (API)**
+- Corrigido cálculo de valores de itens com quantidade > 1 em todos os tipos de produção (totem, adesivo, lona, canga, mochilinha, etc.)
+- A função `get_item_value` agora usa o mapa de campos correto espelhado do `pricing.py`
+- Removido o "ajuste silencioso" que distribuía diferenças de valor entre itens, gerando valores residuais falsos
+- `calculate_order_value` agora usa `valor_itens` do banco (sem frete) como fonte de verdade
+
+**Tela de Criação de Pedido (Frontend)**
+- Corrigido loop infinito de re-render: 7 `useEffect` que dependiam de `tabsData` inteiro foram consolidados em 1 único effect estável
+- Corrigido geração de IDs duplicados nas abas de itens ao remover e re-adicionar
+- Corrigido leitura do cache de rascunho executada em todo re-render
+
+Esses bugs causavam comportamento aleatório na tela de criação: campos que não aceitavam digitação, selects que não respondiam ao clique e checkboxes travados.
+
+
 
 ## Chaves do updater
 
