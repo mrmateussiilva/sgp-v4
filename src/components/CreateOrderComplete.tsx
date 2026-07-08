@@ -983,152 +983,110 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     }
   }, [tabsData[activeTab]?.largura, tabsData[activeTab]?.altura, activeTab]);
 
-  // Calcular valor unitário automaticamente para painéis
+  // ─── Cálculo automático de valor_unitário (ÚNICO effect consolidado) ────────
+  // IMPORTANTE: Este effect monitora apenas os campos de *entrada* de valor de cada
+  // tab — NÃO depende de tabsData inteiro para evitar loop infinito de renders.
+  // Cada tipo de produção lê seus próprios campos de composição e atualiza
+  // valor_unitario via setTabsData diretamente (sem chamar handleTabDataChange,
+  // que escreveria de volta em tabsData e re-dispararia o effect).
   useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && (item.tipo_producao === 'painel' || item.tipo_producao === 'generica' || isMesaBabadoType(item.tipo_producao))) {
-        // Calcular valor total do painel baseado nos campos específicos
-        const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
-        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
+    setTabsData(prev => {
+      const next = { ...prev };
+      let changed = false;
 
-        // Calcular valor dos ilhós se aplicável
-        let valorIlhos = 0;
-        if (item.tipo_acabamento === 'ilhos') {
-          const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-          const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
-          valorIlhos = qtdIlhos * valorUnitIlhos;
+      Object.keys(next).forEach(tabId => {
+        const item = next[tabId];
+        if (!item || !item.tipo_producao) return;
+
+        let valorFormatado: string | null = null;
+        const tipo = item.tipo_producao.toLowerCase().trim();
+
+        if (tipo === 'painel' || tipo === 'generica' || isMesaBabadoType(tipo)) {
+          const base = parseLocaleNumber(item.valor_painel || '0,00')
+            + parseLocaleNumber(item.valores_adicionais || '0,00');
+          let extras = 0;
+          if (item.tipo_acabamento === 'ilhos') {
+            extras += parseInt(item.quantidade_ilhos || '0') * parseLocaleNumber(item.valor_ilhos || '0,00');
+          }
+          if (item.tipo_acabamento === 'cordinha') {
+            extras += parseInt(item.quantidade_cordinha || '0') * parseLocaleNumber(item.valor_cordinha || '0,00');
+          }
+          valorFormatado = (base + extras).toFixed(2).replace('.', ',');
+
+        } else if (tipo === 'totem') {
+          const total = parseLocaleNumber(item.valor_totem || '0,00')
+            + parseLocaleNumber(item.outros_valores_totem || '0,00');
+          valorFormatado = total.toFixed(2).replace('.', ',');
+
+        } else if (tipo === 'lona') {
+          let total = parseLocaleNumber(item.valor_lona || '0,00')
+            + parseLocaleNumber(item.outros_valores_lona || '0,00');
+          if (item.tipo_acabamento === 'ilhos') {
+            total += parseInt(item.quantidade_ilhos || '0') * parseLocaleNumber(item.valor_ilhos || '0,00');
+          }
+          valorFormatado = total.toFixed(2).replace('.', ',');
+
+        } else if (tipo === 'adesivo') {
+          const total = parseLocaleNumber(item.valor_adesivo || '0,00')
+            + parseLocaleNumber(item.outros_valores_adesivo || '0,00');
+          valorFormatado = total.toFixed(2).replace('.', ',');
+
+        } else if (tipo === 'canga') {
+          const total = parseLocaleNumber(item.valor_canga || '0,00')
+            + parseLocaleNumber(item.valores_adicionais || '0,00');
+          valorFormatado = total.toFixed(2).replace('.', ',');
+
+        } else if (isImpressao3DType(tipo)) {
+          const total = parseLocaleNumber(item.valor_impressao_3d || '0,00')
+            + parseLocaleNumber(item.valores_adicionais || '0,00');
+          valorFormatado = total.toFixed(2).replace('.', ',');
+
+        } else if (isMochilinhaType(tipo)) {
+          const total = parseLocaleNumber(item.valor_mochilinha || '0,00')
+            + parseLocaleNumber(item.valores_adicionais || '0,00');
+          valorFormatado = total.toFixed(2).replace('.', ',');
         }
 
-        // Calcular valor da cordinha se aplicável
-        let valorCordinha = 0;
-        if (item.tipo_acabamento === 'cordinha') {
-          const qtdCordinha = parseInt(item.quantidade_cordinha || '0');
-          const valorUnitCordinha = parseLocaleNumber(item.valor_cordinha || '0,00');
-          valorCordinha = qtdCordinha * valorUnitCordinha;
+        if (valorFormatado !== null && item.valor_unitario !== valorFormatado) {
+          next[tabId] = { ...item, valor_unitario: valorFormatado };
+          changed = true;
         }
+      });
 
-        // Calcular valor total
-        const valorTotal = valorPainel + valoresAdicionais + valorIlhos + valorCordinha;
-
-        // Converter para formato brasileiro (sem multiplicar pela quantidade aqui)
-        const valorFormatado = valorTotal.toFixed(2).replace('.', ',');
-
-        // Atualizar valor unitário apenas se mudou
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
+      // Retornar a mesma referência se nada mudou (evita re-render)
+      return changed ? next : prev;
     });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para totems
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'totem') {
-        const valorTotem = parseLocaleNumber(item.valor_totem || '0,00');
-        const outrosValores = parseLocaleNumber(item.outros_valores_totem || '0,00');
-        const valorTotalUnitario = valorTotem + outrosValores;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para lonas
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'lona') {
-        const valorLona = parseLocaleNumber(item.valor_lona || '0,00');
-        const outrosValores = parseLocaleNumber(item.outros_valores_lona || '0,00');
-        let valorIlhos = 0;
-        if (item.tipo_acabamento === 'ilhos') {
-          const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-          const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
-          valorIlhos = qtdIlhos * valorUnitIlhos;
-        }
-        const valorTotalUnitario = valorLona + outrosValores + valorIlhos;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para adesivos
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'adesivo') {
-        const valorAdesivo = parseLocaleNumber(item.valor_adesivo || '0,00');
-        const outrosValores = parseLocaleNumber(item.outros_valores_adesivo || '0,00');
-        const valorTotalUnitario = valorAdesivo + outrosValores;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para cangas
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && item.tipo_producao === 'canga') {
-        const valorCanga = parseLocaleNumber(item.valor_canga || '0,00');
-        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-        const valorTotalUnitario = valorCanga + valoresAdicionais;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para impressão 3D
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && isImpressao3DType(item.tipo_producao)) {
-        const valorImpressao3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
-        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-        const valorTotalUnitario = valorImpressao3D + valoresAdicionais;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
-
-  // Calcular valor unitário automaticamente para mochilinha/bolsinha
-  useEffect(() => {
-    Object.keys(tabsData).forEach(tabId => {
-      const item = tabsData[tabId];
-      if (item && isMochilinhaType(item.tipo_producao)) {
-        const valorMochilinha = parseLocaleNumber(item.valor_mochilinha || '0,00');
-        const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-        const valorTotalUnitario = valorMochilinha + valoresAdicionais;
-        const valorFormatado = valorTotalUnitario.toFixed(2).replace('.', ',');
-
-        if (item.valor_unitario !== valorFormatado) {
-          handleTabDataChange(tabId, 'valor_unitario', valorFormatado);
-        }
-      }
-    });
-  }, [tabsData]);
+  // Dependências: somente os campos de entrada relevantes da tab ativa
+  // Campos de outras tabs não são monitorados aqui para não gerar renders desnecessários.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // Painel / Genérica / Mesa Babado
+    tabsData[activeTab]?.valor_painel,
+    tabsData[activeTab]?.valores_adicionais,
+    tabsData[activeTab]?.tipo_acabamento,
+    tabsData[activeTab]?.quantidade_ilhos,
+    tabsData[activeTab]?.valor_ilhos,
+    tabsData[activeTab]?.quantidade_cordinha,
+    tabsData[activeTab]?.valor_cordinha,
+    // Totem
+    tabsData[activeTab]?.valor_totem,
+    tabsData[activeTab]?.outros_valores_totem,
+    // Lona
+    tabsData[activeTab]?.valor_lona,
+    tabsData[activeTab]?.outros_valores_lona,
+    // Adesivo
+    tabsData[activeTab]?.valor_adesivo,
+    tabsData[activeTab]?.outros_valores_adesivo,
+    // Canga
+    tabsData[activeTab]?.valor_canga,
+    // Impressão 3D
+    tabsData[activeTab]?.valor_impressao_3d,
+    // Mochilinha/Bolsinha
+    tabsData[activeTab]?.valor_mochilinha,
+    // Tipo (para re-calcular ao trocar)
+    tabsData[activeTab]?.tipo_producao,
+    activeTab,
+  ]);
 
 
   // Funções de validação completas
@@ -1478,14 +1436,13 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   };
 
   const handleAddTab = () => {
-    const newTabId = `tab-${tabs.length + 1}`;
-    setTabs([...tabs, newTabId]);
+    // Usar timestamp + random para evitar colisão de IDs ao remover e re-adicionar abas
+    const newTabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setTabs(prev => [...prev, newTabId]);
     setTabsData(prev => ({
       ...prev,
       [newTabId]: createEmptyTab(newTabId)
     }));
-
-
     setActiveTab(newTabId);
   };
 
