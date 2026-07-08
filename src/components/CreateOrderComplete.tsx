@@ -597,12 +597,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     enabled: !isEditMode,
   });
 
-  // Restaurar rascunho do cache apenas uma vez na montagem do componente (modo criação)
-  // IMPORTANTE: ler o cache UMA única vez e reutilizar em todos os useState — evita
-  // 4 chamadas ao sessionStorage + 4 JSON.parse do mesmo objeto na inicialização.
-  const cachedDraftSnapshot = !routeOrderId ? (() => {
+  // Ler o cache UMA Única vez na montagem usando useRef — evita chamar loadCachedDraft()
+  // e JSON.parse em todo re-render do componente.
+  const cachedDraftSnapshotRef = useRef(!routeOrderId ? (() => {
     try { return loadCachedDraft(); } catch { return null; }
-  })() : null;
+  })() : null);
+  const cachedDraftSnapshot = cachedDraftSnapshotRef.current;
 
   // Flag para saber se os dados foram restaurados do cache (disparar toast na montagem)
   const wasRestoredFromCacheRef = useRef(!!cachedDraftSnapshot?.formData);
@@ -646,11 +646,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
   // -------------------------------------------------------------------------
   // AUTO-PERSISTÊNCIA DO FORMULÁRIO NO CACHE (somente em modo criação)
   // Salva automaticamente toda vez que os dados mudam (com debounce interno).
+  // saveDraftRef evita colocar `saveDraft` no array de dependências, o que
+  // poderia causar loops caso a referência do callback mudasse.
   // -------------------------------------------------------------------------
+  const saveDraftRef = useRef(saveDraft);
+  useEffect(() => { saveDraftRef.current = saveDraft; }, [saveDraft]);
+
   useEffect(() => {
     if (isEditMode) return; // modo edição não precisa de cache local
-    saveDraft({ formData: formData as any, tabs, tabsData: tabsData as any, activeTab });
-  }, [isEditMode, formData, tabs, tabsData, activeTab, saveDraft]);
+    saveDraftRef.current({ formData: formData as any, tabs, tabsData: tabsData as any, activeTab });
+  }, [isEditMode, formData, tabs, tabsData, activeTab]);
 
   // Toast de boas-vindas quando o formulário é restaurado do cache
   useEffect(() => {
