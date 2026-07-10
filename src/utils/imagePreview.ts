@@ -39,6 +39,29 @@ export async function getImagePreviewUrl(
     return imageReference;
   }
 
+  // Se for caminho local absoluto de sistema (ex: /home/..., /Users/..., C:\...) e estiver em Tauri, carregar como base64 temporário
+  if (isTauri() && (
+    imageReference.startsWith('/home/') ||
+    imageReference.startsWith('/Users/') ||
+    imageReference.startsWith('/root/') ||
+    /^[A-Z]:[\\/]/.test(imageReference) ||
+    // Ou se não começar com /pedidos/ e não começar com /images/ mas contiver barra
+    (!imageReference.startsWith('http://') && 
+     !imageReference.startsWith('https://') && 
+     !imageReference.startsWith('/pedidos/') && 
+     !imageReference.startsWith('pedidos/') && 
+     !imageReference.startsWith('/images/') && 
+     !imageReference.startsWith('images/') &&
+     (imageReference.includes('/') || imageReference.includes('\\')))
+  )) {
+    try {
+      const base64 = await loadLocalImageAsBase64(imageReference);
+      return base64;
+    } catch {
+      // Se falhar localmente, tenta fallback
+    }
+  }
+
   // CORREÇÃO: Detectar caminhos relativos que começam com "pedidos/"
   // Esses caminhos precisam ser tratados como referências do servidor
   const isPedidosPath = imageReference.startsWith('pedidos/') || 
@@ -53,17 +76,6 @@ export async function getImagePreviewUrl(
     try {
       const blobUrl = await loadAuthenticatedImage(imageReference);
       return blobUrl;
-    } catch {
-      return null;
-    }
-  }
-
-  // Se for caminho local e estiver em Tauri, carregar como base64 temporário
-  // (IMPORTANTE: essa checagem vem DEPOIS de pedidos/*, porque pedidos/tmp/... é do servidor)
-  if (isTauri() && isLocalPath(imageReference)) {
-    try {
-      const base64 = await loadLocalImageAsBase64(imageReference);
-      return base64;
     } catch {
       return null;
     }

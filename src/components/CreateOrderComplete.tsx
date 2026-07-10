@@ -1848,6 +1848,20 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         };
       });
 
+      // CRÍTICO: Fazer upload de imagens locais antes de salvar rascunho
+      try {
+        await uploadImagesBeforeSave(items as any[]);
+      } catch (uploadError) {
+        logger.error('Erro ao fazer upload de imagens do rascunho:', uploadError);
+        toast({
+          title: 'Erro no upload de imagens',
+          description: 'Não foi possível salvar o rascunho porque falhou o upload de alguma imagem.',
+          variant: 'destructive',
+        });
+        setIsDraftSaving(false);
+        return;
+      }
+
       const draftPayload = {
         cliente: formData.cliente || '',
         cidade_cliente: formData.cidade_cliente || '',
@@ -1911,16 +1925,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setAutoSaveStatus('saving');
         const items = tabs.map((tabId) => {
           const tabData = tabsData[tabId] || createEmptyTab(tabId);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _tabStringId, orderItemId, ...rest } = tabData;
           return {
-            id: tabData.orderItemId,
+            ...rest,
+            ...(orderItemId ? { id: orderItemId } : {}),
             item_name: (tabData as any).item_name || tabData.tipo_producao || 'Item',
             quantity: Number.parseInt(tabData.quantidade_paineis || tabData.quantidade_lona || tabData.quantidade_totem || tabData.quantidade_adesivo || '1', 10) || 1,
             unit_price: parseMonetary(tabData.valor_unitario) || 0,
-            largura: parseMonetary(tabData.largura) || 0,
-            altura: parseMonetary(tabData.altura) || 0,
-            tecido: tabData.tecido || '',
-            acabamento: tabData.tipo_acabamento || '',
-            observacao: tabData.observacao || '',
           };
         });
 
