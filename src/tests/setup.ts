@@ -1,6 +1,27 @@
 
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { vi, beforeAll, afterEach, afterAll } from 'vitest';
+import { server } from './mocks/server';
+import { setApiUrl } from '../api/client';
+
+// Configura URL base padrão para os testes do Axios
+setApiUrl('http://localhost:8000/api');
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+
+// Mock do PointerEvent para compatibilidade com Radix UI em JSDOM
+if (typeof window !== 'undefined' && !window.PointerEvent) {
+  class MockPointerEvent extends MouseEvent {
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+    }
+  }
+  (window as any).PointerEvent = MockPointerEvent;
+}
+
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
 
 const localStorageMock = (() => {
   let store: { [key: string]: string } = {};

@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { designersApi } from '@/api/endpoints/designers';
+import { useState, useEffect, useRef } from 'react';
+import { useDesignerPanel } from '@/hooks/useDesignerPanel';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useAuthStore } from '@/store/authStore';
+
+
 import { DesignerArteItem } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -16,8 +19,6 @@ import {
     PlusCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { useAuthStore } from '@/store/authStore';
 
 // Helper de formatação de data nativo (Intl)
 const formatTime = (date: Date) => {
@@ -49,156 +50,27 @@ const getDaysAgoStr = (days: number) => {
 };
 
 export default function TelaPainelDesigners() {
-    const [designers, setDesigners] = useState<{ id: number; nome: string }[]>([]);
-    const [activeDesigner, setActiveDesigner] = useState<string>('');
-    const [items, setItems] = useState<DesignerArteItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedItem, setSelectedItem] = useState<DesignerArteItem | null>(null);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-    const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-
-    // Estados de Filtro e Paginação
-    const [startDate, setStartDate] = useState<string>(getDaysAgoStr(7));
-    const [endDate, setEndDate] = useState<string>(getTodayStr());
-    const [offset, setOffset] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const LIMIT = 50;
-
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const { toast } = useToast();
-
-    const toggleStatusArte = async (item: DesignerArteItem) => {
-        const newStatus = item.status_arte === 'liberado' ? 'aguardando' : 'liberado';
-        try {
-            await designersApi.patchStatusArte(item.item_id, newStatus);
-
-            setItems(prev => prev.map(i =>
-                i.item_id === item.item_id ? { ...i, status_arte: newStatus } : i
-            ));
-
-            toast({
-                title: newStatus === 'liberado' ? 'Arte liberada!' : 'Arte aguardando',
-                description: newStatus === 'liberado' ? 'A arte foi movida para a coluna de liberados.' : 'A arte voltou para a fila de espera.',
-            });
-        } catch (error) {
-            console.error('Erro ao atualizar status da arte:', error);
-            toast({
-                title: 'Erro ao atualizar',
-                description: 'Não foi possível mudar o status da arte.',
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const handlePostComentario = async (itemId: number, texto: string) => {
-        const username = useAuthStore.getState().username;
-        const autor = username || 'Usuário';
-
-        try {
-            const updatedItem = await designersApi.postComentario(itemId, texto, autor);
-
-            // Atualizar na lista local
-            setItems(prev => prev.map(i => i.item_id === itemId ? updatedItem : i));
-
-            // Se modal aberto, atualizar item selecionado
-            if (selectedItem?.item_id === itemId) {
-                setSelectedItem(updatedItem);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Erro ao postar comentário:', error);
-            toast({
-                title: 'Erro ao enviar',
-                description: 'Não foi possível salvar seu comentário.',
-                variant: 'destructive',
-            });
-            return false;
-        }
-    };
-
-    const fetchInitialData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const activeDesigners = await designersApi.getDesignersAtivos();
-            setDesigners(activeDesigners);
-            if (activeDesigners.length > 0) {
-                setActiveDesigner(activeDesigners[0].nome);
-            }
-        } catch (error) {
-            console.error('Erro ao buscar designers:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    const refreshItems = useCallback(async (
-        designerName: string, 
-        isLoadMore = false,
-        dateOverrides?: { start?: string, end?: string }
-    ) => {
-        if (!designerName) return;
-        
-        const currentOffset = isLoadMore ? offset + LIMIT : 0;
-        const sDate = dateOverrides?.start ?? startDate;
-        const eDate = dateOverrides?.end ?? endDate;
-        
-        setIsRefreshing(true);
-        try {
-            const designerItems = await designersApi.getItensPorDesigner(designerName, {
-                start_date: sDate,
-                end_date: eDate,
-                limit: LIMIT,
-                offset: currentOffset,
-            });
-
-            if (isLoadMore) {
-                setItems(prev => [...prev, ...designerItems]);
-                setOffset(currentOffset);
-            } else {
-                setItems(designerItems);
-                setOffset(0);
-            }
-
-            setHasMore(designerItems.length === LIMIT);
-            setLastUpdated(new Date());
-        } catch (error) {
-            console.error('Erro ao buscar itens do designer:', error);
-            toast({
-                title: 'Erro ao carregar',
-                description: 'Não foi possível buscar as artes.',
-                variant: 'destructive'
-            });
-        } finally {
-            setIsRefreshing(false);
-        }
-    }, [startDate, endDate, offset, toast]);
-
-    useEffect(() => {
-        fetchInitialData();
-    }, [fetchInitialData]);
-
-    useEffect(() => {
-        if (activeDesigner) {
-            refreshItems(activeDesigner);
-        }
-    }, [activeDesigner, refreshItems]);
-
-    // Polling a cada 30 segundos
-    useEffect(() => {
-        if (autoRefreshEnabled && activeDesigner) {
-            timerRef.current = setInterval(() => {
-                refreshItems(activeDesigner);
-            }, 30000);
-        } else {
-            if (timerRef.current) clearInterval(timerRef.current);
-        }
-
-        return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-        };
-    }, [autoRefreshEnabled, activeDesigner, refreshItems]);
+    const {
+        designers,
+        activeDesigner,
+        setActiveDesigner,
+        items,
+        selectedItem,
+        setSelectedItem,
+        isLoading,
+        isRefreshing,
+        lastUpdated,
+        autoRefreshEnabled,
+        setAutoRefreshEnabled,
+        startDate,
+        setStartDate,
+        endDate,
+        setEndDate,
+        hasMore,
+        refreshItems,
+        toggleStatusArte,
+        handlePostComentario,
+    } = useDesignerPanel();
 
     if (isLoading) {
         return (

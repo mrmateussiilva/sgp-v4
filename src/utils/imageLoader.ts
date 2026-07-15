@@ -179,6 +179,26 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     return normalized;
   }
 
+  // Se estiver em Tauri e for um caminho absoluto de sistema local (ex: /home/..., C:\...)
+  if (isTauri() && (
+    normalized.startsWith('/home/') ||
+    normalized.startsWith('/Users/') ||
+    normalized.startsWith('/root/') ||
+    /^[A-Z]:[\\/]/.test(normalized)
+  )) {
+    try {
+      const base64 = await loadLocalImageAsBase64(normalized);
+      const response = await fetch(base64);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      addToCache(normalized, blobUrl, blob);
+      return blobUrl;
+    } catch (err) {
+      console.error("Erro ao carregar caminho absoluto local no Tauri:", err);
+    }
+  }
+
+
   // Se estiver em Tauri, verificar cache local primeiro
   if (isTauri() && !isOtherSystemLocalPath(normalized)) {
     const localPath = await getLocalImagePath(normalized);

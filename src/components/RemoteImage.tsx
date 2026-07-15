@@ -79,7 +79,11 @@ export const RemoteImage: React.FC<RemoteImageProps> = ({
             src={blobUrl}
             alt={alt}
             className={className}
+            onError={() => {
+                setError(true);
+            }}
             {...props}
         />
     );
 };
+
