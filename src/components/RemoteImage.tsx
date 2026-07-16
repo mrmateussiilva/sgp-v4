@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadAuthenticatedImage } from '@/utils/imageLoader';
+import { loadAuthenticatedImage, getCachedImageUrl } from '@/utils/imageLoader';
 import { Loader2, ImageOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -17,14 +17,29 @@ export const RemoteImage: React.FC<RemoteImageProps> = ({
     alt = "Imagem",
     ...props
 }) => {
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(!!src);
+    const getInitialUrl = () => {
+        if (!src) return null;
+        return getCachedImageUrl(src);
+    };
+
+    const cachedUrl = getInitialUrl();
+    const [blobUrl, setBlobUrl] = useState<string | null>(cachedUrl);
+    const [loading, setLoading] = useState<boolean>(!!src && !cachedUrl);
     const [error, setError] = useState<boolean>(false);
 
     useEffect(() => {
         if (!src) {
+            setBlobUrl(null);
             setLoading(false);
             setError(true);
+            return;
+        }
+
+        const currentCached = getCachedImageUrl(src);
+        if (currentCached) {
+            setBlobUrl(currentCached);
+            setLoading(false);
+            setError(false);
             return;
         }
 
