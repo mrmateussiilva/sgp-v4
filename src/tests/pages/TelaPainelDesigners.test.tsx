@@ -52,11 +52,14 @@ describe('TelaPainelDesigners Integration Tests', () => {
     // Verifica o título principal
     expect(screen.getByText('Painel de Designers')).toBeInTheDocument();
 
-    // Verifica a existência das duas colunas: "Aguardando" e "Liberado" (regex substring match)
+    // Aguarda os itens mockados serem carregados para que as colunas sejam exibidas
     await waitFor(() => {
-      expect(screen.getByText(/Aguardando/i)).toBeInTheDocument();
-      expect(screen.getByText(/Liberado/i)).toBeInTheDocument();
+      expect(screen.getByText('Cliente A')).toBeInTheDocument();
     });
+
+    // Verifica a existência das duas colunas: "Fila Operacional" e "Liberados"
+    expect(screen.getByRole('heading', { name: /Fila Operacional/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Liberados/i })).toBeInTheDocument();
   });
 
 
@@ -75,11 +78,11 @@ describe('TelaPainelDesigners Integration Tests', () => {
       expect(screen.getByText('Cliente B')).toBeInTheDocument();
     });
 
-    // Cliente A (aguardando) deve estar na coluna "Aguardando"
-    // A coluna de "Aguardando" tem um contador de badge (deve ser 1)
+    // Cliente A (aguardando) deve estar na coluna "Fila Operacional"
+    // A coluna de "Fila Operacional" tem um contador de badge (deve ser 1)
     // Como existem múltiplos contadores "1" na página, selecionamos a primeira badge
-    const aguardandoBadge = screen.getAllByText('1')[0];
-    expect(aguardandoBadge).toBeInTheDocument();
+    const filaBadge = screen.getAllByText('1')[0];
+    expect(filaBadge).toBeInTheDocument();
   });
 
 
@@ -97,11 +100,11 @@ describe('TelaPainelDesigners Integration Tests', () => {
     // O modal deve ser exibido com o título e o botão de fechar
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('FECHAR [ESC]')).toBeInTheDocument();
+      expect(screen.getByText('FECHAR')).toBeInTheDocument();
     });
 
     // Fecha o modal
-    await user.click(screen.getByText('FECHAR [ESC]'));
+    await user.click(screen.getByText('FECHAR'));
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

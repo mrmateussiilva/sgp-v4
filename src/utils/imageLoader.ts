@@ -17,7 +17,15 @@ const blobCache = new Map<string, Blob>();
  */
 const referenceCount = new Map<string, number>();
 
-const MAX_CACHE_SIZE = 25;
+/**
+ * Map de downloads em andamento: garante que múltiplas chamadas simultâneas
+ * para a mesma URL não disparem downloads paralelos (race condition).
+ * Quando a primeira chamada inicia o download, as demais recebem a mesma Promise.
+ */
+const inFlightRequests = new Map<string, Promise<string>>();
+
+// Aumentado de 25 para 150 para cobrir painéis com muitos cards sem ejetar imagens ativas
+const MAX_CACHE_SIZE = 150;
 
 export function retainImageUrl(imagePath: string): void {
   const normalized = normalizeImageUrl(imagePath);
@@ -25,6 +33,15 @@ export function retainImageUrl(imagePath: string): void {
     const count = referenceCount.get(normalized) || 0;
     referenceCount.set(normalized, count + 1);
   }
+}
+
+/**
+ * Retorna de forma síncrona o blobUrl se a imagem já estiver no cache
+ */
+export function getCachedImageUrl(imagePath: string): string | null {
+  if (!imagePath) return null;
+  const normalized = normalizeImageUrl(imagePath);
+  return blobUrlCache.get(normalized) || null;
 }
 
 export function releaseImageUrl(imagePath: string): void {
@@ -174,6 +191,26 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     return url;
   }
 
+  // ── In-flight deduplication ──────────────────────────────────────────────
+  // Se já existe um download em andamento para esta URL, retornar a mesma
+  // Promise em vez de disparar um segundo download paralelo (race condition).
+  if (inFlightRequests.has(normalized)) {
+    return inFlightRequests.get(normalized)!;
+  }
+
+  // Registrar a Promise do download para deduplicação de requests concorrentes
+  const downloadPromise = _doLoadAuthenticatedImage(normalized).finally(() => {
+    inFlightRequests.delete(normalized);
+  });
+  inFlightRequests.set(normalized, downloadPromise);
+  return downloadPromise;
+}
+
+/**
+ * Implementação interna do carregamento. Chamada sempre com URL já normalizada
+ * e garantidamente não duplicada (garantia do in-flight map acima).
+ */
+async function _doLoadAuthenticatedImage(normalized: string): Promise<string> {
   // Se for base64, retornar diretamente
   if (normalized.startsWith('data:image/')) {
     return normalized;
@@ -197,7 +234,6 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
       console.error("Erro ao carregar caminho absoluto local no Tauri:", err);
     }
   }
-
 
   // Se estiver em Tauri, verificar cache local primeiro
   if (isTauri() && !isOtherSystemLocalPath(normalized)) {
@@ -227,14 +263,11 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
     // Salvar usando apenas caminho normalizado (chave única)
     addToCache(normalized, blobUrl, blob);
 
-    // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
+    // Se estiver em Tauri, cachear a imagem localmente para próximas vezes
     if (isTauri() && response.data) {
       try {
-        // Converter blob para Uint8Array
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);
-
-        // Cachear localmente usando caminho normalizado
         await cacheImageFromUrl(normalized, imageData);
       } catch {
         // Não falhar se o cache falhar
@@ -245,19 +278,13 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
   }
 
   // Para caminhos relativos, usar o apiClient com baseURL configurado
-  // O apiClient já tem baseURL configurado, então passamos apenas o caminho relativo
   let relativePath = normalized.startsWith('/') ? normalized : `/${normalized}`;
 
-  // Se o caminho começa com /pedidos/tmp/ ou /pedidos/ seguido de número, usar endpoint /media/
-  // O endpoint /pedidos/media/{file_path:path} serve arquivos do diretório media
-  // IMPORTANTE: Verificar tanto o normalized quanto o relativePath para capturar todos os casos
+  // Se o caminho começa com /pedidos/tmp/ ou /pedidos/{id}/, redirecionar para /media/
   const isPedidosTmp = relativePath.startsWith('/pedidos/tmp/') || normalized.startsWith('pedidos/tmp/');
   const isPedidosId = /^\/pedidos\/\d+\//.test(relativePath) || /^pedidos\/\d+\//.test(normalized);
 
   if (isPedidosTmp || isPedidosId) {
-    // Construir caminho para o endpoint /pedidos/media/{file_path}
-    // O file_path deve ser o caminho relativo dentro do diretório media (ex: pedidos/tmp/xxx.jpg)
-    // Garantir que o caminho comece com / para construir corretamente
     const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
     relativePath = `/pedidos/media${cleanPath}`;
   }
@@ -274,14 +301,11 @@ export async function loadAuthenticatedImage(imagePath: string): Promise<string>
   // Armazenar no cache usando apenas caminho normalizado (chave única)
   addToCache(normalized, blobUrl, blob);
 
-  // NOVO: Se estiver em Tauri, cachear a imagem localmente para próximas vezes
+  // Se estiver em Tauri, cachear a imagem localmente para próximas vezes
   if (isTauri() && response.data) {
     try {
-      // Converter blob para Uint8Array
       const arrayBuffer = await blob.arrayBuffer();
       const imageData = new Uint8Array(arrayBuffer);
-
-      // Cachear localmente usando caminho normalizado
       await cacheImageFromUrl(normalized, imageData);
     } catch {
       // Não falhar se o cache falhar
