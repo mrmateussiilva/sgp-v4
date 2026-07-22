@@ -37,18 +37,17 @@ function buildPrompt(order: OrderWithItems): string {
   ];
   const feitas = etapas.filter(e => e.feito).map(e => e.nome);
   const pendentes = etapas.filter(e => !e.feito).map(e => e.nome);
-  const etapaAtual = pendentes[0] || 'Concluído';
 
   // Impacto logístico da forma de envio
   const envioMap: Record<string, string> = {
-    'retirada': 'cliente retira (sem prazo de postagem)',
-    'correios': 'Correios (postar com ~2 dias de antecedência)',
-    'transportadora': 'transportadora (agendar coleta com ~1 dia de antecedência)',
-    'motoboy': 'motoboy/entrega local (agendar no dia)',
+    'retirada': 'cliente retira (sem margem de postagem)',
+    'correios': 'Correios — precisa postar 2 dias antes do prazo',
+    'transportadora': 'transportadora — agendar coleta 1 dia antes',
+    'motoboy': 'motoboy — agendar no mesmo dia',
   };
   const envioNorm = (order.forma_envio || '').toLowerCase();
   const envioInfo = Object.entries(envioMap).find(([k]) => envioNorm.includes(k))?.[1]
-    ?? `"${order.forma_envio || 'não informado'}"`;
+    ?? (order.forma_envio ? `envio: "${order.forma_envio}"` : 'forma de envio não informada');
 
   // Itens: só o que importa para produção
   const itens = (order.items || []).map(item => {
@@ -64,27 +63,40 @@ function buildPrompt(order: OrderWithItems): string {
 
   const localizacao = [order.cidade_cliente, order.estado_cliente].filter(Boolean).join('/');
 
-  return `Você é especialista em produção gráfica/têxtil (sublimação, lona, banner, adesivo, totem, costura).
+  return `Você é gerente de produção de uma empresa gráfica/têxtil. Conheça nosso fluxo e tempos típicos:
 
-DADOS DO PEDIDO #${order.numero || order.id}:
+FLUXO: Financeiro → Conferência → Impressão → Costura → Expedição
+TEMPOS ESTIMADOS POR ETAPA (dias úteis):
+- Impressão sublimação têxtil (camiseta, canga, mochilinha): 0,5 dia
+- Impressão lona/banner pequeno (até 2m²): 0,5 dia
+- Impressão lona/banner grande (>2m²): 1-2 dias
+- Costura simples: 0,5 dia por peça
+- Costura complexa (mochilinha, totem com estrutura): 1-2 dias
+- Quantidades acima de 10 unidades: dobrar estimativa
+LOGÍSTICA: Correios precisa 2 dias de antecedência; Transportadora 1 dia; Retirada e motoboy sem margem extra
+
+PEDIDO #${order.numero || order.id}:
 - Cliente: ${order.cliente || order.customer_name}${localizacao ? ` (${localizacao})` : ''}
-- Prazo: ${prazoLabel}
+- Prazo: ${prazoLabel}${diasRestantes !== null ? ` (${diasRestantes < 0 ? 'ATRASADO' : diasRestantes + 'd restantes'})` : ''}
 - Envio: ${envioInfo}
 - Prioridade: ${order.prioridade || 'NORMAL'}
-- Etapa atual: ${etapaAtual}${feitas.length ? ` (concluídas: ${feitas.join(', ')})` : ' (nenhuma etapa concluída)'}
-${pendentes.length ? `- Falta ainda: ${pendentes.join(' → ')}` : '- Todas etapas concluídas'}
+- Concluído: ${feitas.length ? feitas.join(', ') : 'nada ainda'}
+- Pendente: ${pendentes.length ? pendentes.join(' → ') : 'tudo concluído'}
 ${order.observacao ? `- Obs: ${order.observacao}` : ''}
 - Itens:
-${itens ? `- ${itens}` : '- (sem itens cadastrados)'}
+${itens ? `- ${itens}` : '- (sem itens)'}
 
-TAREFA: Analise este pedido e responda em português com no máximo 4 bullet points curtos (máx 2 linhas cada).
-REGRAS:
-1. NÃO repita dados que já estão acima (prazo, cliente, etc.)
-2. Foque em riscos REAIS e ações CONCRETAS para a equipe de produção
-3. Considere o tipo de item (ex: lona grande demora mais, costura é mais lenta que impressão, etc.)
-4. Se o pedido estiver tranquilo, diga em 1 linha e pare
-5. Use ícones simples (⚠️ risco, ✅ ok, 🚚 logística, 🔧 produção)`;
+SUA TAREFA: Dê um diagnóstico REAL que o operador não consegue ver olhando para a tela.
+1. Calcule se o prazo é VIÁVEL considerando o que falta + tipo de item + logística
+2. Identifique qual etapa vai ser o GARGALO real (não repita o óbvio)
+3. Dê UMA ação concreta e imediata
+
+FORMATO OBRIGATÓRIO (máx 4 linhas, sem títulos/seções):
+[🟢/🟡/🔴] [veredito do prazo com cálculo]
+[⚠️ se houver risco específico não óbvio]
+[▶] [1 ação imediata]`;
 }
+
 
 export async function analyzeOrderWithGemini(
   order: OrderWithItems,
