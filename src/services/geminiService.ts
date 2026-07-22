@@ -1,4 +1,5 @@
 import { OrderWithItems } from '@/types';
+import { loadGeminiContext } from '@/utils/geminiContext';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -63,7 +64,15 @@ function buildPrompt(order: OrderWithItems): string {
 
   const localizacao = [order.cidade_cliente, order.estado_cliente].filter(Boolean).join('/');
 
-  return `Você é gerente de produção de uma empresa gráfica/têxtil. Conheça nosso fluxo e tempos típicos:
+  const empresaContext = loadGeminiContext();
+  const contextBlock = empresaContext
+    ? `CONTEXTO DA EMPRESA (use isso para personalizar a análise):
+${empresaContext}
+
+`
+    : '';
+
+  return `${contextBlock}Você é gerente de produção de uma empresa gráfica/têxtil. Conheça nosso fluxo e tempos típicos:
 
 FLUXO: Financeiro → Conferência → Impressão → Costura → Expedição
 TEMPOS ESTIMADOS POR ETAPA (dias úteis):

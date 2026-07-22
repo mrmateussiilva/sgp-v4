@@ -19,10 +19,13 @@ import {
   Loader2,
   X,
   Bot,
+  BookOpen,
 } from 'lucide-react';
 import { OrderWithItems } from '@/types';
 import { useGeminiAnalysis } from '@/hooks/useGeminiAnalysis';
 import { loadGeminiApiKey, saveGeminiApiKey } from '@/utils/geminiConfig';
+import { loadGeminiContext } from '@/utils/geminiContext';
+import { GeminiContextModal } from './GeminiContextModal';
 import { cn } from '@/lib/utils';
 import { formatDateForDisplay } from '@/utils/date';
 
@@ -37,6 +40,8 @@ export function GeminiAnalysisModal({ open, onClose, order }: GeminiAnalysisModa
   const [inputKey, setInputKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [keyConfigured, setKeyConfigured] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [hasContext, setHasContext] = useState(false);
 
   const { loading, result, error, analyze, clear } = useGeminiAnalysis();
 
@@ -53,6 +58,7 @@ export function GeminiAnalysisModal({ open, onClose, order }: GeminiAnalysisModa
         setKeyConfigured(false);
         setInputKey('');
       }
+      setHasContext(!!loadGeminiContext());
       clear();
     }
   }, [open, clear]);
@@ -326,13 +332,36 @@ export function GeminiAnalysisModal({ open, onClose, order }: GeminiAnalysisModa
         {/* Footer */}
         {keyConfigured && (
           <div className="border-t bg-muted/30 px-5 py-3 flex items-center justify-between gap-3 flex-shrink-0">
-            <button
-              onClick={handleChangeKey}
-              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
-            >
-              <KeyRound className="h-3 w-3" />
-              Trocar API Key
-            </button>
+            {/* Modal de contexto */}
+            <GeminiContextModal
+              open={contextOpen}
+              onClose={() => {
+                setContextOpen(false);
+                setHasContext(!!loadGeminiContext());
+              }}
+            />
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setContextOpen(true)}
+                className={cn(
+                  'text-[11px] flex items-center gap-1.5 transition-colors',
+                  hasContext
+                    ? 'text-violet-600 dark:text-violet-400 font-medium hover:text-violet-700'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <BookOpen className="h-3 w-3" />
+                {hasContext ? 'Contexto ativo' : 'Adicionar contexto'}
+              </button>
+              <button
+                onClick={handleChangeKey}
+                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="h-3 w-3" />
+                Trocar API Key
+              </button>
+            </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
