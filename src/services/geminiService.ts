@@ -1,7 +1,14 @@
 import { OrderWithItems } from '@/types';
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+// Lista de modelos em ordem de preferência — se o primeiro falhar, tenta o próximo
+const GEMINI_MODELS = [
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite-preview-06-17',
+];
 
 
 function buildPrompt(order: OrderWithItems): string {
@@ -78,32 +85,62 @@ export async function analyzeOrderWithGemini(
   apiKey: string
 ): Promise<string> {
   const prompt = buildPrompt(order);
+  let lastError: Error = new Error('Nenhum modelo disponível.');
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 1024,
-      },
-    }),
-  });
+  for (const model of GEMINI_MODELS) {
+    const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData?.error?.message || `HTTP ${response.status}`;
-    if (response.status === 400) throw new Error('API Key inválida ou requisição malformada.');
-    if (response.status === 403) throw new Error('API Key sem permissão. Verifique sua chave do Gemini em aistudio.google.com.');
-    if (response.status === 429) throw new Error(
-      '⏳ Cota da API Gemini atingida (plano gratuito: 15 req/min).\n\nAguarde cerca de 1 minuto e tente novamente.'
-    );
-    throw new Error(`Erro na API Gemini (${response.status}): ${message}`);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1024,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData?.error?.message || `HTTP ${response.status}`;
+
+        // Erros que não devem tentar o próximo modelo
+        if (response.status === 400) throw new Error('API Key inválida ou requisição malformada.');
+        if (response.status === 403) throw new Error('API Key sem permissão. Verifique sua chave em aistudio.google.com.');
+        if (response.status === 429) throw new Error(
+          '⏳ Cota da API Gemini atingida (plano gratuito: 15 req/min).\n\nAguarde cerca de 1 minuto e tente novamente.'
+        );
+
+        // Modelo indisponível/depreciado (404 ou mensagem de deprecação) → tenta próximo
+        if (response.status === 404 || message.includes('no longer available') || message.includes('not found')) {
+          lastError = new Error(`Modelo ${model} indisponível.`);
+          continue;
+        }
+
+        throw new Error(`Erro na API Gemini (${response.status}): ${message}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error('Resposta inválida da API Gemini.');
+      return text;
+
+    } catch (err) {
+      // Se for erro que já lançamos explicitamente (400, 403, 429), propaga direto
+      if (err instanceof Error && (
+        err.message.includes('API Key') ||
+        err.message.includes('Cota da API') ||
+        err.message.includes('sem permissão')
+      )) {
+        throw err;
+      }
+      lastError = err instanceof Error ? err : new Error(String(err));
+      // Modelo falhou por outro motivo → tenta próximo
+    }
   }
 
-  const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Resposta inválida da API Gemini.');
-  return text;
+  throw lastError;
 }
