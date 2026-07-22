@@ -9,16 +9,7 @@ function isBase64DataUrl(str: string): boolean {
   return str.startsWith('data:image/');
 }
 
-/**
- * Verifica se uma string é um caminho de arquivo local
- */
-function isLocalPath(str: string): boolean {
-  // Caminhos locais não começam com http/https nem são base64
-  return !str.startsWith('http://') && 
-         !str.startsWith('https://') && 
-         !isBase64DataUrl(str) &&
-         (str.includes('/') || str.includes('\\'));
-}
+
 
 /**
  * Obtém URL para preview de imagem
