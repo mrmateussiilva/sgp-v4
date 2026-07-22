@@ -1,7 +1,8 @@
 import { OrderWithItems } from '@/types';
 
 const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
 
 function buildPrompt(order: OrderWithItems): string {
   const today = new Date();
