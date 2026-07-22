@@ -95,9 +95,11 @@ export async function analyzeOrderWithGemini(
     const errorData = await response.json().catch(() => ({}));
     const message = errorData?.error?.message || `HTTP ${response.status}`;
     if (response.status === 400) throw new Error('API Key inválida ou requisição malformada.');
-    if (response.status === 403) throw new Error('API Key sem permissão. Verifique sua chave do Gemini.');
-    if (response.status === 429) throw new Error('Limite de requisições atingido. Aguarde um momento e tente novamente.');
-    throw new Error(`Erro na API Gemini: ${message}`);
+    if (response.status === 403) throw new Error('API Key sem permissão. Verifique sua chave do Gemini em aistudio.google.com.');
+    if (response.status === 429) throw new Error(
+      '⏳ Cota da API Gemini atingida (plano gratuito: 15 req/min).\n\nAguarde cerca de 1 minuto e tente novamente.'
+    );
+    throw new Error(`Erro na API Gemini (${response.status}): ${message}`);
   }
 
   const data = await response.json();
