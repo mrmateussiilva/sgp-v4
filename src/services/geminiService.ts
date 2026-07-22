@@ -15,69 +15,75 @@ function buildPrompt(order: OrderWithItems): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let urgencyText = 'Sem data de entrega definida';
+  // Calcula prazo com precisão
+  let diasRestantes: number | null = null;
+  let prazoLabel = 'sem prazo definido';
   if (order.data_entrega) {
     const delivery = new Date(order.data_entrega + 'T00:00:00');
-    const diffDays = Math.round((delivery.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) urgencyText = `ATRASADO há ${Math.abs(diffDays)} dia(s)`;
-    else if (diffDays === 0) urgencyText = 'Entrega HOJE';
-    else if (diffDays === 1) urgencyText = 'Entrega AMANHÃ';
-    else urgencyText = `Entrega em ${diffDays} dias`;
+    diasRestantes = Math.round((delivery.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diasRestantes < 0) prazoLabel = `ATRASADO ${Math.abs(diasRestantes)}d`;
+    else if (diasRestantes === 0) prazoLabel = 'entrega HOJE';
+    else if (diasRestantes === 1) prazoLabel = 'entrega AMANHÃ';
+    else prazoLabel = `${diasRestantes} dias para entrega`;
   }
 
-  const statusLine = [
-    `Financeiro: ${order.financeiro ? '✓' : '✗'}`,
-    `Conferência: ${order.conferencia ? '✓' : '✗'}`,
-    `Impressão: ${order.sublimacao ? '✓' : '✗'}`,
-    `Costura: ${order.costura ? '✓' : '✗'}`,
-    `Expedição: ${order.expedicao ? '✓' : '✗'}`,
-  ].join(' | ');
+  // Determina etapa atual e o que falta
+  const etapas = [
+    { nome: 'Financeiro', feito: !!order.financeiro },
+    { nome: 'Conferência', feito: !!order.conferencia },
+    { nome: 'Impressão', feito: !!order.sublimacao },
+    { nome: 'Costura', feito: !!order.costura },
+    { nome: 'Expedição', feito: !!order.expedicao },
+  ];
+  const feitas = etapas.filter(e => e.feito).map(e => e.nome);
+  const pendentes = etapas.filter(e => !e.feito).map(e => e.nome);
+  const etapaAtual = pendentes[0] || 'Concluído';
 
-  const itemsText = (order.items || [])
-    .map((item, idx) => {
-      const parts: string[] = [];
-      if (item.tipo_producao) parts.push(`Tipo: ${item.tipo_producao}`);
-      if (item.descricao) parts.push(`Descrição: ${item.descricao}`);
-      if (item.largura && item.altura) parts.push(`Medidas: ${item.largura}x${item.altura}m`);
-      if (item.tecido) parts.push(`Tecido: ${item.tecido}`);
-      if (item.quantity) parts.push(`Qtd: ${item.quantity}`);
-      if (item.observacao) parts.push(`Obs: ${item.observacao}`);
-      return `  Item ${idx + 1}: ${parts.join(', ') || item.item_name}`;
-    })
-    .join('\n');
+  // Impacto logístico da forma de envio
+  const envioMap: Record<string, string> = {
+    'retirada': 'cliente retira (sem prazo de postagem)',
+    'correios': 'Correios (postar com ~2 dias de antecedência)',
+    'transportadora': 'transportadora (agendar coleta com ~1 dia de antecedência)',
+    'motoboy': 'motoboy/entrega local (agendar no dia)',
+  };
+  const envioNorm = (order.forma_envio || '').toLowerCase();
+  const envioInfo = Object.entries(envioMap).find(([k]) => envioNorm.includes(k))?.[1]
+    ?? `"${order.forma_envio || 'não informado'}"`;
+
+  // Itens: só o que importa para produção
+  const itens = (order.items || []).map(item => {
+    const partes: string[] = [];
+    if (item.tipo_producao) partes.push(item.tipo_producao);
+    if (item.descricao) partes.push(item.descricao);
+    if (item.largura && item.altura) partes.push(`${item.largura}x${item.altura}m`);
+    if (item.quantity && item.quantity > 1) partes.push(`x${item.quantity}`);
+    if (item.tecido) partes.push(`[${item.tecido}]`);
+    if (item.observacao) partes.push(`(obs: ${item.observacao})`);
+    return partes.join(' ') || item.item_name;
+  }).join('\n- ');
 
   const localizacao = [order.cidade_cliente, order.estado_cliente].filter(Boolean).join('/');
 
-  return `Você é um assistente especializado em gestão de pedidos para empresas gráficas e têxteis (banners, lonas, camisetas sublimadas, etc.).
+  return `Você é especialista em produção gráfica/têxtil (sublimação, lona, banner, adesivo, totem, costura).
 
-Analise o pedido abaixo e forneça uma análise concisa em português com os seguintes tópicos em Markdown:
+DADOS DO PEDIDO #${order.numero || order.id}:
+- Cliente: ${order.cliente || order.customer_name}${localizacao ? ` (${localizacao})` : ''}
+- Prazo: ${prazoLabel}
+- Envio: ${envioInfo}
+- Prioridade: ${order.prioridade || 'NORMAL'}
+- Etapa atual: ${etapaAtual}${feitas.length ? ` (concluídas: ${feitas.join(', ')})` : ' (nenhuma etapa concluída)'}
+${pendentes.length ? `- Falta ainda: ${pendentes.join(' → ')}` : '- Todas etapas concluídas'}
+${order.observacao ? `- Obs: ${order.observacao}` : ''}
+- Itens:
+${itens ? `- ${itens}` : '- (sem itens cadastrados)'}
 
-## 🔍 Situação Geral
-Resumo do estado atual do pedido, prazo e urgência.
-
-## ⚠️ Pontos de Atenção
-Lista dos principais riscos ou observações relevantes (prazo, forma de envio, itens complexos, etc.).
-
-## ✅ Próximos Passos
-O que precisa ser feito agora para garantir a entrega no prazo.
-
----
-**DADOS DO PEDIDO:**
-
-Número: #${order.numero || order.id}
-Cliente: ${order.cliente || order.customer_name}${localizacao ? ` — ${localizacao}` : ''}
-Prazo: ${order.data_entrega || 'Não definido'} (${urgencyText})
-Forma de envio: ${order.forma_envio || 'Não informado'}
-Prioridade: ${order.prioridade || 'NORMAL'}
-Rascunho: ${order.rascunho ? 'Sim (fora do fluxo de produção)' : 'Não'}
-Status de produção: ${statusLine}
-${order.observacao ? `Observações: ${order.observacao}` : ''}
-
-Itens do pedido:
-${itemsText || '  Nenhum item cadastrado'}
-
----
-Seja objetivo e direto. Foque no que é mais importante para a equipe de produção agir agora.`;
+TAREFA: Analise este pedido e responda em português com no máximo 4 bullet points curtos (máx 2 linhas cada).
+REGRAS:
+1. NÃO repita dados que já estão acima (prazo, cliente, etc.)
+2. Foque em riscos REAIS e ações CONCRETAS para a equipe de produção
+3. Considere o tipo de item (ex: lona grande demora mais, costura é mais lenta que impressão, etc.)
+4. Se o pedido estiver tranquilo, diga em 1 linha e pare
+5. Use ícones simples (⚠️ risco, ✅ ok, 🚚 logística, 🔧 produção)`;
 }
 
 export async function analyzeOrderWithGemini(
@@ -97,8 +103,8 @@ export async function analyzeOrderWithGemini(
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1024,
+            temperature: 0.3,
+            maxOutputTokens: 350,
           },
         }),
       });

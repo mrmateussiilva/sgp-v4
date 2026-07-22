@@ -311,14 +311,11 @@ export function GeminiAnalysisModal({ open, onClose, order }: GeminiAnalysisModa
 
           {/* Resultado */}
           {result && !loading && (
-            <div className="p-6">
-              <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed
-                prose-headings:font-bold prose-headings:text-foreground prose-headings:mt-4 prose-headings:mb-2
-                prose-h2:text-base prose-h2:border-b prose-h2:pb-1 prose-h2:border-border/50
-                prose-p:text-muted-foreground prose-p:text-sm prose-p:leading-relaxed
-                prose-li:text-muted-foreground prose-li:text-sm
-                prose-strong:text-foreground prose-strong:font-semibold
-                prose-hr:border-border/50
+            <div className="p-5">
+              <div className="text-sm leading-relaxed space-y-1
+                [&_ul]:space-y-2 [&_li]:flex [&_li]:gap-2
+                [&_p]:text-foreground/85 [&_p]:leading-relaxed
+                [&_strong]:text-foreground [&_strong]:font-semibold
               ">
                 <ReactMarkdown>{result}</ReactMarkdown>
               </div>
