@@ -47,7 +47,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useDesignerNotifications } from '@/hooks/useDesignerNotifications';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
@@ -100,6 +102,9 @@ export default function Dashboard() {
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
   const isMobile = useIsMobile();
   const { toast } = useToast();
+
+  // Inicializar serviço de notificações de designers
+  useDesignerNotifications();
 
   // Estado do modal de troca de senha
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -472,18 +477,21 @@ export default function Dashboard() {
             <Separator />
 
             <div className="p-4">
-              {sidebarExpanded && (
-                <div className="mb-3 px-3">
+            {sidebarExpanded && (
+              <div className="mb-3 px-3">
+                <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-slate-700">Usuário: <span className="font-normal text-muted-foreground">{username}</span></p>
-                  <button
-                    onClick={() => setShowChangePassword(true)}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
-                  >
-                    <Lock size={12} /> Alterar senha
-                  </button>
-
+                  <NotificationBell />
                 </div>
-              )}
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 transition-colors"
+                >
+                  <Lock size={12} /> Alterar senha
+                </button>
+
+              </div>
+            )}
               {!sidebarExpanded ? (
                 <Tooltip>
                   <TooltipTrigger asChild>

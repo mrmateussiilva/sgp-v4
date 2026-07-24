@@ -1,5 +1,13 @@
 # Release
 
+## v1.4.4 — 2026-07-24
+
+### ✨ Notificações Nativas para Designers
+- **Notificações Nativas via OS**: Notificação do sistema operacional (Windows/Linux) enviada automaticamente quando um pedido com artes de um designer é liberado pelo financeiro.
+- **WebSocket Direcionado**: Envio exclusivo para a conexão ativa do usuário destinatário via `send_to_user()` no backend.
+- **Central de Notificações & Sino**: Componente de sino com badge de não lidas e dropdown interativo no menu lateral.
+- **Persistência & Recuperação Offline**: Tabela `designer_notifications` para resgate de notificações ao abrir o app offline/após reconexão.
+
 ## v1.4.3 — 2026-07-08
 
 ### 🐛 Correções críticas
