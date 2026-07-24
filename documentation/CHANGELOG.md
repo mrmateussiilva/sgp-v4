@@ -6,7 +6,7 @@
 - **Notificações em Tempo Real**: Notificação nativa do sistema operacional (Windows/Linux) enviada instantaneamente para cada designer responsável por artes assim que um pedido é criado ou alterado com artes atribuídas (sem depender de liberação financeira, já que a arte é feita antes do pagamento).
 - **Roteamento Inteligente**: Mapeamento do designer responsável no pedido para a conexão WebSocket ativa do usuário correspondente no backend.
 - **Deduplicação & Janela Anti-Spam**: Mecanismo de deduplicação temporal (60s) no backend e no frontend (`sessionStorage`) para prevenir notificações duplicadas ou redundantes.
-- **Central de Notificações (Sino)**: Novo componente de sino no rodapé do menu lateral com badge de não lidas, contagem ao vivo, dropdown de notificações recentes e ação "Marcar todas como lidas".
+- **Central de Notificações de Artes (Sino)**: Novo modal centralizado (`Dialog`) no menu lateral para visualizar exclusivamente as notificações de artes atribuídas com badge de não lidas, contagem ao vivo e ação "Marcar todas como lidas".
 - **Clique para Navegar**: Clicar na notificação nativa do sistema ou no dropdown direciona o usuário diretamente para o pedido selecionado no SGP.
 - **Resiliência Offline**: Persistência de notificações no banco de dados (`designer_notifications`) e sincronização automática de pendências não lidas ao reconectar ou abrir o sistema.
 
