@@ -374,6 +374,11 @@ export default function OrderDetails({ open, onClose }: OrderDetailsProps) {
                       <li key={idx}>{detail}</li>
                     ))}
                   </ul>
+                  {item.observacao && item.observacao.trim() && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900">
+                      <span className="font-bold">Observação do Item:</span> {item.observacao}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

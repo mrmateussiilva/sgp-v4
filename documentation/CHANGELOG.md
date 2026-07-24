@@ -10,6 +10,12 @@
 - **Clique para Navegar**: Clicar na notificação nativa do sistema ou no dropdown direciona o usuário diretamente para o pedido selecionado no SGP.
 - **Resiliência Offline**: Persistência de notificações no banco de dados (`designer_notifications`) e sincronização automática de pendências não lidas ao reconectar ou abrir o sistema.
 
+### 📝 Observação Individual por Item na Ficha
+- **Observações Específicas por Item**: Adicionado campo de observação individual para cada item da ficha/pedido, mantendo o campo de observação geral do pedido intacto e separado.
+- **Formulários Padronizados**: Adicionado o campo `Observação do Item` em todos os formulários de produção (`FormPainelCompleto`, `FormTotemProducao`, `FormLonaProducao`, `FormAdesivoProducao`, `FormCangaProducao`, `FormImpressao3D`, `FormMochilinhaProducao`, `FormMesaBabado`).
+- **Visualização & PDF de Produção**: Exibição destacada da observação por item na visualização de detalhes do pedido (`OrderDetails`) e na ficha de produção em PDF (`OrderCard`, `ProductionSheetPDF`, `FichaProducaoPDF`), sem sobreposição de texto ou caracteres corrompidos.
+- **Vínculo & Duplicação Resiliente**: Garantida a preservação e o isolamento das observações ao duplicar fichas, reordenar ou remover itens via `item.id`.
+
 ## [1.4.2] - 2026-07-04
 
 ### 🚀 Otimizações de Performance & Filtros em Memória

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -625,6 +626,19 @@ export function FormPainelCompleto({
         </div>
       </div>
 
+
+      {/* === OBSERVAÇÃO DO ITEM === */}
+      <div className="space-y-2">
+        <Label htmlFor={fieldId('observacao-item')} className="text-base font-medium">Observação do Item</Label>
+        <Textarea
+          id={fieldId('observacao-item')}
+          value={tabData?.observacao || ''}
+          onChange={(e) => onDataChange('observacao', e.target.value)}
+          placeholder="Instruções específicas para este item..."
+          rows={2}
+          className="bg-white text-base"
+        />
+      </div>
 
       {/* === RODAPÉ: VALORES + BOTÕES === */}
       <div className="space-y-4">

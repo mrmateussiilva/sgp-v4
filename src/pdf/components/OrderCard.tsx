@@ -207,13 +207,32 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         </>
                     )}
 
-                    {(prod.observacao_item || order.observacao_pedido) && (
-                        <>
-                            <Text style={[styles.techTitle, { marginTop: 12 }]}>Observações</Text>
-                            <Text style={[styles.techItem, { fontWeight: 'normal', color: COLORS.textMuted, fontSize: 10, marginTop: 4, paddingLeft: 6 }]}>
-                                {prod.observacao_item || order.observacao_pedido}
-                            </Text>
-                        </>
+                    {(order.observacao_pedido || prod.observacao_item) && (
+                        <View style={{ marginTop: 6 }}>
+                            <Text style={styles.techTitle}>Observações</Text>
+                            <View style={{ paddingLeft: 4, gap: 4 }}>
+                                {order.observacao_pedido && (
+                                    <View style={{ marginBottom: 3 }}>
+                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
+                                            Geral (Pedido):
+                                        </Text>
+                                        <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.2 }}>
+                                            {order.observacao_pedido}
+                                        </Text>
+                                    </View>
+                                )}
+                                {prod.observacao_item && (
+                                    <View style={{ marginBottom: 3 }}>
+                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
+                                            Do Item:
+                                        </Text>
+                                        <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.2 }}>
+                                            {prod.observacao_item}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
                     )}
                 </View>
 

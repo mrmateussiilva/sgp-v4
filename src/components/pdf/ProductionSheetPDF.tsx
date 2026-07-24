@@ -322,13 +322,13 @@ const ProductionItemView: React.FC<{ item: ProductionItem }> = ({ item }) => {
                         <View style={styles.obsContainer}>
                             {item.observacao_pedido && (
                                 <View style={styles.obs}>
-                                    <Text style={styles.obsTitle}>📋 Observações do Pedido</Text>
+                                    <Text style={styles.obsTitle}>Observações do Pedido</Text>
                                     <Text>{item.observacao_pedido}</Text>
                                 </View>
                             )}
                             {item.observacao_item && (
                                 <View style={styles.obs}>
-                                    <Text style={styles.obsTitle}>⚙️ Observações de Produção</Text>
+                                    <Text style={styles.obsTitle}>Observações do Item</Text>
                                     <Text>{item.observacao_item}</Text>
                                 </View>
                             )}
