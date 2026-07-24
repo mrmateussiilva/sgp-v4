@@ -175,7 +175,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
 
       {/* Área de conteúdo */}
       <main
-        className="flex-1 overflow-auto p-4 md:p-6 pb-20 sm:pb-4 custom-scrollbar max-w-7xl mx-auto w-full"
+        className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 pt-2 pb-20 sm:pb-4 custom-scrollbar max-w-7xl mx-auto w-full"
         role="main"
       >
         {children}

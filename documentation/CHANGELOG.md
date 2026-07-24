@@ -19,6 +19,8 @@
 - **Notificações no Header PWA**: Adicionado o componente de notificações de artes no cabeçalho Web/PWA (`PwaLayout`), permitindo que designers acompanhem artes atribuídas diretamente no smartphone.
 - **Touch Targets Accessibility**: Aumentada a área clicável de ícones e botões nos cards operacionais (`ExpedicaoCard`) para mínimo de 44x44px (`h-10 w-10`).
 - **Modais Adaptáveis**: Otimizado o `OrderViewModal` com paddings responsivos `w-[98vw] sm:w-[95vw]` e suporte a `safe-area-inset-bottom` para prevenir sobreposição de controles pela barra do sistema móvel.
+- **Correção Estrutural de Scroll & Margens**: Eliminadas lacunas em branco no topo (`PwaLayout`), compactado o header sticky mobile (~52px), removidos scrolls aninhados internos e ocultada a barra de scrollbar nativa dos chips de status.
+- **Paginação Responsiva**: Implementada paginação simplificada no mobile (`Anterior` | `Página X de Y` | `Próxima`) e preservada a paginação numerada completa em desktop.
 
 ## [1.4.2] - 2026-07-04
 

@@ -2026,8 +2026,9 @@ export default function OrderList() {
 
             {/* Barra de Filtros Principais - Desktop e Mobile PWA */}
             {isMobile ? (
-              <div className="flex flex-col gap-3 mb-4 sticky top-14 z-20 bg-background/95 backdrop-blur-sm p-3 border-b shadow-sm">
-                <div className="flex gap-2 w-full">
+              <div className="flex flex-col gap-3 mb-3">
+                {/* Apenas a linha de busca fica sticky (compacta ~52px) */}
+                <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md py-2 px-1 border-b shadow-sm flex gap-2 w-full items-center">
                   <div className="flex-1 relative group">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
                     <Input
@@ -2035,15 +2036,16 @@ export default function OrderList() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-10 h-11 bg-muted/40 border-none rounded-full focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+                      className="pl-10 h-10 bg-muted/40 border-none rounded-full focus-visible:ring-1 focus-visible:ring-primary shadow-none text-xs"
                     />
                     {searchTerm && (
                       <button
                         onClick={() => {
                           setSearchTerm('');
-                          handleSearch(); // trigger reset search
+                          handleSearch();
                         }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
+                        aria-label="Limpar busca"
                       >
                         <X className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
@@ -2054,10 +2056,11 @@ export default function OrderList() {
                       variant="outline"
                       size="icon"
                       className={cn(
-                        "h-11 w-11 rounded-full border shadow-sm",
+                        "h-10 w-10 rounded-full border shadow-sm shrink-0",
                         (dateFrom || dateTo || activeFiltersCount > 0) && "border-primary bg-primary/5"
                       )}
                       onClick={() => setAdvancedFiltersOpen(true)}
+                      aria-label="Filtros avançados"
                     >
                       <Filter className={cn("h-4 w-4", (dateFrom || dateTo || activeFiltersCount > 0) && "text-primary fill-primary/10")} />
                     </Button>
@@ -2069,15 +2072,16 @@ export default function OrderList() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between px-1">
+                {/* Fluxo Normal: Contagem e Status Chips (Sem Scrollbar Visível) */}
+                <div className="flex items-center justify-between px-1 pt-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                    <div className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                     {loading ? 'Buscando...' : `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido' : 'pedidos'}`}
                   </span>
                 </div>
 
-                {/* Status Chips - Mobile Only */}
-                <div className="flex overflow-x-auto pb-1 gap-2 scrollbar-none -mx-3 px-3">
+                {/* Status Chips - Mobile Only com scrollbar ocultada */}
+                <div className="flex overflow-x-auto pb-1 gap-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
                   {[
                     { id: 'pending', label: 'Pendentes', count: filterCounts.pending },
                     { id: 'delayed', label: 'Atrasados 🔴', count: filterCounts.delayed },
@@ -2089,7 +2093,7 @@ export default function OrderList() {
                       key={chip.id}
                       onClick={() => setProductionStatusFilter(chip.id as any)}
                       className={cn(
-                        "whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 flex items-center gap-1.5",
+                        "whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0",
                         productionStatusFilter === chip.id
                           ? chip.id === 'drafts'
                             ? "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-500/20"
@@ -2982,7 +2986,42 @@ export default function OrderList() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <div className="flex items-center gap-1 flex-wrap justify-center">
+                      {/* Paginação Mobile Simplificada */}
+                      <div className="flex sm:hidden items-center justify-between w-full gap-2 pt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPage(Math.max(0, page - 1))}
+                          disabled={page === 0}
+                          className="min-h-[44px] px-4 font-semibold text-xs"
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-xs font-bold text-muted-foreground">
+                          Página {page + 1} de {isBackendPaginated ? totalPages : totalPagesFiltered}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const maxPage = isBackendPaginated
+                              ? totalPages - 1
+                              : totalPagesFiltered - 1;
+                            setPage(Math.min(maxPage, page + 1));
+                          }}
+                          disabled={
+                            isBackendPaginated
+                              ? page >= totalPages - 1
+                              : page >= totalPagesFiltered - 1
+                          }
+                          className="min-h-[44px] px-4 font-semibold text-xs"
+                        >
+                          Próxima
+                        </Button>
+                      </div>
+
+                      {/* Paginação Desktop Numerada */}
+                      <div className="hidden sm:flex items-center gap-1 flex-wrap justify-center">
                         <Button
                           variant="outline"
                           size="sm"
