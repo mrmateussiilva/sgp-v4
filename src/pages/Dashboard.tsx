@@ -493,19 +493,22 @@ export default function Dashboard() {
               </div>
             )}
               {!sidebarExpanded ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
-                      onClick={handleLogout}
-                      aria-label={`Sair (${username})`}
-                    >
-                      <LogOut className="h-4 w-4" aria-hidden="true" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Sair ({username})</TooltipContent>
-                </Tooltip>
+                <div className="flex flex-col items-center gap-2">
+                  <NotificationBell />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all justify-center px-0"
+                        onClick={handleLogout}
+                        aria-label={`Sair (${username})`}
+                      >
+                        <LogOut className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Sair ({username})</TooltipContent>
+                  </Tooltip>
+                </div>
               ) : (
                 <Button
                   variant="outline"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Bell, BellRing, Check, CheckCheck, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDesignerNotificationStore } from '@/store/designerNotificationStore';
@@ -6,6 +6,14 @@ import { designerNotificationService } from '@/services/designerNotificationServ
 import { useAuthStore } from '@/store/authStore';
 import type { DesignerNotificationItem } from '@/types/designerNotification';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 // ── Utilitários de data ──────────────────────────────────────────────────────
 
@@ -33,17 +41,17 @@ function NotificationItem({
       id={`notification-item-${notification.notification_id}`}
       onClick={() => onRead(notification.notification_id, notification.order_id)}
       className={cn(
-        'w-full text-left px-4 py-3 flex items-start gap-3 transition-colors',
-        'hover:bg-accent/50 focus:outline-none focus:bg-accent/50',
-        !notification.read && 'bg-blue-50 dark:bg-blue-950/30',
+        'w-full text-left px-4 py-3 flex items-start gap-3 transition-colors rounded-lg my-0.5',
+        'hover:bg-slate-100 dark:hover:bg-slate-800/60 focus:outline-none focus:bg-slate-100',
+        !notification.read ? 'bg-blue-50/80 dark:bg-blue-950/40' : 'bg-transparent',
       )}
     >
       {/* Ícone */}
       <div
         className={cn(
-          'mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+          'mt-0.5 flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center',
           notification.read
-            ? 'bg-muted text-muted-foreground'
+            ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
             : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300',
         )}
       >
@@ -55,18 +63,18 @@ function NotificationItem({
         <p
           className={cn(
             'text-sm leading-snug',
-            notification.read ? 'text-muted-foreground' : 'font-semibold text-foreground',
+            notification.read ? 'text-slate-600 dark:text-slate-400' : 'font-semibold text-slate-900 dark:text-slate-100',
           )}
         >
           {notification.title}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">{notification.message}</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">{formatRelative(notification.created_at)}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{notification.message}</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{formatRelative(notification.created_at)}</p>
       </div>
 
       {/* Indicador de não lida */}
       {!notification.read && (
-        <span className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-blue-500" aria-label="Não lida" />
+        <span className="mt-1 flex-shrink-0 w-2.5 h-2.5 rounded-full bg-blue-600" aria-label="Não lida" />
       )}
     </button>
   );
@@ -76,26 +84,12 @@ function NotificationItem({
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const userId = useAuthStore((s) => s.userId);
 
   const { notifications, unreadCount } = useDesignerNotificationStore();
 
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    if (!open) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
-
-  // Escutar clique em notificação nativa (Windows)
+  // Escutar clique em notificação nativa (Windows/Linux)
   useEffect(() => {
     const handleNativeClick = (e: Event) => {
       const detail = (e as CustomEvent).detail as {
@@ -123,28 +117,28 @@ export function NotificationBell() {
     designerNotificationService.markAllAsRead();
   }, []);
 
-  // Não renderizar para usuários sem notificações (que não são designers)
+  // Não renderizar para usuários não autenticados
   if (!userId) return null;
 
   const hasUnread = unreadCount > 0;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       {/* Botão do sino */}
       <button
         id="notification-bell-button"
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => setOpen(true)}
         className={cn(
           'relative p-2 rounded-lg transition-colors',
           'hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring',
           open && 'bg-accent',
         )}
-        aria-label={hasUnread ? `${unreadCount} notificações não lidas` : 'Notificações'}
-        title={hasUnread ? `${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} não lida${unreadCount > 1 ? 's' : ''}` : 'Notificações'}
+        aria-label={hasUnread ? `${unreadCount} notificações de artes não lidas` : 'Notificações de artes'}
+        title={hasUnread ? `${unreadCount} notificação${unreadCount > 1 ? 'ões' : ''} de arte não lida${unreadCount > 1 ? 's' : ''}` : 'Notificações de artes'}
       >
         {hasUnread ? (
-          <BellRing className="w-5 h-5 text-foreground animate-[wiggle_0.5s_ease-in-out]" />
+          <BellRing className="w-5 h-5 text-blue-600 animate-[wiggle_0.5s_ease-in-out]" />
         ) : (
           <Bell className="w-5 h-5 text-muted-foreground" />
         )}
@@ -164,38 +158,44 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div
-          id="notification-bell-dropdown"
-          className={cn(
-            'absolute right-0 top-full mt-2 w-80 z-50',
-            'rounded-xl border border-border bg-popover shadow-elevation-xl',
-            'overflow-hidden',
-          )}
-        >
+      {/* Modal Centralizado */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg w-[92vw] max-h-[85vh] p-0 overflow-hidden flex flex-col rounded-xl shadow-2xl border">
           {/* Cabeçalho */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <span className="text-sm font-semibold text-foreground">Notificações</span>
-            {hasUnread && (
-              <button
-                id="notification-bell-mark-all-read"
-                type="button"
-                onClick={handleMarkAllRead}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors"
-              >
-                <CheckCheck className="w-3.5 h-3.5" />
-                Marcar todas como lidas
-              </button>
-            )}
-          </div>
+          <DialogHeader className="px-6 pt-5 pb-4 border-b flex-shrink-0">
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <Bell className="w-5 h-5 text-blue-600" />
+                Notificações de Artes
+              </DialogTitle>
+              {hasUnread && (
+                <Button
+                  id="notification-bell-mark-all-read"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleMarkAllRead}
+                  className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50 gap-1.5 font-medium"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  Marcar todas como lidas
+                </Button>
+              )}
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Acompanhe novas artes atribuídas diretamente ao seu usuário em tempo real.
+            </DialogDescription>
+          </DialogHeader>
 
-          {/* Lista */}
-          <div className="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-border/50">
+          {/* Lista de Notificações */}
+          <div className="flex-1 overflow-y-auto divide-y divide-border/40 p-3">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-                <Check className="w-8 h-8 opacity-40" />
-                <p className="text-sm">Nenhuma notificação</p>
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Check className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-medium">Nenhuma notificação de arte por enquanto</p>
+                <p className="text-xs text-muted-foreground">Você não possui novas artes atribuídas pendentes!</p>
               </div>
             ) : (
               notifications.map((n) => (
@@ -206,14 +206,13 @@ export function NotificationBell() {
 
           {/* Rodapé */}
           {notifications.length > 0 && (
-            <div className="border-t border-border px-4 py-2.5 bg-muted/30">
-              <p className="text-xs text-muted-foreground text-center">
-                Exibindo as {notifications.length} notificações mais recentes
-              </p>
+            <div className="border-t px-6 py-3 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
+              <span className="font-medium">{unreadCount} não lida{unreadCount !== 1 ? 's' : ''}</span>
+              <span>Exibindo as {notifications.length} notificações de artes mais recentes</span>
             </div>
           )}
-        </div>
-      )}
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
