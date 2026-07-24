@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NotificationBell } from '@/components/NotificationBell';
 import { cn } from '@/lib/utils';
 
 interface PwaLayoutProps {
@@ -151,8 +152,9 @@ export function PwaLayout({ children }: PwaLayoutProps) {
           </DropdownMenu>
         </div>
 
-        {/* User + Logout */}
+        {/* User + Notifications + Logout */}
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <span className="hidden md:inline text-sm text-muted-foreground truncate max-w-[120px]">
             {username}
           </span>

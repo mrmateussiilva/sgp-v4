@@ -14,7 +14,11 @@
 - **Observações Específicas por Item**: Adicionado campo de observação individual para cada item da ficha/pedido, mantendo o campo de observação geral do pedido intacto e separado.
 - **Formulários Padronizados**: Adicionado o campo `Observação do Item` em todos os formulários de produção (`FormPainelCompleto`, `FormTotemProducao`, `FormLonaProducao`, `FormAdesivoProducao`, `FormCangaProducao`, `FormImpressao3D`, `FormMochilinhaProducao`, `FormMesaBabado`).
 - **Visualização & PDF de Produção**: Exibição destacada da observação por item na visualização de detalhes do pedido (`OrderDetails`) e na ficha de produção em PDF (`OrderCard`, `ProductionSheetPDF`, `FichaProducaoPDF`), sem sobreposição de texto ou caracteres corrompidos.
-- **Vínculo & Duplicação Resiliente**: Garantida a preservação e o isolamento das observações ao duplicar fichas, reordenar ou remover itens via `item.id`.
+### 📱 Interface Mobile e PWA Responsiva
+- **Grids de Formulários Responsivos**: Reorganizados todos os grids de campos operacionais (`FormPainelCompleto`, `FormLonaProducao`, `FormAdesivoProducao`, etc.) para padrão responsivo `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`, eliminando compressão de inputs e estouros em telas de 320px–390px.
+- **Notificações no Header PWA**: Adicionado o componente de notificações de artes no cabeçalho Web/PWA (`PwaLayout`), permitindo que designers acompanhem artes atribuídas diretamente no smartphone.
+- **Touch Targets Accessibility**: Aumentada a área clicável de ícones e botões nos cards operacionais (`ExpedicaoCard`) para mínimo de 44x44px (`h-10 w-10`).
+- **Modais Adaptáveis**: Otimizado o `OrderViewModal` com paddings responsivos `w-[98vw] sm:w-[95vw]` e suporte a `safe-area-inset-bottom` para prevenir sobreposição de controles pela barra do sistema móvel.
 
 ## [1.4.2] - 2026-07-04
 

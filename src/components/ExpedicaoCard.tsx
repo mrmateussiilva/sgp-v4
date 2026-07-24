@@ -104,10 +104,11 @@ export default function ExpedicaoCard({
                 variant="ghost"
                 size="icon"
                 onClick={() => onOpenDetails(order)}
-                className="h-8 w-8 text-slate-500 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+                className="h-10 w-10 text-slate-500 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center"
                 title="Ver Detalhes"
+                aria-label="Ver Detalhes"
               >
-                <Eye className="h-4 w-4" />
+                <Eye className="h-5 w-5" />
               </Button>
             </div>
           </div>

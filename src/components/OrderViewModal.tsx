@@ -1424,7 +1424,7 @@ export const OrderViewModal: React.FC<OrderViewModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none overflow-hidden flex flex-col" size="full">
+        <DialogContent className="w-[98vw] sm:w-[95vw] h-[98vh] sm:h-[95vh] max-w-none max-h-none p-3 sm:p-6 overflow-hidden flex flex-col pb-safe-bottom" size="full">
           <DialogHeader className="flex-shrink-0 border-b px-4 sm:px-6 pt-4 sm:pt-6 pb-4">
             <DialogTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <span className="text-base sm:text-lg">Pedido #{order.numero || order.id}</span>

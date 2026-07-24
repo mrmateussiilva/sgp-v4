@@ -143,8 +143,8 @@ export function FormPainelCompleto({
         </div>
       </div>
 
-      {/* === LINHA DOS SELECTS === */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* === SEÇÃO TOP: DESCRIÇÃO, VENDEDOR, DESIGNER === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Tecido */}
         <div className="space-y-2">
           <Label htmlFor={fieldId('tecido')} className="text-base font-medium">Tecido</Label>
@@ -643,7 +643,7 @@ export function FormPainelCompleto({
       {/* === RODAPÉ: VALORES + BOTÕES === */}
       <div className="space-y-4">
         {/* Valores */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor={fieldId('valor-tecido')} className="text-base font-medium">Valor tecido</Label>
             <CurrencyInput

@@ -116,7 +116,7 @@ export function FormLonaProducao({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1 space-y-2">
           <Label className="text-base font-medium">Descrição da lona *</Label>
           <Input
@@ -127,7 +127,7 @@ export function FormLonaProducao({
           />
         </div>
 
-        <div className="w-2/5">
+        <div className="w-full sm:w-2/5">
           <MedidasCalculator
             largura={tabData?.largura || ''}
             altura={tabData?.altura || ''}
@@ -139,7 +139,7 @@ export function FormLonaProducao({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label className="text-base font-medium">Tipo de lona</Label>
           <Select
@@ -185,7 +185,7 @@ export function FormLonaProducao({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-base font-semibold">Acabamento</Label>
@@ -488,7 +488,7 @@ export function FormLonaProducao({
       </div>
 
       <section className="space-y-4 pt-4 border-t border-dashed border-gray-200">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label className="text-base font-medium">Valor da lona</Label>
             <CurrencyInput
