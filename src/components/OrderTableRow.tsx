@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EditingIndicator } from './EditingIndicator';
-import { GeminiAnalysisModal } from './GeminiAnalysisModal';
 import { OrderWithItems } from '../types';
 import { formatTimeHHmm, formatDateForDisplay } from '@/utils/date';
 import { cn } from '@/lib/utils';
@@ -17,7 +16,6 @@ import {
   Clock,
   Copy,
   Edit,
-  Sparkles,
   Trash2,
   RefreshCw,
   Camera,
@@ -82,7 +80,6 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
 
 
 
-  const [geminiOpen, setGeminiOpen] = useState(false);
 
   const urgency = getOrderUrgency(order.data_entrega ?? null);
   const isOverdue = urgency.type === 'overdue';
@@ -546,36 +543,7 @@ const OrderTableRowComponent = (props: OrderTableRowProps) => {
         "text-right whitespace-nowrap sticky right-0 z-30 border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 transition-colors",
         isSelected ? "bg-primary/20" : "bg-background group-even/row:bg-muted"
       )}>
-        {/* Modal de Análise IA */}
-        <GeminiAnalysisModal
-          open={geminiOpen}
-          onClose={() => setGeminiOpen(false)}
-          order={order}
-        />
-
         <div className="flex justify-end gap-1 lg:gap-2">
-          {/* Botão Analisar com IA */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setGeminiOpen(true);
-                  }}
-                  className="h-8 w-8 lg:h-9 lg:w-9 transition-all duration-300 hover:scale-110 hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400 active:scale-95"
-                  title="Analisar pedido com IA"
-                >
-                  <Sparkles className="h-4 w-4 lg:h-5 lg:w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Analisar com IA ✨</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
 
           <TooltipProvider>
             <Tooltip>
