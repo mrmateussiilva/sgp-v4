@@ -108,6 +108,7 @@ export interface OrderWithItems {
   sublimacao_maquina?: string | null;
   sublimacao_data_impressao?: string | null;
   financeiro_liberado_em?: string | null;
+  data_conclusao?: string | null;
 
   designer?: string;
   vendedor?: string;
@@ -280,6 +281,7 @@ export interface UpdateOrderStatusRequest {
   sublimacao_data_impressao?: string | null;
   status?: OrderStatus;
   pronto?: boolean;
+  data_conclusao?: string | null;
   _isFinanceiroUpdate?: boolean;
 }
 

@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useModalStore } from '@/store/useModalStore';
 import { useOrderStore } from '@/store/orderStore';
 import { useAuthStore } from '@/store/authStore';
@@ -9,6 +10,7 @@ import { api } from '@/services/api';
 import { logger } from '@/utils/logger';
 import { buildStatusUpdatePayload } from '@/utils/orderStatusUtils';
 import { OrderStatus } from '@/types';
+import { Calendar, Clock } from 'lucide-react';
 
 export function OrderStatusConfirmModal() {
     const { statusConfirmModalOpen, statusConfirmPayload, closeStatusConfirmModal } = useModalStore();
@@ -16,6 +18,36 @@ export function OrderStatusConfirmModal() {
     const isAdmin = useAuthStore(state => state.isAdmin);
     const { toast } = useToast();
     const statusConfirmButtonRef = useRef<HTMLButtonElement>(null);
+
+    const getTodayString = () => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getYesterdayString = () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const year = yesterday.getFullYear();
+        const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const day = String(yesterday.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const [completionDate, setCompletionDate] = useState<string>(getTodayString());
+
+    useEffect(() => {
+        if (statusConfirmModalOpen) {
+            setCompletionDate(getTodayString());
+        }
+    }, [statusConfirmModalOpen]);
+
+    const isCompletionStage = Boolean(
+        statusConfirmPayload?.novoValor &&
+        (statusConfirmPayload?.campo === 'expedicao' || statusConfirmPayload?.campo === 'pronto')
+    );
 
     const handleConfirmStatusChange = async () => {
         if (!statusConfirmPayload) return;
@@ -38,6 +70,17 @@ export function OrderStatusConfirmModal() {
         }
 
         const payload = buildStatusUpdatePayload(targetOrder, campo, novoValor);
+        if (isCompletionStage && completionDate) {
+            if (completionDate > getTodayString()) {
+                toast({
+                    title: 'Data inválida',
+                    description: 'A data de conclusão não pode ser uma data futura.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            payload.data_conclusao = completionDate;
+        }
 
         if (campo !== 'financeiro' && 'financeiro' in payload) {
             logger.warn('⚠️ Campo financeiro está no payload mesmo não sendo alterado!', payload);
@@ -121,7 +164,7 @@ export function OrderStatusConfirmModal() {
                 <DialogHeader>
                     <DialogTitle>Confirmar Alteração de Status</DialogTitle>
                     <DialogDescription asChild>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {statusConfirmPayload?.novoValor ? (
                                 <div>
                                     Deseja marcar <strong>{statusConfirmPayload.nomeSetor}</strong> como concluído
@@ -140,6 +183,45 @@ export function OrderStatusConfirmModal() {
                                             desmarcados!
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {isCompletionStage && (
+                                <div className="mt-3 p-3 bg-muted/60 dark:bg-muted/30 rounded-lg border text-left space-y-2">
+                                    <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                                        <Calendar className="h-4 w-4 text-primary" />
+                                        <span>Data Real de Conclusão na Fábrica:</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant={completionDate === getTodayString() ? "default" : "outline"}
+                                            size="sm"
+                                            className="h-7 text-xs flex-1 font-bold"
+                                            onClick={() => setCompletionDate(getTodayString())}
+                                        >
+                                            <Clock className="h-3 w-3 mr-1" />
+                                            Hoje
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={completionDate === getYesterdayString() ? "default" : "outline"}
+                                            size="sm"
+                                            className="h-7 text-xs flex-1 font-bold"
+                                            onClick={() => setCompletionDate(getYesterdayString())}
+                                        >
+                                            Ontem
+                                        </Button>
+                                    </div>
+                                    <div>
+                                        <Input
+                                            type="date"
+                                            value={completionDate}
+                                            onChange={(e) => setCompletionDate(e.target.value)}
+                                            className="h-8 text-xs font-mono bg-background"
+                                            max={getTodayString()}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>

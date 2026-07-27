@@ -222,6 +222,18 @@ export function OrderContextPanel({
                   </div>
                 )}
 
+                {order.data_conclusao && (
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Concluído em</p>
+                      <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                        {formatDateForDisplay(order.data_conclusao, '-')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {order.prioridade && (
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-muted-foreground">Prioridade:</p>
