@@ -451,10 +451,13 @@ function CardArteDesigner({ item, onOpen, onToggleStatus, compact = false }: {
         }
     };
 
+    const hasRealEmenda = (emenda?: string) =>
+        !!(emenda && emenda.trim() && emenda.toLowerCase() !== 'sem-emenda');
+
     const hasAnyFinishing = item.acabamento?.overloque ||
         item.acabamento?.elastico ||
         item.acabamento?.ilhos ||
-        item.emenda ||
+        hasRealEmenda(item.emenda) ||
         item.ziper ||
         item.cordinha_extra ||
         item.alcinha;
@@ -589,7 +592,7 @@ function CardArteDesigner({ item, onOpen, onToggleStatus, compact = false }: {
                                 {item.acabamento?.overloque && <span className="bg-slate-50 text-slate-650 text-[9px] font-bold border border-slate-200/50 rounded px-1.5 py-0.5 leading-none">OVERLOQUE</span>}
                                 {item.acabamento?.elastico && <span className="bg-slate-50 text-slate-650 text-[9px] font-bold border border-slate-200/50 rounded px-1.5 py-0.5 leading-none">ELÁSTICO</span>}
                                 {item.acabamento?.ilhos && <span className="bg-amber-50 text-amber-700 text-[9px] font-extrabold border border-amber-200/50 rounded px-1.5 py-0.5 leading-none">ILHÓS: {item.quantidade_ilhos}</span>}
-                                {item.emenda && <span className="bg-blue-50 text-blue-700 text-[9px] font-extrabold border border-blue-200/50 rounded px-1.5 py-0.5 leading-none">EMENDA: {item.emenda_qtd}</span>}
+                                {hasRealEmenda(item.emenda) && <span className="bg-blue-50 text-blue-700 text-[9px] font-extrabold border border-blue-200/50 rounded px-1.5 py-0.5 leading-none">EMENDA: {item.emenda_qtd}</span>}
                             </div>
                         )}
 
@@ -697,10 +700,13 @@ function ModalDetalhesArte({ item, onClose, onToggleStatus, onPostComentario }: 
         }
     };
 
+    const hasRealEmenda = (emenda?: string) =>
+        !!(emenda && emenda.trim() && emenda.toLowerCase() !== 'sem-emenda');
+
     const hasAnyFinishing = item.acabamento?.overloque ||
         item.acabamento?.elastico ||
         item.acabamento?.ilhos ||
-        item.emenda ||
+        hasRealEmenda(item.emenda) ||
         item.ziper ||
         item.cordinha_extra ||
         item.alcinha;
@@ -859,7 +865,7 @@ function ModalDetalhesArte({ item, onClose, onToggleStatus, onPostComentario }: 
                                                 {item.acabamento?.ilhos && (
                                                     <Badge className="bg-amber-500 text-white text-[9px] font-black border-none h-6">ILHÓS: {item.quantidade_ilhos || 'S'}</Badge>
                                                 )}
-                                                {item.emenda && (
+                                                {hasRealEmenda(item.emenda) && (
                                                     <Badge className="bg-blue-600 text-white text-[9px] font-black border-none h-6">EMENDA: {item.emenda_qtd || '1'}</Badge>
                                                 )}
                                             </div>
