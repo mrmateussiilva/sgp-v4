@@ -1,5 +1,12 @@
 # Release
 
+## v1.4.5 — 2026-08-09
+
+### 🔐 Restrição de Acesso para o Setor Designer
+- Redirecionamento automático do setor `designer` para o Painel de Designers ao logar.
+- Ocultação dos itens de menu com informações sensíveis de clientes e financeiro para o perfil `designer`.
+- Proteção de rotas com `ProtectedRoute` no frontend.
+
 ## v1.4.4 — 2026-07-24
 
 ### ✨ Notificações Nativas para Designers

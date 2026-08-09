@@ -98,10 +98,17 @@ export default function Dashboard() {
   const [appVersion, setAppVersion] = useState<string>('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { username, isAdmin } = useAuthStore();
+  const { username, isAdmin, setor } = useAuthStore();
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
   const isMobile = useIsMobile();
   const { toast } = useToast();
+
+  // Redirecionar designer para o painel de designers se acessar a raiz do dashboard
+  useEffect(() => {
+    if (setor === 'designer' && (location.pathname === '/dashboard' || location.pathname === '/dashboard/')) {
+      navigate('/dashboard/painel-designers', { replace: true });
+    }
+  }, [setor, location.pathname, navigate]);
 
   // Inicializar serviço de notificações de designers
   useDesignerNotifications();
@@ -219,6 +226,7 @@ export default function Dashboard() {
     adminOnly: boolean;
     section: string;
     shortcutLabel?: string;
+    blockedSetores?: string[];
   }
 
   const allMenuItems: MenuItem[] = useMemo(
@@ -231,6 +239,7 @@ export default function Dashboard() {
         adminOnly: false,
         section: 'OPERACIONAL',
         shortcutLabel: '1',
+        blockedSetores: ['designer'],
       },
       {
         icon: ShoppingCart,
@@ -239,6 +248,7 @@ export default function Dashboard() {
         adminOnly: false,
         section: 'OPERACIONAL',
         shortcutLabel: '2',
+        blockedSetores: ['designer'],
       },
       {
         icon: Plus,
@@ -247,6 +257,7 @@ export default function Dashboard() {
         adminOnly: false,
         section: 'OPERACIONAL',
         shortcutLabel: '3',
+        blockedSetores: ['designer'],
       },
       {
         icon: Users,
@@ -255,6 +266,7 @@ export default function Dashboard() {
         adminOnly: false,
         section: 'OPERACIONAL',
         shortcutLabel: '4',
+        blockedSetores: ['designer'],
       },
       {
         icon: Truck,
@@ -262,6 +274,7 @@ export default function Dashboard() {
         path: '/dashboard/relatorios-envios',
         adminOnly: false,
         section: 'OPERACIONAL',
+        blockedSetores: ['designer'],
       },
       {
         icon: Package,
@@ -269,6 +282,7 @@ export default function Dashboard() {
         path: '/dashboard/expedicao',
         adminOnly: false,
         section: 'OPERACIONAL',
+        blockedSetores: ['designer'],
       },
       {
         icon: Printer,
@@ -276,6 +290,7 @@ export default function Dashboard() {
         path: '/dashboard/print-logs',
         adminOnly: false,
         section: 'OPERACIONAL',
+        blockedSetores: ['designer'],
       },
       {
         icon: Palette,
@@ -290,6 +305,7 @@ export default function Dashboard() {
         path: '/dashboard/analise-materiais',
         adminOnly: false,
         section: 'GESTÃO',
+        blockedSetores: ['designer'],
       },
       {
         icon: BarChart,
@@ -335,9 +351,12 @@ export default function Dashboard() {
   const menuItems = useMemo(
     () =>
       allMenuItems.filter(
-        (item) => (!item.adminOnly || isAdmin) && !(item.path === '/update-status' && !isTauri())
+        (item) =>
+          (!item.adminOnly || isAdmin) &&
+          !(item.path === '/update-status' && !isTauri()) &&
+          (!item.blockedSetores || !item.blockedSetores.includes(setor || 'geral'))
       ),
-    [isAdmin, allMenuItems]
+    [isAdmin, setor, allMenuItems]
   );
 
   const isActive = useCallback(
@@ -357,12 +376,54 @@ export default function Dashboard() {
         <PwaLayout>
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
-              <Route path="/" element={<DashboardOverview />} />
-              <Route path="orders" element={<OrderList />} />
-              <Route path="pedido/novo" element={<PedidoCreateView />} />
-              <Route path="pedido/editar/:id" element={<PedidoEditView />} />
-              <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
-              <Route path="expedicao" element={<Expedicao />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <DashboardOverview />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <OrderList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="pedido/novo"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <PedidoCreateView />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="pedido/editar/:id"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <PedidoEditView />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="relatorios-envios"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <RelatoriosEnvios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="expedicao"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <Expedicao />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="painel-desempenho"
                 element={
@@ -371,8 +432,22 @@ export default function Dashboard() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="analise-materiais" element={<MaterialAnalysis />} />
+              <Route
+                path="clientes"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <Clientes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="analise-materiais"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <MaterialAnalysis />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="fechamentos"
                 element={
@@ -529,20 +604,76 @@ export default function Dashboard() {
             <main className="flex-1 overflow-y-auto p-6" role="main">
               <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
-                  <Route path="/" element={<DashboardOverview />} />
-                  <Route path="orders" element={<OrderList />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <DashboardOverview />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="orders"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <OrderList />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="orders/new"
                     element={<Navigate to="/dashboard/pedido/novo" replace />}
                   />
-                  <Route path="orders/edit/:id" element={<PedidoEditView />} />
+                  <Route
+                    path="orders/edit/:id"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <PedidoEditView />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Rota canônica para novo pedido */}
-                  <Route path="pedido/novo" element={<PedidoCreateView />} />
-                  <Route path="pedido/editar/:id" element={<PedidoEditView />} />
-                  <Route path="clientes" element={<Clientes />} />
+                  <Route
+                    path="pedido/novo"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <PedidoCreateView />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="pedido/editar/:id"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <PedidoEditView />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="clientes"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <Clientes />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="painel-producao" element={<ProducaoMaquinas />} />
-                  <Route path="relatorios-envios" element={<RelatoriosEnvios />} />
-                  <Route path="expedicao" element={<Expedicao />} />
+                  <Route
+                    path="relatorios-envios"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <RelatoriosEnvios />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="expedicao"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <Expedicao />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="painel-desempenho"
                     element={
@@ -650,10 +781,21 @@ export default function Dashboard() {
                   />
                   <Route
                     path="analise-materiais"
-                    element={<MaterialAnalysis />}
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <MaterialAnalysis />
+                      </ProtectedRoute>
+                    }
                   />
                   <Route path="painel-designers" element={<TelaPainelDesigners />} />
-                  <Route path="print-logs" element={<PrintLogs />} />
+                  <Route
+                    path="print-logs"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <PrintLogs />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </Suspense>
             </main>

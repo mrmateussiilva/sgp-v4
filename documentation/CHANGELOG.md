@@ -1,5 +1,12 @@
 # Changelog - SGP v4
 
+## [1.4.5] - 2026-08-09
+
+### 🔐 Restrição de Acesso para o Setor Designer
+- **Acesso Exclusivo ao Painel de Designers**: Usuários cadastrados com o setor `designer` são redirecionados automaticamente para a tela de Painel de Designers (`/dashboard/painel-designers`) ao efetuarem login.
+- **Filtragem do Menu Lateral**: Itens do menu de navegação que exibem informações operacionais, financeiras e dados de clientes (Início, Pedidos, Novo Pedido, Clientes, Envios, Expedição, Logs de Impressão, Análise de Materiais) ficam totalmente ocultos para o setor `designer`.
+- **Proteção de Rotas**: Adicionada verificação por setor no componente `ProtectedRoute` bloqueando o acesso direto por URL a rotas operacionais e financeiras.
+
 ## [1.4.4] - 2026-07-24
 
 ### ✨ Notificações Nativas para Designers
