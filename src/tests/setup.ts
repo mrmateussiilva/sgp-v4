@@ -19,8 +19,34 @@ if (typeof window !== 'undefined' && !window.PointerEvent) {
   (window as any).PointerEvent = MockPointerEvent;
 }
 
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.clearAllMocks();
+});
+
 afterAll(() => server.close());
+
+const sessionStorageMock = (() => {
+  let store: { [key: string]: string } = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
+});
 
 
 const localStorageMock = (() => {

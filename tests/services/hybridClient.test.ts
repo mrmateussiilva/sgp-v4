@@ -5,11 +5,11 @@ import { isTauri } from '@/utils/isTauri';
 import { apiClient } from '@/api/client';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('@/utils/isTauri', () => ({ isTauri: vi.fn() }));
-vi.mock('@/utils/logger', () => ({
+vi.mock('../../src/utils/isTauri', () => ({ isTauri: vi.fn() }));
+vi.mock('../../src/utils/logger', () => ({
     logger: { error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock('@/api/client', () => ({
+vi.mock('../../src/api/client', () => ({
     apiClient: {
         get: vi.fn(),
         post: vi.fn(),
