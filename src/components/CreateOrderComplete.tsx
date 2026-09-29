@@ -666,7 +666,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       });
     }
     // Executar apenas na montagem
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Função para confirmar navegação se houver mudanças não salvas
@@ -1063,7 +1063,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     });
   // Dependências: somente os campos de entrada relevantes da tab ativa
   // Campos de outras tabs não são monitorados aqui para não gerar renders desnecessários.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [
     // Painel / Genérica / Mesa Babado
     tabsData[activeTab]?.valor_painel,
@@ -1836,7 +1836,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       const items = currentItems.map((tab) => {
         // Desestruturar para excluir `id` (string como "tab-1") e `orderItemId`
         // que podem quebrar a validação do Pydantic no backend (espera id: int | null)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         
         const { id: _tabStringId, orderItemId, ...rest } = tab;
         return {
           ...rest,
@@ -1925,7 +1925,7 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
         setAutoSaveStatus('saving');
         const items = tabs.map((tabId) => {
           const tabData = tabsData[tabId] || createEmptyTab(tabId);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+           
           const { id: _tabStringId, orderItemId, ...rest } = tabData;
           return {
             ...rest,
