@@ -1,6 +1,10 @@
 
 import '@testing-library/jest-dom/vitest';
 import { vi, beforeAll, afterEach, afterAll } from 'vitest';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockResolvedValue([]),
+}));
 import { server } from './mocks/server';
 import { setApiUrl } from '../api/client';
 

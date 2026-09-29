@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { logger } from '../utils/logger';
-import { isTauri } from '../utils/isTauri';
-import { apiClient } from '../api/client';
+import { logger } from '@/utils/logger';
+import { isTauri } from '@/utils/isTauri';
+import { apiClient } from '@/api/client';
 
 const formatNativeError = (err: unknown): string =>
     typeof err === 'string' ? err : JSON.stringify(err);

@@ -25,7 +25,7 @@ const referenceCount = new Map<string, number>();
 const inFlightRequests = new Map<string, Promise<string>>();
 
 // Aumentado de 25 para 150 para cobrir painéis com muitos cards sem ejetar imagens ativas
-const MAX_CACHE_SIZE = 150;
+export const MAX_CACHE_SIZE = 150;
 
 export function retainImageUrl(imagePath: string): void {
   const normalized = normalizeImageUrl(imagePath);

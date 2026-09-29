@@ -1,30 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import { hybridClient } from '@/services/hybridClient';
-import { isTauri } from '@/utils/isTauri';
 import { apiClient } from '@/api/client';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('../../src/utils/isTauri', () => ({ isTauri: vi.fn() }));
-vi.mock('../../src/utils/logger', () => ({
+vi.mock('@/utils/logger', () => ({
     logger: { error: vi.fn(), debug: vi.fn() },
-}));
-vi.mock('../../src/api/client', () => ({
-    apiClient: {
-        get: vi.fn(),
-        post: vi.fn(),
-        patch: vi.fn(),
-        delete: vi.fn(),
-    }
 }));
 
 describe('hybridClient', () => {
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('Ambiente Desktop (Tauri)', () => {
-        beforeEach(() => vi.mocked(isTauri).mockReturnValue(true));
+        beforeEach(() => {
+            (window as any).__TAURI__ = true;
+        });
+
+        afterEach(() => {
+            delete (window as any).__TAURI__;
+        });
 
         it('deve formatar erro nativo', async () => {
             vi.mocked(invoke).mockRejectedValue('500 internal');
@@ -46,23 +41,29 @@ describe('hybridClient', () => {
     });
 
     describe('Ambiente Web/PWA (Fallback Axios)', () => {
-        beforeEach(() => vi.mocked(isTauri).mockReturnValue(false));
+        beforeEach(() => {
+            delete (window as any).__TAURI__;
+            delete (window as any).__TAURI_IPC__;
+            delete (window as any).__TAURI_INTERNALS__;
+        });
 
         it('deve usar apiClient.get quando for web', async () => {
-            vi.mocked(apiClient.get).mockResolvedValue({ data: { mocked: 1 } } as any);
+            const spy = vi.spyOn(apiClient, 'get').mockResolvedValue({ data: { mocked: 1 } } as any);
 
             const resp = await hybridClient.get('/x', { termo: 'a' });
 
-            expect(apiClient.get).toHaveBeenCalledWith('/x', { params: { termo: 'a' } });
+            expect(spy).toHaveBeenCalledWith('/x', { params: { termo: 'a' } });
             expect(resp).toEqual({ mocked: 1 });
             expect(invoke).not.toHaveBeenCalled();
+            spy.mockRestore();
         });
 
         it('deve usar apiClient.post quando for web', async () => {
-            vi.mocked(apiClient.post).mockResolvedValue({ data: { ok: true } } as any);
+            const spy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: { ok: true } } as any);
             const resp = await hybridClient.post('/y', { email: 'x@x.com' });
-            expect(apiClient.post).toHaveBeenCalledWith('/y', { email: 'x@x.com' });
+            expect(spy).toHaveBeenCalledWith('/y', { email: 'x@x.com' });
             expect(resp).toEqual({ ok: true });
+            spy.mockRestore();
         });
     });
 });

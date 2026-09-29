@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadAuthenticatedImage, clearImageCache } from '../../src/utils/imageLoader';
+import { loadAuthenticatedImage, clearImageCache, MAX_CACHE_SIZE } from '../../src/utils/imageLoader';
 import { apiClient } from '../../src/api/client';
 
 // Mocks reais evitam chamadas de rede no test runner
@@ -58,8 +58,8 @@ describe('imageLoader - LRU Cache', () => {
     });
 
     it('deve revogar blobs antigos apos MAX_CACHE_SIZE (LRU mechanism)', async () => {
-        const MAX_CACHE_SIZE = 25;
-        const TOTAL_IMAGES = 55;
+        const OVER_LIMIT = 10;
+        const TOTAL_IMAGES = MAX_CACHE_SIZE + OVER_LIMIT;
 
         // Forcar carregamento de imagens acima do limite do cache.
         for (let i = 0; i < TOTAL_IMAGES; i++) {
@@ -68,8 +68,8 @@ describe('imageLoader - LRU Cache', () => {
 
         expect(createObjectURLMock).toHaveBeenCalledTimes(TOTAL_IMAGES);
 
-        // Como o limite e 25, cada imagem acima do limite revoga a mais antiga.
-        expect(revokeObjectURLMock).toHaveBeenCalledTimes(TOTAL_IMAGES - MAX_CACHE_SIZE);
+        // Como o limite e MAX_CACHE_SIZE, cada imagem acima do limite revoga a mais antiga.
+        expect(revokeObjectURLMock).toHaveBeenCalledTimes(OVER_LIMIT);
     });
 
     it('nao deve duplicar URLs da mesma imagem em cache (evitar render infinitos)', async () => {
