@@ -2136,11 +2136,11 @@ export default function OrderList() {
                 </div>
               </div>
             ) : (
-              <Card className={cn('border-2', isPwa && 'pwa-card')}>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col gap-4">
-                    {/* Status Tabs Rápidos - Desktop */}
-                    <div className="flex items-center justify-between pb-1 border-b border-border/50">
+              <Card className={cn('border shadow-sm', isPwa && 'pwa-card')}>
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-col gap-3.5">
+                    {/* Linha 1: Status Tabs Rápidos & Contador */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/60">
                       <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
                         {[
                           { id: 'pending', label: 'Pendentes', count: filterCounts.pending, dot: 'bg-amber-500' },
@@ -2156,25 +2156,25 @@ export default function OrderList() {
                               type="button"
                               onClick={() => setProductionStatusFilter(chip.id as any)}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 border",
                                 isActive
                                   ? chip.alert
-                                    ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 shadow-sm"
-                                    : "bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/20"
+                                    ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800 shadow-sm"
+                                    : "bg-primary text-primary-foreground border-primary shadow-sm"
                                   : chip.alert && chip.count > 0
                                   ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40 hover:bg-red-500/15"
-                                  : "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground"
+                                  : "bg-background text-muted-foreground border-border/80 hover:bg-muted/70 hover:text-foreground"
                               )}
                             >
                               {chip.dot && <span className={cn("h-2 w-2 rounded-full shrink-0", chip.dot, chip.alert && chip.count > 0 && "animate-pulse")} />}
                               {chip.icon && <span className="text-xs">{chip.icon}</span>}
                               <span>{chip.label}</span>
                               <span className={cn(
-                                "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
+                                "px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none",
                                 isActive
                                   ? chip.alert
                                     ? "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100"
-                                    : "bg-white/20 text-white"
+                                    : "bg-white/25 text-white"
                                   : chip.alert && chip.count > 0
                                   ? "bg-red-500 text-white"
                                   : "bg-muted text-muted-foreground"
@@ -2186,122 +2186,107 @@ export default function OrderList() {
                         })}
                       </div>
 
-                      <span className="text-xs font-medium text-muted-foreground hidden lg:flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                        {loading ? 'Atualizando...' : `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido exibido' : 'pedidos exibidos'}`}
-                      </span>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          {loading ? 'Buscando...' : `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido' : 'pedidos'}`}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Linha 1: Busca e Status */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1 flex gap-2 items-center">
-                        <div className="flex-1 relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Buscar cliente, ID ou nº pedido... (Pressione / para focar)"
-                            ref={searchInputRef}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleSearch();
-                              }
+                    {/* Linha 2: Busca Unificada, Datas e Botão de Filtros */}
+                    <div className="flex flex-col lg:flex-row gap-2.5 items-stretch lg:items-center">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          placeholder="Buscar por cliente, ID ou nº do pedido... (Pressione / para focar)"
+                          ref={searchInputRef}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSearch();
+                            }
+                          }}
+                          className={cn('pl-9 pr-9 h-10', isPwa && 'min-h-[44px]')}
+                        />
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearchTerm('');
+                              setActiveSearchTerm('');
+                              setPage(0);
+                              searchInputRef.current?.focus();
                             }}
-                            className={cn('pl-10 pr-9 h-10', isPwa && 'min-h-[44px]')}
-                          />
-                          {searchTerm && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSearchTerm('');
-                                setActiveSearchTerm('');
-                                setPage(0);
-                                searchInputRef.current?.focus();
-                              }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                              aria-label="Limpar busca"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={handleSearch}
-                          className={cn('h-10 px-4 whitespace-nowrap', isPwa && 'min-h-[44px]')}
-                          variant="default"
-                        >
-                          <Search className="h-4 w-4 mr-2" />
-                          Buscar
-                        </Button>
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Limpar busca"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
 
-                      <div className="w-full sm:w-[210px]">
-                        <Select
-                          value={productionStatusFilter}
-                          onValueChange={(value) =>
-                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready' | 'delayed' | 'drafts')
-                          }
-                        >
-                          <SelectTrigger className="h-10">
-                            <SelectValue placeholder="Status de produção" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">
-                              Pendentes ({filterCounts.pending})
-                            </SelectItem>
-                            <SelectItem value="delayed">
-                              Atrasados ({filterCounts.delayed})
-                            </SelectItem>
-                            <SelectItem value="ready">
-                              Prontos ({filterCounts.ready})
-                            </SelectItem>
-                            <SelectItem value="all">
-                              Todos ({filterCounts.all})
-                            </SelectItem>
-                            <SelectItem value="drafts">
-                              📝 Rascunhos ({filterCounts.drafts})
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex gap-2 flex-1 sm:flex-initial">
-                        <div className="flex-1 sm:w-[160px] relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <div className="w-36 sm:w-40 relative">
+                          <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                           <Input
                             type="date"
-                            placeholder="Data inicial de entrega"
                             value={dateFrom}
                             onChange={(e) => setDateFrom(e.target.value)}
-                            className="pl-10 h-10"
+                            className="pl-8 h-10 text-xs"
                             title="Data inicial de entrega"
                           />
                         </div>
-                        <div className="flex-1 sm:w-[160px] relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <span className="text-xs text-muted-foreground">até</span>
+                        <div className="w-36 sm:w-40 relative">
+                          <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                           <Input
                             type="date"
-                            placeholder="Data final de entrega"
                             value={dateTo}
                             onChange={(e) => setDateTo(e.target.value)}
-                            className="pl-10 h-10"
+                            className="pl-8 h-10 text-xs"
                             title="Data final de entrega"
                           />
                         </div>
+
+                        <Button
+                          type="button"
+                          variant={advancedFiltersOpen || activeFiltersCount > 0 ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+                          className={cn(
+                            "h-10 px-3 gap-1.5 text-xs font-semibold shrink-0 border",
+                            activeFiltersCount > 0 && "border-primary text-primary"
+                          )}
+                          aria-label="Filtros adicionais"
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Filtros Adicionais</span>
+                          {activeFiltersCount > 0 && (
+                            <Badge variant="default" className="h-4 px-1.5 text-[10px] leading-none">
+                              {activeFiltersCount}
+                            </Badge>
+                          )}
+                          {advancedFiltersOpen ? (
+                            <ChevronUp className="h-3.5 w-3.5 ml-0.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 ml-0.5" />
+                          )}
+                        </Button>
                       </div>
                     </div>
 
-                    {/* Linha 2: Filtros Ativos e Controles */}
+                    {/* Linha 3: Filtros Ativos (quando houver filtros aplicados) */}
                     {activeFiltersList.length > 0 && (
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-border/50">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">Mostrando:</span>
+                          <span className="text-xs font-semibold text-foreground">Filtros ativos:</span>
                           {activeFiltersList.map((filter, index) => (
                             <Badge
                               key={index}
                               variant="secondary"
-                              className="gap-1.5 px-2.5 py-1 text-sm font-medium"
+                              className="gap-1.5 px-2.5 py-0.5 text-xs font-medium"
                             >
                               <span>{filter.label}</span>
                               <button
@@ -2316,50 +2301,13 @@ export default function OrderList() {
                         </div>
                         <Button
                           type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={clearAllFilters}
-                          className="h-8 gap-1.5 font-medium"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Limpar todos os filtros
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Indicador quando não há filtros */}
-                    {activeFiltersList.length === 0 && (
-                      <div className="pt-2 border-t text-center sm:text-left">
-                        <p className="text-sm text-muted-foreground italic">
-                          Filtros aplicados instantaneamente.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Linha 3: Filtros Avançados (Colapsáveis) - Desktop Only */}
-                    {!isMobile && (
-                      <div className="border-t pt-3">
-                        <Button
-                          type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
-                          className="w-full justify-between h-9"
+                          onClick={clearAllFilters}
+                          className="h-7 text-xs gap-1.5 font-medium text-muted-foreground hover:text-foreground"
                         >
-                          <span className="flex items-center gap-2">
-                            <Filter className="h-4 w-4" />
-                            Filtros Adicionais
-                            {activeFiltersCount > 0 && (
-                              <Badge variant="secondary" className="ml-1">
-                                {activeFiltersCount}
-                              </Badge>
-                            )}
-                          </span>
-                          {advancedFiltersOpen ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
+                          <X className="h-3 w-3" />
+                          Limpar todos os filtros
                         </Button>
                       </div>
                     )}
