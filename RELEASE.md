@@ -1,5 +1,16 @@
 # Release
 
+## v1.4.7 — 2026-09-29
+
+### ✨ Perfil e Histórico Completo de Itens do Cliente
+- **Histórico Consolidado de Itens**: Novo modal completo acessível pelo botão de histórico na tabela de clientes, exibindo o total de pedidos, ticket médio, total de peças produzidas e data da última compra.
+- **Categorização Inteligente de Produtos**: Agrupamento automático dos itens solicitados pelo cliente por categoria (Mochilinhas & Bolsinhas, Painéis, Totens, Mesas & Babados, etc.) e discriminação detalhada de cada variação.
+- **Design System Alinhado**: Interface clean, cards padronizados e harmonia visual integral com o ERP SGP.
+
+### 🐛 Melhorias de Performance e Estabilidade nos Pedidos
+- **Contadores de Abas Fixos**: Os totais das abas (Pendentes, Prontos, Todos, etc.) agora refletem fielmente o volume global do sistema e não resetam ou oscilam durante buscas e filtragens textuais.
+- **Resiliência de Chunk Loading**: Tratamento automático de recarga inteligente (`lazyWithRetry`) em erros transitórios de cache ou import dinâmico do navegador/Vite.
+
 ## v1.4.6 — 2026-09-29
 
 ### 🐛 Correções na Tela de Fechamentos
