@@ -547,7 +547,8 @@ export const ordersApi = {
         cliente?: string;
         data_inicio?: string;
         data_fim?: string;
-        date_mode?: string
+        date_mode?: string;
+        is_pronto?: boolean;
     } = {}): Promise<number> => {
         requireSessionToken();
         const response = await apiClient.get<{ total: number }>('/pedidos/total', { params: filters });

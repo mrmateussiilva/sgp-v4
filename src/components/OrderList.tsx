@@ -252,6 +252,39 @@ export default function OrderList() {
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
   const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(new Set());
   const [draftsCount, setDraftsCount] = useState<number | null>(null);
+  const [globalCounts, setGlobalCounts] = useState<{
+    pending?: number;
+    ready?: number;
+    all?: number;
+    delayed?: number;
+  }>({});
+
+  useEffect(() => {
+    let active = true;
+    const fetchGlobalCounts = async () => {
+      try {
+        if (typeof api.getTotalOrdersCount === 'function') {
+          const [total, ready, pending] = await Promise.all([
+            api.getTotalOrdersCount(),
+            api.getTotalOrdersCount({ is_pronto: true }),
+            api.getTotalOrdersCount({ is_pronto: false }),
+          ]);
+          if (active) {
+            setGlobalCounts((prev) => ({
+              ...prev,
+              all: total,
+              ready,
+              pending,
+            }));
+          }
+        }
+      } catch (err) {
+        logger.error('[OrderList] Erro ao carregar contagens dos status:', err);
+      }
+    };
+    fetchGlobalCounts();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -261,18 +294,45 @@ export default function OrderList() {
     return () => { active = false; };
   }, [orders.length]);
 
+  useEffect(() => {
+    if (productionStatusFilter === 'pending' || productionStatusFilter === 'delayed') {
+      if (orders.length > 0) {
+        const pendingCount = orders.filter((o) => !o.pronto && !o.rascunho).length;
+        const delayedCount = orders.filter((o) => {
+          const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
+          return isOverdue && !o.pronto && !o.rascunho;
+        }).length;
+        setGlobalCounts((prev) => ({
+          ...prev,
+          pending: pendingCount,
+          delayed: delayedCount,
+        }));
+      }
+    } else if (productionStatusFilter === 'ready' && totalOrders > 0) {
+      setGlobalCounts((prev) => ({
+        ...prev,
+        ready: totalOrders,
+      }));
+    } else if (productionStatusFilter === 'all' && totalOrders > 0) {
+      setGlobalCounts((prev) => ({
+        ...prev,
+        all: totalOrders,
+      }));
+    }
+  }, [orders, productionStatusFilter, totalOrders]);
+
   const filterCounts = useMemo(() => {
     const drafts = draftsCount ?? orders.filter(o => o.rascunho).length;
-    const pending = orders.filter(o => !o.pronto && !o.rascunho).length;
-    const ready = orders.filter(o => o.pronto && !o.rascunho).length;
-    const delayed = orders.filter(o => {
+    const pending = globalCounts.pending ?? orders.filter(o => !o.pronto && !o.rascunho).length;
+    const ready = globalCounts.ready ?? orders.filter(o => o.pronto && !o.rascunho).length;
+    const delayed = globalCounts.delayed ?? orders.filter(o => {
       const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
       return isOverdue && !o.pronto && !o.rascunho;
     }).length;
-    const all = totalOrders || orders.length;
+    const all = globalCounts.all ?? (totalOrders || orders.length);
 
     return { drafts, pending, ready, delayed, all };
-  }, [orders, draftsCount, totalOrders]);
+  }, [orders, draftsCount, totalOrders, globalCounts]);
 
   // Tipos de produção detectados dinamicamente nos dados carregados
   const derivedTiposProducao = useMemo(() => {
@@ -402,14 +462,19 @@ export default function OrderList() {
       Boolean(selectedFormaEnvio) ||
       Boolean(selectedTipoProducao);
 
+    const isFrontendPaginated =
+      clientSideFiltersActive ||
+      productionStatusFilter === 'pending' ||
+      productionStatusFilter === 'delayed';
+
     const serverQueryKey = JSON.stringify({
       productionStatusFilter,
       dateFrom,
       dateTo,
       activeSearchTerm: activeSearchTerm || undefined,
       clientSideFiltersActive,
-      page: clientSideFiltersActive || productionStatusFilter === 'all' ? 1 : page,
-      rowsPerPage: clientSideFiltersActive || productionStatusFilter === 'all' ? undefined : rowsPerPage,
+      page: isFrontendPaginated ? 1 : page,
+      rowsPerPage: isFrontendPaginated ? undefined : rowsPerPage,
     });
 
     // Se a query pro backend for EXATAMENTE a mesma e já temos dados, não faz nova requisição (exceto se forceRefresh for true)
@@ -437,32 +502,32 @@ export default function OrderList() {
       const currentPage = page;
       const currentPageSize = rowsPerPage;
 
-      // SEMPRE buscar todos os pedidos quando 'all' é selecionado, independente de outros filtros
       if (productionStatusFilter === 'all') {
-        const bigPageSize = 10000; // Limite alto para buscar todos os pedidos
-        logger.debug('[OrderList] Buscando TODOS os pedidos com bigPageSize:', bigPageSize);
-        const paginatedData = await api.getOrdersPaginatedForTable(
-          1, // Sempre começar da página 1 quando buscando 'all'
-          bigPageSize,
-          undefined, // status - todos
-          activeSearchTerm || undefined, // cliente
-          dateFrom || undefined, // data_inicio
-          dateTo || undefined // data_fim
-        );
-        logger.debug(
-          '[OrderList] Pedidos recebidos:',
-          paginatedData.orders.length,
-          'Total:',
-          paginatedData.total
-        );
-
-        // Quando buscamos 'all' com bigPageSize, sempre paginar no frontend
-        // Os filtros client-side serão aplicados através de filteredOrders
-        setOrders(paginatedData.orders);
-        // TotalPages será calculado no useMemo baseado em filteredOrders e rowsPerPage
-        // TotalOrders será o número total de pedidos retornados
-        setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
-        setTotalOrders(paginatedData.orders.length);
+        if (clientSideFiltersActive) {
+          const paginatedData = await api.getOrdersPaginatedForTable(
+            1,
+            300,
+            undefined, // status - todos
+            activeSearchTerm || undefined,
+            dateFrom || undefined,
+            dateTo || undefined
+          );
+          setOrders(paginatedData.orders);
+          setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
+          setTotalOrders(paginatedData.total || paginatedData.orders.length);
+        } else {
+          const paginatedData = await api.getOrdersPaginatedForTable(
+            currentPage + 1,
+            currentPageSize,
+            undefined, // status - todos
+            activeSearchTerm || undefined,
+            dateFrom || undefined,
+            dateTo || undefined
+          );
+          setOrders(paginatedData.orders);
+          setTotalPages(paginatedData.total_pages);
+          setTotalOrders(paginatedData.total);
+        }
       } else if (productionStatusFilter === 'pending' || productionStatusFilter === 'delayed') {
         let all;
         if (hasSearch) {
@@ -1137,10 +1202,9 @@ export default function OrderList() {
   // Quando 'all' é selecionado, sempre usamos paginação frontend porque buscamos todos os pedidos de uma vez
   const isBackendPaginated =
     !clientSideFiltersActive &&
-    productionStatusFilter !== 'all' && // 'all' sempre usa paginação frontend
     productionStatusFilter !== 'pending' && // 'pending' sempre usa paginação frontend (filtra por pronto)
     productionStatusFilter !== 'delayed' && // 'delayed' sempre usa paginação frontend (filtra pendentes por data)
-    (dateFrom || dateTo || productionStatusFilter === 'ready');
+    (dateFrom || dateTo || productionStatusFilter === 'ready' || productionStatusFilter === 'all');
 
   // Salvaguarda: Se não for admin, forçar visão de tabela
   useEffect(() => {
@@ -3013,10 +3077,7 @@ export default function OrderList() {
                 <div className="w-full bg-background border-t border-border p-4 mt-auto">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <p className="text-sm text-muted-foreground text-center lg:text-left">
-                      {dateFrom ||
-                        dateTo ||
-                        productionStatusFilter === 'pending' ||
-                        productionStatusFilter === 'ready'
+                      {isBackendPaginated
                         ? `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, totalOrders)} de ${totalOrders} resultados`
                         : `Mostrando ${page * rowsPerPage + 1} a ${Math.min((page + 1) * rowsPerPage, filteredOrders.length)} de ${filteredOrders.length} resultados`}
                     </p>

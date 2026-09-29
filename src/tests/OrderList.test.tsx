@@ -30,6 +30,7 @@ vi.mock('../services/api', () => ({
     getReadyOrdersPaginated: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
     listarRascunhos: vi.fn(() => Promise.resolve([])),
     getAllLogs: vi.fn(() => Promise.resolve([])),
+    getTotalOrdersCount: vi.fn(() => Promise.resolve(0)),
   },
 }));
 
