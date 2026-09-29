@@ -1,15 +1,15 @@
 {
-  "version": "1.4.5",
+  "version": "1.4.6",
   "notes": "",
-  "pub_date": "2026-08-09T22:14:07.446Z",
+  "pub_date": "2026-09-29T14:27:03.694Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3Z4bVhVVGg2QjEweTFUYVcrMHVqSHE0SS9nU2kxbGRGRkFjQjlVOUZvZEFNQVpNUFo0Zi9uaFVGek5VdXRTbWRiMW9oUUVxdjNqZ1lpMVVveTI5OFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzEzNjQyCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjVfeDY0X2VuLVVTLm1zaQpVdENLOCtqS2lWN1pEdnJCVGx4TEx2R3Q4WGkzMUxKdnBoaG5hOUR4T3hDTVVzTDFBWHBqK3F5WnNmMEx5c242ODVqcDN6TU9LM0lzT1VEVUViUTdCQT09Cg==",
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.5/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.5_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2h1T2VZajVCV1ZvRWQzNFNBK1dqaWlRa0NuUVlHdkxkVVlsRW4wMkh1ZFBpdU1PYWI3N05XVDZ1d1BjUzcyVXFaRGl6d1RzSHBUbXZsQWpmTThzMVFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjkyMDIwCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjZfeDY0X2VuLVVTLm1zaQpZb1JHcCt2MHZrdTVsL202YW5iMmFmd2RjcGFRakwzemFGZWxRV096VzllQ2Y1SEUvZHY0eWFuejBpekh5VGgzbS9BSzYwOHJLbms0eW9lNXZPQlFCQT09Cg==",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.6_x64_en-US.msi"
     },
     "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY3Z4bVhVVGg2QjEweTFUYVcrMHVqSHE0SS9nU2kxbGRGRkFjQjlVOUZvZEFNQVpNUFo0Zi9uaFVGek5VdXRTbWRiMW9oUUVxdjNqZ1lpMVVveTI5OFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MzEzNjQyCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjVfeDY0X2VuLVVTLm1zaQpVdENLOCtqS2lWN1pEdnJCVGx4TEx2R3Q4WGkzMUxKdnBoaG5hOUR4T3hDTVVzTDFBWHBqK3F5WnNmMEx5c242ODVqcDN6TU9LM0lzT1VEVUViUTdCQT09Cg==",
-      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.5/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.5_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSTG5QazNFOTVSY2h1T2VZajVCV1ZvRWQzNFNBK1dqaWlRa0NuUVlHdkxkVVlsRW4wMkh1ZFBpdU1PYWI3N05XVDZ1d1BjUzcyVXFaRGl6d1RzSHBUbXZsQWpmTThzMVFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNjkyMDIwCWZpbGU6U0dQIC0gU2lzdGVtYSBkZSBHZXJlbmNpYW1lbnRvIGRlIFBlZGlkb3NfMS40LjZfeDY0X2VuLVVTLm1zaQpZb1JHcCt2MHZrdTVsL202YW5iMmFmd2RjcGFRakwzemFGZWxRV096VzllQ2Y1SEUvZHY0eWFuejBpekh5VGgzbS9BSzYwOHJLbms0eW9lNXZPQlFCQT09Cg==",
+      "url": "https://github.com/mrmateussiilva/sgp-v4/releases/download/v1.4.6/SGP.-.Sistema.de.Gerenciamento.de.Pedidos_1.4.6_x64_en-US.msi"
     }
   }
 }
