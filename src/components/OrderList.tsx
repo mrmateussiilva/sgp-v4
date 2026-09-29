@@ -42,7 +42,7 @@ import { OrderModalsProvider } from './modals/OrderModalsProvider';
 import { PrintPreviewModal } from './PrintPreviewModal';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import { useAuthStore } from '../store/authStore';
-import { OrderWithItems, OrderStatus } from '../types';
+import { OrderWithItems } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/useUser';
 import { useOrderAutoSync } from '../hooks/useOrderEvents';
@@ -451,10 +451,9 @@ export default function OrderList() {
   const prevServerQueryKeyRef = useRef<string>('');
 
   const loadOrders = useCallback(async (forceRefresh: boolean = false) => {
-    // Identifica exatamentes quais parâmetros vão para o backend
     const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
-    const clientSideFiltersActive =
-      hasSearch ||
+    // Filtros que NÃO são suportados nativamente pelo endpoint de paginação do backend
+    const hasClientSideOnlyFilters =
       selectedStatuses.length > 0 ||
       Boolean(selectedVendedor) ||
       Boolean(selectedDesigner) ||
@@ -463,7 +462,7 @@ export default function OrderList() {
       Boolean(selectedTipoProducao);
 
     const isFrontendPaginated =
-      clientSideFiltersActive ||
+      hasClientSideOnlyFilters ||
       productionStatusFilter === 'pending' ||
       productionStatusFilter === 'delayed';
 
@@ -472,7 +471,7 @@ export default function OrderList() {
       dateFrom,
       dateTo,
       activeSearchTerm: activeSearchTerm || undefined,
-      clientSideFiltersActive,
+      hasClientSideOnlyFilters,
       page: isFrontendPaginated ? 1 : page,
       rowsPerPage: isFrontendPaginated ? undefined : rowsPerPage,
     });
@@ -484,16 +483,9 @@ export default function OrderList() {
     }
     prevServerQueryKeyRef.current = serverQueryKey;
 
-    const isPendingOrDelayedSwitch =
-      (prevFilterRef.current === 'pending' && productionStatusFilter === 'delayed') ||
-      (prevFilterRef.current === 'delayed' && productionStatusFilter === 'pending');
-
     const isChangingTab = prevFilterRef.current !== productionStatusFilter;
     if (isChangingTab) {
-      if (!isPendingOrDelayedSwitch || orders.length === 0) {
-        setOrders([]);
-        setLoading(true);
-      }
+      setLoading(true);
       prevFilterRef.current = productionStatusFilter;
     } else if (orders.length === 0) {
       setLoading(true);
@@ -503,10 +495,10 @@ export default function OrderList() {
       const currentPageSize = rowsPerPage;
 
       if (productionStatusFilter === 'all') {
-        if (clientSideFiltersActive) {
+        if (hasClientSideOnlyFilters) {
           const paginatedData = await api.getOrdersPaginatedForTable(
             1,
-            300,
+            100,
             undefined, // status - todos
             activeSearchTerm || undefined,
             dateFrom || undefined,
@@ -533,13 +525,13 @@ export default function OrderList() {
         if (hasSearch) {
           const paginated = await api.getOrdersPaginatedForTable(
             1,
-            500,
+            100,
             undefined, // status
-            activeSearchTerm || undefined, // cliente
+            activeSearchTerm || undefined, // cliente / ID
             undefined, // data_inicio
             undefined, // data_fim
             undefined, // tipo_producao
-            false // is_pronto
+            false // is_pronto = false
           );
           all = paginated.orders;
         } else {
@@ -552,13 +544,10 @@ export default function OrderList() {
         setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
         setTotalOrders(all.length);
       } else if (dateFrom || dateTo) {
-        // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
-        // precisamos trazer um conjunto maior e filtrar localmente.
-        if (clientSideFiltersActive) {
-          const bigPageSize = 5000;
+        if (hasClientSideOnlyFilters) {
           const paginatedData = await api.getOrdersPaginatedForTable(
             1,
-            bigPageSize,
+            100,
             undefined, // status
             activeSearchTerm || undefined, // cliente
             dateFrom || undefined, // data_inicio
@@ -566,46 +555,46 @@ export default function OrderList() {
           );
           setOrders(paginatedData.orders);
           setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
-          setTotalOrders(paginatedData.orders.length);
+          setTotalOrders(paginatedData.total || paginatedData.orders.length);
         } else {
-          const filters = {
-            status: OrderStatus.Concluido,
-            cliente: activeSearchTerm || undefined,
-            date_from: dateFrom || undefined,
-            date_to: dateTo || undefined,
-            tipo_producao: selectedTipoProducao || undefined,
-            page: currentPage + 1,
-            page_size: currentPageSize,
-          };
-
-          const paginatedData = await api.getOrdersWithFiltersForTable(filters);
+          const paginatedData = await api.getOrdersPaginatedForTable(
+            currentPage + 1,
+            currentPageSize,
+            undefined,
+            activeSearchTerm || undefined,
+            dateFrom || undefined,
+            dateTo || undefined
+          );
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
         }
       } else if (productionStatusFilter === 'ready') {
-        if (clientSideFiltersActive || hasSearch) {
-          let all;
-          if (hasSearch) {
-            const paginated = await api.getOrdersPaginatedForTable(
-              1,
-              500,
-              undefined, // status
-              activeSearchTerm || undefined, // cliente
-              undefined, // data_inicio
-              undefined, // data_fim
-              undefined, // tipo_producao
-              true // is_pronto
-            );
-            all = paginated.orders;
-          } else {
-            all = await api.getReadyOrdersLight();
-          }
-          setOrders(all);
-          setTotalPages(Math.ceil(all.length / currentPageSize) || 1);
-          setTotalOrders(all.length);
+        if (hasClientSideOnlyFilters) {
+          const paginatedData = await api.getOrdersPaginatedForTable(
+            1,
+            100,
+            undefined, // status
+            activeSearchTerm || undefined, // cliente
+            dateFrom || undefined, // data_inicio
+            dateTo || undefined, // data_fim
+            undefined, // tipo_producao
+            true // is_pronto = true
+          );
+          setOrders(paginatedData.orders);
+          setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
+          setTotalOrders(paginatedData.total || paginatedData.orders.length);
         } else {
-          const paginatedData = await api.getReadyOrdersPaginated(currentPage + 1, currentPageSize);
+          const paginatedData = await api.getOrdersPaginatedForTable(
+            currentPage + 1,
+            currentPageSize,
+            undefined,
+            activeSearchTerm || undefined,
+            dateFrom || undefined,
+            dateTo || undefined,
+            undefined,
+            true // is_pronto = true
+          );
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
@@ -1013,15 +1002,18 @@ export default function OrderList() {
     setPage(0); // Resetar para primeira página
   };
 
-  // Busca automática com debounce (350ms) para digitação fluida
+  // Busca automática suave com debounce (450ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       const trimmed = searchTerm.trim();
-      if (trimmed !== activeSearchTerm) {
-        setActiveSearchTerm(trimmed);
-        setPage(0);
+      // Não dispara busca no backend com apenas 1 caractere para evitar sobrecarga de digitação
+      if (trimmed.length === 0 || trimmed.length >= 2) {
+        if (trimmed !== activeSearchTerm) {
+          setActiveSearchTerm(trimmed);
+          setPage(0);
+        }
       }
-    }, 350);
+    }, 450);
     return () => clearTimeout(handler);
   }, [searchTerm, activeSearchTerm]);
 
@@ -1189,22 +1181,20 @@ export default function OrderList() {
     dateTo,
   ]);
 
-  // Verificar se estamos usando paginação do backend
-  // Se houver filtros que o backend não suporta (designer/vendedor/cidade/status checkbox),
-  // carregamos um dataset maior e fazemos paginação local.
-  const clientSideFiltersActive =
-    Boolean(activeSearchTerm) || // Busca só ativa após clicar no botão
+  // Filtros exclusivos do frontend (designer/vendedor/cidade/status checkbox)
+  const hasClientSideOnlyFilters =
     selectedStatuses.length > 0 ||
     Boolean(selectedVendedor) ||
     Boolean(selectedDesigner) ||
     Boolean(selectedCidade) ||
-    Boolean(selectedFormaEnvio);
-  // Quando 'all' é selecionado, sempre usamos paginação frontend porque buscamos todos os pedidos de uma vez
+    Boolean(selectedFormaEnvio) ||
+    Boolean(selectedTipoProducao);
+
+  // Paginação direta no backend para prontos, todos e datas (apenas pending e delayed usam paginação local dos ~56 pedidos carregados)
   const isBackendPaginated =
-    !clientSideFiltersActive &&
-    productionStatusFilter !== 'pending' && // 'pending' sempre usa paginação frontend (filtra por pronto)
-    productionStatusFilter !== 'delayed' && // 'delayed' sempre usa paginação frontend (filtra pendentes por data)
-    (dateFrom || dateTo || productionStatusFilter === 'ready' || productionStatusFilter === 'all');
+    !hasClientSideOnlyFilters &&
+    productionStatusFilter !== 'pending' &&
+    productionStatusFilter !== 'delayed';
 
   // Salvaguarda: Se não for admin, forçar visão de tabela
   useEffect(() => {
