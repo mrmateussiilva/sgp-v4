@@ -37,6 +37,11 @@ export function ClienteAutocomplete({
     loadClientes();
   }, []);
 
+  // Sincroniza o valor externo (prop) com o termo de busca local (ex: ao limpar filtro)
+  useEffect(() => {
+    setSearchTerm(value);
+  }, [value]);
+
   // Busca conforme digita
   useEffect(() => {
     if (debounceRef.current) {

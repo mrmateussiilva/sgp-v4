@@ -37,6 +37,31 @@ import { openPdfInWindow } from '@/utils/exportUtils';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { generateFechamentoReport } from '@/utils/fechamentoReport';
 
+function useSessionState<T>(key: string, initialValue: T): [T, (val: T | ((prev: T) => T)) => void] {
+  const [state, setState] = useState<T>(() => {
+    try {
+      const stored = sessionStorage.getItem(key);
+      return stored ? JSON.parse(stored) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  const setStoredState = (val: T | ((prev: T) => T)) => {
+    setState((prevState) => {
+      const newValue = val instanceof Function ? (val as any)(prevState) : val;
+      try {
+        sessionStorage.setItem(key, JSON.stringify(newValue));
+      } catch (e) {
+        console.error('Error saving to sessionStorage', e);
+      }
+      return newValue;
+    });
+  };
+
+  return [state, setStoredState];
+}
+
 // Lazy load de bibliotecas pesadas
 const loadJsPDF = async () => {
   const module = await import('jspdf');
@@ -759,18 +784,18 @@ export default function Fechamentos() {
     [today],
   );
 
-  const [activeTab, setActiveTab] = useState<'analitico' | 'sintetico'>('analitico');
-  const [reportType, setReportType] = useState<ReportTypeKey>(REPORT_OPTIONS.analitico[0].value);
-  const [startDate, setStartDate] = useState<string>(formatInputDate(firstDayOfMonth));
-  const [endDate, setEndDate] = useState<string>(formatInputDate(today));
-  const [dateMode, setDateMode] = useState<'entrada' | 'entrega'>('entrega');
-  const [freteDistribution, setFreteDistribution] = useState<'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica'>('atribuicao_unica');
-  const [cliente, setCliente] = useState<string>('');
+  const [activeTab, setActiveTab] = useSessionState<'analitico' | 'sintetico'>('fechamento_activeTab', 'analitico');
+  const [reportType, setReportType] = useSessionState<ReportTypeKey>('fechamento_reportType', REPORT_OPTIONS.analitico[0].value);
+  const [startDate, setStartDate] = useSessionState<string>('fechamento_startDate', formatInputDate(firstDayOfMonth));
+  const [endDate, setEndDate] = useSessionState<string>('fechamento_endDate', formatInputDate(today));
+  const [dateMode, setDateMode] = useSessionState<'entrada' | 'entrega'>('fechamento_dateMode', 'entrega');
+  const [freteDistribution, setFreteDistribution] = useSessionState<'por_pedido' | 'proporcional' | 'proporcional_inteiro' | 'atribuicao_unica'>('fechamento_freteDistribution', 'atribuicao_unica');
+  const [cliente, setCliente] = useSessionState<string>('fechamento_cliente', '');
   const [loading, setLoading] = useState<boolean>(false);
-  const [report, setReport] = useState<ReportResponse | null>(null);
+  const [report, setReport] = useSessionState<ReportResponse | null>('fechamento_report', null);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [exportingCsv, setExportingCsv] = useState<boolean>(false);
-  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [rawOrders, setRawOrders] = useSessionState<any[]>('fechamento_rawOrders', []);
   const [processing, setProcessing] = useState<boolean>(false);
   const [dateError, setDateError] = useState<string>('');
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());

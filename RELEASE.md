@@ -1,5 +1,11 @@
 # Release
 
+## v1.4.6 — 2026-09-29
+
+### 🐛 Correções na Tela de Fechamentos
+- **Persistência de Estado:** Os filtros de pesquisa e o relatório gerado na tela de Fechamentos agora são persistidos no `sessionStorage`, evitando perda de dados ao mudar de tela.
+- **Limpeza de Filtros:** Corrigido o componente `ClienteAutocomplete` para sincronizar corretamente com o estado da tela, permitindo que o botão "Limpar Filtro" esvazie o campo.
+
 ## v1.4.5 — 2026-08-09
 
 ### 🔐 Restrição de Acesso para o Setor Designer
