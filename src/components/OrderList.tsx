@@ -252,7 +252,7 @@ export default function OrderList() {
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
   const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(new Set());
   const [draftsCount, setDraftsCount] = useState<number | null>(null);
-  const [globalCounts, setGlobalCounts] = useState<{
+  const [tabTotals, setTabTotals] = useState<{
     pending?: number;
     ready?: number;
     all?: number;
@@ -260,84 +260,50 @@ export default function OrderList() {
     drafts?: number;
   }>({});
 
-  const refreshGlobalCounts = useCallback(async () => {
-    try {
-      // 1. Tenta carregar resumo estatístico unificado do backend (/pedidos/summary)
-      if (typeof api.getDashboardSummary === 'function') {
-        try {
-          const summary = await api.getDashboardSummary();
-          if (summary && summary.total !== undefined) {
-            const drafts = typeof api.listarRascunhos === 'function' ? await api.listarRascunhos() : [];
-            const draftsLen = drafts.length || 0;
-            setDraftsCount(draftsLen);
-            setGlobalCounts({
-              all: summary.total || 0,
-              ready: summary.concluidos || 0,
-              pending: (summary.pendentes || 0) + (summary.em_producao || 0),
-              delayed: summary.atrasados || 0,
-              drafts: draftsLen,
-            });
-            return;
-          }
-        } catch {
-          // Fallback silencioso para contagem direta
-        }
-      }
+  // Carrega contagens iniciais em segundo plano (Rascunhos e Prontos)
+  useEffect(() => {
+    let active = true;
 
-      // 2. Fallback via /pedidos/total
-      if (typeof api.getTotalOrdersCount === 'function') {
-        const [total, ready, pending, drafts] = await Promise.all([
-          api.getTotalOrdersCount(),
-          api.getTotalOrdersCount({ is_pronto: true }),
-          api.getTotalOrdersCount({ is_pronto: false }),
-          typeof api.listarRascunhos === 'function' ? api.listarRascunhos() : [],
-        ]);
-        const draftsLen = drafts.length || 0;
-        setDraftsCount(draftsLen);
-        setGlobalCounts((prev) => ({
-          ...prev,
-          all: total,
-          ready,
-          pending,
-          drafts: draftsLen,
-        }));
+    api.listarRascunhos().then((drafts) => {
+      if (active) {
+        const len = drafts.length || 0;
+        setDraftsCount(len);
+        setTabTotals((prev) => ({ ...prev, drafts: len }));
       }
-    } catch (err) {
-      logger.error('[OrderList] Erro ao carregar contagens das tabs:', err);
+    }).catch(() => {});
+
+    // Contagem de prontos via consulta rápida de paginação
+    if (typeof api.getOrdersPaginated === 'function') {
+      api.getOrdersPaginated(1, 1, undefined, undefined, undefined, undefined, undefined, true)
+        .then((res) => {
+          if (active && res && typeof res.total === 'number') {
+            setTabTotals((prev) => ({ ...prev, ready: res.total }));
+          }
+        })
+        .catch(() => {});
     }
+
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    refreshGlobalCounts();
-  }, [refreshGlobalCounts]);
-
-  // Se o backend ainda não tiver respondido atrasados, calcula a partir da lista inicial de pendentes
-  useEffect(() => {
-    if (globalCounts.delayed === undefined && orders.length > 0) {
-      const delayedCount = orders.filter((o) => {
-        const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
-        return isOverdue && !o.pronto && !o.rascunho;
-      }).length;
-      if (delayedCount > 0) {
-        setGlobalCounts((prev) => ({ ...prev, delayed: delayedCount }));
-      }
-    }
-  }, [orders, globalCounts.delayed]);
-
-  // Contadores das tabs permanecem ESTÁVEIS e FIXOS no total global do sistema
+  // Contadores das tabs: permanecem ESTÁVEIS nos totais reais da categoria
   // NÃO sofrem mutação quando o usuário busca clientes ou aplica filtros locais
   const filterCounts = useMemo(() => {
-    const drafts = globalCounts.drafts ?? draftsCount ?? orders.filter((o) => o.rascunho).length;
-    const pending = globalCounts.pending ?? orders.filter((o) => !o.pronto && !o.rascunho).length;
-    const ready = globalCounts.ready ?? 0;
-    const delayed = globalCounts.delayed ?? orders.filter((o) => {
+    const drafts = tabTotals.drafts ?? draftsCount ?? orders.filter((o) => o.rascunho).length;
+    const pending = tabTotals.pending ?? orders.filter((o) => !o.pronto && !o.rascunho).length;
+    const delayed = tabTotals.delayed ?? orders.filter((o) => {
       const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
       return isOverdue && !o.pronto && !o.rascunho;
     }).length;
-    const all = globalCounts.all ?? (totalOrders || orders.length);
+    const ready = tabTotals.ready ?? orders.filter((o) => o.pronto && !o.rascunho).length;
+    const all = tabTotals.all ?? (
+      (tabTotals.ready !== undefined && tabTotals.pending !== undefined)
+        ? tabTotals.ready + tabTotals.pending
+        : (totalOrders || orders.length)
+    );
 
     return { drafts, pending, ready, delayed, all };
-  }, [globalCounts, draftsCount, orders, totalOrders]);
+  }, [tabTotals, draftsCount, orders, totalOrders]);
 
   // Tipos de produção detectados dinamicamente nos dados carregados
   const derivedTiposProducao = useMemo(() => {
@@ -524,6 +490,9 @@ export default function OrderList() {
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
+          if (!hasSearch && !dateFrom && !dateTo && !hasClientSideOnlyFilters) {
+            setTabTotals((prev) => ({ ...prev, all: paginatedData.total }));
+          }
         }
       } else if (productionStatusFilter === 'pending' || productionStatusFilter === 'delayed') {
         let all;
@@ -541,6 +510,16 @@ export default function OrderList() {
           all = paginated.orders;
         } else {
           all = await api.getPendingOrdersLight();
+          const pendingCount = all.filter((o) => !o.pronto && !o.rascunho).length;
+          const delayedCount = all.filter((o) => {
+            const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
+            return isOverdue && !o.pronto && !o.rascunho;
+          }).length;
+          setTabTotals((prev) => ({
+            ...prev,
+            pending: pendingCount,
+            delayed: delayedCount,
+          }));
         }
         logger.debug('[OrderList] carregamento de pedidos pendentes/atrasados concluído:', {
           ordersLength: all.length,
@@ -603,6 +582,9 @@ export default function OrderList() {
           setOrders(paginatedData.orders);
           setTotalPages(paginatedData.total_pages);
           setTotalOrders(paginatedData.total);
+          if (!hasSearch && !dateFrom && !dateTo && !hasClientSideOnlyFilters) {
+            setTabTotals((prev) => ({ ...prev, ready: paginatedData.total }));
+          }
         }
       } else if (productionStatusFilter === 'drafts') {
         const drafts = await api.listarRascunhos();
