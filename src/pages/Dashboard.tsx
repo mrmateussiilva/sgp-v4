@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
+import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { isTauri } from '@/utils/isTauri';
 
@@ -53,35 +53,36 @@ import { useDesignerNotifications } from '@/hooks/useDesignerNotifications';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
-// Lazy load de todas as rotas para code-splitting
-const OrderList = lazy(() => import('../components/OrderList'));
-const PedidoCreateView = lazy(() => import('../views/PedidoCreateView'));
-const PedidoEditView = lazy(() => import('../views/PedidoEditView'));
-const DashboardOverview = lazy(() => import('./DashboardOverview'));
-const Clientes = lazy(() => import('./Clientes'));
-const RelatoriosEnvios = lazy(() => import('./RelatoriosEnvios'));
-const Fechamentos = lazy(() => import('./Fechamentos'));
-const PainelDesempenho = lazy(() => import('./PainelDesempenho'));
-const Admin = lazy(() => import('./Admin'));
-const GestaoMateriais = lazy(() => import('./admin/GestaoMateriais'));
-const GestaoDesigners = lazy(() => import('./admin/GestaoDesigners'));
-const GestaoVendedores = lazy(() => import('./admin/GestaoVendedores'));
-const GestaoTiposProducao = lazy(() => import('./admin/GestaoTiposProducao'));
-const GestaoFormasEnvio = lazy(() => import('./admin/GestaoFormasEnvio'));
-const GestaoFormasPagamento = lazy(() => import('./admin/GestaoFormasPagamento'));
-const GestaoUsuarios = lazy(() => import('./admin/GestaoUsuarios'));
-const GestaoMaquinas = lazy(() => import('./admin/GestaoMaquinas'));
-const MaterialAnalysis = lazy(() => import('./MaterialAnalysis'));
-const ProducaoMaquinas = lazy(() =>
+// Lazy load de todas as rotas para code-splitting com retry automático
+const OrderList = lazyWithRetry(() => import('../components/OrderList'));
+const PedidoCreateView = lazyWithRetry(() => import('../views/PedidoCreateView'));
+const PedidoEditView = lazyWithRetry(() => import('../views/PedidoEditView'));
+const DashboardOverview = lazyWithRetry(() => import('./DashboardOverview'));
+const Clientes = lazyWithRetry(() => import('./Clientes'));
+const RelatoriosEnvios = lazyWithRetry(() => import('./RelatoriosEnvios'));
+const Fechamentos = lazyWithRetry(() => import('./Fechamentos'));
+const PainelDesempenho = lazyWithRetry(() => import('./PainelDesempenho'));
+const Admin = lazyWithRetry(() => import('./Admin'));
+const GestaoMateriais = lazyWithRetry(() => import('./admin/GestaoMateriais'));
+const GestaoDesigners = lazyWithRetry(() => import('./admin/GestaoDesigners'));
+const GestaoVendedores = lazyWithRetry(() => import('./admin/GestaoVendedores'));
+const GestaoTiposProducao = lazyWithRetry(() => import('./admin/GestaoTiposProducao'));
+const GestaoFormasEnvio = lazyWithRetry(() => import('./admin/GestaoFormasEnvio'));
+const GestaoFormasPagamento = lazyWithRetry(() => import('./admin/GestaoFormasPagamento'));
+const GestaoUsuarios = lazyWithRetry(() => import('./admin/GestaoUsuarios'));
+const GestaoMaquinas = lazyWithRetry(() => import('./admin/GestaoMaquinas'));
+const MaterialAnalysis = lazyWithRetry(() => import('./MaterialAnalysis'));
+const ProducaoMaquinas = lazyWithRetry(() =>
   import('./ProducaoMaquinas').then((module) => ({ default: module.ProducaoMaquinas }))
 );
-const PrintLogs = lazy(() => import('./PrintLogs'));
-const TelaPainelDesigners = lazy(() => import('./TelaPainelDesigners'));
-const Expedicao = lazy(() => import('./Expedicao'));
+const PrintLogs = lazyWithRetry(() => import('./PrintLogs'));
+const TelaPainelDesigners = lazyWithRetry(() => import('./TelaPainelDesigners'));
+const Expedicao = lazyWithRetry(() => import('./Expedicao'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
-const GestaoTemplateRelatorios = lazy(() => import('./admin/GestaoTemplateRelatorios'));
+const GestaoTemplateRelatorios = lazyWithRetry(() => import('./admin/GestaoTemplateRelatorios'));
 
 // Componente de loading para rotas lazy
 const RouteLoadingFallback = () => (

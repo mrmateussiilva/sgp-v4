@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { loadConfig } from '@/utils/config';
@@ -19,11 +19,12 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { CommandPalette } from './components/CommandPalette';
 import { requestNotificationPermission } from './utils/notifications';
 import type { FallbackReason } from './pages/ConfigApi';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Login = lazy(() => import('./pages/Login'));
-const ConfigApi = lazy(() => import('./pages/ConfigApi'));
-const UpdateStatus = lazy(() => import('./pages/UpdateStatus'));
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const ConfigApi = lazyWithRetry(() => import('./pages/ConfigApi'));
+const UpdateStatus = lazyWithRetry(() => import('./pages/UpdateStatus'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

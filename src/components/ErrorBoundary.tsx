@@ -52,6 +52,18 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = (): void => {
+    const errorMsg = this.state.error?.message?.toLowerCase() || '';
+    const isChunkError =
+      errorMsg.includes('failed to fetch dynamically imported module') ||
+      errorMsg.includes('error loading dynamically imported module') ||
+      errorMsg.includes('chunkloaderror') ||
+      errorMsg.includes('loading chunk');
+
+    if (isChunkError) {
+      window.location.reload();
+      return;
+    }
+
     this.setState({
       hasError: false,
       error: null,
@@ -65,16 +77,27 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const errorMsg = this.state.error?.message?.toLowerCase() || '';
+      const isChunkError =
+        errorMsg.includes('failed to fetch dynamically imported module') ||
+        errorMsg.includes('error loading dynamically imported module') ||
+        errorMsg.includes('chunkloaderror') ||
+        errorMsg.includes('loading chunk');
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
-                <CardTitle>Algo deu errado</CardTitle>
+                <CardTitle>
+                  {isChunkError ? 'Nova versão ou módulo indisponível' : 'Algo deu errado'}
+                </CardTitle>
               </div>
               <CardDescription>
-                Ocorreu um erro inesperado. Por favor, tente novamente.
+                {isChunkError
+                  ? 'Uma nova versão ou alteração foi carregada. Por favor, recarregue a página para atualizar.'
+                  : 'Ocorreu um erro inesperado. Por favor, tente novamente.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -97,14 +120,16 @@ export class ErrorBoundary extends Component<Props, State> {
               )}
               <div className="flex gap-2">
                 <Button onClick={this.handleReset} variant="default">
-                  Tentar novamente
+                  {isChunkError ? 'Recarregar Aplicativo' : 'Tentar novamente'}
                 </Button>
-                <Button
-                  onClick={() => window.location.reload()}
-                  variant="outline"
-                >
-                  Recarregar página
-                </Button>
+                {!isChunkError && (
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                  >
+                    Recarregar página
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
