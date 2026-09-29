@@ -419,10 +419,16 @@ export default function OrderList() {
     }
     prevServerQueryKeyRef.current = serverQueryKey;
 
+    const isPendingOrDelayedSwitch =
+      (prevFilterRef.current === 'pending' && productionStatusFilter === 'delayed') ||
+      (prevFilterRef.current === 'delayed' && productionStatusFilter === 'pending');
+
     const isChangingTab = prevFilterRef.current !== productionStatusFilter;
     if (isChangingTab) {
-      setOrders([]);
-      setLoading(true);
+      if (!isPendingOrDelayedSwitch || orders.length === 0) {
+        setOrders([]);
+        setLoading(true);
+      }
       prevFilterRef.current = productionStatusFilter;
     } else if (orders.length === 0) {
       setLoading(true);
@@ -457,7 +463,7 @@ export default function OrderList() {
         // TotalOrders será o número total de pedidos retornados
         setTotalPages(Math.ceil(paginatedData.orders.length / currentPageSize) || 1);
         setTotalOrders(paginatedData.orders.length);
-      } else if (productionStatusFilter === 'pending') {
+      } else if (productionStatusFilter === 'pending' || productionStatusFilter === 'delayed') {
         let all;
         if (hasSearch) {
           const paginated = await api.getOrdersPaginatedForTable(
@@ -474,7 +480,7 @@ export default function OrderList() {
         } else {
           all = await api.getPendingOrdersLight();
         }
-        logger.debug('[OrderList] carregamento de pedidos pendentes concluído:', {
+        logger.debug('[OrderList] carregamento de pedidos pendentes/atrasados concluído:', {
           ordersLength: all.length,
         });
         setOrders(all);
@@ -1002,8 +1008,14 @@ export default function OrderList() {
     const filters: Array<{ label: string; onRemove: () => void }> = [];
 
     if (productionStatusFilter !== 'pending') {
+      const statusLabels: Record<string, string> = {
+        ready: 'Prontos',
+        delayed: 'Atrasados',
+        drafts: 'Rascunhos',
+        all: 'Todos',
+      };
       filters.push({
-        label: productionStatusFilter === 'ready' ? 'Prontos' : 'Todos',
+        label: statusLabels[productionStatusFilter] || 'Todos',
         onRemove: () => setProductionStatusFilter('pending'),
       });
     }
@@ -1127,6 +1139,7 @@ export default function OrderList() {
     !clientSideFiltersActive &&
     productionStatusFilter !== 'all' && // 'all' sempre usa paginação frontend
     productionStatusFilter !== 'pending' && // 'pending' sempre usa paginação frontend (filtra por pronto)
+    productionStatusFilter !== 'delayed' && // 'delayed' sempre usa paginação frontend (filtra pendentes por data)
     (dateFrom || dateTo || productionStatusFilter === 'ready');
 
   // Salvaguarda: Se não for admin, forçar visão de tabela

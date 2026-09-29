@@ -23,6 +23,26 @@ export interface FilterWorkerInput {
     };
 }
 
+const isOrderOverdue = (dataEntrega: string | null | undefined): boolean => {
+    if (!dataEntrega) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let deliveryDate: Date;
+    const dateMatch = String(dataEntrega).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+        const [, y, m, d] = dateMatch.map(Number);
+        deliveryDate = new Date(y, m - 1, d);
+    } else {
+        deliveryDate = new Date(dataEntrega);
+    }
+    deliveryDate.setHours(0, 0, 0, 0);
+
+    const diffTime = deliveryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays < 0;
+};
+
 const normalizeText = (value: string) =>
     value
         .normalize('NFD')
@@ -81,11 +101,7 @@ self.onmessage = (e: MessageEvent<FilterWorkerInput>) => {
         } else if (filters.productionStatusFilter === 'delayed') {
             filtered = filtered.filter((order) => {
                 if (order.pronto || order.rascunho || !order.data_entrega) return false;
-                const limitDate = new Date(order.data_entrega);
-                limitDate.setHours(0, 0, 0, 0);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                return limitDate < today;
+                return isOrderOverdue(order.data_entrega);
             });
         } else if (filters.productionStatusFilter === 'drafts') {
             filtered = filtered.filter((order) => order.rascunho === true);
