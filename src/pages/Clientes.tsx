@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo, ChangeEvent } from 'react';
-import { Plus, Search, Pencil, Trash2, Eye, Upload, Users } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Upload, Users, ShoppingBag } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { api } from '../services/api';
+import { ClienteHistoricoModal } from '@/components/ClienteHistoricoModal';
 
 // Lazy load de papaparse
 const loadPapa = async () => {
@@ -68,9 +69,10 @@ export default function Clientes() {
     telefone: '',
   });
   
-  // Modal de visualização
+  // Modal de visualização e histórico do cliente
   const [showViewModal, setShowViewModal] = useState(false);
   const [clienteParaVisualizar, setClienteParaVisualizar] = useState<Cliente | null>(null);
+  const [historicoTab, setHistoricoTab] = useState<'resumo' | 'pedidos' | 'cadastro'>('resumo');
   
   // Modal de exclusão
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -102,22 +104,6 @@ export default function Clientes() {
   const formatOptionalField = (value?: string | null) => {
     const trimmed = value?.trim();
     return trimmed ? trimmed : '-';
-  };
-
-  const formatLocation = (cidade?: string | null, estado?: string | null) => {
-    const cidadeFormatada = formatOptionalField(cidade);
-    const estadoFormatado = formatOptionalField(estado);
-
-    if (cidadeFormatada === '-' && estadoFormatado === '-') {
-      return '-';
-    }
-    if (estadoFormatado === '-') {
-      return cidadeFormatada;
-    }
-    if (cidadeFormatada === '-') {
-      return estadoFormatado;
-    }
-    return `${cidadeFormatada} - ${estadoFormatado}`;
   };
 
   useEffect(() => {
@@ -656,12 +642,28 @@ export default function Clientes() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            aria-label={`Visualizar cliente ${cliente.nome}`}
+                            title="O que o cliente pede & histórico de produtos"
+                            aria-label={`Ver histórico de pedidos e produtos de ${cliente.nome}`}
                             onClick={() => {
                               setClienteParaVisualizar(cliente);
+                              setHistoricoTab('resumo');
                               setShowViewModal(true);
                             }}
-                            className="h-8 w-8"
+                            className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                          >
+                            <ShoppingBag className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Visualizar cliente ${cliente.nome}`}
+                            title="Visualizar detalhes do cliente"
+                            onClick={() => {
+                              setClienteParaVisualizar(cliente);
+                              setHistoricoTab('cadastro');
+                              setShowViewModal(true);
+                            }}
+                            className="h-8 w-8 text-slate-600 hover:text-slate-700"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -969,56 +971,16 @@ export default function Clientes() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Visualização */}
-      <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes do Cliente</DialogTitle>
-          </DialogHeader>
-
-          {clienteParaVisualizar && (
-            <div className="space-y-3 py-4">
-              <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
-                <div className="col-span-3">
-                  <p className="text-xs text-muted-foreground">ID</p>
-                  <p className="font-semibold">#{clienteParaVisualizar.id}</p>
-                </div>
-              </div>
-              
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-600 font-medium mb-1">NOME</p>
-                <p className="font-semibold text-lg">{clienteParaVisualizar.nome}</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">CEP</p>
-                  <p className="font-semibold">
-                    {formatOptionalField(clienteParaVisualizar.cep)}
-                  </p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-semibold">
-                    {formatOptionalField(clienteParaVisualizar.telefone)}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-xs text-muted-foreground">Localização</p>
-                <p className="font-semibold">
-                  {formatLocation(clienteParaVisualizar.cidade, clienteParaVisualizar.estado)}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setShowViewModal(false)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de Histórico, Produtos e Detalhes do Cliente */}
+      <ClienteHistoricoModal
+        cliente={clienteParaVisualizar}
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setClienteParaVisualizar(null);
+        }}
+        defaultTab={historicoTab}
+      />
 
       {/* Modal de Exclusão */}
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
