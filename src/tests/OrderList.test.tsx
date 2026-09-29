@@ -33,17 +33,30 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+// Mock OrderEvents hook
+vi.mock('../hooks/useOrderEvents', () => ({
+  useOrderAutoSync: vi.fn(),
+  subscribeToOrderEvents: vi.fn(() => () => {}),
+}));
+
+// Mock modal provider to avoid unmounted state updates in dialogs
+vi.mock('../components/modals/OrderModalsProvider', () => ({
+  OrderModalsProvider: () => null,
+}));
+
 describe('OrderList Component', () => {
-  it('renders the order list title', () => {
+  it('renders the order list title', async () => {
     render(<OrderList />);
 
-    expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
+    expect(await screen.findByText(/nenhum pedido encontrado/i)).toBeInTheDocument();
   });
 
-  it('renders action buttons with accessible names', () => {
+  it('renders action buttons with accessible names', async () => {
     render(<OrderList />);
 
-    expect(screen.getByRole('button', { name: /ver atalhos de teclado/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /atualizar pedidos/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /ver atalhos de teclado/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /atualizar pedidos/i })).toBeInTheDocument();
+    expect(await screen.findByText(/nenhum pedido encontrado/i)).toBeInTheDocument();
   });
 });

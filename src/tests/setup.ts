@@ -19,7 +19,54 @@ if (typeof window !== 'undefined' && !window.PointerEvent) {
   (window as any).PointerEvent = MockPointerEvent;
 }
 
+import { ordersSocket } from '../lib/realtimeOrders';
+
+// Mock do WebSocket para evitar conexões de rede reais durante os testes
+class MockWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+  readyState = 1;
+  url: string;
+  onopen: ((event: any) => void) | null = null;
+  onclose: ((event: any) => void) | null = null;
+  onerror: ((event: any) => void) | null = null;
+  onmessage: ((event: any) => void) | null = null;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+  send(_data: any) {}
+  close() {
+    this.readyState = 3;
+  }
+  addEventListener() {}
+  removeEventListener() {}
+  dispatchEvent() { return true; }
+}
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'WebSocket', {
+    writable: true,
+    value: MockWebSocket,
+  });
+}
+Object.defineProperty(globalThis, 'WebSocket', {
+  writable: true,
+  value: MockWebSocket,
+});
+
 afterEach(() => {
+  try {
+    ordersSocket.disconnect();
+  } catch {
+    // ignore
+  }
   server.resetHandlers();
   localStorage.clear();
   sessionStorage.clear();
