@@ -942,6 +942,18 @@ export default function OrderList() {
     setPage(0); // Resetar para primeira página
   };
 
+  // Busca automática com debounce (350ms) para digitação fluida
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const trimmed = searchTerm.trim();
+      if (trimmed !== activeSearchTerm) {
+        setActiveSearchTerm(trimmed);
+        setPage(0);
+      }
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm, activeSearchTerm]);
+
   // Função para limpar todos os filtros
   const clearAllFilters = () => {
     setSelectedStatuses([]);
@@ -1496,6 +1508,15 @@ export default function OrderList() {
         },
         description: 'Imprimir ficha',
         enabled: selectedOrder !== null,
+      },
+      {
+        key: '/',
+        action: () => {
+          if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        },
+        description: 'Focar na busca de pedidos',
       },
       {
         key: 'Escape',
@@ -2118,13 +2139,66 @@ export default function OrderList() {
               <Card className={cn('border-2', isPwa && 'pwa-card')}>
                 <CardContent className="pt-6">
                   <div className="flex flex-col gap-4">
+                    {/* Status Tabs Rápidos - Desktop */}
+                    <div className="flex items-center justify-between pb-1 border-b border-border/50">
+                      <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                        {[
+                          { id: 'pending', label: 'Pendentes', count: filterCounts.pending, dot: 'bg-amber-500' },
+                          { id: 'delayed', label: 'Atrasados', count: filterCounts.delayed, dot: 'bg-red-500', alert: true },
+                          { id: 'ready', label: 'Prontos', count: filterCounts.ready, dot: 'bg-green-500' },
+                          { id: 'all', label: 'Todos', count: filterCounts.all, dot: 'bg-slate-400' },
+                          { id: 'drafts', label: 'Rascunhos', count: filterCounts.drafts, icon: '📝' },
+                        ].map((chip) => {
+                          const isActive = productionStatusFilter === chip.id;
+                          return (
+                            <button
+                              key={chip.id}
+                              type="button"
+                              onClick={() => setProductionStatusFilter(chip.id as any)}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border",
+                                isActive
+                                  ? chip.alert
+                                    ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 shadow-sm"
+                                    : "bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/20"
+                                  : chip.alert && chip.count > 0
+                                  ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40 hover:bg-red-500/15"
+                                  : "bg-muted/40 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground"
+                              )}
+                            >
+                              {chip.dot && <span className={cn("h-2 w-2 rounded-full shrink-0", chip.dot, chip.alert && chip.count > 0 && "animate-pulse")} />}
+                              {chip.icon && <span className="text-xs">{chip.icon}</span>}
+                              <span>{chip.label}</span>
+                              <span className={cn(
+                                "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
+                                isActive
+                                  ? chip.alert
+                                    ? "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100"
+                                    : "bg-white/20 text-white"
+                                  : chip.alert && chip.count > 0
+                                  ? "bg-red-500 text-white"
+                                  : "bg-muted text-muted-foreground"
+                              )}>
+                                {chip.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <span className="text-xs font-medium text-muted-foreground hidden lg:flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        {loading ? 'Atualizando...' : `${filteredOrders.length} ${filteredOrders.length === 1 ? 'pedido exibido' : 'pedidos exibidos'}`}
+                      </span>
+                    </div>
+
                     {/* Linha 1: Busca e Status */}
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1 flex gap-2 items-center">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
-                            placeholder="Buscar por nome do cliente, ID ou número do pedido"
+                            placeholder="Buscar cliente, ID ou nº pedido... (Pressione / para focar)"
                             ref={searchInputRef}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -2133,8 +2207,23 @@ export default function OrderList() {
                                 handleSearch();
                               }
                             }}
-                            className={cn('pl-10 h-10', isPwa && 'min-h-[44px]')}
+                            className={cn('pl-10 pr-9 h-10', isPwa && 'min-h-[44px]')}
                           />
+                          {searchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchTerm('');
+                                setActiveSearchTerm('');
+                                setPage(0);
+                                searchInputRef.current?.focus();
+                              }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="Limpar busca"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                         <Button
                           type="button"
@@ -2151,7 +2240,7 @@ export default function OrderList() {
                         <Select
                           value={productionStatusFilter}
                           onValueChange={(value) =>
-                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready' | 'drafts')
+                            setProductionStatusFilter(value as 'all' | 'pending' | 'ready' | 'delayed' | 'drafts')
                           }
                         >
                           <SelectTrigger className="h-10">
@@ -2160,6 +2249,9 @@ export default function OrderList() {
                           <SelectContent>
                             <SelectItem value="pending">
                               Pendentes ({filterCounts.pending})
+                            </SelectItem>
+                            <SelectItem value="delayed">
+                              Atrasados ({filterCounts.delayed})
                             </SelectItem>
                             <SelectItem value="ready">
                               Prontos ({filterCounts.ready})
