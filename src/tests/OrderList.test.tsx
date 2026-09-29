@@ -31,6 +31,21 @@ vi.mock('../services/api', () => ({
     listarRascunhos: vi.fn(() => Promise.resolve([])),
     getAllLogs: vi.fn(() => Promise.resolve([])),
     getTotalOrdersCount: vi.fn(() => Promise.resolve(0)),
+    getDashboardSummary: vi.fn(() => Promise.resolve({
+      total: 0,
+      pendentes: 0,
+      em_producao: 0,
+      concluidos: 0,
+      atrasados: 0,
+      urgentes: 0,
+      hoje: 0,
+      efficiency_rate: 0,
+      avg_production_time: 0,
+      avg_delay_time: 0,
+      production_efficiency: {},
+      shipping_methods: [],
+      status_counts: {},
+    })),
   },
 }));
 
