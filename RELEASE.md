@@ -1,5 +1,15 @@
 # Release
 
+## v1.4.9 — 2026-10-01
+
+### 📊 Análise de Mix de Produção por Tipo & Business Intelligence
+- **Nova Aba "Mix de Produção" no Painel de Desempenho**: Detalhamento visual completo do faturamento em R$, volume de peças e pedidos por cada linha de produção (Painel, Totem, Lona, Adesivo, Canga, Impressão 3D, Mochilinha/Bolsinha, etc.).
+- **Zero Impacto no Backend**: Processamento 100% no cliente a partir dos dados já em memória, com recálculos instantâneos sem tráfego de rede extra.
+- **Gráfico Comparativo Horizontal & Tabela Analítica**: Gráfico de barras com Recharts e paleta vibrante com tooltips detalhados, complementado por tabela com barras de participação, preço médio por peça e linha de total geral.
+- **Atalhos Rápidos de Período (Presets)**: Filtros instantâneos `[ Hoje ]`, `[ 7 dias ]`, `[ 30 dias ]`, `[ Este Mês ]` e `[ Último Ano ]` com recálculo em tempo real em memória.
+- **Exportação CSV Formatada para Excel**: Download direto de `.csv` com formatação brasileira e UTF-8 BOM para relatórios gerenciais externos.
+- **Insights Inteligentes de Mix**: Alertas automáticos no card de topo destacando o produto carro-chefe e avisos preditivos de concentração de faturamento em linhas únicas.
+
 ## v1.4.8 — 2026-10-01
 
 ### 🐛 Correção Crítica de Cliques e Seleção em Dropdowns (Selects)

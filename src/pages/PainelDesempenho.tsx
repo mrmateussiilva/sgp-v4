@@ -28,14 +28,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardKpis } from '@/components/dashboard/DashboardKpis';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { DashboardInsights } from '@/components/dashboard/DashboardInsights';
+import { ProductionMixChart } from '@/components/dashboard/ProductionMixChart';
 
 // Service
 import {
   DateMode,
   filterOrdersByPeriod,
+  filterRawOrdersByPeriod,
   calculateStats,
+  calculateProductionTypeMix,
   generateInsights,
-  DashboardStats
+  DashboardStats,
+  ProductionTypeData
 } from '@/services/dashboardService';
 import { OrderWithItems } from '@/types';
 
@@ -58,6 +62,7 @@ export default function PainelDesempenho() {
   const [rawData, setRawData] = useState<OrderWithItems[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+  const [productionMix, setProductionMix] = useState<ProductionTypeData[]>([]);
   const [isSearched, setIsSearched] = useState<boolean>(false);
 
   // Persistir filtros
@@ -101,14 +106,82 @@ export default function PainelDesempenho() {
     }
   };
 
+  // Formata data local para YYYY-MM-DD
+  const formatDateISO = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Processa os dados brutos de acordo com os filtros
-  const processData = (allOrders: OrderWithItems[]) => {
-    const filteredOrders = filterOrdersByPeriod(allOrders, startDate, endDate, dateMode);
+  const processData = (
+    allOrders: OrderWithItems[],
+    sDate = startDate,
+    eDate = endDate,
+    dMode = dateMode
+  ) => {
+    const filteredOrders = filterOrdersByPeriod(allOrders, sDate, eDate, dMode);
     const calculatedStats = calculateStats(filteredOrders);
-    const generatedInsights = generateInsights(calculatedStats);
+
+    const filteredRaw = filterRawOrdersByPeriod(allOrders, sDate, eDate, dMode);
+    const calculatedMix = calculateProductionTypeMix(filteredRaw);
+
+    const generatedInsights = generateInsights(calculatedStats, calculatedMix);
 
     setStats(calculatedStats);
     setInsights(generatedInsights);
+    setProductionMix(calculatedMix);
+  };
+
+  // Atalhos rápidos de período
+  const handlePreset = (preset: 'today' | '7days' | 'month' | '30days' | 'year') => {
+    const now = new Date();
+    const todayStr = formatDateISO(now);
+    let newStart = todayStr;
+    let newEnd = todayStr;
+
+    switch (preset) {
+      case 'today':
+        newStart = todayStr;
+        newEnd = todayStr;
+        break;
+      case '7days': {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 6);
+        newStart = formatDateISO(d);
+        newEnd = todayStr;
+        break;
+      }
+      case 'month': {
+        const d = new Date(now.getFullYear(), now.getMonth(), 1);
+        newStart = formatDateISO(d);
+        newEnd = todayStr;
+        break;
+      }
+      case '30days': {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 29);
+        newStart = formatDateISO(d);
+        newEnd = todayStr;
+        break;
+      }
+      case 'year': {
+        const d = new Date(now);
+        d.setFullYear(d.getFullYear() - 1);
+        newStart = formatDateISO(d);
+        newEnd = todayStr;
+        break;
+      }
+    }
+
+    setStartDate(newStart);
+    setEndDate(newEnd);
+
+    // Se já houver dados carregados em memória, recalcula na hora sem requisição
+    if (rawData.length > 0 && isSearched) {
+      processData(rawData, newStart, newEnd, dateMode);
+    }
   };
 
   // Recalcular se o modo de data mudar sem precisar de nova busca completa (se já temos dados)
@@ -150,11 +223,61 @@ export default function PainelDesempenho() {
 
       {/* Filtros Refinados */}
       <Card className="border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
-        <div className="bg-slate-50/50 border-b border-slate-100 px-6 py-3">
+        <div className="bg-slate-50/50 border-b border-slate-100 px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
             <Filter className="h-3 w-3" />
             filtros de análise
           </CardTitle>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 hidden lg:inline">
+              Atalhos:
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePreset('today')}
+              className="h-7 px-2.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-xs"
+            >
+              Hoje
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePreset('7days')}
+              className="h-7 px-2.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-xs"
+            >
+              7 dias
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePreset('30days')}
+              className="h-7 px-2.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-xs"
+            >
+              30 dias
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePreset('month')}
+              className="h-7 px-2.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-xs"
+            >
+              Este Mês
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePreset('year')}
+              className="h-7 px-2.5 text-xs font-semibold rounded-lg border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-xs"
+            >
+              Último Ano
+            </Button>
+          </div>
         </div>
         <CardContent className="p-6">
           <div className="grid gap-6 md:grid-cols-12">
@@ -289,6 +412,14 @@ export default function PainelDesempenho() {
                 <TabsTrigger value="table" className="rounded-lg px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-bold transition-all">
                   Consolidado Diário
                 </TabsTrigger>
+                <TabsTrigger value="mix" className="rounded-lg px-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 font-bold transition-all flex items-center gap-2">
+                  Mix de Produção
+                  {productionMix.length > 0 && (
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-black">
+                      {productionMix.length}
+                    </span>
+                  )}
+                </TabsTrigger>
               </TabsList>
               {isSearched && !loading && (
                 <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -356,6 +487,14 @@ export default function PainelDesempenho() {
                   </Table>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="mix" className="mt-0 focus-visible:outline-none">
+              <ProductionMixChart
+                data={productionMix}
+                loading={loading}
+                totalGeral={stats?.totalVendido ?? 0}
+              />
             </TabsContent>
           </Tabs>
 
