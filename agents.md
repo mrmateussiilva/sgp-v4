@@ -1,1560 +1,472 @@
-# 🤖 Documentação para Agentes de IA - SGP v4
+# AGENTS.md — SGP v4 (Sistema de Gerenciamento de Pedidos)
 
-> **Contexto completo do Sistema de Gerenciamento de Pedidos v4 para assistentes de IA**
-
----
-
-## 📌 Visão Geral do Projeto
-
-### O que é o SGP v4?
-
-O **SGP v4 (Sistema de Gerenciamento de Pedidos v4)** é uma aplicação desktop multiplataforma desenvolvida para gerenciar o ciclo completo de pedidos de produção. O sistema foi projetado para uma empresa de sublimação e costura, controlando desde a entrada do pedido até a expedição final.
-
-**Versão Atual:** 1.2.2
-
-### Características Principais
-
-- ✅ **Aplicação Desktop Nativa**: Construída com Tauri v2 (alternativa moderna ao Electron)
-- ✅ **Interface Moderna**: React 18 + TypeScript + Shadcn UI + Tailwind CSS
-- ✅ **Arquitetura Distribuída**: Frontend desktop + Backend API Python separado
-- ✅ **Banco de Dados Robusto**: PostgreSQL com schema completo
-- ✅ **Tempo Real**: WebSocket para notificações e sincronização
-- ✅ **Multiplataforma**: Windows, Linux e macOS
-- ✅ **Cross-compilation**: Desenvolvido no Linux, build para Windows 10
+> Este arquivo é o ponto de entrada para agentes de IA (Copilot, Claude, Gemini, etc.) trabalharem neste repositório.
+> Leia-o **completamente** antes de fazer qualquer alteração.
 
 ---
 
-## 🏗️ Arquitetura do Sistema
+## 1. Visão Geral do Projeto
 
-### Arquitetura Geral
+O **SGP** é um sistema fullstack de gestão de pedidos para uma empresa de produção gráfica/têxtil. É composto por dois repositórios no monorepo `sgp-group`:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND (React + Tauri)                  │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  React 18 + TypeScript                              │   │
-│  │  - Componentes UI (Shadcn)                          │   │
-│  │  - Gerenciamento de Estado (Zustand)                │   │
-│  │  - Roteamento (React Router)                        │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                      │                                       │
-│                      ▼                                       │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Tauri Runtime (Rust)                               │   │
-│  │  - Janela Desktop                                   │   │
-│  │  - Sistema de Arquivos                              │   │
-│  │  - Eventos e Notificações                           │   │
-│  │  - Plugins (dialog, fs, http, shell, updater)       │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         │ HTTP/REST + WebSocket
-                         │ (Bearer Token Auth)
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│              BACKEND (Python FastAPI)                        │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  FastAPI                                            │   │
-│  │  - Endpoints REST                                   │   │
-│  │  - Autenticação JWT                                 │   │
-│  │  - WebSocket para tempo real                        │   │
-│  │  - Validação de dados (Pydantic)                    │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                      │                                       │
-│                      ▼                                       │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  PostgreSQL Database                                │   │
-│  │  - Tabelas de negócio                               │   │
-│  │  - Índices e constraints                            │   │
-│  │  - Migrações e schema                               │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+| Repositório | Função | Porta padrão |
+|---|---|---|
+| `sgp-v4/` | Frontend React + App Desktop (Tauri v2) | `1420` (dev) |
+| `api-sgp/` | Backend REST API (FastAPI + Python) | `8000` |
 
-### Pontos Críticos da Arquitetura
-
-1. **Comunicação Exclusivamente HTTP**: Não há comunicação direta Rust ↔ Python. Todo o fluxo é React → HTTP → FastAPI
-2. **Tauri como Empacotador**: O Tauri serve apenas para gerar o executável desktop, não processa lógica de negócio
-3. **API Externa**: A API Python roda em **outro computador** na rede local
-4. **Adaptador Customizado**: Usa `tauriAxiosAdapter` para substituir o adapter padrão do Axios
+O frontend pode rodar de **duas formas**:
+- **Desktop**: empacotado como `.msi` via Tauri v2 (principal)
+- **Web/PWA**: servido como SPA com Service Worker
 
 ---
 
-## 📁 Estrutura de Diretórios
+## 2. Stack Tecnológica
+
+### Frontend (`sgp-v4`)
+
+| Categoria | Tecnologia |
+|---|---|
+| Framework | React 18 + TypeScript |
+| Build | Vite 5 |
+| Desktop | Tauri v2 (Rust) |
+| Roteamento | React Router Dom v6 — **HashRouter** |
+| Estado global | **Zustand** (com persist middleware) |
+| Estilização | **Tailwind CSS v3** + Radix UI (headless) |
+| Ícones | `lucide-react` |
+| HTTP Client | Axios + adaptador Tauri customizado |
+| WebSocket | Gerenciado por `src/lib/realtimeOrders.ts` |
+| PDF | `@react-pdf/renderer`, `jsPDF`, `pdfmake` |
+| Gráficos | Recharts |
+| Testes | Vitest + Testing Library + MSW |
+| PWA | `vite-plugin-pwa` + Workbox |
+| Package Manager | **pnpm** |
+
+### Backend (`api-sgp`)
+
+| Categoria | Tecnologia |
+|---|---|
+| Framework | FastAPI 0.115 + Pydantic v2 |
+| ORM | SQLModel (SQLAlchemy async) |
+| Banco (local) | SQLite + aiosqlite |
+| Banco (produção) | MySQL remoto |
+| Migrations | Alembic |
+| Auth | JWT via `python-jose` |
+| Servidor | Uvicorn / Hypercorn |
+| Serialização | ORJSON |
+| Testes | pytest + pytest-asyncio |
+
+---
+
+## 3. Estrutura de Diretórios
 
 ```
 sgp-v4/
-├── src/                          # Código-fonte do frontend
-│   ├── api/                      # Nova camada de API (refatorada)
-│   │   ├── client.ts             # Cliente HTTP configurado
-│   │   ├── endpoints/            # Endpoints organizados por domínio
-│   │   │   ├── auth.ts           # Autenticação
-│   │   │   ├── orders.ts         # Pedidos
-│   │   │   ├── customers.ts      # Clientes
-│   │   │   ├── resources.ts      # Recursos (materiais, designers, etc.)
-│   │   │   ├── maquinas.ts       # Máquinas de sublimação
-│   │   │   └── printLogs.ts      # Logs de impressão
-│   │   ├── mappers/              # Mapeadores de dados
-│   │   ├── types/                # Tipos TypeScript da API
-│   │   └── utils.ts              # Utilitários da API
-│   │
-│   ├── components/               # Componentes React
-│   │   ├── ui/                   # Componentes Shadcn UI base
-│   │   ├── OrderList.tsx         # Lista de pedidos
-│   │   ├── OrderForm.tsx         # Formulário de pedido
-│   │   ├── OrderViewModal.tsx    # Modal de visualização
-│   │   ├── CreateOrderComplete.tsx # Formulário completo
-│   │   ├── FichaDeServico.tsx    # Componente de ficha
-│   │   └── ...                   # ~118 componentes
-│   │
-│   ├── pages/                    # Páginas/Views principais
-│   │   ├── Login.tsx             # Tela de login
-│   │   ├── Dashboard.tsx         # Dashboard principal
-│   │   ├── DashboardOverview.tsx # Visão geral
-│   │   ├── Clientes.tsx          # Gestão de clientes
-│   │   ├── Fechamentos.tsx       # Relatórios de fechamento
-│   │   ├── RelatoriosEnvios.tsx  # Relatórios de envio
-│   │   ├── PainelDesempenho.tsx  # Analytics
-│   │   ├── Admin.tsx             # Hub administrativo
-│   │   ├── ConfigApi.tsx         # Configuração de API
-│   │   ├── UpdateStatus.tsx      # Atualização de status
-│   │   └── admin/                # Módulos administrativos
-│   │       ├── GestaoUsuarios.tsx
-│   │       ├── GestaoMateriais.tsx
-│   │       ├── GestaoDesigners.tsx
-│   │       ├── GestaoVendedores.tsx
-│   │       ├── GestaoFormasEnvio.tsx
-│   │       ├── GestaoFormasPagamento.tsx
-│   │       ├── GestaoTemplateFicha.tsx
-│   │       └── GestaoTemplateRelatorios.tsx
-│   │
-│   ├── services/                 # Serviços (camada antiga, sendo migrada)
-│   │   ├── api.ts                # Cliente HTTP legado
-│   │   ├── analyticsService.ts   # Serviço de analytics
-│   │   ├── dashboardService.ts   # Serviço de dashboard
-│   │   ├── orderEvents.ts        # Eventos de pedidos
-│   │   ├── pdfService.ts         # Geração de PDFs
-│   │   └── tauriAxiosAdapter.ts  # Adaptador Tauri para Axios
-│   │
-│   ├── store/                    # Estado global (Zustand)
-│   │   ├── authStore.ts          # Estado de autenticação
-│   │   ├── orderStore.ts         # Estado de pedidos
-│   │   └── updaterStore.ts       # Estado de atualizações
-│   │
-│   ├── hooks/                    # Hooks customizados
-│   │   ├── useNotifications.ts   # Notificações HTTP (polling)
-│   │   ├── useRealtimeNotifications.ts # Notificações WebSocket
-│   │   ├── useOrderEvents.ts     # Eventos de pedidos
-│   │   ├── useAutoRefresh.ts     # Auto-refresh
-│   │   ├── useAutoUpdateCheck.ts # Verificação de atualizações
-│   │   └── use-toast.ts          # Sistema de toasts
-│   │
-│   ├── utils/                    # Funções utilitárias (~35 arquivos)
-│   │   ├── config.ts             # Configuração (Tauri FS)
-│   │   ├── path.ts               # Normalização de caminhos
-│   │   ├── exportUtils.ts        # Exportação CSV/PDF
-│   │   ├── fechamentoReport.ts   # Relatórios de fechamento
-│   │   ├── printOrder.ts         # Impressão de pedidos
-│   │   ├── printOrderServiceForm.ts # Impressão de fichas
-│   │   ├── date.ts               # Formatação de datas
-│   │   ├── logger.ts             # Sistema de logs
-│   │   └── isTauri.ts            # Detecção de ambiente
-│   │
-│   ├── types/                    # Definições TypeScript
-│   │   └── index.ts              # Tipos principais
-│   │
-│   ├── contexts/                 # Contextos React
-│   │   ├── AlertContext.tsx      # Contexto de alertas
-│   │   └── DataContext.tsx       # Contexto de dados globais
-│   │
-│   ├── lib/                      # Bibliotecas e helpers
-│   │   ├── utils.ts              # Utilitários gerais
-│   │   └── realtimeOrders.ts     # WebSocket de pedidos
-│   │
-│   ├── tests/                    # Testes automatizados
-│   │   ├── utils/                # Testes de utilitários
-│   │   └── views/                # Testes de views
-│   │
-│   ├── App.tsx                   # Componente raiz
-│   ├── main.tsx                  # Entry point
-│   └── index.css                 # Estilos globais
-│
-├── src-tauri/                    # Código Rust do Tauri
-│   ├── src/
-│   │   ├── main.rs               # Entry point Rust
-│   │   ├── commands/             # Comandos Tauri
-│   │   │   ├── devtools.rs       # DevTools
-│   │   │   ├── update.rs         # Sistema de atualizações
-│   │   │   └── manual_updater.rs # Atualizador manual
-│   │   └── config.rs             # Configuração
-│   ├── Cargo.toml                # Dependências Rust
-│   └── tauri.conf.json           # Configuração Tauri
-│
-├── database/                     # Scripts SQL
-│   ├── init.sql                  # Inicialização básica
-│   ├── migrate_full_system.sql   # Migração completa
-│   ├── migrate_timestamps.sql    # Migração de timestamps
-│   ├── admin_tables.sql          # Tabelas administrativas
-│   └── fix_passwords.sql         # Correção de senhas
-│
-├── documentation/                # Documentação do projeto (~37 arquivos)
-│   ├── README.md                 # Documentação principal
-│   ├── START_HERE.md             # Guia de início
-│   └── SCHEMA_COMPLETO.md        # Schema do banco
-│
-├── package.json                  # Configuração npm
-├── tsconfig.json                 # Configuração TypeScript
-├── vite.config.ts                # Configuração Vite
-├── tailwind.config.js            # Configuração Tailwind
-└── docker-compose.yml            # PostgreSQL local
+├── src/
+│   ├── api/               # Cliente HTTP e endpoints
+│   │   ├── client.ts      # Axios singleton com interceptors, setApiUrl, setAuthToken
+│   │   ├── endpoints/     # Funções por domínio: orders, customers, resources, etc.
+│   │   └── types/         # Tipos de resposta da API
+│   ├── components/        # Componentes reutilizáveis
+│   │   ├── ui/            # Primitivos (Button, Input, Dialog, etc.) — baseados em Radix
+│   │   ├── layouts/       # Layouts estruturais
+│   │   ├── modals/        # Modais compartilhadas
+│   │   ├── fechamentos/   # Componentes do módulo de fechamentos
+│   │   └── dashboard/     # Componentes do dashboard
+│   ├── contexts/          # Context API (AlertContext, ConfirmContext)
+│   ├── hooks/             # Custom hooks React
+│   ├── lib/               # Módulos internos (realtimeOrders.ts)
+│   ├── pages/             # Páginas por rota
+│   ├── services/          # Serviços (api.ts, tauriAxiosAdapter, hybridClient)
+│   ├── store/             # Stores Zustand
+│   ├── types/             # Tipos TypeScript globais (index.ts tem ~900 linhas)
+│   ├── utils/             # Utilitários puros
+│   └── workers/           # Web Workers (filtros pesados)
+├── src-tauri/             # Código Rust do Tauri v2
+│   ├── src/               # Lógica Rust
+│   ├── migrations/        # Migrações SQLx (banco local Tauri)
+│   └── tauri.conf.json    # Configuração do app desktop
+├── tests/                 # Testes de utils (fora do src/)
+├── public/                # Assets estáticos
+├── vite.config.ts
+├── vitest.config.ts
+└── package.json
 ```
 
 ---
 
-## 🗄️ Banco de Dados
+## 4. Alias de Import
 
-### Schema Principal
-
-#### **Tabela: `orders` (Pedidos)**
-
-Tabela central do sistema que armazena todos os pedidos.
-
-```sql
-CREATE TABLE orders (
-  -- Identificação
-  id SERIAL PRIMARY KEY,
-  numero VARCHAR(50) UNIQUE NOT NULL,
-  
-  -- Datas
-  data_entrada DATE NOT NULL,
-  data_entrega DATE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  -- Cliente
-  cliente VARCHAR(255) NOT NULL,
-  telefone_cliente VARCHAR(50),
-  cidade_cliente VARCHAR(100),
-  estado_cliente VARCHAR(2),
-  
-  -- Valores
-  valor_total DECIMAL(10, 2),
-  valor_frete DECIMAL(10, 2),
-  valor_itens DECIMAL(10, 2),
-  
-  -- Relacionamentos
-  forma_envio VARCHAR(100),
-  forma_envio_id INTEGER REFERENCES envios(id),
-  forma_pagamento_id INTEGER REFERENCES pagamentos(id),
-  
-  -- Status
-  status VARCHAR(50) DEFAULT 'pendente',
-  prioridade VARCHAR(20) DEFAULT 'NORMAL',
-  
-  -- Status de Produção (Checkboxes)
-  financeiro BOOLEAN DEFAULT FALSE,
-  conferencia BOOLEAN DEFAULT FALSE,
-  sublimacao BOOLEAN DEFAULT FALSE,
-  costura BOOLEAN DEFAULT FALSE,
-  expedicao BOOLEAN DEFAULT FALSE,
-  pronto BOOLEAN DEFAULT FALSE,
-  
-  -- Sublimação
-  sublimacao_maquina VARCHAR(100),
-  sublimacao_data_impressao DATE,
-  
-  -- Observações
-  observacao TEXT
-);
-```
-
-**Status Possíveis:**
-- `pendente`: Pedido criado, aguardando processamento
-- `em_producao`: Pedido em produção
-- `pronto`: Produção finalizada
-- `entregue`: Entregue ao cliente
-- `cancelado`: Pedido cancelado
-
-**Prioridades:**
-- `NORMAL`: Prioridade normal
-- `ALTA`: Prioridade alta
-
-**Regras de Negócio:**
-- Quando todos os checkboxes de produção são marcados, `pronto = true` e `status = 'pronto'`
-- Ao desmarcar `financeiro`, todos os outros setores são desmarcados automaticamente
-- O campo `numero` é único e gerado automaticamente
-
-#### **Tabela: `order_items` (Itens do Pedido)**
-
-Cada pedido pode ter múltiplos itens, cada um com tipo de produção específico.
-
-```sql
-CREATE TABLE order_items (
-  id SERIAL PRIMARY KEY,
-  order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
-  
-  -- Básico
-  item_name VARCHAR(255) NOT NULL,
-  quantity INTEGER NOT NULL,
-  unit_price DECIMAL(10, 2),
-  subtotal DECIMAL(10, 2),
-  
-  -- Tipo de Produção
-  tipo_producao VARCHAR(50), -- 'painel', 'totem', 'lona', 'almofada', 'bolsinha', 'adesivo'
-  descricao TEXT,
-  
-  -- Dimensões
-  largura VARCHAR(20),
-  altura VARCHAR(20),
-  metro_quadrado VARCHAR(20),
-  
-  -- Pessoas
-  vendedor VARCHAR(100),
-  designer VARCHAR(100),
-  tecido VARCHAR(100),
-  
-  -- Acabamentos
-  overloque BOOLEAN,
-  elastico BOOLEAN,
-  tipo_acabamento VARCHAR(50),
-  
-  -- Ilhós
-  quantidade_ilhos VARCHAR(20),
-  espaco_ilhos VARCHAR(20),
-  valor_ilhos VARCHAR(20),
-  
-  -- Cordinha
-  quantidade_cordinha VARCHAR(20),
-  espaco_cordinha VARCHAR(20),
-  valor_cordinha VARCHAR(20),
-  
-  -- Emenda
-  emenda VARCHAR(50),
-  emenda_qtd VARCHAR(20),
-  
-  -- Campos específicos por tipo
-  quantidade_paineis VARCHAR(20),
-  valor_painel VARCHAR(20),
-  valores_adicionais VARCHAR(100),
-  valor_unitario VARCHAR(20),
-  terceirizado BOOLEAN,
-  
-  -- Lona
-  acabamento_lona VARCHAR(100),
-  valor_lona VARCHAR(20),
-  quantidade_lona VARCHAR(20),
-  outros_valores_lona VARCHAR(100),
-  
-  -- Adesivo
-  tipo_adesivo VARCHAR(50),
-  valor_adesivo VARCHAR(20),
-  quantidade_adesivo VARCHAR(20),
-  outros_valores_adesivo VARCHAR(100),
-  
-  -- Bolsinha/Almofada
-  ziper BOOLEAN,
-  cordinha_extra BOOLEAN,
-  alcinha BOOLEAN,
-  toalha_pronta BOOLEAN,
-  
-  -- Totem
-  acabamento_totem VARCHAR(100),
-  acabamento_totem_outro VARCHAR(100),
-  valor_totem VARCHAR(20),
-  quantidade_totem VARCHAR(20),
-  outros_valores_totem VARCHAR(100),
-  
-  -- Imagens
-  imagem TEXT, -- base64 ou caminho
-  legenda_imagem VARCHAR(255),
-  
-  -- Observações
-  observacao TEXT,
-  
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Tipos de Produção:**
-- `painel`: Painéis de sublimação
-- `totem`: Totens
-- `lona`: Lonas
-- `almofada`: Almofadas
-- `bolsinha`: Bolsinhas
-- `adesivo`: Adesivos
-
-#### **Outras Tabelas Importantes**
-
-```sql
--- Clientes
-CREATE TABLE clientes (
-  id SERIAL PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  cep VARCHAR(10),
-  cidade VARCHAR(100),
-  estado VARCHAR(2),
-  telefone VARCHAR(50),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Usuários
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  username VARCHAR(100) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  is_admin BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Designers
-CREATE TABLE designers (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255),
-  phone VARCHAR(50),
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Vendedores
-CREATE TABLE vendedores (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255),
-  phone VARCHAR(50),
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Materiais/Tecidos
-CREATE TABLE materiais (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  tipo_producao VARCHAR(50) NOT NULL,
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Formas de Envio
-CREATE TABLE envios (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  value DECIMAL(10, 2),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Formas de Pagamento
-CREATE TABLE pagamentos (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  value DECIMAL(10, 2), -- desconto/acréscimo
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
----
-
-## 🔌 API e Comunicação
-
-### Configuração da API
-
-A URL da API é configurada dinamicamente através da interface `ConfigApi.tsx`:
-
-1. Usuário informa URL (ex: `http://192.168.0.10:8000`)
-2. Sistema testa conexão com endpoint `/health`
-3. Se bem-sucedido, salva configuração via Tauri FS
-4. Configuração é carregada automaticamente na inicialização
-
-**Arquivo de Configuração:** Salvo localmente via `@tauri-apps/plugin-fs`
-
-### Cliente HTTP (`src/api/client.ts`)
+O alias `@` aponta para `src/`. Use sempre:
 
 ```typescript
-// Configuração do cliente
-const apiClient: AxiosInstance = axios.create({
-  timeout: 30000,
+// ✅ Correto
+import { useAuthStore } from '@/store/authStore';
+import { apiClient } from '@/api/client';
+import { Button } from '@/components/ui/button';
+
+// ❌ Evitar
+import { useAuthStore } from '../../../store/authStore';
+```
+
+---
+
+## 5. Convenções de Código
+
+### Componentes
+
+- **Componentes React**: PascalCase, arquivo `.tsx`
+- **Hooks**: camelCase prefixado com `use`, arquivo `.ts`
+- **Utilitários**: camelCase, arquivo `.ts`
+- **Tipos/Interfaces**: em `src/types/index.ts` (principal) ou no mesmo arquivo se forem locais
+
+### Estilo (Tailwind)
+
+- Use classes Tailwind diretamente nos elementos JSX.
+- Para variantes condicionais, use `clsx` + `tailwind-merge` via o helper `cn()` em `src/lib/utils.ts`.
+- Tema claro/escuro gerenciado pelo `ThemeProvider` — use variáveis CSS (`bg-background`, `text-foreground`) em vez de cores fixas onde possível.
+
+### Detecção de ambiente
+
+Sempre use o utilitário `isTauri()` para código condicional entre desktop e web:
+
+```typescript
+import { isTauri } from '@/utils/isTauri';
+
+if (isTauri()) {
+  // Código exclusivo do app desktop Tauri
+  const { invoke } = await import('@tauri-apps/api/core');
+} else {
+  // Código para PWA/browser
+}
+```
+
+### Logging
+
+Use sempre o `logger` centralizado em vez de `console.*` direto. Logs são suprimidos automaticamente em produção:
+
+```typescript
+import { logger } from '@/utils/logger';
+
+logger.debug('Mensagem de debug', { dados });
+logger.info('Operação concluída');
+logger.warn('Atenção');
+logger.error('Erro na operação', error);
+```
+
+### Lazy Loading de Páginas
+
+Ao adicionar novas rotas, use `lazyWithRetry` em vez de `React.lazy` puro:
+
+```typescript
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+
+const NovaPagina = lazyWithRetry(() => import('./pages/NovaPagina'));
+```
+
+> Isso resolve erros de `Failed to fetch dynamically imported module` após deploys.
+
+---
+
+## 6. Autenticação e Estado Global
+
+### `authStore` (Zustand + persist)
+
+Chave no localStorage: `auth-storage`
+
+```typescript
+import { useAuthStore } from '@/store/authStore';
+
+// Leitura (via selector para evitar re-renders desnecessários)
+const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+const { userId, username, isAdmin, setor, sessionToken } = useAuthStore();
+
+// Ações
+const { login, logout } = useAuthStore();
+```
+
+**Campos do estado de autenticação:**
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `isAuthenticated` | `boolean` | Se o usuário está logado |
+| `userId` | `number \| null` | ID do usuário |
+| `username` | `string \| null` | Nome de usuário |
+| `isAdmin` | `boolean` | Flag de administrador |
+| `setor` | `string \| null` | Setor do usuário (ex: `'geral'`) |
+| `sessionToken` | `string \| null` | JWT |
+| `sessionExpiresAt` | `number \| null` | Timestamp de expiração |
+
+> **Sessão**: expira automaticamente em 8 horas. A re-hidratação do Zustand verifica o TTL via `queueMicrotask`.
+
+### Configurar token no cliente HTTP
+
+```typescript
+import { setAuthToken } from '@/api/client';
+setAuthToken(sessionToken); // Automaticamente inclui no header Authorization
+```
+
+---
+
+## 7. Cliente HTTP (API)
+
+### Configuração
+
+A URL base da API **não é hardcoded** — é configurada em runtime pelo usuário na tela `ConfigApi.tsx` e salva localmente.
+
+```typescript
+import { setApiUrl, getApiUrl, apiClient } from '@/api/client';
+
+// Definir URL base (feito em App.tsx na inicialização)
+setApiUrl('http://192.168.1.100:8000');
+
+// Fazer requisições (baseURL já configurada)
+const response = await apiClient.get('/pedidos');
+```
+
+### Interceptors automáticos
+
+- **Request**: injeta `Authorization: Bearer <token>` e header `ngrok-skip-browser-warning`.
+- **Response**: erros de rede (sem resposta HTTP) disparam `onApiFailure` listeners globais.
+- **Erro 422**: logado em detalhe automaticamente.
+
+### Header para requisições silenciosas
+
+Para evitar que falhas em chamadas não-críticas acionem a tela de fallback de conexão:
+
+```typescript
+await apiClient.post('/logout', {}, {
+  headers: { 'X-Silent-Request': 'true' }
+});
+```
+
+### Adaptador Tauri
+
+No ambiente Tauri, o Axios usa `tauriAxiosAdapter.ts` para enviar requisições via `@tauri-apps/plugin-http` (necessário por restrições de segurança do WebView). Isso é transparente — não altere a forma de fazer requisições.
+
+---
+
+## 8. WebSocket (Tempo Real)
+
+O WebSocket é gerenciado por `src/lib/realtimeOrders.ts` — **NÃO crie conexões WebSocket avulsas**.
+
+```typescript
+import { ordersSocket } from '@/lib/realtimeOrders';
+
+// Conectar (feito automaticamente pelo hook)
+ordersSocket.connect(apiBaseUrl, jwtToken);
+
+// Escutar eventos
+const unsubscribe = ordersSocket.on('order_updated', (payload) => {
+  // reagir à atualização
 });
 
-// Aplicar adaptador Tauri
-applyTauriAdapter(apiClient);
-
-// Interceptor de autenticação
-apiClient.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
-  }
-  return config;
-});
+// Desconectar ao desmontar
+return () => unsubscribe();
 ```
 
-**Características:**
-- Timeout de 30 segundos para conexões de rede
-- Adaptador customizado para Tauri (`@tauri-apps/api/http`)
-- Injeção automática de Bearer Token
-- Tratamento de erros 422 com logs detalhados
-- Sistema de listeners para falhas de API
+O hook `useRealtimeNotifications` (`src/hooks/useRealtimeNotifications.ts`) gerencia o ciclo de vida da conexão automaticamente baseado no `sessionToken`.
 
-### Endpoints Principais
-
-#### **Autenticação**
-```
-POST   /auth/login          # Login do usuário
-POST   /auth/logout         # Logout
-GET    /auth/me             # Informações do usuário atual
-```
-
-#### **Pedidos**
-```
-GET    /api/pedidos                    # Listar pedidos (com filtros)
-GET    /api/pedidos/pendentes          # Pedidos pendentes (paginado)
-GET    /api/pedidos/prontos            # Pedidos prontos (paginado)
-GET    /api/pedidos/:id                # Buscar pedido por ID
-POST   /api/pedidos                    # Criar pedido
-PUT    /api/pedidos/:id                # Atualizar pedido completo
-PATCH  /api/pedidos/:id/metadata       # Atualizar metadados
-PATCH  /api/pedidos/:id/status         # Atualizar status
-DELETE /api/pedidos/:id                # Excluir pedido
-GET    /api/pedidos/:id/ficha          # Obter ficha do pedido
-GET    /api/pedidos/summary            # Resumo/estatísticas
-```
-
-#### **Clientes**
-```
-GET    /api/clientes           # Listar clientes
-GET    /api/clientes/:id       # Buscar cliente por ID
-POST   /api/clientes           # Criar cliente
-PUT    /api/clientes/:id       # Atualizar cliente
-DELETE /api/clientes/:id       # Excluir cliente
-POST   /api/clientes/import    # Importar clientes em lote (CSV)
-```
-
-#### **Recursos (Catálogos)**
-```
-GET    /api/vendedores/ativos          # Listar vendedores ativos
-GET    /api/designers/ativos           # Listar designers ativos
-GET    /api/materiais/ativos           # Listar materiais ativos
-GET    /api/formas-envio/ativas        # Listar formas de envio ativas
-GET    /api/formas-pagamento/ativas    # Listar formas de pagamento ativas
-```
-
-#### **Administrativo**
-```
-GET    /api/vendedores         # Listar todos os vendedores
-POST   /api/vendedores         # Criar vendedor
-PUT    /api/vendedores/:id     # Atualizar vendedor
-DELETE /api/vendedores/:id     # Excluir vendedor
-
-# Mesmo padrão para: designers, materiais, formas-envio, formas-pagamento, users
-```
-
-#### **Relatórios**
-```
-POST   /api/relatorios/fechamento          # Gerar relatório de fechamento
-GET    /api/pedidos/por-data-entrega       # Pedidos por data de entrega
-```
-
-#### **Notificações e Tempo Real**
-```
-GET       /api/notificacoes/ultimos    # Últimas notificações (polling)
-WebSocket /ws/orders                   # Conexão WebSocket para tempo real
-```
-
-### WebSocket (Tempo Real)
-
-**Endpoint:** `ws://<api_url>/ws/orders`
-
-**Autenticação:**
-1. Token na query string: `?token=<jwt_token>`
-2. Mensagem `authenticate` após conexão
-
-**Eventos:**
-- `order_created`: Novo pedido criado
-- `order_updated`: Pedido atualizado
-- `order_deleted`: Pedido excluído
-- `order_status_updated`: Status do pedido alterado
-
-**Implementação:** `src/lib/realtimeOrders.ts` e `src/hooks/useRealtimeNotifications.ts`
+**Endpoint WebSocket da API:** `ws://<host>/ws/orders?token=<jwt>`
 
 ---
 
-## 🎯 Funcionalidades Principais
+## 9. Tipos Principais
 
-### 1. Autenticação e Segurança
+Definidos em `src/types/index.ts`:
 
-- **Login/Logout**: Sistema de autenticação com sessões JWT
-- **Controle de Acesso**: Rotas protegidas baseadas em autenticação
-- **Permissões**: Diferenciação entre usuários normais e administradores
-- **Bearer Token**: Autenticação via token JWT nas requisições HTTP
-- **Persistência de Sessão**: Sessão salva em localStorage com expiração (8 horas padrão)
-- **Expiração Automática**: Logout automático quando sessão expira
+| Tipo | Descrição |
+|---|---|
+| `OrderWithItems` | Pedido completo com itens de produção |
+| `OrderItem` | Item de um pedido (com todos campos de produção) |
+| `OrderStatus` | Enum: `Pendente`, `Em Processamento`, `Concluido`, `Cancelado` |
 
-**Store:** `src/store/authStore.ts` (Zustand com persist middleware)
-
-### 2. Gestão de Pedidos
-
-#### Criar Pedido
-- Formulário completo com múltiplos itens (`CreateOrderComplete.tsx`)
-- Diferentes tipos de produção (painel, totem, lona, adesivo, almofada, bolsinha)
-- Campos específicos por tipo de produção
-- Upload de imagens para itens (base64)
-- Cálculo automático de valores
-- Validação de campos obrigatórios
-- Autocomplete de clientes
-
-#### Listar Pedidos
-- Tabela paginada com todos os pedidos (`OrderList.tsx`)
-- Filtros por:
-  - Status (pendente, em_producao, pronto, entregue, cancelado)
-  - Cliente (nome)
-  - Data (entrada/entrega)
-  - Setores de produção (financeiro, conferência, sublimação, costura, expedição)
-  - Prioridade
-- Busca por texto (cliente, ID, número)
-- Visualização de status de produção (checkboxes)
-- Ordenação por diferentes colunas
-- Seleção múltipla para impressão em lote
-
-#### Editar Pedido
-- Edição completa de dados do pedido
-- Edição rápida de metadados (cliente, datas, valores)
-- Reabertura de pedidos concluídos
-- Atualização de status de produção
-- Modificação de itens
-
-#### Visualizar Pedido
-- Modal com informações completas (`OrderViewModal.tsx`)
-- Visualização de imagens dos itens
-- Detalhes técnicos de cada item
-- Valores e totais
-- Histórico de alterações
-
-### 3. Status de Produção
-
-Sistema de checkboxes por setor:
-
-- **Financeiro**: Aprovação financeira
-- **Conferência**: Conferência de materiais/quantidades
-- **Sublimação**: Processo de sublimação
-- **Costura**: Processo de costura
-- **Expedição**: Preparação para envio
-
-**Regras Automáticas:**
-- Quando todos os setores são marcados → `pronto = true` e `status = 'pronto'`
-- Ao desmarcar `financeiro` → todos os outros setores são desmarcados
-- Status principal é calculado automaticamente baseado nos checkboxes
-
-### 4. Relatórios e Fechamentos
-
-#### Relatório de Fechamentos (`Fechamentos.tsx`)
-
-**Tipos de Relatórios Sintéticos:**
-- Por Vendedor
-- Por Designer
-- Por Cliente
-- Por Data de Entrega/Entrada
-- Por Forma de Envio
-- Por Tipo de Produção
-
-**Tipos de Relatórios Analíticos:**
-- Designer × Cliente
-- Vendedor × Cliente
-- Outras combinações
-
-**Funcionalidades:**
-- Agrupamento de valores (Frete + Serviços)
-- Filtros por período, status, vendedor, designer, cliente
-- Cálculo de totais e subtotais
-- Exportação em PDF
-- Impressão direta
-
-**Implementação:** `src/utils/fechamentoReport.ts`
-
-#### Relatório de Envios (`RelatoriosEnvios.tsx`)
-
-- Agrupamento por forma de envio
-- Filtro por data de entrega
-- Lista de clientes e endereços
-- Tipos de produção por pedido
-- Observações importantes
-- Exportação em PDF e impressão
-
-### 5. Painel de Desempenho (`PainelDesempenho.tsx`)
-
-- Estatísticas gerais (total de pedidos, valores, etc.)
-- Gráficos de visualização de dados (Recharts)
-- Filtros por período
-- Métricas de produção
-- Tempo médio de produção
-- Produtividade por setor
-
-### 6. Módulos Administrativos
-
-Acesso restrito a administradores (`isAdmin = true`):
-
-- **Gestão de Usuários** (`admin/GestaoUsuarios.tsx`)
-- **Gestão de Materiais** (`admin/GestaoMateriais.tsx`)
-- **Gestão de Designers** (`admin/GestaoDesigners.tsx`)
-- **Gestão de Vendedores** (`admin/GestaoVendedores.tsx`)
-- **Gestão de Formas de Envio** (`admin/GestaoFormasEnvio.tsx`)
-- **Gestão de Formas de Pagamento** (`admin/GestaoFormasPagamento.tsx`)
-- **Gestão de Templates de Ficha** (`admin/GestaoTemplateFicha.tsx`)
-- **Gestão de Templates de Relatórios** (`admin/GestaoTemplateRelatorios.tsx`)
-
-### 7. Impressão e Exportação
-
-- **Ficha de Serviço**: Impressão individual por item (`printOrderServiceForm.ts`)
-- **Lista de Produção**: Impressão em lote de múltiplos pedidos
-- **Pedido Completo**: Impressão de todo o pedido (`printOrder.ts`)
-- **Layout Otimizado**: HTML/CSS otimizado para impressão
-- **Exportação CSV**: Exportação de pedidos e relatórios (`exportUtils.ts`)
-- **Geração de PDF**: jsPDF, PDFMake, React-PDF
-
-### 8. Notificações em Tempo Real
-
-- **Polling HTTP**: Verificação periódica de novas notificações (`useNotifications.ts`)
-- **WebSocket**: Conexão em tempo real para atualizações instantâneas (`useRealtimeNotifications.ts`)
-- **Toasts**: Notificações visuais de novas ações (Shadcn UI Toast)
-- **Sincronização Automática**: Atualização automática da lista de pedidos
-- **Eventos de Pedidos**: Sistema de eventos customizado (`orderEvents.ts`)
-
-### 9. Sistema de Atualização
-
-- **Verificação Automática**: Verifica atualizações ao iniciar (`useAutoUpdateCheck.ts`)
-- **Download e Instalação**: Automático via Tauri Updater
-- **Controle de Versão**: Baseado em `package.json` e `tauri.conf.json`
-- **Tela de Status**: `UpdateStatus.tsx` mostra progresso
-- **Changelog**: Exibição de novidades da versão
+**Status de produção em `OrderWithItems`:**
+- `financeiro`, `conferencia`, `sublimacao`, `costura`, `expedicao`, `pronto` — booleanos de pipeline
+- `rascunho` — pedido incompleto, fora do fluxo
 
 ---
 
-## 🛠️ Stack Tecnológica Completa
+## 10. Testes
 
-### Frontend
-
-#### Core
-- **React 18.2.0**: Biblioteca JavaScript para construção de interfaces
-- **TypeScript 5.3.3**: Superset do JavaScript com tipagem estática
-- **Vite 5.1.0**: Build tool e dev server extremamente rápido
-
-#### UI e Estilização
-- **Shadcn UI**: Componentes UI modernos e acessíveis baseados em Radix UI
-- **Tailwind CSS 3.4.1**: Framework CSS utility-first
-- **Radix UI**: Componentes primitivos acessíveis
-  - `@radix-ui/react-checkbox`
-  - `@radix-ui/react-dialog`
-  - `@radix-ui/react-dropdown-menu`
-  - `@radix-ui/react-label`
-  - `@radix-ui/react-popover`
-  - `@radix-ui/react-select`
-  - `@radix-ui/react-separator`
-  - `@radix-ui/react-tabs`
-  - `@radix-ui/react-toast`
-  - `@radix-ui/react-tooltip`
-- **Lucide React 0.323.0**: Biblioteca de ícones
-- **class-variance-authority**: Gerenciamento de variantes de componentes
-- **clsx**: Utilitário para classes condicionais
-- **tailwind-merge**: Merge inteligente de classes Tailwind
-
-#### Estado e Roteamento
-- **Zustand 4.5.0**: Biblioteca leve de gerenciamento de estado
-- **React Router DOM 6.22.0**: Roteamento para aplicações React
-
-#### Desktop e Integração
-- **Tauri 2.9.1**: Framework para criar aplicações desktop
-- **@tauri-apps/plugin-http**: Plugin para requisições HTTP
-- **@tauri-apps/plugin-fs**: Plugin para sistema de arquivos
-- **@tauri-apps/plugin-dialog**: Plugin para diálogos nativos
-- **@tauri-apps/plugin-shell**: Plugin para executar comandos shell
-- **@tauri-apps/plugin-updater**: Plugin para atualizações automáticas
-- **@tauri-apps/plugin-clipboard-manager**: Plugin para clipboard
-- **@tauri-apps/plugin-process**: Plugin para processos
-
-#### Utilidades
-- **Axios 1.6.8**: Cliente HTTP para fazer requisições
-- **jsPDF 2.5.1**: Geração de PDFs no cliente
-- **jspdf-autotable 3.8.2**: Plugin para tabelas em PDF
-- **@react-pdf/renderer 4.3.2**: Geração de PDFs com React
-- **pdfmake 0.3.1**: Geração de PDFs
-- **papaparse 5.4.1**: Parse de arquivos CSV
-- **recharts 2.8.0**: Biblioteca de gráficos para React
-- **html2canvas 1.4.1**: Captura de screenshots
-- **react-input-mask 2.0.4**: Máscaras de input
-- **react-markdown 10.1.0**: Renderização de markdown
-- **cmdk 1.1.1**: Command palette
-
-#### Testes
-- **Vitest 1.2.2**: Framework de testes
-- **@testing-library/react 14.2.1**: Testing library para React
-- **@testing-library/jest-dom 6.4.2**: Matchers customizados
-- **@testing-library/user-event 14.6.1**: Simulação de eventos de usuário
-- **jsdom 27.0.0**: Implementação DOM para testes
-- **msw 2.0.0**: Mock Service Worker
-
-### Backend (API Python)
-
-- **Python**: Linguagem de programação
-- **FastAPI**: Framework web moderno e rápido
-- **SQLAlchemy**: ORM para banco de dados
-- **Pydantic**: Validação de dados
-- **PostgreSQL**: Banco de dados relacional
-- **WebSocket**: Para notificações em tempo real
-- **JWT**: Autenticação via tokens
-
-### Ferramentas de Desenvolvimento
-
-- **ESLint 8.56.0**: Linter para JavaScript/TypeScript
-- **Prettier 3.2.5**: Formatador de código
-- **Docker**: Containerização do banco de dados
-- **Docker Compose**: Orquestração de containers
-- **pnpm 10.28.0**: Gerenciador de pacotes
-
----
-
-## 🔄 Fluxo de Dados
-
-### Fluxo Completo de uma Requisição
-
-```
-1. Usuário interage com componente React
-   ↓
-2. Componente chama função de src/api/endpoints/*.ts
-   ↓
-3. Endpoint usa apiClient (src/api/client.ts)
-   ↓
-4. apiClient (Axios) aplica interceptores:
-   - Adiciona Bearer Token
-   - Aplica adaptador Tauri
-   ↓
-5. Tauri HTTP Plugin envia requisição HTTP
-   ↓
-6. FastAPI recebe requisição
-   ↓
-7. FastAPI valida token JWT
-   ↓
-8. FastAPI processa lógica de negócio
-   ↓
-9. SQLAlchemy consulta/atualiza PostgreSQL
-   ↓
-10. PostgreSQL retorna dados
-    ↓
-11. FastAPI retorna resposta JSON
-    ↓
-12. apiClient recebe resposta
-    ↓
-13. Endpoint retorna dados tipados
-    ↓
-14. Componente React atualiza estado
-    ↓
-15. Zustand Store atualiza estado global (se necessário)
-    ↓
-16. React re-renderiza UI
-```
-
-### Fluxo de Autenticação
-
-```
-1. Usuário preenche formulário de login (Login.tsx)
-   ↓
-2. Chama authEndpoints.login(username, password)
-   ↓
-3. POST /auth/login com credenciais
-   ↓
-4. FastAPI valida credenciais
-   ↓
-5. FastAPI gera JWT token
-   ↓
-6. FastAPI retorna { userId, username, sessionToken, isAdmin }
-   ↓
-7. authStore.login() salva dados no Zustand
-   ↓
-8. Zustand persist middleware salva em localStorage
-   ↓
-9. setAuthToken() configura token no apiClient
-   ↓
-10. Navegação para /dashboard
-```
-
-### Fluxo de Criação de Pedido
-
-```
-1. Usuário preenche CreateOrderComplete.tsx
-   ↓
-2. Adiciona múltiplos itens com tipos de produção
-   ↓
-3. Faz upload de imagens (convertidas para base64)
-   ↓
-4. Clica em "Criar Pedido"
-   ↓
-5. Validação de campos obrigatórios
-   ↓
-6. Chama ordersEndpoints.createOrder(orderData)
-   ↓
-7. POST /api/pedidos com dados completos
-   ↓
-8. FastAPI valida dados com Pydantic
-   ↓
-9. SQLAlchemy cria registro em orders
-   ↓
-10. SQLAlchemy cria registros em order_items
-    ↓
-11. PostgreSQL retorna pedido criado
-    ↓
-12. FastAPI emite evento WebSocket (order_created)
-    ↓
-13. Frontend recebe resposta
-    ↓
-14. orderStore atualiza lista de pedidos
-    ↓
-15. Toast de sucesso exibido
-    ↓
-16. Navegação para lista de pedidos
-    ↓
-17. Outros clientes conectados recebem notificação WebSocket
-```
-
----
-
-## 🧪 Testes
-
-### Estrutura de Testes
-
-```
-src/tests/
-├── utils/                    # Testes de utilitários
-│   └── fechamentoReport.test.ts
-└── views/                    # Testes de views
-    └── FechamentoView.test.tsx
-```
-
-### Framework de Testes
-
-- **Vitest**: Framework de testes (compatível com Jest)
-- **Testing Library**: Testes de componentes React
-- **MSW**: Mock de requisições HTTP
-
-### Executar Testes
+### Executar
 
 ```bash
-# Executar todos os testes
-npm test
-
-# Executar teste específico
-npm test src/tests/utils/fechamentoReport.test.ts
-
-# Modo watch
-npm test -- --watch
+pnpm test              # Modo watch
+pnpm test --run        # Uma execução e encerra
 ```
 
----
+### Configuração
 
-## 📝 Convenções de Código
+- **Framework**: Vitest com `jsdom`
+- **Setup**: `src/tests/setup.ts`
+- **Alias**: `@` funciona nos testes (configurado em `vitest.config.ts`)
+- **API Mock**: MSW (Mock Service Worker) — handlers em `src/tests/mocks/`
+- **URL base nos testes**: `http://localhost:8000/api`
 
-### TypeScript
+### Mocks já configurados no setup global
 
-- **Tipos explícitos**: Sempre definir tipos para funções e variáveis
-- **Interfaces vs Types**: Preferir `interface` para objetos, `type` para unions/intersections
-- **Naming**: PascalCase para componentes/interfaces, camelCase para funções/variáveis
+| Mock | Motivo |
+|---|---|
+| `@tauri-apps/api/core` (invoke) | Tauri não existe em jsdom |
+| `WebSocket` | Evitar conexões reais |
+| `Worker` (Web Workers) | Não disponível em jsdom |
+| `localStorage` / `sessionStorage` | Isolamento entre testes |
+| `PointerEvent` | Compatibilidade com Radix UI |
 
-### React
-
-- **Componentes Funcionais**: Sempre usar function components com hooks
-- **Props**: Definir interface para props de componentes
-- **Hooks**: Seguir regras dos hooks (não chamar condicionalmente)
-- **Lazy Loading**: Usar `React.lazy()` para rotas
-
-### Estilização
-
-- **Tailwind CSS**: Preferir classes utilitárias
-- **Componentes Shadcn**: Usar componentes base e customizar
-- **Responsividade**: Mobile-first approach
-
-### API
-
-- **Endpoints**: Organizar por domínio em `src/api/endpoints/`
-- **Tipos**: Definir tipos de request/response em `src/api/types/`
-- **Tratamento de Erros**: Sempre usar try/catch e exibir toasts
+> **Regra**: Não adicione `console.log` nos testes. Use `vi.fn()` para mocks de módulos.
 
 ---
 
-## 🚀 Comandos Úteis
+## 11. Build e Deploy
 
 ### Desenvolvimento
 
 ```bash
-# Instalar dependências
-pnpm install
-
-# Executar em modo desenvolvimento
-pnpm run tauri:dev
-
-# Executar apenas frontend (sem Tauri)
-pnpm run dev
-
-# Executar testes
-pnpm test
-
-# Lint
-pnpm run lint
-
-# Formatação
-pnpm run format
+pnpm dev              # Inicia Vite (web, porta 1420)
+pnpm tauri:dev        # Inicia Tauri + Vite (desktop)
 ```
 
 ### Build
 
 ```bash
-# Build de produção
-pnpm run tauri:build
-
-# Build apenas do frontend
-pnpm run build
-
-# Preview do build
-pnpm run preview
+pnpm build            # Build web (dist/)
+pnpm tauri:build      # Build desktop (.msi para Windows)
 ```
 
-### Docker (PostgreSQL Local)
+### Chunks de build (Vite)
+
+O `vite.config.ts` faz code splitting manual:
+
+| Chunk | Conteúdo |
+|---|---|
+| `vendor-pdf` | jsPDF, jspdf-autotable |
+| `vendor-canvas` | html2canvas |
+| `vendor-csv` | papaparse |
+| `vendor-charts` | recharts |
+| `vendor` | Demais node_modules |
+
+### PWA vs Tauri
+
+A detecção é automática via variável `TAURI_PLATFORM`:
+- Se `TAURI_PLATFORM` está definida → build com `base: './'`, sem Service Worker
+- Se não → build com Service Worker e manifesto PWA
+
+---
+
+## 12. Módulos da API Backend
+
+O backend (`api-sgp`) é modularizado em domínios. Prefixo base: sem prefixo por padrão (`API_V1_STR = ""`).
+
+| Rota | Módulo | Descrição |
+|---|---|---|
+| `/auth/*` | `auth` | Login, tokens JWT |
+| `/pedidos/*` | `pedidos` | CRUD de pedidos |
+| `/clientes/*` | `clientes` | Cadastro de clientes |
+| `/pagamentos/*` | `pagamentos` | Formas e registros de pagamento |
+| `/envios/*` | `envios` | Expedição e envios |
+| `/fichas/*` | `fichas` | Fichas de produção e templates |
+| `/producoes/*` | `producoes` | Registros de produção por item |
+| `/maquinas/*` | `maquinas` | Máquinas + logs de impressão |
+| `/materiais/*` | `materiais` | Estoque de materiais |
+| `/designers/*` | `designers` | Cadastro de designers |
+| `/vendedores/*` | `vendedores` | Cadastro de vendedores |
+| `/users/*` | `users` | Gestão de usuários do sistema |
+| `/api/notificacoes/*` | `notificacoes` | Notificações push |
+| `/relatorios_fechamentos/*` | `relatorios_fechamentos` | Relatórios de fechamento |
+| `/relatorios_envios/*` | `relatorios_envios` | Relatórios de envio |
+| `/reposicoes/*` | `reposicoes` | Controle de reposições |
+| `/sync/*` | `sync` | Sincronização com VPS (Outbox Pattern) |
+| `/safira/*` | `safira` | Módulo Safira com logs |
+| `/automacao/*` | `automacao` | Automações de produção |
+| `/ws/orders` | `pedidos.realtime` | WebSocket de pedidos |
+| `/health` | `main` | Health check da API |
+
+> ⚠️ O router `relatorios` está **comentado** em `main.py:169`. Não descomentar sem verificar se o módulo está funcional.
+
+---
+
+## 13. Regras Críticas para Agentes
+
+### O que SEMPRE fazer
+
+1. **Use o alias `@`** para todos os imports internos.
+2. **Use `isTauri()`** antes de qualquer chamada a APIs do Tauri.
+3. **Use `logger.*`** em vez de `console.*`.
+4. **Use `lazyWithRetry`** ao adicionar novas rotas em `App.tsx`.
+5. **Preserve comentários e docstrings** existentes ao editar arquivos.
+6. **Rode os testes** após alterações: `pnpm test --run`.
+7. **Use `useAuthStore` via selector** (`state => state.campo`) para evitar re-renders.
+
+### O que NUNCA fazer
+
+1. ❌ Hardcodar a URL da API (ex: `http://localhost:8000`) — use `getApiUrl()`.
+2. ❌ Criar instâncias novas de Axios — use o `apiClient` singleton de `@/api/client`.
+3. ❌ Criar conexões WebSocket avulsas — use `ordersSocket` de `@/lib/realtimeOrders`.
+4. ❌ Usar `React.lazy()` diretamente — use `lazyWithRetry()`.
+5. ❌ Adicionar `console.log` em código de produção — use `logger.debug`.
+6. ❌ Commitar arquivos `.backup` ou temporários em `src/`.
+7. ❌ Editar `dist/` — é gerado pelo build, nunca edite manualmente.
+8. ❌ Alterar `src-tauri/tauri.conf.json` sem entender o impacto na assinatura do updater.
+
+---
+
+## 14. Variáveis de Ambiente
+
+### Frontend (`.env` ou `.env.local` na raiz de `sgp-v4`)
+
+| Variável | Uso |
+|---|---|
+| `VITE_APP_VERSION` | Versão injetada no build web (fallback: lê `package.json`) |
+| `VITE_BASE_PATH` | Base path do build web (padrão: `/`) |
+
+### Tauri (definidas pelo processo de build)
+
+| Variável | Quando existe |
+|---|---|
+| `TAURI_PLATFORM` | Durante `tauri dev` / `tauri build` |
+| `TAURI_DEBUG` | Em modo debug — habilita sourcemaps |
+
+### Backend (`api-sgp/.env`)
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Ex: `sqlite:///./shared/db/banco.db` |
+| `SECRET_KEY` | ✅ em produção | Chave JWT — **não use o valor padrão** |
+| `ENVIRONMENT` | — | `development` ou `production` |
+| `MEDIA_ROOT` | — | Diretório de mídias (padrão: `shared/media`) |
+| `API_ROOT` | — | Raiz da API para diretórios compartilhados |
+| `VPS_SYNC_API_KEY` | — | Chave para sincronização com VPS |
+
+---
+
+## 15. Pontos de Débito Técnico
+
+| Severidade | Item |
+|---|---|
+| 🔴 Alto | `CreateOrderComplete.tsx` (158KB) e `OrderList.tsx` (146KB) precisam ser decompostos em componentes menores |
+| 🔴 Alto | `Fechamentos.tsx` (68KB) — mesma situação |
+| 🟡 Médio | `Fechamentos.tsx.backup` presente em `src/pages/` — deve ser removido |
+| 🟡 Médio | Versões desalinhadas: frontend v1.4.7 vs backend v1.4.3 |
+| 🟡 Médio | Router `relatorios` comentado no backend sem documentação clara do motivo |
+| 🟢 Baixo | CSP permissiva no `tauri.conf.json` — pode ser endurecida em produção |
+
+---
+
+## 16. Comandos Úteis
 
 ```bash
-# Iniciar PostgreSQL
-pnpm run docker:up
+# Frontend
+pnpm dev                    # Dev server web (porta 1420)
+pnpm tauri:dev              # Dev desktop Tauri
+pnpm build                  # Build web
+pnpm tauri:build            # Build .msi desktop
+pnpm test                   # Testes (modo watch)
+pnpm test --run             # Testes (CI / uma execução)
+pnpm lint                   # ESLint
+pnpm format                 # Prettier
 
-# Parar PostgreSQL
-pnpm run docker:down
-
-# Ver logs
-pnpm run docker:logs
-
-# Resetar banco (CUIDADO: apaga dados)
-pnpm run docker:reset
-
-# Acessar psql
-pnpm run db:psql
+# Backend
+cd ../api-sgp
+python main.py              # Iniciar API (porta 8000)
+alembic upgrade head        # Aplicar migrations
+pytest                      # Rodar testes
 ```
-
----
-
-## 🐛 Problemas Conhecidos e Soluções
-
-### 1. Erro 422 (Unprocessable Entity)
-
-**Causa:** Dados enviados não correspondem ao schema Pydantic do backend
-
-**Solução:**
-- Verificar logs detalhados no console (interceptor em `apiClient`)
-- Comparar tipos TypeScript com schema Pydantic
-- Garantir que valores monetários sejam números, não strings
-
-### 2. Conexão com API Falha
-
-**Causa:** URL incorreta ou API não acessível na rede
-
-**Solução:**
-- Verificar se API está rodando: `curl http://<ip>:8000/health`
-- Testar conectividade: `ping <ip>`
-- Verificar firewall
-- Usar IP correto da rede local (ex: 192.168.15.2:8000)
-
-### 3. Sessão Expira Constantemente
-
-**Causa:** TTL muito curto ou relógio do sistema dessincronizado
-
-**Solução:**
-- Ajustar `DEFAULT_SESSION_TTL_MS` em `authStore.ts`
-- Verificar sincronização de relógio do sistema
-
-### 4. WebSocket Desconecta
-
-**Causa:** Timeout de conexão ou rede instável
-
-**Solução:**
-- Implementar reconexão automática (já implementado em `realtimeOrders.ts`)
-- Verificar estabilidade da rede
-- Aumentar timeout do WebSocket
-
-### 5. Imagens Não Carregam
-
-**Causa:** Base64 muito grande ou formato inválido
-
-**Solução:**
-- Comprimir imagens antes do upload
-- Validar formato (JPEG, PNG)
-- Limitar tamanho máximo
-
----
-
-## 📚 Recursos e Documentação
-
-### Documentação Interna
-
-- **README.md**: Visão geral do projeto
-- **DOCUMENTACAO_COMPLETA.md**: Documentação técnica completa (1443 linhas)
-- **FUNCIONALIDADES_SISTEMA.md**: Lista de funcionalidades
-- **documentation/**: Pasta com ~37 arquivos de documentação
-
-### Tecnologias
-
-- [React](https://react.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tauri](https://tauri.app/)
-- [Shadcn UI](https://ui.shadcn.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Zustand](https://zustand-demo.pmnd.rs/)
-- [React Router](https://reactrouter.com/)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [PostgreSQL](https://www.postgresql.org/)
-
----
-
-## 🎯 Contexto para Agentes de IA
-
-### Quando Trabalhar com Este Projeto
-
-1. **Entenda a Arquitetura Distribuída**: Frontend desktop + Backend API separado
-2. **Não Confunda Tauri com Backend**: Tauri é apenas empacotador, não processa lógica
-3. **Comunicação HTTP Pura**: Toda comunicação é React → HTTP → FastAPI
-4. **API Externa**: A API roda em outro computador na rede
-5. **Tipos são Críticos**: TypeScript no frontend, Pydantic no backend - devem estar sincronizados
-
-### Padrões de Modificação
-
-#### Adicionar Nova Funcionalidade
-
-1. **Backend (API Python)**:
-   - Criar endpoint em FastAPI
-   - Definir schema Pydantic
-   - Implementar lógica de negócio
-   - Atualizar banco de dados se necessário
-
-2. **Frontend (React)**:
-   - Criar tipos TypeScript em `src/api/types/`
-   - Criar função de endpoint em `src/api/endpoints/`
-   - Criar/atualizar componente React
-   - Adicionar rota se necessário
-   - Atualizar store Zustand se necessário
-
-#### Corrigir Bug
-
-1. **Identificar Camada**: Frontend, Backend ou Banco de Dados
-2. **Verificar Logs**: Console do navegador, logs da API, logs do PostgreSQL
-3. **Reproduzir**: Criar teste que reproduz o bug
-4. **Corrigir**: Implementar correção
-5. **Testar**: Verificar que correção funciona e não quebra outras funcionalidades
-
-#### Adicionar Novo Tipo de Produção
-
-1. **Banco de Dados**: Adicionar campos específicos em `order_items`
-2. **Backend**: Atualizar schema Pydantic
-3. **Frontend**: 
-   - Atualizar tipos TypeScript
-   - Adicionar campos no formulário `CreateOrderComplete.tsx`
-   - Atualizar lógica de validação
-   - Atualizar impressão de ficha
-
-### Perguntas Frequentes para Agentes
-
-**P: Onde adiciono um novo endpoint?**
-R: Backend (FastAPI) primeiro, depois crie função correspondente em `src/api/endpoints/`
-
-**P: Como adiciono um novo campo ao pedido?**
-R: 1) Altere tabela `orders` no PostgreSQL, 2) Atualize schema Pydantic no backend, 3) Atualize tipos TypeScript, 4) Atualize componentes React
-
-**P: Como funciona a autenticação?**
-R: JWT token gerado no backend, salvo no `authStore` (Zustand), injetado automaticamente em todas as requisições via interceptor do Axios
-
-**P: Onde estão os estilos?**
-R: Tailwind CSS inline nos componentes + `src/index.css` para estilos globais
-
-**P: Como adiciono uma nova página?**
-R: 1) Crie componente em `src/pages/`, 2) Adicione rota em `App.tsx`, 3) Use `React.lazy()` para lazy loading
-
-**P: Como funciona o sistema de notificações?**
-R: Dual: 1) Polling HTTP via `useNotifications.ts`, 2) WebSocket via `useRealtimeNotifications.ts`
-
-**P: Onde ficam os testes?**
-R: `src/tests/` - use Vitest + Testing Library
-
-**P: Como debugar problemas de API?**
-R: 1) Verificar console do navegador, 2) Verificar logs detalhados do interceptor (erros 422), 3) Testar endpoint diretamente com curl/Postman
-
----
-
-## 🔐 Segurança
-
-- **Autenticação JWT**: Tokens com expiração
-- **HTTPS**: Usar HTTPS em produção
-- **Validação**: Validação no frontend E backend
-- **SQL Injection**: Protegido via SQLAlchemy ORM
-- **XSS**: React escapa automaticamente
-- **CORS**: Configurado no backend FastAPI
-
----
-
-## 📊 Performance
-
-- **Lazy Loading**: Rotas carregadas sob demanda
-- **Paginação**: Listas paginadas para evitar sobrecarga
-- **Debounce**: Busca com debounce para reduzir requisições
-- **Memoization**: React.memo em componentes pesados
-- **WebSocket**: Reduz polling desnecessário
-- **Code Splitting**: Vite divide código automaticamente
-
----
-
-## � Tipos de Produção e Processamento de Valores
-
-### Visão Geral
-
-O sistema suporta múltiplos tipos de produção, cada um com campos e validações específicas. Esta seção documenta as regras críticas para adicionar novos tipos de produção e processar valores monetários corretamente.
-
-### ⚠️ REGRAS CRÍTICAS DE VALIDAÇÃO
-
-#### 1. Campos Monetários DEVEM Ser Strings
-
-**IMPORTANTE:** O backend espera que **TODOS** os campos monetários sejam enviados como **strings**, não como números.
-
-```typescript
-// ❌ ERRADO - Causa erro 422
-{
-  valor_ilhos: 0,           // número
-  valor_cordinha: 150.50    // número
-}
-
-// ✅ CORRETO
-{
-  valor_ilhos: "0.00",      // string
-  valor_cordinha: "150.50"  // string
-}
-```
-
-**Razão:** O schema `ItemPedido` no backend define campos monetários como `Optional[str]`, não como `float` ou `Decimal`.
-
-#### 2. Função `convertMonetaryFields`
-
-Ao adicionar novos campos monetários, use sempre a função `convertMonetaryFields` em `CreateOrderComplete.tsx`:
-
-```typescript
-const convertMonetaryFields = (item: TabItem) => ({
-  // Parse para número e depois formata de volta para string
-  valor_painel: formatMonetary(parseMonetary(item.valor_painel)),
-  valor_ilhos: formatMonetary(parseMonetary(item.valor_ilhos)),
-  // ... adicione novos campos aqui
-});
-```
-
-**Fluxo de Conversão:**
-1. `parseMonetary(value)` → Converte string para número (remove formatação)
-2. `formatMonetary(number)` → Converte número de volta para string formatada ("0.00")
-
-#### 3. Schema do Backend
-
-Ao adicionar novos campos monetários no backend (`pedidos/schema.py`):
-
-```python
-class ItemPedido(SQLModel):
-    # ✅ CORRETO - Campos monetários como Optional[str]
-    valor_novo_campo: Optional[str] = None
-    outro_valor: Optional[str] = None
-    
-    # ❌ ERRADO - Não usar float ou Decimal
-    # valor_campo: Optional[float] = None
-```
-
-### Tipos de Produção Suportados
-
-#### 1. Painel / Genérica
-
-**Campos Obrigatórios:**
-- `descricao`: Descrição do item
-- `quantidade_paineis`: Quantidade de painéis
-- `valor_unitario`: Valor unitário
-- `vendedor`: Nome do vendedor
-- `designer`: Nome do designer
-- `tecido`: Tipo de tecido
-
-**Campos Opcionais:**
-- `largura`, `altura`, `metro_quadrado`: Dimensões
-- `overloque`, `elastico`: Acabamentos booleanos
-- `tipo_acabamento`: "ilhos", "cordinha", "nenhum"
-- `quantidade_ilhos`, `espaco_ilhos`, `valor_ilhos`: Configuração de ilhós
-- `quantidade_cordinha`, `espaco_cordinha`, `valor_cordinha`: Configuração de cordinha
-- `emenda`, `emenda_qtd`: Configuração de emendas
-- `composicao_tecidos`: Composição de tecidos
-
-**Cálculo de Valor:**
-```typescript
-const subtotal = parseLocaleNumber(item.valor_unitario) * parseInt(item.quantidade_paineis);
-```
-
-#### 2. Totem
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_totem`, `valor_unitario`
-- `acabamento_totem`: Tipo de acabamento
-
-**Campos Opcionais:**
-- `acabamento_totem_outro`: Descrição customizada
-- `valor_totem`, `outros_valores_totem`: Valores adicionais
-- `emenda`, `emenda_qtd`
-
-#### 3. Lona
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_lona`, `valor_unitario`
-- `acabamento_lona`: Tipo de acabamento
-
-**Campos Opcionais:**
-- `tipo_acabamento`: "ilhos", "cordinha", "nenhum"
-- `valor_lona`, `outros_valores_lona`
-- `quantidade_ilhos`, `espaco_ilhos`, `valor_ilhos`
-- `quantidade_cordinha`, `espaco_cordinha`, `valor_cordinha`
-- `terceirizado`: Boolean
-
-#### 4. Adesivo
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_adesivo`, `valor_unitario`
-- `tipo_adesivo`: Tipo específico
-
-**Campos Opcionais:**
-- `valor_adesivo`, `outros_valores_adesivo`
-
-#### 5. Canga
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_canga`, `valor_unitario`
-
-**Campos Opcionais:**
-- `baininha`: Boolean
-- `valor_canga`, `valores_adicionais`
-
-#### 6. Impressão 3D
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_impressao_3d`, `valor_unitario`
-
-**Campos Opcionais:**
-- `material_gasto`: Quantidade de material
-- `valor_impressao_3d`, `valores_adicionais`
-
-#### 7. Mochilinha/Bolsinha
-
-**Campos Obrigatórios:**
-- `descricao`, `quantidade_mochilinha`, `valor_unitario`
-
-**Campos Opcionais:**
-- `tipo_acabamento`: "alca", "cordinha", "alca_cordinha"
-- `alcinha`, `cordinha_extra`: Derivados do tipo_acabamento
-- `valor_mochilinha`, `valores_adicionais`
-
-### Adicionando um Novo Tipo de Produção
-
-#### Passo 1: Backend - Schema (`pedidos/schema.py`)
-
-```python
-class ItemPedido(SQLModel):
-    # ... campos existentes ...
-    
-    # Adicionar campos específicos do novo tipo
-    quantidade_novo_tipo: Optional[str] = None
-    valor_novo_tipo: Optional[str] = None  # SEMPRE string!
-    acabamento_novo_tipo: Optional[str] = None
-    outros_valores_novo_tipo: Optional[str] = None  # SEMPRE string!
-```
-
-#### Passo 2: Frontend - Tipo TypeScript (`types/index.ts`)
-
-```typescript
-export interface OrderItem {
-  // ... campos existentes ...
-  
-  // Adicionar campos do novo tipo
-  quantidade_novo_tipo?: string;
-  valor_novo_tipo?: string;
-  acabamento_novo_tipo?: string;
-  outros_valores_novo_tipo?: string;
-}
-```
-
-#### Passo 3: Frontend - Função `convertMonetaryFields`
-
-```typescript
-const convertMonetaryFields = (item: TabItem) => ({
-  // ... campos existentes ...
-  
-  // Adicionar novos campos monetários
-  valor_novo_tipo: formatMonetary(parseMonetary(item.valor_novo_tipo)),
-  outros_valores_novo_tipo: formatMonetary(parseMonetary(item.outros_valores_novo_tipo)),
-});
-```
-
-#### Passo 4: Frontend - Lógica de Processamento
-
-Em `CreateOrderComplete.tsx`, adicionar seção específica para o novo tipo:
-
-```typescript
-if (item.tipo_producao === 'novo_tipo') {
-  const monetaryFields = convertMonetaryFields(item);
-  const canon = canonicalizeFromItemRequest({
-    ...basePayload,
-    quantidade_novo_tipo: item.quantidade_novo_tipo,
-    acabamento_novo_tipo: item.acabamento_novo_tipo,
-  } as unknown as CreateOrderItemRequest);
-
-  return {
-    ...basePayload,
-    quantidade_novo_tipo: canon.tipo_producao === 'novo_tipo' ? canon.quantidade_novo_tipo : item.quantidade_novo_tipo,
-    valor_novo_tipo: monetaryFields.valor_novo_tipo,
-    outros_valores_novo_tipo: monetaryFields.outros_valores_novo_tipo,
-    acabamento_novo_tipo: canon.tipo_producao === 'novo_tipo' ? canon.acabamento_novo_tipo : item.acabamento_novo_tipo,
-  };
-}
-```
-
-#### Passo 5: Validação
-
-Adicionar validação específica em `validateItemComplete`:
-
-```typescript
-if (item.tipo_producao === 'novo_tipo') {
-  const quantidadeNovoTipo = parseInt(item.quantidade_novo_tipo || '0', 10);
-  if (Number.isNaN(quantidadeNovoTipo) || quantidadeNovoTipo <= 0) {
-    errors.push("Quantidade é obrigatória e deve ser maior que zero");
-  }
-  
-  const valorNovoTipo = parseLocaleNumber(item.valor_novo_tipo || '0,00');
-  if (valorNovoTipo <= 0) {
-    errors.push("Valor unitário é obrigatório e deve ser maior que zero");
-  }
-  
-  if (!item.acabamento_novo_tipo || item.acabamento_novo_tipo.trim().length === 0) {
-    errors.push("Selecione o acabamento");
-  }
-}
-```
-
-#### Passo 6: Cálculo de Valor Total
-
-Adicionar lógica em `calcularValorItens`:
-
-```typescript
-if (item.tipo_producao === 'novo_tipo') {
-  const quantidadeNovoTipoParse = parseInt(item.quantidade_novo_tipo || '1');
-  const quantidadeValida = Number.isNaN(quantidadeNovoTipoParse) || quantidadeNovoTipoParse <= 0 ? 1 : quantidadeNovoTipoParse;
-  return sum + (valor * quantidadeValida);
-}
-```
-
-### Processamento de Valores no Relatório
-
-O relatório de fechamento (`fechamentoReport.ts`) processa valores de forma específica:
-
-#### Função `getSubtotalValue`
-
-```typescript
-// Prioridade 1: Usar subtotal direto se disponível
-if (orderItem.subtotal) {
-  return parseCurrencyCached(orderItem.subtotal);
-}
-
-// Prioridade 2: Calcular quantity * unit_price
-const quantity = getQuantityValue(orderItem);
-const unitPrice = parseCurrencyCached(orderItem.unit_price);
-if (quantity > 0 && unitPrice > 0) {
-  return roundToTwoDecimals(quantity * unitPrice);
-}
-
-// Prioridade 3: Parsear valor_unitario e multiplicar pela quantidade
-const parsedUnit = parseCurrencyCached(orderItem.valor_unitario);
-if (parsedUnit > 0) {
-  return roundToTwoDecimals(quantity * parsedUnit);
-}
-
-// Fallback: retornar 0
-return 0;
-```
-
-### Bugs Comuns e Como Evitar
-
-#### Bug 1: Erro 422 - Campos Monetários como Números
-
-**Sintoma:** Backend rejeita pedido com erro 422 "Input should be a valid string"
-
-**Causa:** Campos monetários enviados como números em vez de strings
-
-**Solução:** Sempre usar `formatMonetary(parseMonetary(value))` para campos monetários
-
-#### Bug 2: Itens Duplicados/Sobrescritos
-
-**Sintoma:** Apenas 1 item aparece em vez de múltiplos
-
-**Causa:** Deduplicação usando `item.id` quando todos os itens têm `id=null`
-
-**Solução:** Usar índice como fallback:
-```typescript
-items.forEach((item, index) => {
-  const key = item.id != null ? item.id : `__index_${index}`;
-  itemsById.set(key, item);
-});
-```
-
-#### Bug 3: Valores Zerados no Relatório
-
-**Sintoma:** Subtotais aparecem como R$ 0,00 no relatório
-
-**Causa:** Função `parseCurrencyCached` retorna 0 para valores inválidos
-
-**Solução:** Garantir que `valor_unitario` seja sempre uma string válida ("0.00", "150.50", etc.)
-
-### Checklist para Novos Tipos de Produção
-
-- [ ] Adicionar campos no schema backend (`ItemPedido`)
-- [ ] Adicionar tipos TypeScript (`OrderItem`)
-- [ ] Atualizar `convertMonetaryFields` com novos campos monetários
-- [ ] Adicionar lógica de processamento em `handleConfirmSave`
-- [ ] Adicionar validação em `validateItemComplete`
-- [ ] Adicionar cálculo em `calcularValorItens`
-- [ ] Testar criação de pedido
-- [ ] Testar edição de pedido
-- [ ] Testar relatório de fechamento
-- [ ] Verificar que valores aparecem corretamente
-- [ ] Confirmar que não há erro 422
-
----
-
-## �🌐 Ambiente de Produção
-
-- **Build**: `pnpm run tauri:build`
-- **Executável**: Gerado em `src-tauri/target/release/`
-- **Instalador**: Windows (.msi), Linux (.deb, .AppImage), macOS (.dmg)
-- **Atualizações**: Sistema de atualização automática via Tauri Updater
-- **Configuração**: URL da API configurada na primeira execução
-
----
-
-## 📞 Suporte e Manutenção
-
-### Logs
-
-- **Frontend**: Console do navegador (DevTools)
-- **Backend**: Logs da API Python
-- **Banco de Dados**: Logs do PostgreSQL
-- **Tauri**: Logs do Rust (stdout/stderr)
-
-### Backup
-
-- **Banco de Dados**: Fazer backup regular do PostgreSQL
-- **Configurações**: Salvas localmente via Tauri FS
-
-### Monitoramento
-
-- **Health Check**: Endpoint `/health` para verificar status da API
-- **Métricas**: Painel de Desempenho mostra estatísticas do sistema
-
----
-
-**Última Atualização:** 2026-02-05  
-**Versão do Sistema:** 1.2.3  
-**Autor:** Equipe SGP v4

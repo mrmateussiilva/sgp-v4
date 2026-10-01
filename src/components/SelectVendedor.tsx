@@ -20,6 +20,10 @@ export default function SelectVendedor({
 }: SelectVendedorProps) {
   const triggerId = id ?? 'select-vendedor';
 
+  const uniqueVendedores = Array.from(
+    new Set((vendedores || []).map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean))
+  );
+
   return (
     <div className="space-y-2">
       <Label htmlFor={triggerId} className="text-base font-medium">{label} *</Label>
@@ -28,11 +32,16 @@ export default function SelectVendedor({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {vendedores.map((v) => (
+          {uniqueVendedores.map((v) => (
             <SelectItem key={v} value={v}>
               {v}
             </SelectItem>
           ))}
+          {value && !uniqueVendedores.includes(value) && (
+            <SelectItem key={value} value={value}>
+              {value}
+            </SelectItem>
+          )}
         </SelectContent>
       </Select>
     </div>

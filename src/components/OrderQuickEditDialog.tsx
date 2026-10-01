@@ -40,6 +40,8 @@ const STATUS_OPTIONS = [
   OrderStatus.Cancelado,
 ];
 
+const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
+
 export function OrderQuickEditDialog({
   orderId,
   open,
@@ -47,7 +49,6 @@ export function OrderQuickEditDialog({
   onUpdated,
 }: OrderQuickEditDialogProps) {
   const { toast } = useToast();
-  const isPortadorFormaEnvio = (value: string) => /^portador\b/i.test((value || '').trim());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>({
@@ -91,15 +92,28 @@ export function OrderQuickEditDialog({
         setOriginalOrder(order);
 
         const rawFormaEnvio = (order.forma_envio ?? '').trim();
-        const isPortador = /^portador\b/i.test(rawFormaEnvio);
-        const portadorNome =
-          isPortador
-            ? rawFormaEnvio
-                .replace(/^portador\b/i, '')
-                .replace(/^(\s*[-:]\s*)/, '')
-                .trim()
-            : '';
-        const formaEnvioBase = isPortador ? 'Portador' : (order.forma_envio ?? '');
+        const isPortador = isPortadorFormaEnvio(rawFormaEnvio);
+        let formaEnvioBase = order.forma_envio ?? '';
+        let portadorNome = '';
+
+        if (isPortador) {
+          const matched = (envio || []).find((fe) =>
+            fe.nome && rawFormaEnvio.toLowerCase().startsWith(fe.nome.toLowerCase())
+          );
+          if (matched) {
+            formaEnvioBase = matched.nome;
+            portadorNome = rawFormaEnvio
+              .slice(matched.nome.length)
+              .replace(/^(\s*[-:]\s*)/, '')
+              .trim();
+          } else {
+            formaEnvioBase = 'Portador';
+            portadorNome = rawFormaEnvio
+              .replace(/^portador\b/i, '')
+              .replace(/^(\s*[-:]\s*)/, '')
+              .trim();
+          }
+        }
 
         setForm({
           cliente: order.cliente ?? order.customer_name ?? '',
@@ -311,8 +325,7 @@ export function OrderQuickEditDialog({
                 <Select
                   value={form.forma_envio}
                   onValueChange={(value) => {
-                    const normalizedValue = isPortadorFormaEnvio(value) ? 'Portador' : value;
-                    handleInputChange('forma_envio', normalizedValue);
+                    handleInputChange('forma_envio', value);
                     if (!isPortadorFormaEnvio(value)) {
                       handleInputChange('portador_nome', '');
                     }
@@ -323,10 +336,15 @@ export function OrderQuickEditDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {formasEnvio.map((forma) => (
-                      <SelectItem key={forma.id} value={isPortadorFormaEnvio(String(forma.nome)) ? 'Portador' : forma.nome}>
+                      <SelectItem key={forma.id} value={forma.nome}>
                         {forma.nome}
                       </SelectItem>
                     ))}
+                    {form.forma_envio && !formasEnvio.some((forma) => forma.nome === form.forma_envio) && (
+                      <SelectItem key="custom-forma-envio" value={form.forma_envio}>
+                        {form.forma_envio}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -416,8 +434,8 @@ function hasChanges(original: OrderWithItems, form: FormState): boolean {
   const originalStatus = original.status ?? OrderStatus.Pendente;
 
   const finalFormaEnvio =
-    /^portador\b/i.test((form.forma_envio || '').trim())
-      ? `Portador${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
+    isPortadorFormaEnvio(form.forma_envio)
+      ? `${form.forma_envio}${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
       : form.forma_envio;
 
   return (
@@ -485,8 +503,8 @@ function buildPayload(
 
   const originalFormaEnvio = original.forma_envio ?? '';
   const finalFormaEnvio =
-    /^portador\b/i.test((form.forma_envio || '').trim())
-      ? `Portador${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
+    isPortadorFormaEnvio(form.forma_envio)
+      ? `${form.forma_envio}${form.portador_nome.trim() ? ` - ${form.portador_nome.trim()}` : ''}`
       : form.forma_envio;
   if (finalFormaEnvio !== originalFormaEnvio) {
     payload.forma_envio = finalFormaEnvio;

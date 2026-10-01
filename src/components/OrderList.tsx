@@ -214,6 +214,36 @@ export default function OrderList() {
     Array<{ id: number; nome: string; valor: number }>
   >([]);
   const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>([]);
+
+  const uniqueVendedores = useMemo(() => {
+    const seen = new Set<string>();
+    return vendedores.filter((v) => {
+      const nome = v.nome?.trim();
+      if (!nome || seen.has(nome)) return false;
+      seen.add(nome);
+      return true;
+    });
+  }, [vendedores]);
+
+  const uniqueDesigners = useMemo(() => {
+    const seen = new Set<string>();
+    return designers.filter((d) => {
+      const nome = d.nome?.trim();
+      if (!nome || seen.has(nome)) return false;
+      seen.add(nome);
+      return true;
+    });
+  }, [designers]);
+
+  const uniqueFormasEnvio = useMemo(() => {
+    const seen = new Set<string>();
+    return formasEnvio.filter((f) => {
+      const nome = f.nome?.trim();
+      if (!nome || seen.has(nome)) return false;
+      seen.add(nome);
+      return true;
+    });
+  }, [formasEnvio]);
   const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal } = useModalStore();
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(0);
@@ -387,10 +417,10 @@ export default function OrderList() {
     const uniqueCidades = Array.from(
       new Set(
         orders
-          .map((order) => order.cidade_cliente)
+          .map((order) => order.cidade_cliente?.trim())
           .filter((cidade): cidade is string => Boolean(cidade))
       )
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     setCidades(uniqueCidades);
   }, [orders]);
 
@@ -1995,7 +2025,7 @@ export default function OrderList() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
-                            {vendedores.filter((v) => v.nome).map((v) => (
+                            {uniqueVendedores.map((v) => (
                               <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>
                             ))}
                           </SelectContent>
@@ -2013,7 +2043,7 @@ export default function OrderList() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
-                            {designers.filter((d) => d.nome).map((d) => (
+                            {uniqueDesigners.map((d) => (
                               <SelectItem key={d.id} value={d.nome}>{d.nome}</SelectItem>
                             ))}
                           </SelectContent>
@@ -2049,7 +2079,7 @@ export default function OrderList() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todas</SelectItem>
-                            {formasEnvio.filter((f) => f.nome).map((forma) => (
+                            {uniqueFormasEnvio.map((forma) => (
                               <SelectItem key={forma.id} value={forma.nome}>{forma.nome}</SelectItem>
                             ))}
                           </SelectContent>
@@ -2424,7 +2454,7 @@ export default function OrderList() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos</SelectItem>
-                          {vendedores.filter((v) => v.nome).map((v) => (
+                          {uniqueVendedores.map((v) => (
                             <SelectItem key={v.id} value={v.nome}>{v.nome}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2442,7 +2472,7 @@ export default function OrderList() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos</SelectItem>
-                          {designers.filter((d) => d.nome).map((d) => (
+                          {uniqueDesigners.map((d) => (
                             <SelectItem key={d.id} value={d.nome}>{d.nome}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2478,7 +2508,7 @@ export default function OrderList() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas</SelectItem>
-                          {formasEnvio.filter((f) => f.nome).map((forma) => (
+                          {uniqueFormasEnvio.map((forma) => (
                             <SelectItem key={forma.id} value={forma.nome}>{forma.nome}</SelectItem>
                           ))}
                         </SelectContent>

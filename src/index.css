@@ -57,6 +57,13 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Evita salto de layout horizontal (17px) no desktop WebView quando Radix UI trava a rolagem */
+  html body[data-scroll-locked] {
+    --removed-body-scroll-bar-size: 0px !important;
+    margin-right: 0px !important;
+    overflow: visible !important;
+  }
   
   /* Converte todos os inputs de texto para maiúsculas */
   input[type="text"]:not(.no-uppercase),

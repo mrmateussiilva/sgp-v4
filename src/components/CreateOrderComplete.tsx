@@ -44,6 +44,7 @@ import { canonicalizeFromItemRequest } from '@/mappers/productionItems';
 import { parseMonetary, formatMonetary } from '@/utils/currency';
 import { normalizeItemFieldsByTipo } from '@/utils/order-item-display';
 import { useFormDraftCache } from '@/hooks/useFormDraftCache';
+import { validateProductionItem } from '@/utils/validationRules';
 
 // Tipos de produção padrão como fallback caso a API não esteja disponível
 const TIPOS_PRODUCAO_FALLBACK = [
@@ -496,14 +497,27 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     try {
       const rawFormaEnvio = (order.forma_envio ?? '').trim();
       const isPortador = /^portador\b/i.test(rawFormaEnvio);
-      const portadorNome =
-        isPortador
-          ? rawFormaEnvio
+      let formaEnvioBase = order.forma_envio ?? '';
+      let portadorNome = '';
+
+      if (isPortador) {
+        const matched = formasEnvio.find(
+          (fe) => fe.nome && rawFormaEnvio.toLowerCase().startsWith(fe.nome.toLowerCase())
+        );
+        if (matched) {
+          formaEnvioBase = matched.nome;
+          portadorNome = rawFormaEnvio
+            .slice(matched.nome.length)
+            .replace(/^(\s*[-:]\s*)/, '')
+            .trim();
+        } else {
+          formaEnvioBase = 'Portador';
+          portadorNome = rawFormaEnvio
             .replace(/^portador\b/i, '')
             .replace(/^(\s*[-:]\s*)/, '')
-            .trim()
-          : '';
-      const formaEnvioBase = isPortador ? 'Portador' : (order.forma_envio ?? '');
+            .trim();
+        }
+      }
 
       const orderStatus = order.status ?? OrderStatus.Pendente;
       const isConcluido = orderStatus === OrderStatus.Concluido;
@@ -1520,206 +1534,19 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
     const item = tabsData[tabId];
     if (!item) return { errors: [], warnings: [] };
 
-    const errors: string[] = [];
-    const warnings: string[] = [];
+    // Utiliza as regras extraídas para o arquivo de validação
+    const { errors, warnings } = validateProductionItem(item);
 
-    // Campos obrigatórios
-    if (!item.descricao || item.descricao.trim().length < 3) {
-      errors.push("Descrição é obrigatória (mínimo 3 caracteres)");
-    }
-
-    if (!item.largura || parseLocaleNumber(item.largura) <= 0) {
-      errors.push("Largura é obrigatória e deve ser maior que zero");
-    }
-
-    if (!item.altura || parseLocaleNumber(item.altura) <= 0) {
-      errors.push("Altura é obrigatória e deve ser maior que zero");
-    }
-
-    if (!item.tecido || item.tecido.trim().length === 0) {
-      errors.push("Material/Tecido é obrigatório");
-    }
-
-    if (!item.designer || item.designer.trim().length === 0) {
-      errors.push("Designer é obrigatório");
-    }
-
-    if (!item.vendedor || item.vendedor.trim().length === 0) {
-      errors.push("Vendedor é obrigatório");
-    }
-
-    if (!item.imagem || item.imagem.trim().length === 0) {
-      errors.push("Imagem é obrigatória");
-    }
-
-    // Validar valor
-    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-      const valorPainel = parseLocaleNumber(item.valor_painel || '0,00');
-      const valoresAdicionais = parseLocaleNumber(item.valores_adicionais || '0,00');
-
-      if (valorPainel <= 0 && valoresAdicionais <= 0) {
-        errors.push("Valor é obrigatório (preencha pelo menos o valor do painel ou valores adicionais)");
-      }
-    } else if (item.tipo_producao === 'totem') {
-      const valorTotem = parseLocaleNumber(item.valor_totem || '0,00');
-      const outrosTotem = parseLocaleNumber(item.outros_valores_totem || '0,00');
-      const valorUnitarioTotem = parseLocaleNumber(item.valor_unitario || '0,00');
-
-      if (valorTotem <= 0 && outrosTotem <= 0) {
-        errors.push("Informe o valor do totem ou outros valores adicionais");
-      }
-
-      if (valorUnitarioTotem <= 0) {
-        errors.push("Valor total por totem deve ser maior que zero");
-      }
-
-      if (item.acabamento_totem === 'outro' && (!item.acabamento_totem_outro || item.acabamento_totem_outro.trim().length === 0)) {
-        errors.push("Descreva o outro acabamento do totem");
-      }
-    } else if (item.tipo_producao === 'lona') {
-      const valorLona = parseLocaleNumber(item.valor_lona || '0,00');
-      const outrosValoresLona = parseLocaleNumber(item.outros_valores_lona || '0,00');
-      let valorIlhos = 0;
-      if (item.tipo_acabamento === 'ilhos') {
-        const qtdIlhos = parseInt(item.quantidade_ilhos || '0');
-        const valorUnitIlhos = parseLocaleNumber(item.valor_ilhos || '0,00');
-        valorIlhos = qtdIlhos * valorUnitIlhos;
-      }
-      const valorUnitarioLona = parseLocaleNumber(item.valor_unitario || '0,00');
-
-      if (valorLona <= 0 && outrosValoresLona <= 0 && valorIlhos <= 0) {
-        errors.push("Informe o valor da lona ou valores adicionais");
-      }
-
-      if (valorUnitarioLona <= 0) {
-        errors.push("Valor total por lona deve ser maior que zero");
-      }
-
-      if (item.emenda === 'com-emenda') {
-        const qtdEmenda = parseInt(item.emendaQtd || '0');
-        if (Number.isNaN(qtdEmenda) || qtdEmenda <= 0) {
-          errors.push("Informe a quantidade de emendas");
-        }
-      }
-    } else if (isImpressao3DType(item.tipo_producao)) {
-      const valor3D = parseLocaleNumber(item.valor_impressao_3d || '0,00');
-      const add3D = parseLocaleNumber(item.valores_adicionais || '0,00');
-      const unitVal = parseLocaleNumber(item.valor_unitario || '0,00');
-
-      if (valor3D <= 0 && add3D <= 0 && unitVal <= 0) {
-        errors.push("Valor unitário da Impressão 3D é obrigatório");
-      }
-    } else {
-      const valorUnitario = parseLocaleNumber(item.valor_unitario || '0,00');
-      if (valorUnitario <= 0) {
-        errors.push("Valor unitário é obrigatório e deve ser maior que zero");
-      }
-    }
-
-    // Validar quantidade
-    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-      const quantidade = parseInt(item.quantidade_paineis || '0');
-      if (quantidade <= 0) {
-        errors.push("Quantidade de painéis é obrigatória e deve ser maior que zero");
-      }
-    }
-
-    if (item.tipo_producao === 'totem') {
-      const quantidadeTotem = parseInt(item.quantidade_totem || '0');
-      if (quantidadeTotem <= 0) {
-        errors.push("Quantidade de totens é obrigatória e deve ser maior que zero");
-      }
-
-      if (!item.acabamento_totem || item.acabamento_totem.trim().length === 0) {
-        errors.push("Selecione o acabamento do totem");
-      }
-    }
-
-    if (item.tipo_producao === 'lona') {
-      const quantidadeLona = parseInt(item.quantidade_lona || '0', 10);
-      if (Number.isNaN(quantidadeLona) || quantidadeLona <= 0) {
-        errors.push("Quantidade de lonas é obrigatória e deve ser maior que zero");
-      }
-
-      if (!item.acabamento_lona || item.acabamento_lona.trim().length === 0) {
-        errors.push("Selecione o acabamento da lona");
-      }
-    }
-
-    if (item.tipo_producao === 'adesivo') {
-      const quantidadeAdesivo = parseInt(item.quantidade_adesivo || '0', 10);
-      if (Number.isNaN(quantidadeAdesivo) || quantidadeAdesivo <= 0) {
-        errors.push("Quantidade de adesivos é obrigatória e deve ser maior que zero");
-      }
-    }
-
-    if (item.tipo_producao === 'canga') {
-      const quantidadeCanga = parseInt(item.quantidade_canga || '0', 10);
-      if (Number.isNaN(quantidadeCanga) || quantidadeCanga <= 0) {
-        errors.push("Quantidade de cangas é obrigatória e deve ser maior que zero");
-      }
-    }
-
-    if (isImpressao3DType(item.tipo_producao)) {
-      const quantidadeImpressao3D = parseInt(item.quantidade_impressao_3d || '0', 10);
-      if (Number.isNaN(quantidadeImpressao3D) || quantidadeImpressao3D <= 0) {
-        errors.push("Quantidade de impressões 3D é obrigatória e deve ser maior que zero");
-      }
-    }
-
-    if (isMochilinhaType(item.tipo_producao)) {
-      const quantidadeMochilinha = parseInt(item.quantidade_mochilinha || '0', 10);
-      if (Number.isNaN(quantidadeMochilinha) || quantidadeMochilinha <= 0) {
-        errors.push("Quantidade de mochilinhas/bolsinhas é obrigatória e deve ser maior que zero");
-      }
-    }
-
-    // Campos opcionais - gerar avisos
-    if (item.tipo_producao === 'painel' || item.tipo_producao === 'generica') {
-      if (!item.overloque) {
-        warnings.push("Overloque não será aplicado");
-      }
-
-      if (!item.elastico) {
-        warnings.push("Elástico não será aplicado");
-      }
-
-      if (item.emenda === 'sem-emenda') {
-        warnings.push("Emenda não será aplicada");
-      }
-
-      if (item.tipo_acabamento === 'nenhum') {
-        warnings.push("Nenhum acabamento especial será aplicado");
-      }
-    }
-
-    if (item.tipo_producao === 'lona') {
-      if (item.acabamento_lona === 'nao_refilar') {
-        warnings.push("Lona será entregue sem refilar");
-      }
-
-      if (item.terceirizado) {
-        warnings.push("Item será produzido por terceiros");
-      }
-    }
-
-    if (item.tipo_producao === 'adesivo') {
-      // Espaço reservado para avisos específicos de adesivo, se necessário
-    }
-
-    // Validar que a legenda contenha o material selecionado
-    // Apenas se a legenda estiver preenchida (não é obrigatória)
+    // Regra específica de negócio dependente da legenda
     if (item.legenda_imagem && item.legenda_imagem.trim().length > 0) {
       let materialPrincipal = '';
 
-      // Determinar qual campo de material usar baseado no tipo_producao
       if (item.tipo_producao === 'adesivo') {
         materialPrincipal = item.tipo_adesivo || '';
       } else {
         materialPrincipal = item.tecido || '';
       }
 
-      // Se o material principal estiver preenchido e não estiver contido na legenda, adicionar erro
       if (materialPrincipal && materialPrincipal.trim().length > 0) {
         const legendaUpper = item.legenda_imagem.toUpperCase();
         const materialUpper = materialPrincipal.toUpperCase();
@@ -3479,17 +3306,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 value={formData.forma_envio}
                 onValueChange={(value) => {
                   const isPortador = /^portador\b/i.test((value || '').trim());
-                  const normalizedValue = isPortador ? 'Portador' : value;
-                  handleChange('forma_envio', normalizedValue);
+                  handleChange('forma_envio', value);
                   if (!isPortador) {
                     handleChange('portador_nome', '');
                     setErrors((prev) => ({ ...prev, portador_nome: '' }));
                   }
-                  const forma = formasEnvio.find((f) =>
-                    isPortador ? /^portador\b/i.test((String(f.nome) || '').trim()) : f.nome === value
-                  );
-                  if (forma) {
-                    handleChange('valor_frete', parseFloat(forma.valor).toFixed(2).replace('.', ','));
+                  const forma = formasEnvio.find((f) => f.nome === value);
+                  if (forma && forma.valor !== undefined && forma.valor !== null) {
+                    handleChange('valor_frete', parseFloat(String(forma.valor)).toFixed(2).replace('.', ','));
                   }
                 }}
               >
@@ -3498,10 +3322,15 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 </SelectTrigger>
                 <SelectContent>
                   {formasEnvio.map(fe => (
-                    <SelectItem key={fe.id} value={/^portador\b/i.test((String(fe.nome) || '').trim()) ? 'Portador' : fe.nome}>
+                    <SelectItem key={fe.id} value={fe.nome}>
                       {fe.nome} {parseFloat(fe.valor) > 0 && `- R$ ${parseFloat(fe.valor).toFixed(2)}`}
                     </SelectItem>
                   ))}
+                  {formData.forma_envio && !formasEnvio.some(fe => fe.nome === formData.forma_envio) && (
+                    <SelectItem key="custom-forma-envio" value={formData.forma_envio}>
+                      {formData.forma_envio}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               {errors.forma_envio && (

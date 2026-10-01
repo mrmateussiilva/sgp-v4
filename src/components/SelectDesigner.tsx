@@ -20,6 +20,10 @@ export default function SelectDesigner({
 }: SelectDesignerProps) {
   const triggerId = id ?? 'select-designer';
 
+  const uniqueDesigners = Array.from(
+    new Set((designers || []).map((d) => (typeof d === 'string' ? d.trim() : '')).filter(Boolean))
+  );
+
   return (
     <div className="space-y-2">
       <Label htmlFor={triggerId} className="text-base font-medium">{label}</Label>
@@ -28,11 +32,16 @@ export default function SelectDesigner({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {designers.map((d) => (
+          {uniqueDesigners.map((d) => (
             <SelectItem key={d} value={d}>
               {d}
             </SelectItem>
           ))}
+          {value && !uniqueDesigners.includes(value) && (
+            <SelectItem key={value} value={value}>
+              {value}
+            </SelectItem>
+          )}
         </SelectContent>
       </Select>
     </div>
