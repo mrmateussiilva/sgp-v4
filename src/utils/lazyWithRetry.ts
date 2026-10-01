@@ -6,7 +6,7 @@ import { ComponentType, lazy, LazyExoticComponent } from 'react';
  * 1. Atualização de versão em produção ou reinício do servidor de desenvolvimento.
  * 2. Oscilações momentâneas de rede ou falha de leitura em cache no WebView.
  */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
+export function lazyWithRetry<T extends ComponentType<any>>(
   componentImport: () => Promise<{ default: T }>,
   retries = 2,
   interval = 800

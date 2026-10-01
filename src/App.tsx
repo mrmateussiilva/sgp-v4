@@ -328,7 +328,7 @@ function App() {
               <div className="bg-background text-foreground min-h-screen">
                 <ConfigApi
                   reason={fallbackReason}
-                  onConfigured={(url) => {
+                  onConfigured={(url: string) => {
                     const normalizedUrl = normalizeApiUrl(url);
                     applyApiUrl(normalizedUrl);
                     setApiUrl(normalizedUrl);

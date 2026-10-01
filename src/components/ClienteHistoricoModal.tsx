@@ -153,7 +153,7 @@ export function ClienteHistoricoModal({
       const val = typeof o.valor_total === 'string' ? parseFloat(o.valor_total) : (o.valor_total || 0);
       if (!isNaN(val)) totalSpent += val;
 
-      const dateStr = o.data_entrada || o.data_criacao;
+      const dateStr = o.data_entrada || o.created_at;
       if (dateStr) {
         if (!firstDate || dateStr < firstDate) firstDate = dateStr;
         if (!lastDate || dateStr > lastDate) lastDate = dateStr;
@@ -328,10 +328,11 @@ export function ClienteHistoricoModal({
     if (order.pronto) {
       return <Badge variant="success" className="gap-1 font-semibold"><CheckCircle2 className="w-3 h-3" /> Pronto</Badge>;
     }
-    if (order.status === OrderStatus.EmProducao || order.status === 'em_producao') {
+    const statusStr = String(order.status || '').toLowerCase();
+    if (order.status === OrderStatus.EmProcessamento || statusStr === 'em_producao' || statusStr === 'em processamento') {
       return <Badge variant="info" className="gap-1 font-semibold"><Clock className="w-3 h-3" /> Em Produção</Badge>;
     }
-    if (order.status === OrderStatus.Cancelado || order.status === 'cancelado') {
+    if (order.status === OrderStatus.Cancelado || statusStr === 'cancelado') {
       return <Badge variant="destructive" className="gap-1 font-semibold">Cancelado</Badge>;
     }
     return <Badge variant="warning" className="gap-1 font-semibold"><AlertCircle className="w-3 h-3" /> Pendente</Badge>;
