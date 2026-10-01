@@ -1,5 +1,16 @@
 # Release
 
+## v1.4.8 — 2026-10-01
+
+### 🐛 Correção Crítica de Cliques e Seleção em Dropdowns (Selects)
+- **Eliminação de Salto de Layout (Layout Shift)**: Corrigido deslocamento lateral de 17px causado pelo atributo `data-scroll-locked` do Radix UI em ambientes WebView2 (Desktop), garantindo que o ponteiro do mouse clique com precisão no item desejado sem saltar a tela.
+- **Prevenção de Cliques Fantasmas e Foco Falso**: Adicionados `sideOffset={4}` e supressão de auto-focus ao fechar (`onCloseAutoFocus={(e) => e.preventDefault()}`), impedindo que o clique de fechamento do menu ative itens de fundo acidentalmente.
+- **Deduplicação de Opções em Listas**: Resolvida duplicação de `value` em listas de seleção (Forma de Envio, Vendedores, Designers e Cidades), evitando que o formulário selecione valores trocados ou repetidos.
+- **Validação Segura de Forma de Envio**: Preservação exata do nome de envio cadastrado na API e pedidos legados, evitando normalização indevida para "Portador".
+
+### 📦 Modularização e Regras de Validação de Produção
+- **Módulo Dedicado de Validação (`validationRules.ts`)**: Desacoplamento da lógica de validação de itens de produção (`validateProductionItem`) do formulário principal de pedidos, padronizando mensagens de erro e avisos para painéis, totens, lonas, adesivos, cangas, mochilinhas e impressão 3D.
+
 ## v1.4.7 — 2026-09-29
 
 ### ✨ Perfil e Histórico Completo de Itens do Cliente

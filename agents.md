@@ -445,7 +445,7 @@ O backend (`api-sgp`) é modularizado em domínios. Prefixo base: sem prefixo po
 | 🔴 Alto | `CreateOrderComplete.tsx` (158KB) e `OrderList.tsx` (146KB) precisam ser decompostos em componentes menores |
 | 🔴 Alto | `Fechamentos.tsx` (68KB) — mesma situação |
 | 🟡 Médio | `Fechamentos.tsx.backup` presente em `src/pages/` — deve ser removido |
-| 🟡 Médio | Versões desalinhadas: frontend v1.4.7 vs backend v1.4.3 |
+| 🟡 Médio | Versões desalinhadas: frontend v1.4.8 vs backend v1.4.3 |
 | 🟡 Médio | Router `relatorios` comentado no backend sem documentação clara do motivo |
 | 🟢 Baixo | CSP permissiva no `tauri.conf.json` — pode ser endurecida em produção |
 
