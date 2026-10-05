@@ -14,7 +14,12 @@ export function lazyWithRetry<T extends ComponentType<any>>(
   return lazy(async () => {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await componentImport();
+        const module = await componentImport();
+        if (typeof window !== 'undefined') {
+          const sessionKey = `lazy_retry_reload_${window.location.pathname}`;
+          window.sessionStorage.removeItem(sessionKey);
+        }
+        return module;
       } catch (error: unknown) {
         const errMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
         const isDynamicImportError =
@@ -24,7 +29,8 @@ export function lazyWithRetry<T extends ComponentType<any>>(
           errMessage.includes('loading chunk');
 
         if (attempt < retries && isDynamicImportError) {
-          await new Promise((resolve) => setTimeout(resolve, interval));
+          // Progressive backoff: 500ms, 1000ms, 1500ms...
+          await new Promise((resolve) => setTimeout(resolve, interval * (attempt + 1)));
           continue;
         }
 

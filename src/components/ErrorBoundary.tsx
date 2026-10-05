@@ -60,6 +60,13 @@ export class ErrorBoundary extends Component<Props, State> {
       errorMsg.includes('loading chunk');
 
     if (isChunkError) {
+      if (typeof window !== 'undefined') {
+        Object.keys(window.sessionStorage).forEach((key) => {
+          if (key.startsWith('lazy_retry_reload_')) {
+            window.sessionStorage.removeItem(key);
+          }
+        });
+      }
       window.location.reload();
       return;
     }

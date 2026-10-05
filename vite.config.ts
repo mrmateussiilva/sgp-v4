@@ -77,6 +77,23 @@ export default defineConfig(({ mode }) => {
       cors: true, // 🔹 Libera CORS no ambiente de dev
     },
     envPrefix: ['VITE_', 'TAURI_'],
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        'lucide-react',
+        'recharts',
+        'axios',
+        'clsx',
+        'tailwind-merge',
+        'zustand',
+        '@radix-ui/react-dialog',
+        '@radix-ui/react-select',
+        '@radix-ui/react-tabs',
+        '@radix-ui/react-tooltip',
+      ],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

@@ -40,10 +40,13 @@ pub async fn toggle_devtools(app_handle: AppHandle) -> Result<(), String> {
 
     // Obter a janela principal
     if let Some(window) = app_handle.get_webview_window("main") {
-        // Como não há toggle_devtools, vamos implementar uma lógica simples
-        // Primeiro tenta abrir, se já estiver aberto, fecha
-        window.open_devtools();
-        info!("DevTools alternado com sucesso!");
+        if window.is_devtools_open() {
+            window.close_devtools();
+            info!("DevTools fechado com sucesso!");
+        } else {
+            window.open_devtools();
+            info!("DevTools aberto com sucesso!");
+        }
         Ok(())
     } else {
         warn!("Janela principal não encontrada");
@@ -55,11 +58,8 @@ pub async fn toggle_devtools(app_handle: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn is_devtools_open(app_handle: AppHandle) -> Result<bool, String> {
     // Obter a janela principal
-    if let Some(_window) = app_handle.get_webview_window("main") {
-        // Nota: O Tauri não tem um método direto para verificar se DevTools está aberto
-        // Esta é uma implementação básica que sempre retorna false
-        // Em uma implementação real, você poderia usar eventos ou outras técnicas
-        Ok(false)
+    if let Some(window) = app_handle.get_webview_window("main") {
+        Ok(window.is_devtools_open())
     } else {
         Err("Janela principal não encontrada".to_string())
     }

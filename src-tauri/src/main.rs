@@ -4,7 +4,6 @@ mod commands;
 mod state;
 mod pdf_generator;
 
-#[cfg(debug_assertions)]
 use commands::devtools::{
     close_devtools, is_devtools_open, open_devtools, test_devtools_system, toggle_devtools,
 };
@@ -40,15 +39,10 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            #[cfg(debug_assertions)]
             open_devtools,
-            #[cfg(debug_assertions)]
             close_devtools,
-            #[cfg(debug_assertions)]
             toggle_devtools,
-            #[cfg(debug_assertions)]
             is_devtools_open,
-            #[cfg(debug_assertions)]
             test_devtools_system,
             get_app_version,
             fetch_changelog,
