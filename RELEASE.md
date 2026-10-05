@@ -1,5 +1,15 @@
 # Release
 
+## v1.5.0 — 2026-10-05
+
+### 🚀 Redesign Estrutural e Modernização da Página Inicial (Dashboard)
+- **Hierarquia Visual e Foco Operacional**: Eliminação de poluição visual e excesso de cores dispersas, estabelecendo uma estética limpa, executiva e de alta legibilidade.
+- **Top 4 Cards Principais**: Indicadores essenciais no topo com valores semânticos destacados (`Total de Pedidos`, `Pendentes` em laranja, `Concluidos` em verde e `Atrasados` em vermelho).
+- **Gráfico Dedicado de Formas de Envio**: Novo card em largura total com distribuição detalhada das modalidades de entrega (`RETIRADA`, `FLEX`, `AGUIA BRANCA`, `PRETTI`, `Sedex`) com barras horizontais e métricas de volume e percentual.
+- **Remoção de Elementos Descontextualizados**: Removida a antiga "Esteira de Produção" com porcentagens fixas e contagens de paginação descalibradas.
+- **Fila Operacional Equilibrada**: Organização em 2 colunas para Pedidos Urgentes (com destaque de prioridade ALTA) e Pedidos Recentes, seguidos dos Acessos Rápidos.
+- **Otimização e Modularidade**: Módulo `dashboardStats.ts` dedicado com testes unitários automatizados para manipulação segura de datas e métricas locais.
+
 ## v1.4.9 — 2026-10-01
 
 ### 📊 Análise de Mix de Produção por Tipo & Business Intelligence
