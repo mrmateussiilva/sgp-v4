@@ -1,6 +1,22 @@
 # Release
 
-## v1.5.0 — 2026-10-05
+## v1.5.1 — 2026-10-13
+
+### 📦 Modularização e Produtividade na Análise de Materiais
+- **Atalhos Rápidos de Período (Presets de Data)**: Botões `[ Hoje ]`, `[ 7d ]`, `[ 30d ]`, `[ Este Mês ]` e `[ Mês Ant. ]` com seleção instantânea e destaque visual do intervalo ativo.
+- **Exportação Direta em CSV Formatado**: Download direto de arquivo físico `.csv` com separador `;` e codificação UTF-8 BOM para abertura nativa no Excel sem quebra de acentos.
+- **Ordenação Interativa de Fichas**: Cabeçalhos clicáveis com alternância crescente/decrescente para Pedido, Cliente, Metragem Linear, Área Total e Data.
+- **Modularização de Código**: Extração dos subcomponentes monolíticos para pasta dedicada `src/components/materials/` (`CategoriaDetalhesModal`, `MemoriaCalculoModal`, `MaterialConfigModal`, `ProductionTypeCard`, `KpiCard`, `NarrativeSummary`, `AnalysisSkeleton`).
+- **Módulo de Tipos e Utilitários Dedicados**: Criação de `src/types/materialAnalysis.ts` e `src/utils/materialAnalysisUtils.ts` com testes unitários automatizados (100% aprovados).
+
+### 👥 Filtros Inteligentes e Exportação no Histórico do Cliente
+- **Busca Rápida de Produtos**: Campo de pesquisa textual em tempo real por descrição, medidas ou tecido no modal de histórico do cliente.
+- **Filtro de Categoria por Badges**: Botões de filtro para visualizar separadamente apenas Painéis, Totens, Mesas, Mochilinhas, Lonas ou Adesivos.
+- **Exportação do Histórico Comercial em CSV**: Download consolidado de todas as variações e peças pedidas pelo cliente.
+
+### 🚚 Interatividade no Dashboard
+- **Filtro Rápido por Forma de Envio**: Barras de distribuição de modalidades de entrega (`Retirada`, `Flex`, `Águia Branca`, etc.) agora são clicáveis, navegando diretamente para a lista de pedidos filtrada.
+
 
 ### 🚀 Redesign Estrutural e Modernização da Página Inicial (Dashboard)
 - **Hierarquia Visual e Foco Operacional**: Eliminação de poluição visual e excesso de cores dispersas, estabelecendo uma estética limpa, executiva e de alta legibilidade.

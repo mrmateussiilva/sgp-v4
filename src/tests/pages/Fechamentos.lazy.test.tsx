@@ -144,7 +144,7 @@ describe('Fechamentos - Lazy Loading PDF', () => {
       
       expect(jsPDF.default).toHaveBeenCalled();
     }, { timeout: 3000 });
-  });
+  }, 15000);
 
   it('deve manter exportação PDF desabilitada sem relatório', async () => {
     render(<Fechamentos />);

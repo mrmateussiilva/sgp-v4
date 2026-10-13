@@ -170,10 +170,19 @@ export function DashboardV1({
           ) : (
             <div className="space-y-4">
               {stats.shippingMethods.map((method) => (
-                <div key={method.name} className="space-y-1.5">
+                <div
+                  key={method.name}
+                  className="space-y-1.5 p-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                  onClick={() => navigate(`/dashboard/orders?search=${encodeURIComponent(method.name)}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/dashboard/orders?search=${encodeURIComponent(method.name)}`)}
+                  title={`Ver pedidos com forma de envio: ${method.name}`}
+                >
                   <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 uppercase group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1">
                       {method.name}
+                      <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
                     </span>
                     <span className="text-xs text-muted-foreground font-medium">
                       {method.count} pedidos ({method.percentage}%)

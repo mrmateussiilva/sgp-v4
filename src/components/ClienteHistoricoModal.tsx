@@ -29,12 +29,15 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  Download,
+  X,
 } from 'lucide-react';
 import { Cliente, OrderWithItems, OrderStatus } from '@/types';
 import { api } from '@/services/api';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateForDisplay } from '@/utils/date';
 import { logger } from '@/utils/logger';
+import { cn } from '@/lib/utils';
 
 interface ClienteHistoricoModalProps {
   cliente: Cliente | null;
@@ -106,11 +109,15 @@ export function ClienteHistoricoModal({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'resumo' | 'pedidos' | 'cadastro'>(defaultTab);
   const [searchHistory, setSearchHistory] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(defaultTab);
       setSearchHistory('');
+      setItemSearch('');
+      setSelectedCategoryFilter('all');
     }
   }, [isOpen, defaultTab]);
 
@@ -295,6 +302,63 @@ export function ClienteHistoricoModal({
 
     return { categories, topProducts };
   }, [orders]);
+
+  // Itens filtrados por busca textual e categoria na Aba "O que o cliente pede"
+  const filteredCategories = useMemo(() => {
+    const query = itemSearch.toLowerCase().trim();
+
+    return produtosConsolidados.categories
+      .filter((cat) => selectedCategoryFilter === 'all' || cat.tipo === selectedCategoryFilter)
+      .map((cat) => {
+        if (!query) return cat;
+        const matchingItems = cat.items.filter(
+          (it) =>
+            it.descricao.toLowerCase().includes(query) ||
+            (it.medidas && it.medidas.toLowerCase().includes(query)) ||
+            (it.tecido && it.tecido.toLowerCase().includes(query))
+        );
+        return {
+          ...cat,
+          items: matchingItems,
+          totalQty: matchingItems.reduce((acc, i) => acc + i.qty, 0),
+        };
+      })
+      .filter((cat) => cat.items.length > 0);
+  }, [produtosConsolidados.categories, itemSearch, selectedCategoryFilter]);
+
+  // Exportar histórico consolidado de produtos do cliente para CSV
+  const handleExportItemsCSV = () => {
+    if (produtosConsolidados.categories.length === 0 || !cliente?.nome) return;
+
+    const headers = ['Cliente', 'Categoria', 'Produto / Descricao', 'Medidas', 'Tecido', 'Quantidade Total'];
+    const rows: string[][] = [];
+
+    produtosConsolidados.categories.forEach((cat) => {
+      cat.items.forEach((item) => {
+        rows.push([
+          `"${cliente.nome.replace(/"/g, '""')}"`,
+          `"${cat.label.replace(/"/g, '""')}"`,
+          `"${item.descricao.replace(/"/g, '""')}"`,
+          `"${(item.medidas || '').replace(/"/g, '""')}"`,
+          `"${(item.tecido || '').replace(/"/g, '""')}"`,
+          String(item.qty),
+        ]);
+      });
+    });
+
+    const csv = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = cliente.nome.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `itens_cliente_${safeName}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Histórico de pedidos filtrado pela busca interna
   const filteredOrders = useMemo(() => {
@@ -506,6 +570,70 @@ export function ClienteHistoricoModal({
                 </div>
               ) : (
                 <>
+                  {/* Barra de Filtro de Produtos e Ação de Exportar CSV */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        placeholder="Buscar item por nome, medida ou tecido..."
+                        value={itemSearch}
+                        onChange={(e) => setItemSearch(e.target.value)}
+                        className="pl-9 h-8 text-xs bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                      />
+                      {itemSearch && (
+                        <button
+                          onClick={() => setItemSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportItemsCSV}
+                        className="h-8 text-xs font-semibold gap-1.5 border-slate-300 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200"
+                        title="Exportar produtos deste cliente para Excel/CSV"
+                      >
+                        <Download className="w-3.5 h-3.5 text-blue-600" />
+                        Exportar CSV
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Badges de Filtro por Categoria */}
+                  {produtosConsolidados.categories.length > 1 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                      <Badge
+                        variant={selectedCategoryFilter === 'all' ? 'default' : 'outline'}
+                        onClick={() => setSelectedCategoryFilter('all')}
+                        className={cn(
+                          "cursor-pointer font-bold px-2.5 py-1 text-xs transition-colors shrink-0",
+                          selectedCategoryFilter === 'all' ? "bg-blue-600 text-white" : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                        )}
+                      >
+                        Todas as Categorias
+                      </Badge>
+                      {produtosConsolidados.categories.map((cat) => (
+                        <Badge
+                          key={cat.tipo}
+                          variant={selectedCategoryFilter === cat.tipo ? 'default' : 'outline'}
+                          onClick={() => setSelectedCategoryFilter(cat.tipo)}
+                          className={cn(
+                            "cursor-pointer font-bold px-2.5 py-1 text-xs transition-colors shrink-0 gap-1",
+                            selectedCategoryFilter === cat.tipo ? "bg-blue-600 text-white" : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                          )}
+                        >
+                          <span>{cat.label}</span>
+                          <span className="opacity-70 text-[10px]">({cat.items.length})</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Resumo em Blocos por Categoria */}
                   <div>
                     <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -513,7 +641,7 @@ export function ClienteHistoricoModal({
                       Totalização por Categoria de Produto
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {produtosConsolidados.categories.map((cat) => {
+                      {filteredCategories.map((cat) => {
                         const Icon = cat.icon;
                         return (
                           <div
@@ -555,56 +683,62 @@ export function ClienteHistoricoModal({
                       <Layers className="w-3.5 h-3.5 text-blue-600" />
                       Discriminação Completa do que o Cliente Já Pediu
                     </h3>
-                    <div className="space-y-3">
-                      {produtosConsolidados.categories.map((cat) => (
-                        <div
-                          key={cat.tipo}
-                          className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800 shadow-sm"
-                        >
-                          <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <cat.icon className="w-4 h-4 text-blue-600" />
-                              <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{cat.label}</span>
+                    {filteredCategories.length === 0 ? (
+                      <div className="text-center py-8 text-xs text-slate-500 bg-white dark:bg-slate-800 rounded-lg border border-dashed">
+                        Nenhum produto corresponde aos filtros aplicados.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredCategories.map((cat) => (
+                          <div
+                            key={cat.tipo}
+                            className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800 shadow-sm"
+                          >
+                            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <cat.icon className="w-4 h-4 text-blue-600" />
+                                <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{cat.label}</span>
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                Total: {cat.totalQty} un
+                              </span>
                             </div>
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                              Total: {cat.totalQty} un
-                            </span>
-                          </div>
 
-                          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                            {cat.items.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-750 transition-colors text-xs"
-                              >
-                                <div className="space-y-0.5 pr-2">
-                                  <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                                    {item.descricao}
-                                  </p>
-                                  <div className="flex flex-wrap items-center gap-2 text-slate-500 text-[11px]">
-                                    {item.medidas && (
-                                      <span className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono border border-slate-200 dark:border-slate-600">
-                                        {item.medidas}
-                                      </span>
-                                    )}
-                                    {item.tecido && (
-                                      <span className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
-                                        Tecido: {item.tecido}
-                                      </span>
-                                    )}
+                            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                              {cat.items.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-750 transition-colors text-xs"
+                                >
+                                  <div className="space-y-0.5 pr-2">
+                                    <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                                      {item.descricao}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2 text-slate-500 text-[11px]">
+                                      {item.medidas && (
+                                        <span className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono border border-slate-200 dark:border-slate-600">
+                                          {item.medidas}
+                                        </span>
+                                      )}
+                                      {item.tecido && (
+                                        <span className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                          Tecido: {item.tecido}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-black text-sm border border-blue-200 dark:border-blue-800">
+                                      {item.qty}x
+                                    </span>
                                   </div>
                                 </div>
-                                <div className="text-right shrink-0">
-                                  <span className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-black text-sm border border-blue-200 dark:border-blue-800">
-                                    {item.qty}x
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
