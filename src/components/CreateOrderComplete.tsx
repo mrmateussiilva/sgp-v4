@@ -13,6 +13,11 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { confirm } from '@/utils/confirm';
+import { WeekendWarningBanner } from '@/components/WeekendWarningBanner';
+import { WeekendConfirmationModal } from '@/components/modals/WeekendConfirmationModal';
+import { SameDayWarningBanner } from '@/components/SameDayWarningBanner';
+import { SameDayConfirmationModal } from '@/components/modals/SameDayConfirmationModal';
+import { getWeekendDetails, getSameDayDetails } from '@/utils/date';
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete';
 import { isTauri } from '@/utils/isTauri';
 import {
@@ -708,6 +713,9 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
   const [showResumoModal, setShowResumoModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showWeekendConfirmModal, setShowWeekendConfirmModal] = useState(false);
+  const [showSameDayModal, setShowSameDayModal] = useState(false);
+  const [pendingItemWarnings, setPendingItemWarnings] = useState<string[]>([]);
 
   // Estados para validação de item
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -1844,9 +1852,29 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       return;
     }
 
-    // 3. Se houver warnings nos itens, pedir confirmação
-    if (allItemWarnings.length > 0) {
-      const warningsList = allItemWarnings.map(w => `• ${w}`).join('\n');
+    setPendingItemWarnings(allItemWarnings);
+
+    // 3. Validação de data de entrega em fim de semana
+    const weekendInfo = getWeekendDetails(formData.data_entrega);
+    if (weekendInfo.isWeekend) {
+      setShowWeekendConfirmModal(true);
+      return;
+    }
+
+    // 4. Validação de entrega no mesmo dia (Opção B)
+    const sameDayInfo = getSameDayDetails(formData.data_entrega, formData.data_entrada);
+    if (sameDayInfo.isSameDay) {
+      setShowSameDayModal(true);
+      return;
+    }
+
+    proceedAfterWeekendCheck(allItemWarnings);
+  };
+
+  const proceedAfterWeekendCheck = (warnings: string[]) => {
+    // Se houver warnings nos itens, pedir confirmação
+    if (warnings.length > 0) {
+      const warningsList = warnings.map(w => `• ${w}`).join('\n');
       const confirmMessage = `O pedido possui os seguintes alertas nos itens:\n\n${warningsList}\n\nDeseja prosseguir mesmo assim?`;
 
       confirm(confirmMessage, {
@@ -2836,6 +2864,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 onChange={(e) => handleChange('data_entrega', e.target.value)}
                 className={`bg-white h-12 text-base ${errors.data_entrega ? 'border-red-500 focus:border-red-500' : ''}`}
               />
+              <WeekendWarningBanner
+                dateValue={formData.data_entrega}
+                onApplyNextBusinessDay={(newDate) => handleChange('data_entrega', newDate)}
+              />
+              <SameDayWarningBanner
+                dataEntrega={formData.data_entrega}
+                dataEntrada={formData.data_entrada}
+                formaEnvio={formData.forma_envio}
+                onApplyNextDate={(newDate) => handleChange('data_entrega', newDate)}
+              />
               {errors.data_entrega && (
                 <p className="text-red-500 text-sm">{errors.data_entrega}</p>
               )}
@@ -3744,6 +3782,35 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WeekendConfirmationModal
+        open={showWeekendConfirmModal}
+        onOpenChange={setShowWeekendConfirmModal}
+        dateValue={formData.data_entrega}
+        onConfirmCurrentDate={() => {
+          proceedAfterWeekendCheck(pendingItemWarnings);
+        }}
+        onConfirmNextBusinessDay={(nextDate) => {
+          handleChange('data_entrega', nextDate);
+          proceedAfterWeekendCheck(pendingItemWarnings);
+        }}
+      />
+
+      <SameDayConfirmationModal
+        open={showSameDayModal}
+        onOpenChange={setShowSameDayModal}
+        dataEntrega={formData.data_entrega}
+        dataEntrada={formData.data_entrada}
+        formaEnvio={formData.forma_envio}
+        clienteNome={formData.cliente}
+        onConfirmSameDay={() => {
+          proceedAfterWeekendCheck(pendingItemWarnings);
+        }}
+        onConfirmNextDate={(nextDate) => {
+          handleChange('data_entrega', nextDate);
+          proceedAfterWeekendCheck(pendingItemWarnings);
+        }}
+      />
     </div>
   );
 }

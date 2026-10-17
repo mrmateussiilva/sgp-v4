@@ -123,3 +123,150 @@ export const ensureDateInputValue = (value?: string | null) => {
 
   return `${year}-${month}-${day}`;
 };
+
+export interface WeekendDetails {
+  isWeekend: boolean;
+  dayOfWeek?: number;
+  dayName: 'Sábado' | 'Domingo' | '';
+  nextBusinessDay?: string;
+  nextBusinessDayDisplay?: string;
+  formattedDate?: string;
+}
+
+/**
+ * Analisa se uma data é final de semana (Sábado ou Domingo) de forma segura em relação ao fuso horário,
+ * calculando também o próximo dia útil (Segunda-feira).
+ */
+export const getWeekendDetails = (value?: string | null): WeekendDetails => {
+  if (!value) {
+    return { isWeekend: false, dayName: '' };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { isWeekend: false, dayName: '' };
+  }
+
+  // Extrair apenas a parte da data
+  const dateOnly = trimmed.split('T')[0].split(' ')[0];
+  let year: number;
+  let month: number;
+  let day: number;
+
+  const ymdMatch = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (ymdMatch) {
+    year = Number(ymdMatch[1]);
+    month = Number(ymdMatch[2]) - 1;
+    day = Number(ymdMatch[3]);
+  } else {
+    const dmyMatch = dateOnly.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dmyMatch) {
+      day = Number(dmyMatch[1]);
+      month = Number(dmyMatch[2]) - 1;
+      year = Number(dmyMatch[3]);
+    } else {
+      return { isWeekend: false, dayName: '' };
+    }
+  }
+
+  // Criar data local (ano, mes, dia) para evitar desvios de fuso horário
+  const date = new Date(year, month, day);
+  if (Number.isNaN(date.getTime())) {
+    return { isWeekend: false, dayName: '' };
+  }
+
+  const dayOfWeek = date.getDay(); // 0 = Domingo, 6 = Sábado
+  if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    return { isWeekend: false, dayName: '', dayOfWeek };
+  }
+
+  const dayName: 'Sábado' | 'Domingo' = dayOfWeek === 6 ? 'Sábado' : 'Domingo';
+  const daysToAdd = dayOfWeek === 6 ? 2 : 1; // Se sábado, +2 dias = segunda; se domingo, +1 dia = segunda
+
+  const nextDate = new Date(year, month, day);
+  nextDate.setDate(nextDate.getDate() + daysToAdd);
+
+  const nextYear = nextDate.getFullYear();
+  const nextMonth = String(nextDate.getMonth() + 1).padStart(2, '0');
+  const nextDay = String(nextDate.getDate()).padStart(2, '0');
+
+  const nextBusinessDay = `${nextYear}-${nextMonth}-${nextDay}`;
+  const nextBusinessDayDisplay = `${nextDay}/${nextMonth}/${nextYear}`;
+  const formattedDate = `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
+
+  return {
+    isWeekend: true,
+    dayOfWeek,
+    dayName,
+    nextBusinessDay,
+    nextBusinessDayDisplay,
+    formattedDate,
+  };
+};
+
+export interface SameDayDetails {
+  isSameDay: boolean;
+  todayFormatted: string;
+  nextDate: string;
+  nextDateDisplay: string;
+  nextDateLabel: string;
+}
+
+/**
+ * Verifica se a entrega está agendada para o mesmo dia (hoje ou igual à data de entrada)
+ * e calcula a data seguinte mais próxima (pulando finais de semana automaticamente).
+ */
+export const getSameDayDetails = (
+  dataEntrega?: string | null,
+  dataEntrada?: string | null
+): SameDayDetails => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const day = now.getDate();
+
+  const todayYmd = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const todayFormatted = `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
+
+  // Próximo dia
+  const next = new Date(year, month, day + 1);
+  let nextDateLabel = 'Amanhã';
+
+  // Se amanhã for sábado (6), pula para segunda (+2)
+  if (next.getDay() === 6) {
+    next.setDate(next.getDate() + 2);
+    nextDateLabel = 'Segunda-feira';
+  } else if (next.getDay() === 0) {
+    // Se domingo (0), pula para segunda (+1)
+    next.setDate(next.getDate() + 1);
+    nextDateLabel = 'Segunda-feira';
+  }
+
+  const nextYmd = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+  const nextDateDisplay = `${String(next.getDate()).padStart(2, '0')}/${String(next.getMonth() + 1).padStart(2, '0')}/${next.getFullYear()}`;
+
+  if (!dataEntrega) {
+    return {
+      isSameDay: false,
+      todayFormatted,
+      nextDate: nextYmd,
+      nextDateDisplay,
+      nextDateLabel,
+    };
+  }
+
+  const cleanEntrega = dataEntrega.split('T')[0].split(' ')[0].trim();
+  const cleanEntrada = dataEntrada ? dataEntrada.split('T')[0].split(' ')[0].trim() : todayYmd;
+
+  const isSameDay = cleanEntrega === cleanEntrada || cleanEntrega === todayYmd;
+
+  return {
+    isSameDay,
+    todayFormatted,
+    nextDate: nextYmd,
+    nextDateDisplay,
+    nextDateLabel,
+  };
+};
+
+

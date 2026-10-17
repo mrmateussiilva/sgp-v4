@@ -7,6 +7,11 @@ import { useModalStore } from '@/store/useModalStore';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/services/api';
 import { logger } from '@/utils/logger';
+import { WeekendWarningBanner } from '@/components/WeekendWarningBanner';
+import { WeekendConfirmationModal } from '@/components/modals/WeekendConfirmationModal';
+import { SameDayWarningBanner } from '@/components/SameDayWarningBanner';
+import { SameDayConfirmationModal } from '@/components/modals/SameDayConfirmationModal';
+import { getWeekendDetails, getSameDayDetails } from '@/utils/date';
 
 export function OrderDuplicateModal() {
     const { duplicateDialogOpen, orderToDuplicate, closeDuplicateModal } = useModalStore();
@@ -15,6 +20,8 @@ export function OrderDuplicateModal() {
     const [duplicateDataEntrada, setDuplicateDataEntrada] = useState('');
     const [duplicateDataEntrega, setDuplicateDataEntrega] = useState('');
     const [duplicateDateError, setDuplicateDateError] = useState<string | null>(null);
+    const [showWeekendModal, setShowWeekendModal] = useState(false);
+    const [showSameDayModal, setShowSameDayModal] = useState(false);
 
     // Inicializa os dados e reseta sempre que dialog abrir baseado numa nova order
     useEffect(() => {
@@ -24,6 +31,8 @@ export function OrderDuplicateModal() {
             setDuplicateDataEntrada(hoje);
             setDuplicateDataEntrega(dataEntrega);
             setDuplicateDateError(validateDuplicateDates(hoje, dataEntrega));
+            setShowWeekendModal(false);
+            setShowSameDayModal(false);
         }
     }, [duplicateDialogOpen, orderToDuplicate]);
 
@@ -55,31 +64,10 @@ export function OrderDuplicateModal() {
         }
     };
 
-    const handleDuplicateConfirm = async () => {
+    const executeDuplicate = async (targetEntregaDate?: string) => {
         if (!orderToDuplicate) return;
 
-        // Validar datas antes de confirmar
-        if (duplicateDataEntrada && duplicateDataEntrega) {
-            const dateError = validateDuplicateDates(duplicateDataEntrada, duplicateDataEntrega);
-            if (dateError) {
-                toast({
-                    title: 'Erro de Validação',
-                    description: dateError,
-                    variant: 'destructive',
-                });
-                return;
-            }
-        }
-
-        // Validar que data de entrada foi preenchida
-        if (!duplicateDataEntrada) {
-            toast({
-                title: 'Erro de Validação',
-                description: 'Data de entrada é obrigatória',
-                variant: 'destructive',
-            });
-            return;
-        }
+        const dataEntregaFinal = targetEntregaDate !== undefined ? targetEntregaDate : duplicateDataEntrega;
 
         try {
             closeDuplicateModal();
@@ -107,7 +95,7 @@ export function OrderDuplicateModal() {
                     estado_cliente: orderToDuplicate.estado_cliente || '',
                     telefone_cliente: orderToDuplicate.telefone_cliente || '',
                     data_entrada: duplicateDataEntrada || new Date().toISOString().split('T')[0],
-                    data_entrega: duplicateDataEntrega || undefined,
+                    data_entrega: dataEntregaFinal || undefined,
                     forma_envio: orderToDuplicate.forma_envio || '',
                     prioridade: orderToDuplicate.prioridade || 'NORMAL',
                     observacao: orderToDuplicate.observacao || '',
@@ -125,7 +113,7 @@ export function OrderDuplicateModal() {
 
             const newOrder = await api.duplicateOrder(orderToDuplicate.id, {
                 data_entrada: duplicateDataEntrada || undefined,
-                data_entrega: duplicateDataEntrega || undefined,
+                data_entrega: dataEntregaFinal || undefined,
             });
 
             toast({
@@ -143,52 +131,135 @@ export function OrderDuplicateModal() {
         }
     };
 
+    const handleDuplicateConfirm = async () => {
+        if (!orderToDuplicate) return;
+
+        // Validar datas antes de confirmar
+        if (duplicateDataEntrada && duplicateDataEntrega) {
+            const dateError = validateDuplicateDates(duplicateDataEntrada, duplicateDataEntrega);
+            if (dateError) {
+                toast({
+                    title: 'Erro de Validação',
+                    description: dateError,
+                    variant: 'destructive',
+                });
+                return;
+            }
+        }
+
+        // Validar que data de entrada foi preenchida
+        if (!duplicateDataEntrada) {
+            toast({
+                title: 'Erro de Validação',
+                description: 'Data de entrada é obrigatória',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // Validação de final de semana na data de entrega
+        if (duplicateDataEntrega && getWeekendDetails(duplicateDataEntrega).isWeekend) {
+            setShowWeekendModal(true);
+            return;
+        }
+
+        // Validação de entrega no mesmo dia (Opção B)
+        if (duplicateDataEntrega && getSameDayDetails(duplicateDataEntrega, duplicateDataEntrada).isSameDay) {
+            setShowSameDayModal(true);
+            return;
+        }
+
+        await executeDuplicate();
+    };
+
     return (
-        <Dialog open={duplicateDialogOpen} onOpenChange={closeDuplicateModal}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Duplicar Pedido</DialogTitle>
-                    <DialogDescription>
-                        Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
-                        <Input
-                            id="duplicate-data-entrada"
-                            type="date"
-                            value={duplicateDataEntrada}
-                            onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
-                            className={duplicateDateError ? 'border-destructive' : ''}
-                        />
+        <>
+            <Dialog open={duplicateDialogOpen} onOpenChange={closeDuplicateModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Duplicar Pedido</DialogTitle>
+                        <DialogDescription>
+                            Configure as datas para o novo pedido duplicado do pedido #{orderToDuplicate?.numero || orderToDuplicate?.id}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="duplicate-data-entrada">Data de Entrada *</Label>
+                            <Input
+                                id="duplicate-data-entrada"
+                                type="date"
+                                value={duplicateDataEntrada}
+                                onChange={(e) => handleDuplicateDateChange('entrada', e.target.value)}
+                                className={duplicateDateError ? 'border-destructive' : ''}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
+                            <Input
+                                id="duplicate-data-entrega"
+                                type="date"
+                                value={duplicateDataEntrega}
+                                onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
+                                className={duplicateDateError ? 'border-destructive' : ''}
+                            />
+                            <WeekendWarningBanner
+                                dateValue={duplicateDataEntrega}
+                                onApplyNextBusinessDay={(newDate) => handleDuplicateDateChange('entrega', newDate)}
+                            />
+                            <SameDayWarningBanner
+                                dataEntrega={duplicateDataEntrega}
+                                dataEntrada={duplicateDataEntrada}
+                                formaEnvio={orderToDuplicate?.forma_envio}
+                                onApplyNextDate={(newDate) => handleDuplicateDateChange('entrega', newDate)}
+                            />
+                            {duplicateDateError && (
+                                <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
+                            )}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="duplicate-data-entrega">Data de Entrega (Opcional)</Label>
-                        <Input
-                            id="duplicate-data-entrega"
-                            type="date"
-                            value={duplicateDataEntrega}
-                            onChange={(e) => handleDuplicateDateChange('entrega', e.target.value)}
-                            className={duplicateDateError ? 'border-destructive' : ''}
-                        />
-                        {duplicateDateError && (
-                            <p className="text-sm text-destructive mt-1">{duplicateDateError}</p>
-                        )}
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={closeDuplicateModal}>
-                        Cancelar
-                    </Button>
-                    <Button
-                        onClick={handleDuplicateConfirm}
-                        disabled={!!duplicateDateError || !duplicateDataEntrada}
-                    >
-                        Duplicar Pedido
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeDuplicateModal}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleDuplicateConfirm}
+                            disabled={!!duplicateDateError || !duplicateDataEntrada}
+                        >
+                            Duplicar Pedido
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <WeekendConfirmationModal
+                open={showWeekendModal}
+                onOpenChange={setShowWeekendModal}
+                dateValue={duplicateDataEntrega}
+                onConfirmCurrentDate={() => {
+                    executeDuplicate();
+                }}
+                onConfirmNextBusinessDay={(nextDate) => {
+                    setDuplicateDataEntrega(nextDate);
+                    executeDuplicate(nextDate);
+                }}
+            />
+
+            <SameDayConfirmationModal
+                open={showSameDayModal}
+                onOpenChange={setShowSameDayModal}
+                dataEntrega={duplicateDataEntrega}
+                dataEntrada={duplicateDataEntrada}
+                formaEnvio={orderToDuplicate?.forma_envio}
+                clienteNome={orderToDuplicate?.cliente}
+                onConfirmSameDay={() => {
+                    executeDuplicate();
+                }}
+                onConfirmNextDate={(nextDate) => {
+                    setDuplicateDataEntrega(nextDate);
+                    executeDuplicate(nextDate);
+                }}
+            />
+        </>
     );
 }
+

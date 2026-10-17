@@ -8,6 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { OrderStatus, OrderWithItems, UpdateOrderMetadataRequest } from '@/types';
 import { api } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { WeekendWarningBanner } from '@/components/WeekendWarningBanner';
+import { WeekendConfirmationModal } from '@/components/modals/WeekendConfirmationModal';
+import { SameDayWarningBanner } from '@/components/SameDayWarningBanner';
+import { SameDayConfirmationModal } from '@/components/modals/SameDayConfirmationModal';
+import { getWeekendDetails, getSameDayDetails } from '@/utils/date';
 
 interface OrderQuickEditDialogProps {
   orderId: number | null;
@@ -51,6 +56,8 @@ export function OrderQuickEditDialog({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showWeekendModal, setShowWeekendModal] = useState(false);
+  const [showSameDayModal, setShowSameDayModal] = useState(false);
   const [form, setForm] = useState<FormState>({
     cliente: '',
     telefone_cliente: '',
@@ -156,12 +163,14 @@ export function OrderQuickEditDialog({
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (overrideDate?: string) => {
     if (!orderId || !originalOrder) {
       return;
     }
 
-    if (isPortadorFormaEnvio(form.forma_envio) && !form.portador_nome.trim()) {
+    const currentForm = overrideDate ? { ...form, data_entrega: overrideDate } : form;
+
+    if (isPortadorFormaEnvio(currentForm.forma_envio) && !currentForm.portador_nome.trim()) {
       toast({
         title: 'Atenção',
         description: 'Informe o nome do portador para salvar.',
@@ -170,12 +179,24 @@ export function OrderQuickEditDialog({
       return;
     }
 
-    const payload = buildPayload(orderId, originalOrder, form);
+    const payload = buildPayload(orderId, originalOrder, currentForm);
     if (!payload) {
       toast({
         title: 'Sem alterações',
         description: 'Nenhuma mudança foi detectada para este pedido.',
       });
+      return;
+    }
+
+    // Se a data de entrega é fim de semana e o usuário ainda não confirmou a exceção
+    if (!overrideDate && getWeekendDetails(currentForm.data_entrega).isWeekend) {
+      setShowWeekendModal(true);
+      return;
+    }
+
+    // Se a data de entrega é hoje e o usuário ainda não confirmou a exceção
+    if (!overrideDate && getSameDayDetails(currentForm.data_entrega, originalOrder.data_entrada).isSameDay) {
+      setShowSameDayModal(true);
       return;
     }
 
@@ -264,6 +285,16 @@ export function OrderQuickEditDialog({
                   type="date"
                   value={form.data_entrega}
                   onChange={(e) => handleInputChange('data_entrega', e.target.value)}
+                />
+                <WeekendWarningBanner
+                  dateValue={form.data_entrega}
+                  onApplyNextBusinessDay={(newDate) => handleInputChange('data_entrega', newDate)}
+                />
+                <SameDayWarningBanner
+                  dataEntrega={form.data_entrega}
+                  dataEntrada={originalOrder?.data_entrada}
+                  formaEnvio={form.forma_envio}
+                  onApplyNextDate={(newDate) => handleInputChange('data_entrega', newDate)}
                 />
               </div>
             </div>
@@ -397,11 +428,40 @@ export function OrderQuickEditDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving || disableSave}>
+          <Button onClick={() => handleSave()} disabled={saving || disableSave}>
             {saving ? 'Salvando...' : 'Salvar alterações'}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <WeekendConfirmationModal
+        open={showWeekendModal}
+        onOpenChange={setShowWeekendModal}
+        dateValue={form.data_entrega}
+        onConfirmCurrentDate={() => {
+          handleSave(form.data_entrega);
+        }}
+        onConfirmNextBusinessDay={(nextDate) => {
+          handleInputChange('data_entrega', nextDate);
+          handleSave(nextDate);
+        }}
+      />
+
+      <SameDayConfirmationModal
+        open={showSameDayModal}
+        onOpenChange={setShowSameDayModal}
+        dataEntrega={form.data_entrega}
+        dataEntrada={originalOrder?.data_entrada}
+        formaEnvio={form.forma_envio}
+        clienteNome={form.cliente}
+        onConfirmSameDay={() => {
+          handleSave(form.data_entrega);
+        }}
+        onConfirmNextDate={(nextDate) => {
+          handleInputChange('data_entrega', nextDate);
+          handleSave(nextDate);
+        }}
+      />
     </Dialog>
   );
 }

@@ -290,7 +290,7 @@ export default function OrderList() {
     drafts?: number;
   }>({});
 
-  // Carrega contagens iniciais em segundo plano (Rascunhos e Prontos)
+  // Carrega contagens iniciais em segundo plano (Rascunhos, Prontos e Pendentes)
   useEffect(() => {
     let active = true;
 
@@ -312,6 +312,22 @@ export default function OrderList() {
         })
         .catch(() => {});
     }
+
+    // Contagem de pendentes e atrasados para manter os chips sempre preenchidos
+    api.getPendingOrdersLight().then((pendingList) => {
+      if (active && Array.isArray(pendingList)) {
+        const pCount = pendingList.filter((o) => !o.pronto && !o.rascunho).length;
+        const dCount = pendingList.filter((o) => {
+          const isOverdue = calcOrderUrgency(o.data_entrega ?? null).type === 'overdue';
+          return isOverdue && !o.pronto && !o.rascunho;
+        }).length;
+        setTabTotals((prev) => ({
+          ...prev,
+          pending: pCount,
+          delayed: dCount,
+        }));
+      }
+    }).catch(() => {});
 
     return () => { active = false; };
   }, []);
@@ -465,7 +481,8 @@ export default function OrderList() {
     const isFrontendPaginated =
       hasClientSideOnlyFilters ||
       productionStatusFilter === 'pending' ||
-      productionStatusFilter === 'delayed';
+      productionStatusFilter === 'delayed' ||
+      productionStatusFilter === 'drafts';
 
     const serverQueryKey = JSON.stringify({
       productionStatusFilter,
@@ -618,12 +635,12 @@ export default function OrderList() {
         }
       } else if (productionStatusFilter === 'drafts') {
         const drafts = await api.listarRascunhos();
-        setOrders((prev) => {
-          const nonDrafts = prev.filter((o) => !o.rascunho);
-          return [...drafts, ...nonDrafts];
-        });
-        setTotalPages(Math.ceil(drafts.length / currentPageSize) || 1);
-        setTotalOrders(drafts.length);
+        const draftsMarked = drafts.map((d) => ({ ...d, rascunho: true }));
+        setOrders(draftsMarked);
+        setDraftsCount(draftsMarked.length);
+        setTabTotals((prev) => ({ ...prev, drafts: draftsMarked.length }));
+        setTotalPages(Math.ceil(draftsMarked.length / currentPageSize) || 1);
+        setTotalOrders(draftsMarked.length);
       }
 
       // Carregar logs de impressão em segundo plano para badges (não bloqueia a renderização)
@@ -1207,11 +1224,12 @@ export default function OrderList() {
     Boolean(selectedFormaEnvio) ||
     Boolean(selectedTipoProducao);
 
-  // Paginação direta no backend para prontos, todos e datas (apenas pending e delayed usam paginação local dos ~56 pedidos carregados)
+  // Paginação direta no backend para prontos, todos e datas (apenas pending, delayed e drafts usam paginação local no frontend)
   const isBackendPaginated =
     !hasClientSideOnlyFilters &&
     productionStatusFilter !== 'pending' &&
-    productionStatusFilter !== 'delayed';
+    productionStatusFilter !== 'delayed' &&
+    productionStatusFilter !== 'drafts';
 
   // Salvaguarda: Se não for admin, forçar visão de tabela
   useEffect(() => {
