@@ -77,6 +77,15 @@ const formatCordinhaDisplay = (quantidade?: string, espaco?: string): string | u
     return esp ? `${q} cordinhas a cada ${withCm(esp)}` : `${q} cordinhas`;
 };
 
+/** Formata acabamento de lona para exibição amigável */
+const formatAcabamentoLonaDisplay = (acab?: string): string | undefined => {
+    if (!acab) return undefined;
+    const clean = acab.toLowerCase().trim();
+    if (clean === 'refilar') return 'Refilar';
+    if (clean === 'nao_refilar' || clean === 'não_refilar') return 'Não refilar';
+    return acab;
+};
+
 // ============================================
 // MAIN COMPONENT: 3-SECTION INDUSTRIAL V2
 // ============================================
@@ -91,11 +100,31 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     if (prod.elastico) techItems.push('ELÁSTICO');
     if (prod.ziper) techItems.push('ZÍPER');
     if (prod.alcinha) techItems.push('ALCINHA');
-    if (prod.terceirizado) techItems.push('TERCEIRIZADO');
+
+    const isTerceirizado = Boolean(
+        prod.terceirizado === true ||
+        String(prod.terceirizado).toLowerCase() === 'true' ||
+        String(prod.terceirizado) === '1' ||
+        String(prod.terceirizado).toLowerCase() === 'sim'
+    );
+    if (isTerceirizado) techItems.push('TERCEIRIZADO');
+
+    const isLona = prod.tipo_producao?.toLowerCase() === 'lona';
+    if (isLona && prod.acabamento_lona) {
+        const acLona = String(prod.acabamento_lona).toLowerCase().trim();
+        if (acLona === 'refilar') {
+            techItems.push('REFILAR');
+        } else if (acLona === 'nao_refilar' || acLona === 'não_refilar') {
+            techItems.push('NÃO REFILAR');
+        } else {
+            techItems.push(acLona.toUpperCase());
+        }
+    }
+
     const tipoAcabamento = prod.tipo_acabamento || (prod as any).tipo_alcinha;
     const acLower = tipoAcabamento ? String(tipoAcabamento).toLowerCase().trim() : '';
     const isIlhosOuCordinha = acLower === 'ilhos' || acLower === 'cordinha' || acLower === 'alca_cordinha';
-    if (tipoAcabamento && tipoAcabamento !== 'nenhum' && !isIlhosOuCordinha) {
+    if (tipoAcabamento && tipoAcabamento !== 'nenhum' && !isIlhosOuCordinha && !isLona) {
         const isMochilinha = prod.tipo_producao?.toLowerCase().includes('mochilinha') || prod.tipo_producao?.toLowerCase().includes('bolsinha');
         if (isMochilinha) {
             const alcaLabel = acLower === 'alca' ? 'ALÇA' : acLower.toUpperCase();
@@ -104,6 +133,13 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             techItems.push(String(tipoAcabamento).toUpperCase());
         }
     }
+
+    const isCostura = Boolean(prod.overloque || prod.elastico || prod.ziper || prod.alcinha);
+    const techSectionTitle = isCostura ? 'Acabamento / Costura' : 'Acabamento';
+
+    const obsPedido = (order.observacao_pedido || '').trim();
+    const obsItem = (prod.observacao_item || '').trim();
+    const hasObservacao = obsPedido.length > 0 || obsItem.length > 0;
 
     return (
         <View style={styles.container} wrap={false}>
@@ -195,10 +231,19 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                     {prod.cordinha_extra && (
                         <SpecRow label="Cordinha extra" value="Sim" />
                     )}
+                    {isLona && (
+                        <SpecRow
+                            label="Acabamento"
+                            value={formatAcabamentoLonaDisplay(prod.acabamento_lona)}
+                        />
+                    )}
+                    {isTerceirizado && (
+                        <SpecRow label="Terceirizado" value="Sim" />
+                    )}
 
                     {techItems.length > 0 && (
                         <>
-                            <Text style={styles.techTitle}>Acabamento / Costura</Text>
+                            <Text style={styles.techTitle}>{techSectionTitle}</Text>
                             <View style={styles.techList}>
                                 {techItems.map((item, i) => (
                                     <Text key={i} style={styles.techItem}>✓ {item}</Text>
@@ -207,27 +252,27 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         </>
                     )}
 
-                    {(order.observacao_pedido || prod.observacao_item) && (
-                        <View style={{ marginTop: 6 }}>
-                            <Text style={styles.techTitle}>Observações</Text>
-                            <View style={{ paddingLeft: 4, gap: 4 }}>
-                                {order.observacao_pedido && (
-                                    <View style={{ marginBottom: 3 }}>
-                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
+                    {hasObservacao && (
+                        <View style={{ marginTop: 4 }}>
+                            <Text style={[styles.techTitle, { marginTop: 4, marginBottom: 3 }]}>Observações</Text>
+                            <View style={{ paddingLeft: 4, gap: 2 }}>
+                                {obsPedido.length > 0 && (
+                                    <View style={{ marginBottom: 2 }}>
+                                        <Text style={{ fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
                                             Geral (Pedido):
                                         </Text>
-                                        <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.2 }}>
-                                            {order.observacao_pedido}
+                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.15 }}>
+                                            {obsPedido}
                                         </Text>
                                     </View>
                                 )}
-                                {prod.observacao_item && (
-                                    <View style={{ marginBottom: 3 }}>
-                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
+                                {obsItem.length > 0 && (
+                                    <View style={{ marginBottom: 2 }}>
+                                        <Text style={{ fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: '#111111', textTransform: 'uppercase' }}>
                                             Do Item:
                                         </Text>
-                                        <Text style={{ fontSize: 8.5, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.2 }}>
-                                            {prod.observacao_item}
+                                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica', color: COLORS.text, marginTop: 1, lineHeight: 1.15 }}>
+                                            {obsItem}
                                         </Text>
                                     </View>
                                 )}

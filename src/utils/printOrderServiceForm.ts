@@ -22,10 +22,11 @@ const hydrateOrderForPrint = async (
     if (!items || items.length === 0) {
       return {
         order: {
-          ...fullOrder,
           ...order,
-          data_entrada: order.data_entrada ?? fullOrder.data_entrada,
-          observacao: order.observacao ?? fullOrder.observacao
+          ...fullOrder,
+          data_entrada: fullOrder.data_entrada || order.data_entrada,
+          observacao: (order.observacao && order.observacao.trim()) || fullOrder.observacao,
+          items: fullOrder.items && fullOrder.items.length > 0 ? fullOrder.items : order.items
         }
       };
     }
@@ -36,18 +37,20 @@ const hydrateOrderForPrint = async (
       return {
         ...fullItem,
         ...item,
-        observacao: item.observacao ?? fullItem.observacao,
-        imagem: item.imagem ?? fullItem.imagem,
-        legenda_imagem: item.legenda_imagem ?? fullItem.legenda_imagem
+        terceirizado: item.terceirizado ?? fullItem.terceirizado,
+        acabamento_lona: item.acabamento_lona || fullItem.acabamento_lona,
+        observacao: (item.observacao && item.observacao.trim()) || fullItem.observacao,
+        imagem: (item.imagem && item.imagem.trim()) || fullItem.imagem,
+        legenda_imagem: (item.legenda_imagem && item.legenda_imagem.trim()) || fullItem.legenda_imagem
       };
     });
 
     return {
       order: {
-        ...fullOrder,
         ...order,
-        data_entrada: order.data_entrada ?? fullOrder.data_entrada,
-        observacao: order.observacao ?? fullOrder.observacao,
+        ...fullOrder,
+        data_entrada: fullOrder.data_entrada || order.data_entrada,
+        observacao: (order.observacao && order.observacao.trim()) || fullOrder.observacao,
         items: mergedItems
       },
       items: mergedItems

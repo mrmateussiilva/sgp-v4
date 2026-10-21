@@ -85,7 +85,7 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
             is_reposicao: (order as any).is_reposicao || false,
             designer: (order as any).designer,
             vendedor: (order as any).vendedor,
-            observacao_pedido: order.observacao,
+            observacao_pedido: order.observacao || (order as any).observacao_pedido || (order as any).observacoes || undefined,
             data_entrada: order.data_entrada,
             valor_frete: order.valor_frete,
             valor_total: order.valor_total || order.total_value,
@@ -94,6 +94,15 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
 
         // Criar um bloco separado para cada item
         order.items.forEach((item: OrderItem, index: number) => {
+            const isTerceirizado = Boolean(
+                item.terceirizado === true ||
+                String(item.terceirizado).toLowerCase() === 'true' ||
+                String(item.terceirizado) === '1' ||
+                String(item.terceirizado).toLowerCase() === 'sim'
+            );
+            const obsItem = item.observacao || (item as any).observacao_item || (item as any).observacoes || undefined;
+            const acabLona = item.acabamento_lona || (item as any).acabamentoLona || undefined;
+
             flattenedOrders.push({
                 ...commonInfo,
                 id: `${order.id}-${item.id}-${index}-${flattenedOrders.length}`,
@@ -105,7 +114,7 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     dimensoes: item.largura && item.altura ? `${item.largura} x ${item.altura}` : 'Sob medida',
                     quantity: item.quantity || 1,
                     material: (item as any).tecido || (item as any).material || 'Não especificado',
-                    observacao_item: item.observacao,
+                    observacao_item: obsItem,
                     imagem: item.imagem,
                     legenda_imagem: item.legenda_imagem,
                     tipo_producao: item.tipo_producao || 'painel',
@@ -125,8 +134,8 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     emenda_qtd: item.emenda_qtd || (item as any).emendaQtd,
                     metro_quadrado: item.metro_quadrado,
                     quantidade_paineis: item.quantidade_paineis,
-                    terceirizado: item.terceirizado,
-                    acabamento_lona: item.acabamento_lona,
+                    terceirizado: isTerceirizado,
+                    acabamento_lona: acabLona,
                     tipo_adesivo: item.tipo_adesivo,
                     acabamento_totem: item.acabamento_totem,
                     acabamento_totem_outro: item.acabamento_totem_outro,

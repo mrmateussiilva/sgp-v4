@@ -1,5 +1,20 @@
 # Release
 
+## v1.5.3 — 2026-10-21
+
+### 🖨️ Correção Crítica na Ficha de Impressão de Lonas
+- **Acabamento Refilar / Não Refilar**: Exibição visual destacada (`✓ REFILAR` / `✓ NÃO REFILAR`) para pedidos do tipo lona no card de impressão (PDF), com cabeçalho contextual dinâmico (`Acabamento`).
+- **Serviço Terceirizado em Destaque**: Identificação clara (`Terceirizado: Sim`) na seção de especificações técnicas quando o item ou pedido for marcado como terceirizado.
+- **Observações Técnicas Preservadas**: Correção na hidratação de dados para garantir que observações do pedido e do item não sejam sobrescritas por campos vazios, além de layout compacto para evitar corte na altura da página A5 (148mm).
+
+### 📦 Melhorias na Expedição & Visualização Mobile
+- **Galeria de Estampas Mobile**: Prévia visual direta de estampa no card de expedição com leitor de código de barras, feedback tátil (háptico) e filtros otimizados.
+- **Lightbox Mobile & Ajuste de Datas**: Abertura ampliada em lightbox para conferência detalhada e correção de cálculo de pedidos atrasados por fuso horário.
+
+### 📝 Validação de Pedidos & Rascunhos
+- **Prazos e Entregas**: Validação inteligente de prazos de entrega para mesmo dia e finais de semana.
+- **Estabilidade da Aba de Rascunhos**: Correção no carregamento e gerenciamento da aba de rascunhos de pedidos.
+
 ## v1.5.1 — 2026-10-13
 
 ### 📦 Modularização e Produtividade na Análise de Materiais

@@ -424,10 +424,12 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
     // Alias útil para templates (mais “humano” que tecido)
     material: canon.tecido ?? '',
     observacao: canon.observacao ?? '',
+    observacao_item: canon.observacao ?? '',
     emenda: canon.emenda ?? '',
     emenda_qtd: canon.emenda_qtd ?? '',
     // Versões “humanizadas” para resumo
     emenda_label: emendaLabel(canon.emenda),
+    terceirizado: boolText(canon.terceirizado),
   };
 
   if (canon.tipo_producao === 'painel' || canon.tipo_producao === 'generica' || canon.tipo_producao === 'mesa_babado') {
@@ -483,6 +485,10 @@ export function toPrintFields(canon: CanonicalProductionItem): Record<string, st
 
   if (canon.tipo_producao === 'lona') {
     fields.acabamento_lona = canon.acabamento_lona ?? '';
+    const acLona = (canon.acabamento_lona ?? '').toLowerCase().trim();
+    fields.acabamento_lona_display = acLona === 'refilar' ? 'Refilar'
+      : acLona === 'nao_refilar' || acLona === 'não_refilar' ? 'Não refilar'
+      : (canon.acabamento_lona ?? '');
     fields.tipo_acabamento = canon.tipo_acabamento ?? 'nenhum';
     fields.quantidade_lona = canon.quantidade_lona ?? '';
     fields.valor_lona = canon.valor_lona ?? '';
