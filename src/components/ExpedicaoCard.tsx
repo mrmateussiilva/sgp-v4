@@ -21,10 +21,10 @@ export default function ExpedicaoCard({
   const isAtrasado = () => {
     if (order.expedicao) return false;
     if (!order.data_entrega) return false;
-    const entregaDate = new Date(order.data_entrega.split('T')[0]);
-    const hojeDate = new Date();
-    hojeDate.setHours(0, 0, 0, 0);
-    return entregaDate < hojeDate;
+    const entrega = order.data_entrega.split('T')[0].split(' ')[0].trim();
+    const now = new Date();
+    const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return Boolean(entrega && entrega < todayYmd);
   };
 
   const getPriorityBadgeColor = () => {
@@ -130,7 +130,7 @@ export default function ExpedicaoCard({
 
         {/* Lista de itens compacta */}
         <div className="text-xs font-medium text-slate-700 dark:text-slate-300 border-t border-border/60 pt-2.5 space-y-1.5">
-          {order.items.slice(0, 3).map((item) => (
+          {(order.items || []).slice(0, 3).map((item) => (
             <div key={item.id} className="flex items-center gap-1.5">
               <span className="truncate leading-tight flex-1">
                 <span className="font-bold">{item.quantity}x</span> {item.item_name}
@@ -142,9 +142,9 @@ export default function ExpedicaoCard({
               )}
             </div>
           ))}
-          {order.items.length > 3 && (
+          {(order.items || []).length > 3 && (
             <div className="text-[10px] text-muted-foreground pt-1 font-bold">
-              + {order.items.length - 3} itens no pedido
+              + {(order.items || []).length - 3} itens no pedido
             </div>
           )}
         </div>
