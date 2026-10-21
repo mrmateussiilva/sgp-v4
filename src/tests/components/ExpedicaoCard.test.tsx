@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '../test-utils';
+import { render, screen, fireEvent, within } from '../test-utils';
 import ExpedicaoCard from '../../components/ExpedicaoCard';
 import { OrderWithItems, OrderStatus } from '../../types';
 
@@ -112,7 +112,9 @@ describe('ExpedicaoCard Component', () => {
     expect(thumbBtn).toBeInTheDocument();
 
     fireEvent.click(thumbBtn);
-    expect(await screen.findByText(/Toque fora para fechar/i)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText(/Camiseta Básica/i)).toBeInTheDocument();
   });
 
   it('allows expanding items when there are more than 3 items', () => {

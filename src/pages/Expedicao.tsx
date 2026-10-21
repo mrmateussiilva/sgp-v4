@@ -24,8 +24,10 @@ import {
   Layers,
   Sparkles,
   CheckCheck,
+  Camera,
 } from 'lucide-react';
 import { logger } from '@/utils/logger';
+import { BarcodeScannerModal } from '@/components/modals/BarcodeScannerModal';
 
 // Helpers para garantir datas locais no fuso do usuário (evita problemas de UTC após 21h)
 const getLocalDateString = (d = new Date()): string => {
@@ -60,6 +62,7 @@ export default function Expedicao() {
   const [activeTab, setActiveTab] = useState<ViewTab>('todos');
   const [apenasProntosProducao, setApenasProntosProducao] = useState(false);
   const [ocultarExpedidos, setOcultarExpedidos] = useState(true);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Estados dos dados e UI
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -414,6 +417,11 @@ export default function Expedicao() {
       });
 
       if (successUpdates.length > 0) {
+        if ('vibrate' in navigator) {
+          try {
+            navigator.vibrate([60, 40, 80]);
+          } catch {}
+        }
         setOrders((prev) =>
           prev.map((o) => {
             const found = successUpdates.find((u) => u.id === o.id);
@@ -651,24 +659,38 @@ export default function Expedicao() {
       <Card className="border border-border/80 shadow-sm">
         <CardContent className="p-4 flex flex-col gap-4">
           <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-            {/* Campo de Busca */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                id="searchQuery"
-                placeholder="Buscar cliente, cidade, número ou forma de envio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 h-12 text-base bg-muted/30 shadow-inner rounded-xl border-border focus-visible:ring-emerald-500"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-bold p-1"
-                >
-                  ✕
-                </button>
-              )}
+            {/* Campo de Busca com Botão de Leitor de Código de Barras */}
+            <div className="flex-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="searchQuery"
+                  placeholder="Buscar cliente, cidade, número..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-11 pr-9 h-12 text-sm sm:text-base bg-muted/30 shadow-inner rounded-xl border-border focus-visible:ring-emerald-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-bold p-1"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setScannerOpen(true)}
+                className="h-12 px-3.5 rounded-xl border-border/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer shadow-xs"
+                title="Escanear código de barras ou QR Code da ficha impressa"
+              >
+                <Camera className="h-5 w-5 text-primary" />
+                <span className="hidden sm:inline text-xs font-bold">Escanear</span>
+              </Button>
             </div>
 
             {/* Presets de Data da Busca */}
@@ -797,14 +819,20 @@ export default function Expedicao() {
             {/* Toggles da Direita */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Filtro: Apenas Prontos para Embalar */}
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 h-10 rounded-xl border">
+              <div
+                className={`flex items-center gap-2 px-3 h-10 rounded-xl border transition-colors ${
+                  apenasProntosProducao
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-900 border-border text-foreground'
+                }`}
+              >
                 <Checkbox
                   id="apenasProntosProducao"
                   checked={apenasProntosProducao}
                   onCheckedChange={(checked) => setApenasProntosProducao(checked === true)}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="apenasProntosProducao" className="text-xs font-semibold cursor-pointer">
+                <Label htmlFor="apenasProntosProducao" className="text-xs font-semibold cursor-pointer select-none">
                   Apenas Prontos ({stats.prontosParaEmbalar})
                 </Label>
               </div>
@@ -984,6 +1012,22 @@ export default function Expedicao() {
         }}
         onConfirmExpedition={handleConfirmExpeditionFromDrawer}
         isConfirming={isConfirmingExpedition}
+      />
+
+      {/* Modal Leitor de Código de Barras / QR Code */}
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={(code) => {
+          setScannerOpen(false);
+          // Remove prefixos como '#' ou zeros à esquerda se necessário, mas busca direta pelo código
+          setSearchQuery(code);
+          toast({
+            title: 'Código escaneado!',
+            description: `Buscando pedido: ${code}`,
+            variant: 'success',
+          });
+        }}
       />
     </div>
   );

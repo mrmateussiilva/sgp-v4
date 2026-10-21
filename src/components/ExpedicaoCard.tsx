@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { OrderWithItems } from '../types';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -22,6 +22,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
@@ -34,7 +36,7 @@ function ExpedicaoItemThumb({
 }: {
   imageRef?: string | null;
   itemName: string;
-  onOpenPreview: (url: string, title: string) => void;
+  onOpenPreview: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(imageRef));
@@ -74,11 +76,8 @@ function ExpedicaoItemThumb({
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        if (url) {
-          onOpenPreview(url, itemName);
-        }
+        onOpenPreview();
       }}
-      disabled={!url}
       className="relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-border/80 overflow-hidden group transition-transform active:scale-95 focus:outline-hidden hover:ring-2 hover:ring-primary/40 cursor-pointer shadow-xs"
       title="Toque para ampliar a estampa"
       aria-label={`Ver estampa de ${itemName}`}
@@ -117,7 +116,86 @@ export default function ExpedicaoCard({
   isUpdating,
 }: ExpedicaoCardProps) {
   const [expandedItems, setExpandedItems] = useState(false);
-  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [galleryImageUrl, setGalleryImageUrl] = useState<string | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+
+  // Filtra itens com imagem válida para a galeria
+  const galleryItems = useMemo(
+    () => (order.items || []).filter((item) => Boolean(item.imagem)),
+    [order.items]
+  );
+
+  // Carrega a imagem da galeria quando o índice mudar ou modal abrir
+  useEffect(() => {
+    let isMounted = true;
+    if (!previewOpen || !galleryItems[currentImageIndex]) {
+      setGalleryImageUrl(null);
+      return;
+    }
+
+    const item = galleryItems[currentImageIndex];
+    getImagePreviewUrl(item.imagem).then((url) => {
+      if (isMounted) setGalleryImageUrl(url);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [previewOpen, currentImageIndex, galleryItems]);
+
+  // Navegação da galeria
+  const goToNextImage = useCallback(() => {
+    if (galleryItems.length <= 1) return;
+    setCurrentImageIndex((prev) => (prev < galleryItems.length - 1 ? prev + 1 : 0));
+  }, [galleryItems.length]);
+
+  const goToPrevImage = useCallback(() => {
+    if (galleryItems.length <= 1) return;
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : galleryItems.length - 1));
+  }, [galleryItems.length]);
+
+  // Suporte a teclas de seta
+  useEffect(() => {
+    if (!previewOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') goToNextImage();
+      if (e.key === 'ArrowLeft') goToPrevImage();
+      if (e.key === 'Escape') setPreviewOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewOpen, goToNextImage, goToPrevImage]);
+
+  // Gestos de deslizar (swipe) em tela sensível ao toque
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (diff > 45) {
+      goToPrevImage(); // Swipe para a direita: anterior
+    } else if (diff < -45) {
+      goToNextImage(); // Swipe para a esquerda: próxima
+    }
+    touchStartXRef.current = null;
+  };
+
+  // Feedback Háptico e expedição
+  const handleExpeditionWithFeedback = async (e: React.MouseEvent, currentStatus: boolean) => {
+    e.stopPropagation();
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate(currentStatus ? [40, 40] : [65]);
+      } catch {}
+    }
+    await onToggleExpedition(order.id, currentStatus);
+  };
 
   const isAtrasado = () => {
     if (order.expedicao) return false;
@@ -126,6 +204,21 @@ export default function ExpedicaoCard({
     const now = new Date();
     const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return Boolean(entrega && entrega < todayYmd);
+  };
+
+  // Detecta se a observação possui termos críticos de expedição conjunta
+  const isObservacaoCritica = (obs?: string | null) => {
+    if (!obs) return false;
+    const upper = obs.toUpperCase();
+    return (
+      upper.includes('JUNTO') ||
+      upper.includes('DEMAIS') ||
+      upper.includes('AGUARDAR') ||
+      upper.includes('RETIRADA') ||
+      upper.includes('ATENÇÃO') ||
+      upper.includes('CUIDADO') ||
+      upper.includes('URGENTE')
+    );
   };
 
   const getPriorityBadgeColor = () => {
@@ -150,6 +243,9 @@ export default function ExpedicaoCard({
   const items = order.items || [];
   const displayedItems = expandedItems ? items : items.slice(0, 3);
   const hasMoreItems = items.length > 3;
+  const observacaoCritica = isObservacaoCritica(order.observacao);
+
+  const activeGalleryItem = previewOpen ? galleryItems[currentImageIndex] || null : null;
 
   return (
     <>
@@ -159,6 +255,8 @@ export default function ExpedicaoCard({
             ? 'border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 opacity-80'
             : isAtrasado()
             ? 'border-rose-400 bg-rose-50/10'
+            : observacaoCritica
+            ? 'border-amber-400/80 dark:border-amber-600/60 bg-amber-50/20 shadow-xs'
             : 'border-border bg-card'
         }`}
       >
@@ -171,6 +269,8 @@ export default function ExpedicaoCard({
               ? 'bg-rose-500'
               : order.prioridade === 'ALTA'
               ? 'bg-amber-500'
+              : observacaoCritica
+              ? 'bg-amber-400'
               : 'bg-slate-300 dark:bg-slate-700'
           }`}
         />
@@ -249,9 +349,11 @@ export default function ExpedicaoCard({
                 <ExpedicaoItemThumb
                   imageRef={item.imagem}
                   itemName={item.item_name}
-                  onOpenPreview={(url, title) =>
-                    setPreviewImage({ url, title: `${item.quantity}x ${title}` })
-                  }
+                  onOpenPreview={() => {
+                    const idx = galleryItems.findIndex((g) => g.id === item.id);
+                    setCurrentImageIndex(idx >= 0 ? idx : 0);
+                    setPreviewOpen(true);
+                  }}
                 />
 
                 <div className="flex-1 min-w-0">
@@ -296,11 +398,28 @@ export default function ExpedicaoCard({
             )}
           </div>
 
-          {/* Observação visível diretamente no card */}
+          {/* Observação com Destaque Especial / Envio Conjunto */}
           {order.observacao && (
-            <div className="text-[11px] bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 p-2 rounded-md border border-amber-200/50 dark:border-amber-900/30 font-medium flex items-start gap-1.5 line-clamp-3">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span className="whitespace-pre-wrap leading-tight">{order.observacao}</span>
+            <div
+              className={`text-[11px] p-2.5 rounded-lg border font-medium flex items-start gap-2 line-clamp-3 transition-colors ${
+                observacaoCritica
+                  ? 'bg-amber-100/90 dark:bg-amber-950/50 border-amber-400 dark:border-amber-700 text-amber-950 dark:text-amber-200 shadow-xs'
+                  : 'bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 border-amber-200/50 dark:border-amber-900/30'
+              }`}
+            >
+              <AlertTriangle
+                className={`h-4 w-4 shrink-0 mt-0.5 ${
+                  observacaoCritica ? 'text-amber-600 dark:text-amber-400 animate-pulse' : ''
+                }`}
+              />
+              <div className="flex-1 leading-tight">
+                {observacaoCritica && (
+                  <span className="block font-black text-[9px] uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-0.5">
+                    Atenção Especial / Envio Conjunto
+                  </span>
+                )}
+                <span className="whitespace-pre-wrap">{order.observacao}</span>
+              </div>
             </div>
           )}
 
@@ -321,7 +440,7 @@ export default function ExpedicaoCard({
                 variant="outline"
                 size="sm"
                 disabled={isUpdating}
-                onClick={() => onToggleExpedition(order.id, true)}
+                onClick={(e) => handleExpeditionWithFeedback(e, true)}
                 className="w-full h-11 font-semibold gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors"
               >
                 <Undo2 className="h-4 w-4" />
@@ -331,7 +450,7 @@ export default function ExpedicaoCard({
               <Button
                 size="lg"
                 disabled={isUpdating}
-                onClick={() => onToggleExpedition(order.id, false)}
+                onClick={(e) => handleExpeditionWithFeedback(e, false)}
                 className="w-full h-14 font-bold text-base sm:text-lg gap-2 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] cursor-pointer"
               >
                 <Check className="h-6 w-6" />
@@ -342,34 +461,86 @@ export default function ExpedicaoCard({
         </CardContent>
       </Card>
 
-      {/* Modal Lightbox de Prévia Rápida da Estampa */}
-      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
-        <DialogContent className="max-w-md w-[92vw] p-4 bg-background/95 backdrop-blur-md rounded-2xl border shadow-2xl overflow-hidden">
+      {/* Modal Lightbox com Galeria e Navegação Swipe / Setas */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-lg w-[94vw] p-4 bg-background/95 backdrop-blur-md rounded-2xl border shadow-2xl overflow-hidden select-none">
           <DialogHeader className="pb-2 border-b">
-            <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate pr-6">
-              {previewImage?.title}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-2 pr-6">
+              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
+                {activeGalleryItem
+                  ? `${activeGalleryItem.quantity}x ${activeGalleryItem.item_name}`
+                  : 'Prévia da Estampa'}
+              </DialogTitle>
+              {galleryItems.length > 1 && (
+                <span className="shrink-0 text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                  {currentImageIndex + 1} de {galleryItems.length}
+                </span>
+              )}
+            </div>
             <DialogDescription className="sr-only">
               Visualização detalhada da estampa para conferência na expedição
             </DialogDescription>
           </DialogHeader>
 
-          <div className="relative w-full aspect-square max-h-[60vh] rounded-xl overflow-hidden bg-slate-950/5 dark:bg-slate-950/40 flex items-center justify-center p-2">
-            {previewImage?.url && (
+          {/* Área da Imagem com Controles de Navegação */}
+          <div
+            className="relative w-full aspect-square max-h-[62vh] rounded-xl overflow-hidden bg-slate-950/5 dark:bg-slate-950/40 flex items-center justify-center p-2 touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {galleryImageUrl ? (
               <img
-                src={previewImage.url}
-                alt={previewImage.title}
-                className="max-h-full w-auto max-w-full object-contain rounded-lg shadow-sm"
+                src={galleryImageUrl}
+                alt={activeGalleryItem?.item_name || 'Estampa'}
+                className="max-h-full w-auto max-w-full object-contain rounded-lg shadow-sm transition-transform duration-200"
               />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Package className="h-8 w-8 animate-spin" />
+                <span className="text-xs">Carregando imagem...</span>
+              </div>
+            )}
+
+            {/* Botão Anterior */}
+            {galleryItems.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevImage();
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 text-white shadow-md transition-all active:scale-95 flex items-center justify-center"
+                title="Estampa anterior (ou deslize para a direita)"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+            )}
+
+            {/* Botão Próximo */}
+            {galleryItems.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNextImage();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 hover:bg-black/70 text-white shadow-md transition-all active:scale-95 flex items-center justify-center"
+                title="Próxima estampa (ou deslize para a esquerda)"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
             )}
           </div>
 
           <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
-            <span>Toque fora para fechar</span>
+            <span className="hidden sm:inline">Use as setas &larr; &rarr; ou deslize na tela</span>
+            <span className="sm:hidden text-[11px]">Deslize para ver outras artes</span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPreviewImage(null)}
+              onClick={() => setPreviewOpen(false)}
               className="h-8 px-3 text-xs font-semibold"
             >
               Fechar
