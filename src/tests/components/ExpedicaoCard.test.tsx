@@ -97,4 +97,49 @@ describe('ExpedicaoCard Component', () => {
     fireEvent.click(undoBtn);
     expect(onToggleExpedition).toHaveBeenCalledWith(1, true);
   });
+
+  it('renders item thumbnail button and opens preview modal on click', async () => {
+    render(
+      <ExpedicaoCard 
+        order={mockOrder} 
+        onOpenDetails={vi.fn()}
+        onToggleExpedition={vi.fn()}
+        isUpdating={false}
+      />
+    );
+
+    const thumbBtn = await screen.findByRole('button', { name: /Ver estampa de Camiseta Básica/i });
+    expect(thumbBtn).toBeInTheDocument();
+
+    fireEvent.click(thumbBtn);
+    expect(await screen.findByText(/Toque fora para fechar/i)).toBeInTheDocument();
+  });
+
+  it('allows expanding items when there are more than 3 items', () => {
+    const orderWithManyItems: OrderWithItems = {
+      ...mockOrder,
+      items: [
+        { id: 1, order_id: 1, item_name: 'Item 1', quantity: 1, status: 'pendente' },
+        { id: 2, order_id: 1, item_name: 'Item 2', quantity: 1, status: 'pendente' },
+        { id: 3, order_id: 1, item_name: 'Item 3', quantity: 1, status: 'pendente' },
+        { id: 4, order_id: 1, item_name: 'Item 4 Extra', quantity: 1, status: 'pendente' },
+      ],
+    };
+
+    render(
+      <ExpedicaoCard 
+        order={orderWithManyItems} 
+        onOpenDetails={vi.fn()}
+        onToggleExpedition={vi.fn()}
+        isUpdating={false}
+      />
+    );
+
+    expect(screen.queryByText('Item 4 Extra')).not.toBeInTheDocument();
+    const expandBtn = screen.getByRole('button', { name: /\+ 1 itens no pedido/i });
+    fireEvent.click(expandBtn);
+
+    expect(screen.getByText('Item 4 Extra')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mostrar menos itens/i })).toBeInTheDocument();
+  });
 });

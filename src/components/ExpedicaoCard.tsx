@@ -1,9 +1,107 @@
+import { useState, useEffect } from 'react';
 import { OrderWithItems } from '../types';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Check, Eye, MapPin, Clock, AlertTriangle, Undo2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import {
+  Check,
+  Eye,
+  MapPin,
+  Clock,
+  AlertTriangle,
+  Undo2,
+  Truck,
+  ZoomIn,
+  Package,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { formatDateForDisplay } from '@/utils/date';
+import { getImagePreviewUrl } from '@/utils/imagePreview';
+
+// Miniatura individual de item com carregamento assíncrono e suporte a toque para prévia
+function ExpedicaoItemThumb({
+  imageRef,
+  itemName,
+  onOpenPreview,
+}: {
+  imageRef?: string | null;
+  itemName: string;
+  onOpenPreview: (url: string, title: string) => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(imageRef));
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!imageRef) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getImagePreviewUrl(imageRef)
+      .then((res) => {
+        if (isMounted) {
+          setUrl(res);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [imageRef]);
+
+  if (!imageRef) {
+    return (
+      <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-border/60 flex items-center justify-center text-muted-foreground/40">
+        <Package className="h-4 w-4" />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (url) {
+          onOpenPreview(url, itemName);
+        }
+      }}
+      disabled={!url}
+      className="relative shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-border/80 overflow-hidden group transition-transform active:scale-95 focus:outline-hidden hover:ring-2 hover:ring-primary/40 cursor-pointer shadow-xs"
+      title="Toque para ampliar a estampa"
+      aria-label={`Ver estampa de ${itemName}`}
+    >
+      {url ? (
+        <>
+          <img src={url} alt={itemName} className="w-full h-full object-cover" loading="lazy" />
+          <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+            <ZoomIn className="h-4 w-4 text-white drop-shadow-md" />
+          </div>
+        </>
+      ) : loading ? (
+        <div className="w-full h-full flex items-center justify-center bg-muted/60 animate-pulse">
+          <Package className="h-4 w-4 text-muted-foreground/30 animate-spin" />
+        </div>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-muted/40 text-muted-foreground/40">
+          <Package className="h-4 w-4" />
+        </div>
+      )}
+    </button>
+  );
+}
 
 interface ExpedicaoCardProps {
   order: OrderWithItems;
@@ -18,6 +116,9 @@ export default function ExpedicaoCard({
   onToggleExpedition,
   isUpdating,
 }: ExpedicaoCardProps) {
+  const [expandedItems, setExpandedItems] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+
   const isAtrasado = () => {
     if (order.expedicao) return false;
     if (!order.data_entrega) return false;
@@ -46,153 +147,236 @@ export default function ExpedicaoCard({
     );
   };
 
+  const items = order.items || [];
+  const displayedItems = expandedItems ? items : items.slice(0, 3);
+  const hasMoreItems = items.length > 3;
+
   return (
-    <Card
-      className={`relative overflow-hidden transition-all duration-300 border hover:shadow-md flex flex-col h-full ${
-        order.expedicao
-          ? 'border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 opacity-80'
-          : isAtrasado()
-          ? 'border-rose-400 bg-rose-50/10'
-          : 'border-border bg-card'
-      }`}
-    >
-      {/* Top indicator stripe */}
-      <div
-        className={`h-1.5 w-full shrink-0 ${
+    <>
+      <Card
+        className={`relative overflow-hidden transition-all duration-300 border hover:shadow-md flex flex-col h-full ${
           order.expedicao
-            ? 'bg-emerald-500'
+            ? 'border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 opacity-80'
             : isAtrasado()
-            ? 'bg-rose-500'
-            : order.prioridade === 'ALTA'
-            ? 'bg-amber-500'
-            : 'bg-slate-300 dark:bg-slate-700'
+            ? 'border-rose-400 bg-rose-50/10'
+            : 'border-border bg-card'
         }`}
-      />
+      >
+        {/* Top indicator stripe */}
+        <div
+          className={`h-1.5 w-full shrink-0 ${
+            order.expedicao
+              ? 'bg-emerald-500'
+              : isAtrasado()
+              ? 'bg-rose-500'
+              : order.prioridade === 'ALTA'
+              ? 'bg-amber-500'
+              : 'bg-slate-300 dark:bg-slate-700'
+          }`}
+        />
 
-      <CardContent className="p-4 sm:p-5 flex-1 flex flex-col space-y-4">
-        {/* Header: Pedido # & Badges & Ações Rápidas */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1 pr-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-              Pedido #{order.numero || order.id}
-            </span>
-            <h4 className="font-bold text-base text-foreground leading-tight line-clamp-1">
-              {order.cliente || order.customer_name}
-            </h4>
-          </div>
-
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            {/* Badges */}
-            <div className="flex items-center gap-1.5">
-              {order.prioridade === 'ALTA' && (
-                <Badge className={getPriorityBadgeColor()}>Urgente</Badge>
-              )}
-              {isAtrasado() && (
-                <Badge variant="destructive" className="animate-pulse">
-                  Atrasado
-                </Badge>
-              )}
-              {order.expedicao ? (
-                <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">Expedido</Badge>
-              ) : null}
+        <CardContent className="p-3.5 sm:p-5 flex-1 flex flex-col space-y-3.5">
+          {/* Header: Pedido # & Badges & Ação Detalhes */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 pr-2 min-w-0">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                Pedido #{order.numero || order.id}
+              </span>
+              <h4 className="font-bold text-base text-foreground leading-tight line-clamp-1">
+                {order.cliente || order.customer_name}
+              </h4>
             </div>
-            
-            {/* Ações Secundárias (Ficha e Detalhes) */}
-            <div className="flex items-center gap-1">
 
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {/* Badges */}
+              <div className="flex items-center gap-1.5">
+                {order.prioridade === 'ALTA' && (
+                  <Badge className={getPriorityBadgeColor()}>Urgente</Badge>
+                )}
+                {isAtrasado() && (
+                  <Badge variant="destructive" className="animate-pulse">
+                    Atrasado
+                  </Badge>
+                )}
+                {order.expedicao ? (
+                  <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">Expedido</Badge>
+                ) : null}
+              </div>
+
+              {/* Botão Ver Detalhes (Drawer Completo) */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => onOpenDetails(order)}
-                className="h-10 w-10 text-slate-500 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center"
-                title="Ver Detalhes"
+                className="h-10 w-10 text-slate-500 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full flex items-center justify-center transition-colors"
+                title="Ver Detalhes do Pedido"
                 aria-label="Ver Detalhes"
               >
                 <Eye className="h-5 w-5" />
               </Button>
             </div>
           </div>
-        </div>
 
-        {/* Localização & Info Extra */}
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 items-center">
-          {order.cidade_cliente && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              {order.cidade_cliente}/{order.estado_cliente || ''}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            Entrega: {formatDateForDisplay(order.data_entrega ?? null, '-')}
-          </span>
-        </div>
-
-        {/* Lista de itens compacta */}
-        <div className="text-xs font-medium text-slate-700 dark:text-slate-300 border-t border-border/60 pt-2.5 space-y-1.5">
-          {(order.items || []).slice(0, 3).map((item) => (
-            <div key={item.id} className="flex items-center gap-1.5">
-              <span className="truncate leading-tight flex-1">
-                <span className="font-bold">{item.quantity}x</span> {item.item_name}
-              </span>
-              {item.tipo_producao && (
-                <span className="text-[9px] uppercase font-bold text-slate-400 shrink-0">
-                  {item.tipo_producao}
+          {/* Localização & Data de Entrega & Forma de Envio */}
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1.5 items-center">
+            {order.cidade_cliente && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <span className="truncate max-w-[140px] sm:max-w-none">
+                  {order.cidade_cliente}/{order.estado_cliente || ''}
                 </span>
-              )}
-            </div>
-          ))}
-          {(order.items || []).length > 3 && (
-            <div className="text-[10px] text-muted-foreground pt-1 font-bold">
-              + {(order.items || []).length - 3} itens no pedido
+              </span>
+            )}
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              Entrega: {formatDateForDisplay(order.data_entrega ?? null, '-')}
+            </span>
+            {order.forma_envio && (
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground/80 bg-muted/80 px-2 py-0.5 rounded text-[10px] tracking-tight">
+                <Truck className="h-3 w-3 text-primary shrink-0" />
+                {order.forma_envio}
+              </span>
+            )}
+          </div>
+
+          {/* Lista de itens com prévia visual da estampa */}
+          <div className="border-t border-border/60 pt-2.5 space-y-2">
+            {displayedItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-muted/40 transition-colors"
+              >
+                <ExpedicaoItemThumb
+                  imageRef={item.imagem}
+                  itemName={item.item_name}
+                  onOpenPreview={(url, title) =>
+                    setPreviewImage({ url, title: `${item.quantity}x ${title}` })
+                  }
+                />
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <span className="font-semibold text-xs sm:text-sm text-foreground leading-tight line-clamp-2">
+                      <span className="font-bold text-primary mr-1">{item.quantity}x</span>
+                      {item.item_name}
+                    </span>
+                    {item.tipo_producao && (
+                      <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded shrink-0">
+                        {item.tipo_producao}
+                      </span>
+                    )}
+                  </div>
+                  {item.tipo_acabamento && item.tipo_acabamento !== 'nenhum' && (
+                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
+                      Acabamento: {item.tipo_acabamento}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Alternar expansão de itens extras direto no card */}
+            {hasMoreItems && (
+              <button
+                type="button"
+                onClick={() => setExpandedItems(!expandedItems)}
+                className="w-full text-center py-1.5 text-[11px] font-bold text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1 cursor-pointer select-none bg-primary/5 hover:bg-primary/10 rounded-md"
+              >
+                {expandedItems ? (
+                  <>
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    Mostrar menos itens
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5" />+ {items.length - 3} itens no pedido
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Observação visível diretamente no card */}
+          {order.observacao && (
+            <div className="text-[11px] bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 p-2 rounded-md border border-amber-200/50 dark:border-amber-900/30 font-medium flex items-start gap-1.5 line-clamp-3">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span className="whitespace-pre-wrap leading-tight">{order.observacao}</span>
             </div>
           )}
-        </div>
 
-        {/* Observação visível diretamente no card */}
-        {order.observacao && (
-          <div className="text-[11px] bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 p-2 rounded-md border border-amber-200/50 dark:border-amber-900/30 font-medium flex items-start gap-1.5 line-clamp-3">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <span className="whitespace-pre-wrap leading-tight">{order.observacao}</span>
+          {/* Status de produção linear */}
+          <div className="flex flex-wrap gap-1 items-center pt-2 mt-auto pb-1">
+            {getStatusBadge(order.financeiro, 'Fin')}
+            {getStatusBadge(order.conferencia, 'Conf')}
+            {getStatusBadge(order.sublimacao, 'Sub')}
+            {getStatusBadge(order.costura, 'Cost')}
+            {getStatusBadge(order.expedicao, 'Exp')}
+            {getStatusBadge(order.pronto, 'Pronto')}
           </div>
-        )}
 
-        {/* Status de produção linear */}
-        <div className="flex flex-wrap gap-1 items-center pt-2 mt-auto pb-2">
-          {getStatusBadge(order.financeiro, 'Fin')}
-          {getStatusBadge(order.conferencia, 'Conf')}
-          {getStatusBadge(order.sublimacao, 'Sub')}
-          {getStatusBadge(order.costura, 'Cost')}
-          {getStatusBadge(order.expedicao, 'Exp')}
-          {getStatusBadge(order.pronto, 'Pronto')}
-        </div>
+          {/* Ação Principal: Expedir ou Desfazer com botão grande e touch-friendly */}
+          <div className="pt-2 border-t border-border/40">
+            {order.expedicao ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isUpdating}
+                onClick={() => onToggleExpedition(order.id, true)}
+                className="w-full h-11 font-semibold gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors"
+              >
+                <Undo2 className="h-4 w-4" />
+                Desfazer Expedição
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                disabled={isUpdating}
+                onClick={() => onToggleExpedition(order.id, false)}
+                className="w-full h-14 font-bold text-base sm:text-lg gap-2 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <Check className="h-6 w-6" />
+                EXPEDIR PEDIDO
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Ação Principal: Expedir ou Desfazer */}
-        <div className="pt-2 border-t border-border/40">
-          {order.expedicao ? (
+      {/* Modal Lightbox de Prévia Rápida da Estampa */}
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-md w-[92vw] p-4 bg-background/95 backdrop-blur-md rounded-2xl border shadow-2xl overflow-hidden">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate pr-6">
+              {previewImage?.title}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Visualização detalhada da estampa para conferência na expedição
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative w-full aspect-square max-h-[60vh] rounded-xl overflow-hidden bg-slate-950/5 dark:bg-slate-950/40 flex items-center justify-center p-2">
+            {previewImage?.url && (
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-h-full w-auto max-w-full object-contain rounded-lg shadow-sm"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
+            <span>Toque fora para fechar</span>
             <Button
               variant="outline"
               size="sm"
-              disabled={isUpdating}
-              onClick={() => onToggleExpedition(order.id, true)}
-              className="w-full h-10 font-semibold gap-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors"
+              onClick={() => setPreviewImage(null)}
+              className="h-8 px-3 text-xs font-semibold"
             >
-              <Undo2 className="h-4 w-4" />
-              Desfazer Expedição
+              Fechar
             </Button>
-          ) : (
-            <Button
-              size="lg"
-              disabled={isUpdating}
-              onClick={() => onToggleExpedition(order.id, false)}
-              className="w-full h-14 font-bold text-lg gap-2 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white transition-all active:scale-[0.98]"
-            >
-              <Check className="h-6 w-6" />
-              EXPEDIR PEDIDO
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
