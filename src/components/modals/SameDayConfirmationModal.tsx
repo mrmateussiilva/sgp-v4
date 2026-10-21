@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Clock, CalendarCheck, AlertTriangle } from 'lucide-react';
+import { Clock, CalendarCheck } from 'lucide-react';
 import { getSameDayDetails } from '@/utils/date';
 
 interface SameDayConfirmationModalProps {

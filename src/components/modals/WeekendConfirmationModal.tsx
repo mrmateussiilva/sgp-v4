@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarCheck, ShieldAlert } from 'lucide-react';
+import { CalendarCheck, ShieldAlert } from 'lucide-react';
 import { getWeekendDetails } from '@/utils/date';
 
 interface WeekendConfirmationModalProps {
