@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { groupOrders } from '../pdf/groupOrders';
 import { saveAndOpenPdf } from '../pdf/tauriPdfUtils';
 import { imageToBase64 } from '@/utils/imageLoader';
+import { logger } from '@/utils/logger';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -79,7 +80,8 @@ const preFetchImages = async (orders: OrderWithItems[]): Promise<OrderWithItems[
         try {
           const base64 = await imageToBase64(item.imagem);
           itemsWithBase64.push({ ...item, imagem: base64 });
-        } catch {
+        } catch (imgError) {
+          logger.warn(`[printOrderServiceForm] Falha ao converter imagem do item "${item.descricao || item.id}" para PDF:`, imgError);
           // Converter falhou: zerar imagem para evitar caixa azul quebrada no PDF
           itemsWithBase64.push({ ...item, imagem: undefined });
         }
@@ -123,11 +125,14 @@ export const printOrderServiceForm = async (
   // @ts-expect-error - JSX element
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
-  // Nome do arquivo
-  const orderIdentifier = String(orderForPrint.numero || orderForPrint.id || 'pedido').trim();
-  // Nome do arquivo com timestamp para evitar cache
-  const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
-  const filename = `Ficha-${orderIdentifier}-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
+  // Nome do arquivo sanitizado para compatibilidade Windows
+  const orderIdentifier = String(orderForPrint.numero || orderForPrint.id || 'pedido')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const timestamp = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+  const filename = `Ficha-${orderIdentifier}-${localDate}_${timestamp}.pdf`;
 
   // Salvar e abrir via Tauri
   await saveAndOpenPdf(blob, filename);
@@ -164,9 +169,11 @@ export const generateMultipleOrdersPdfBlob = async (
   // @ts-expect-error - JSX element
   const blob = await pdf(React.createElement(ProductionReportPDF, { pedidos: grouped })).toBlob();
 
-  // Nome do arquivo com timestamp para evitar cache
-  const timestamp = new Date().toLocaleTimeString('pt-BR').replace(/:/g, '-');
-  const filename = `Fichas-Multiplas-${new Date().toISOString().split('T')[0]}_${timestamp}.pdf`;
+  // Nome do arquivo com timestamp e data local para evitar fuso incorreto
+  const now = new Date();
+  const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const timestamp = now.toLocaleTimeString('pt-BR').replace(/:/g, '-');
+  const filename = `Fichas-Multiplas-${localDate}_${timestamp}.pdf`;
 
   return { blob, filename };
 };

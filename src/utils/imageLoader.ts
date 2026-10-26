@@ -1,4 +1,4 @@
-import { apiClient, getApiUrl } from '../api/client';
+import { apiClient, getApiUrl, isSameOriginAsApi } from '../api/client';
 import { getLocalImagePath, loadLocalImageAsBase64, cacheImageFromUrl } from './localImageManager';
 import { isTauri } from './isTauri';
 
@@ -253,18 +253,30 @@ async function _doLoadAuthenticatedImage(normalized: string): Promise<string> {
 
   // Se já for URL completa (http/https), usar diretamente sem baseURL
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-    const response = await apiClient.get(normalized, {
-      responseType: 'blob',
-      baseURL: '', // Não usar baseURL para URLs completas
-    });
+    let blob: Blob;
+    const isSameOrigin = isSameOriginAsApi(normalized, getApiUrl());
 
-    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+    if (!isSameOrigin) {
+      // URL de terceiro/externa: usar fetch nativo para não enviar token de sessão
+      const response = await fetch(normalized);
+      if (!response.ok) {
+        throw new Error(`Falha ao carregar imagem externa: status ${response.status}`);
+      }
+      blob = await response.blob();
+    } else {
+      const response = await apiClient.get(normalized, {
+        responseType: 'blob',
+        baseURL: '', // Não usar baseURL para URLs completas
+      });
+      blob = new Blob([response.data], { type: response.headers['content-type'] || 'image/jpeg' });
+    }
+
     const blobUrl = URL.createObjectURL(blob);
     // Salvar usando apenas caminho normalizado (chave única)
     addToCache(normalized, blobUrl, blob);
 
     // Se estiver em Tauri, cachear a imagem localmente para próximas vezes
-    if (isTauri() && response.data) {
+    if (isTauri() && blob.size > 0) {
       try {
         const arrayBuffer = await blob.arrayBuffer();
         const imageData = new Uint8Array(arrayBuffer);

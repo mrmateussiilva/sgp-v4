@@ -29,6 +29,14 @@ describe('currency utilities', () => {
             expect(parseMonetary('1234567.89')).toBe(1234567.89);
         });
 
+        it('deve parsear string com 1 casa decimal sem remover o ponto', () => {
+            expect(parseMonetary('12.5')).toBe(12.5);
+            expect(parseMonetary('10.5')).toBe(10.5);
+            expect(parseMonetary('0.5')).toBe(0.5);
+            expect(parseMonetary('150.8')).toBe(150.8);
+            expect(parseMonetary('1.500')).toBe(1500); // 3 dígitos após ponto = milhar BR
+        });
+
         it('deve tratar valor exatamente 1000 corretamente (NÃO dividir por 100)', () => {
             expect(parseMonetary(1000)).toBe(1000);
             expect(parseMonetary('1000')).toBe(1000);

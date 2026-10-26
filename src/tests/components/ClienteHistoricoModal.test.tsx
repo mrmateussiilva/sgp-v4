@@ -133,4 +133,119 @@ describe('ClienteHistoricoModal Component', () => {
     expect(screen.getByText('10x')).toBeInTheDocument();
     expect(screen.getByText('2x')).toBeInTheDocument();
   });
+
+  it('calcula métricas monetárias preservando centavos com strings no padrão BR e ignora cancelados', async () => {
+    const ordersWithStrings = [
+      {
+        id: 201,
+        numero: '0000000201',
+        cliente: 'Andres Martins',
+        data_entrada: '2026-10-01',
+        status: OrderStatus.Pendente,
+        valor_total: '150,50', // string formatada
+        items: [
+          {
+            id: 1,
+            tipo_producao: 'painel',
+            descricao: 'PAINEL FESTA',
+            quantidade_paineis: '2',
+            valor_unitario: '75,25', // 2 * 75,25 = 150,50
+            largura: '2,00',
+            altura: '2,00',
+          },
+        ],
+      },
+      {
+        id: 202,
+        numero: '0000000202',
+        cliente: 'Andres Martins',
+        data_entrada: '2026-10-02',
+        status: OrderStatus.Cancelado, // Cancelado: não deve entrar na soma financeira!
+        valor_total: '5000,00',
+        items: [
+          {
+            id: 2,
+            tipo_producao: 'painel',
+            descricao: 'PAINEL CANCELADO',
+            quantidade_paineis: '10',
+            valor_unitario: '500,00',
+          },
+        ],
+      },
+    ];
+
+    (api.getOrdersPaginated as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      orders: ordersWithStrings,
+      total: 2,
+    });
+
+    render(
+      <ClienteHistoricoModal
+        cliente={mockCliente}
+        isOpen={true}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      // Deve exibir R$ 150,50 (e NÃO R$ 150,00 do parseInt, e NÃO R$ 5.150,50 somando o cancelado)
+      expect(screen.getAllByText('R$ 150,50').length).toBeGreaterThan(0);
+    });
+
+    // O item do pedido cancelado não deve aparecer no resumo de itens comprados
+    expect(screen.queryByText('PAINEL CANCELADO')).not.toBeInTheDocument();
+  });
+
+  it('diferencia itens com a mesma descrição mas medidas diferentes', async () => {
+    const ordersDifferentSizes = [
+      {
+        id: 301,
+        numero: '0000000301',
+        cliente: 'Andres Martins',
+        data_entrada: '2026-10-01',
+        status: OrderStatus.Pronto,
+        valor_total: 200,
+        items: [
+          {
+            id: 1,
+            tipo_producao: 'painel',
+            descricao: 'PAINEL BOSQUE',
+            quantidade_paineis: '1',
+            largura: '1,50',
+            altura: '1,50',
+          },
+          {
+            id: 2,
+            tipo_producao: 'painel',
+            descricao: 'PAINEL BOSQUE',
+            quantidade_paineis: '2',
+            largura: '3,00',
+            altura: '2,00',
+          },
+        ],
+      },
+    ];
+
+    (api.getOrdersPaginated as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      orders: ordersDifferentSizes,
+      total: 1,
+    });
+
+    render(
+      <ClienteHistoricoModal
+        cliente={mockCliente}
+        isOpen={true}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('1,50m × 1,50m')).toBeInTheDocument();
+      expect(screen.getByText('3,00m × 2,00m')).toBeInTheDocument();
+    });
+
+    // Ambas as variações foram discriminadas
+    expect(screen.getByText('1x')).toBeInTheDocument();
+    expect(screen.getByText('2x')).toBeInTheDocument();
+  });
 });

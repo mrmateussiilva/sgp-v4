@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { Cliente, OrderWithItems, OrderStatus } from '@/types';
 import { api } from '@/services/api';
-import { formatCurrency } from '@/utils/currency';
+import { formatCurrency, parseMonetary } from '@/utils/currency';
 import { formatDateForDisplay } from '@/utils/date';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
@@ -99,6 +99,16 @@ const TIPO_LABELS: Record<string, { label: string; icon: typeof Package }> = {
   },
 };
 
+interface ClienteMetrics {
+  totalOrdersCount: number;
+  totalSpent: number;
+  totalItemsCount: number;
+  averageTicket: number;
+  firstDate: string | null;
+  lastDate: string | null;
+  latestOrder: OrderWithItems | null;
+}
+
 export function ClienteHistoricoModal({
   cliente,
   isOpen,
@@ -125,6 +135,7 @@ export function ClienteHistoricoModal({
     let active = true;
 
     if (isOpen && cliente?.nome) {
+      setOrders([]); // Limpar histórico do cliente anterior imediatamente
       setLoading(true);
       api.getOrdersPaginated(1, 100, undefined, cliente.nome)
         .then((res) => {
@@ -137,7 +148,7 @@ export function ClienteHistoricoModal({
           if (active) setOrders([]);
         })
         .finally(() => {
-          if (active) setLoading(false);
+          setLoading(false);
         });
     } else {
       setOrders([]);
@@ -149,22 +160,34 @@ export function ClienteHistoricoModal({
   }, [isOpen, cliente?.nome]);
 
   // Estatísticas consolidadas do cliente
-  const metrics = useMemo(() => {
-    const totalOrdersCount = orders.length;
+  const metrics = useMemo<ClienteMetrics>(() => {
+    // Pedidos válidos (exclui cancelados das métricas financeiras e de produção)
+    const validOrders = orders.filter((o) => {
+      const statusStr = String(o.status || '').toLowerCase();
+      return o.status !== OrderStatus.Cancelado && statusStr !== 'cancelado';
+    });
+
+    const totalOrdersCount = validOrders.length;
     let totalSpent = 0;
     let totalItemsCount = 0;
     let firstDate: string | null = null;
     let lastDate: string | null = null;
+    let latestOrder: OrderWithItems | null = null;
 
     orders.forEach((o) => {
-      const val = typeof o.valor_total === 'string' ? parseFloat(o.valor_total) : (o.valor_total || 0);
-      if (!isNaN(val)) totalSpent += val;
-
       const dateStr = o.data_entrada || o.created_at;
       if (dateStr) {
         if (!firstDate || dateStr < firstDate) firstDate = dateStr;
-        if (!lastDate || dateStr > lastDate) lastDate = dateStr;
+        if (!lastDate || dateStr > lastDate) {
+          lastDate = dateStr;
+          latestOrder = o;
+        }
       }
+    });
+
+    validOrders.forEach((o) => {
+      const val = parseMonetary(o.valor_total);
+      totalSpent += val;
 
       (o.items || []).forEach((item) => {
         const q =
@@ -187,6 +210,7 @@ export function ClienteHistoricoModal({
       averageTicket,
       firstDate,
       lastDate,
+      latestOrder,
     };
   }, [orders]);
 
@@ -196,6 +220,10 @@ export function ClienteHistoricoModal({
     const productCountMap = new Map<string, { descricao: string; tipo: string; count: number }>();
 
     orders.forEach((order) => {
+      const isCancelled =
+        order.status === OrderStatus.Cancelado || String(order.status || '').toLowerCase() === 'cancelado';
+      if (isCancelled) return;
+
       (order.items || []).forEach((item) => {
         const rawTipo = (item.tipo_producao || 'generica').toLowerCase();
         const rawDesc = (item.descricao || item.item_name || '').toLowerCase();
@@ -241,12 +269,9 @@ export function ClienteHistoricoModal({
           Number(item.quantity) ||
           1;
 
-        const unitVal =
-          typeof item.valor_unitario === 'string'
-            ? parseFloat(item.valor_unitario)
-            : (item.unit_price || 0);
-
-        const subtotal = !isNaN(unitVal) ? unitVal * qty : 0;
+        const rawUnit = item.valor_unitario ?? item.unit_price;
+        const unitVal = parseMonetary(rawUnit);
+        const subtotal = unitVal * qty;
 
         // Medidas formatadas
         const medidas =
@@ -271,8 +296,13 @@ export function ClienteHistoricoModal({
         entry.totalQty += qty;
         entry.totalValor += subtotal;
 
-        // Procura se já temos item com essa descrição no grupo
-        const existingSub = entry.items.find((i) => i.descricao.toLowerCase() === descricao.toLowerCase());
+        // Procura se já temos item com essa descrição, mesma medida e mesmo tecido no grupo
+        const existingSub = entry.items.find(
+          (i) =>
+            i.descricao.toLowerCase() === descricao.toLowerCase() &&
+            i.medidas === medidas &&
+            i.tecido === item.tecido
+        );
         if (existingSub) {
           existingSub.qty += qty;
         } else {
@@ -285,7 +315,7 @@ export function ClienteHistoricoModal({
         }
 
         // Contador individual de produtos
-        const pKey = `${normalizedTipo}::${descricao.toLowerCase()}`;
+        const pKey = `${normalizedTipo}::${descricao.toLowerCase()}::${medidas || ''}`;
         if (!productCountMap.has(pKey)) {
           productCountMap.set(pKey, { descricao, tipo: normalizedTipo, count: 0 });
         }
@@ -550,7 +580,7 @@ export function ClienteHistoricoModal({
                     {metrics.lastDate ? formatDateForDisplay(metrics.lastDate) : '—'}
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {orders[0] ? `Pedido #${orders[0].numero || orders[0].id}` : 'Sem registro'}
+                    {metrics.latestOrder ? `Pedido #${metrics.latestOrder.numero || metrics.latestOrder.id}` : 'Sem registro'}
                   </p>
                 </div>
               </div>
@@ -780,10 +810,7 @@ export function ClienteHistoricoModal({
               ) : (
                 <div className="space-y-3">
                   {filteredOrders.map((order) => {
-                    const orderVal =
-                      typeof order.valor_total === 'string'
-                        ? parseFloat(order.valor_total)
-                        : (order.valor_total || 0);
+                    const orderVal = parseMonetary(order.valor_total);
 
                     return (
                       <div

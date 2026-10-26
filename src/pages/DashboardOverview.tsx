@@ -73,29 +73,32 @@ export default function DashboardOverview() {
       setIsRefreshing(true);
       setError(null);
 
+      const pageSize = 100;
+      const MAX_PAGES = 10; // Teto de segurança: até 1000 pedidos para análise local
+
       // Carregar o resumo estatístico e a 1ª página em paralelo
       const [summaryResult, initialOrdersResult] = await Promise.all([
         api.getDashboardSummary(),
-        api.getOrdersPaginated(1, 100),
+        api.getOrdersPaginated(1, pageSize),
       ]);
 
       setSummary(summaryResult);
 
-      let allOrders = [...initialOrdersResult.orders];
-      const totalPages = initialOrdersResult.total_pages;
-      const pageSize = 100;
-      const maxPagesToFetch = Math.min(5, totalPages);
+      let allOrders = [...(initialOrdersResult?.orders || [])];
 
-      // Disparar páginas restantes em paralelo com Promise.all para carregar até 500 pedidos instantaneamente
-      if (maxPagesToFetch >= 2) {
-        const remainingPagePromises = [];
-        for (let p = 2; p <= maxPagesToFetch; p++) {
-          remainingPagePromises.push(api.getOrdersPaginated(p, pageSize));
+      // Se a primeira página veio cheia (pageSize), buscar páginas subsequentes até esgotar ou bater o teto
+      if (initialOrdersResult?.orders?.length === pageSize) {
+        for (let p = 2; p <= MAX_PAGES; p++) {
+          const pageRes = await api.getOrdersPaginated(p, pageSize);
+          const pageOrders = pageRes?.orders || [];
+          if (pageOrders.length > 0) {
+            allOrders = allOrders.concat(pageOrders);
+          }
+          // Se retornou menos que o tamanho da página, chegamos ao final
+          if (pageOrders.length < pageSize) {
+            break;
+          }
         }
-        const remainingResults = await Promise.all(remainingPagePromises);
-        remainingResults.forEach((res) => {
-          allOrders = allOrders.concat(res.orders);
-        });
       }
 
       setOrders(allOrders);
@@ -112,12 +115,13 @@ export default function DashboardOverview() {
       const errorMessage = err?.response?.data?.detail || err?.message || 'Erro de conexão com o servidor';
       setError(errorMessage);
 
-      // Verificar se é erro de sessão
-      if (
-        errorMessage.toLowerCase().includes('sessão') ||
-        errorMessage.toLowerCase().includes('token') ||
-        err?.response?.status === 401
-      ) {
+      // Verificar se é erro de autenticação ou sessão expirada
+      const isAuthError =
+        err?.response?.status === 401 ||
+        err?.status === 401 ||
+        errorMessage === 'Sessão expirada. Faça login novamente.';
+
+      if (isAuthError) {
         toast({
           title: 'Sessão expirada',
           description: 'Faça login novamente para continuar.',

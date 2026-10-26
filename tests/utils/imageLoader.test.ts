@@ -8,6 +8,13 @@ vi.mock('../../src/api/client', () => ({
         get: vi.fn(),
     },
     getApiUrl: vi.fn().mockReturnValue('http://localhost:8000/'),
+    isSameOriginAsApi: vi.fn((url: string, baseUrl: string) => {
+        try {
+            return new URL(url).origin === new URL(baseUrl).origin;
+        } catch {
+            return true;
+        }
+    }),
 }));
 
 vi.mock('../../src/utils/localImageManager', () => ({
@@ -85,5 +92,22 @@ describe('imageLoader - LRU Cache', () => {
 
         // Limpar nao revoga nada ainda de fora do cache bounds.
         expect(revokeObjectURLMock).not.toHaveBeenCalled();
+    });
+
+    it('deve usar fetch nativo e nao chamar apiClient.get para URLs de terceiros', async () => {
+        const externalUrl = 'https://external-s3.amazonaws.com/uploads/banner.jpg';
+        const fakeBlob = new Blob(['external-image-bytes'], { type: 'image/jpeg' });
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            ok: true,
+            status: 200,
+            blob: vi.fn().mockResolvedValue(fakeBlob),
+        } as any);
+
+        const resultUrl = await loadAuthenticatedImage(externalUrl);
+
+        expect(fetchSpy).toHaveBeenCalledWith(externalUrl);
+        expect(apiClient.get).not.toHaveBeenCalled();
+        expect(resultUrl).toContain('blob:mock-url-');
+        fetchSpy.mockRestore();
     });
 });

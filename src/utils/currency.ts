@@ -46,25 +46,16 @@ export const parseMonetary = (value: unknown): MonetaryValue => {
             const dotCount = (trimmed.match(/\./g) || []).length;
 
             if (dotCount === 1) {
-                // Um único ponto: pode ser milhar (1.500) ou decimal (1500.00)
+                // Um único ponto: se tem exatamente 3 dígitos após o ponto (ex: 1.500), é milhar brasileiro
                 const parts = trimmed.split('.');
                 const afterDot = parts[1];
 
-                // Se tem exatamente 2 dígitos após o ponto E o valor antes é >= 1000,
-                // provavelmente é decimal no formato US (1500.00)
-                // Caso contrário, é separador de milhar brasileiro (1.500)
-                if (afterDot.length === 2 && Number.parseInt(parts[0], 10) >= 1000) {
-                    // Formato US: 1500.00
-                    normalized = trimmed;
-                } else if (afterDot.length === 3) {
-                    // Claramente separador de milhar: 1.500
+                if (afterDot.length === 3) {
+                    // Separador de milhar brasileiro: 1.500 -> 1500
                     normalized = trimmed.replace(/\./g, '');
-                } else if (afterDot.length === 2 && Number.parseInt(parts[0], 10) < 1000) {
-                    // Formato decimal: 50.50
-                    normalized = trimmed;
                 } else {
-                    // Padrão: assumir separador de milhar se não for óbvio
-                    normalized = trimmed.replace(/\./g, '');
+                    // Padrão decimal (ex: 12.5, 50.50, 1500.00, 0.75)
+                    normalized = trimmed;
                 }
             } else {
                 // Múltiplos pontos: separadores de milhar (1.234.567)

@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 import { applyTauriAdapter, setAdapterFallbackBaseUrl } from '../services/tauriAxiosAdapter';
 import { logger } from '../utils/logger';
 import { hybridClient } from '../services/hybridClient';
+import { useAuthStore } from '../store/authStore';
 
 // Endpoints para verificação de conexão (sem autenticação)
 const STATUS_ENDPOINTS = ['/health'];
@@ -19,11 +20,38 @@ const apiClient: AxiosInstance = axios.create({
 
 applyTauriAdapter(apiClient);
 
+export function isSameOriginAsApi(url: string | undefined, baseUrl: string): boolean {
+  if (!url) return true;
+  // Se for relativa, será resolvida na baseURL da própria API
+  if (!/^https?:\/\//i.test(url)) {
+    return true;
+  }
+  if (!baseUrl) {
+    return false;
+  }
+  try {
+    const urlObj = new URL(url);
+    const baseWithProto = /^https?:\/\//i.test(baseUrl) ? baseUrl : `http://${baseUrl}`;
+    const baseObj = new URL(baseWithProto);
+    return urlObj.origin === baseObj.origin;
+  } catch {
+    return false;
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   const headers = config.headers ?? {} as Record<string, string>;
 
-  if (authToken) {
+  const effectiveBaseUrl = config.baseURL || API_BASE_URL;
+  const isTargetSameOrigin = isSameOriginAsApi(config.url, effectiveBaseUrl);
+  const skipAuth = headers['X-No-Auth'] === 'true';
+
+  if (authToken && !skipAuth && isTargetSameOrigin) {
     headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  if (headers['X-No-Auth']) {
+    delete headers['X-No-Auth'];
   }
 
   // Bypass ngrok browser warning for all requests
@@ -36,14 +64,21 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    // Log detalhado para erros 422 (Unprocessable Entity)
+    // Log detalhado para erros 422 (Unprocessable Entity) com headers sanitizados
     if (error.response?.status === 422) {
+      const sanitizedHeaders = { ...(error.config?.headers as Record<string, unknown> | undefined) };
+      if (sanitizedHeaders.Authorization) {
+        sanitizedHeaders.Authorization = 'Bearer ***';
+      }
+      if (sanitizedHeaders.authorization) {
+        sanitizedHeaders.authorization = 'Bearer ***';
+      }
       logger.error('[API Client] Erro 422 - Unprocessable Entity:', {
         url: error.config?.url,
         method: error.config?.method,
         data: error.config?.data,
         responseData: error.response?.data,
-        headers: error.config?.headers,
+        headers: sanitizedHeaders,
       });
     }
 
@@ -51,6 +86,20 @@ apiClient.interceptors.response.use(
     // Isso evita que falhas em chamadas não essenciais (ex: logout) acionem a tela de fallback
     const isSilent = error.config?.headers?.['X-Silent-Request'] === 'true';
     const isCancel = axios.isCancel(error);
+
+    // Tratamento global de 401 Unauthorized (sessão expirada / token inválido)
+    if (error.response?.status === 401) {
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      if (!isLoginRequest && !isSilent) {
+        logger.warn('[API Client] 401 Unauthorized recebido. Deslogando usuário...');
+        setAuthToken(null);
+        try {
+          useAuthStore.getState().logout();
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     if (!error.response && !isSilent && !isCancel) {
       listeners.forEach((listener) => listener(error));
@@ -102,6 +151,7 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
         timeout,
         headers: {
           'Accept': 'application/json',
+          'X-No-Auth': 'true',
         },
         // Aceitar qualquer status HTTP (mesmo 401/403/404) como indicação de que API está acessível
         validateStatus: () => true,
@@ -163,6 +213,9 @@ export async function verifyApiConnection(baseUrl: string): Promise<string> {
 }
 
 export function setAuthToken(token: string | null): void {
+  if (authToken === token) {
+    return;
+  }
   authToken = token;
   hybridClient.syncAuthAndConfig(API_BASE_URL, authToken);
 }

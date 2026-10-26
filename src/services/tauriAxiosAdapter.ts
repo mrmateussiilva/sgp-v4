@@ -83,7 +83,6 @@ async function getResponseData(response: Response, responseType?: AxiosRequestCo
 
     if (responseType === 'blob') {
       const blob = await response.blob();
-      if (blob.size === 0) return null;
       return blob;
     }
 
@@ -133,9 +132,29 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     });
   }
 
+  const controller = new AbortController();
+  let isTimeout = false;
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+
+  if (config.timeout && config.timeout > 0) {
+    timerId = setTimeout(() => {
+      isTimeout = true;
+      controller.abort();
+    }, config.timeout);
+  }
+
+  if (config.signal) {
+    if (config.signal.aborted) {
+      controller.abort();
+    } else if (typeof config.signal.addEventListener === 'function') {
+      config.signal.addEventListener('abort', () => controller.abort());
+    }
+  }
+
   const fetchOptions: RequestInit = {
     method,
     headers,
+    signal: controller.signal,
   };
 
   if (config.data !== undefined && config.data !== null) {
@@ -165,9 +184,32 @@ const tauriAxiosAdapter: AxiosAdapter = async (config) => {
     }
   }
 
-  const response = await fetch(url, fetchOptions);
-
   const requestInfo = { url, method, headers: Object.fromEntries(headers.entries()) };
+  let response: Response;
+
+  try {
+    response = await fetch(url, fetchOptions);
+  } catch (err: any) {
+    if (isTimeout) {
+      throw new AxiosError(
+        `timeout of ${config.timeout}ms exceeded`,
+        AxiosError.ECONNABORTED,
+        config,
+        requestInfo
+      );
+    }
+    if (controller.signal.aborted) {
+      throw new AxiosError('canceled', AxiosError.ERR_CANCELED, config, requestInfo);
+    }
+    throw new AxiosError(
+      err?.message || 'Network Error',
+      AxiosError.ERR_NETWORK,
+      config,
+      requestInfo
+    );
+  } finally {
+    if (timerId) clearTimeout(timerId);
+  }
 
   const data = await getResponseData(response, config.responseType);
 

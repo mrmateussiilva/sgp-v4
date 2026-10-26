@@ -142,11 +142,6 @@ export default function Login() {
                     setPassword(e.target.value);
                     setErrorStatus(null);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSubmit();
-                    }
-                  }}
                   required
                   className={cn(
                     "h-12 pr-12 bg-slate-50/50 transition-all duration-300 border-slate-200 focus:bg-white focus:ring-primary/10",
@@ -188,7 +183,16 @@ export default function Login() {
               </Button>
 
               <div className="text-center">
-                <button type="button" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast({
+                      title: "Recuperação de Senha",
+                      description: "Para redefinir sua senha de acesso, contate o administrador do sistema.",
+                    });
+                  }}
+                  className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest"
+                >
                   Esqueceu sua senha?
                 </button>
               </div>
@@ -199,7 +203,7 @@ export default function Login() {
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3">
                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">
-                  © FinderBit • SGP v{import.meta.env.VITE_APP_VERSION || '1.5.0'}
+                  © FinderBit • SGP v{import.meta.env.VITE_APP_VERSION || '1.5.4'}
                 </p>
                 <div className="h-1 w-1 rounded-full bg-slate-200" />
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100">

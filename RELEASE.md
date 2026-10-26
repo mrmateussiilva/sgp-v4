@@ -1,5 +1,30 @@
 # Release
 
+## v1.5.4 — 2026-10-26
+
+### 🛡️ Segurança & Prevenção de Vazamento de Credenciais
+- **Proteção de Mesma Origem (`isSameOriginAsApi`)**: Interceptor de requisições restrito exclusivamente à mesma origem (`API_BASE_URL`), impedindo que o token `Bearer` seja enviado para URLs de terceiros.
+- **Carregador de Imagens Externas Isolado**: Download de imagens de servidores externos utilizando `fetch` nativo desprovido de tokens ou cookies de sessão.
+- **Ping de Conexão com `X-No-Auth`**: Eliminação de envio de token no teste inicial de conectividade da API.
+- **Sanitização de Headers 422**: Mascaramento automático de tokens em logs de erro no console.
+
+### 📊 Dashboard & Paginação Real
+- **Carregamento Completo**: Resolução do gargalo que travava a sincronização local em 2 páginas (200 pedidos). O dashboard agora itera sequencialmente até o esgotamento real ou teto de 1000 pedidos.
+- **Tratamento de Sessão Preciso**: Logout restrito a respostas HTTP 401 reais, eliminando falso positivo em mensagens contendo palavras-chave como 'sessão' ou 'token'.
+
+### 💰 Integridade Financeira & Modal do Cliente
+- **Correção Decimal em `parseMonetary`**: Tratamento correto para valores com 1 casa decimal (ex: `12.5` mantido como `12.50` em vez de `125`).
+- **Preservação de Centavos em Strings Monetárias**: Substituição de `parseFloat` por `parseMonetary` em valores unitários e totais do histórico de clientes.
+- **Exclusão de Cancelados nas Métricas**: Pedidos cancelados desconsiderados no faturamento total e ticket médio do cliente.
+- **Diferenciação de Medidas no Histórico**: Variações de produtos com mesmas descrições mas dimensões distintas não são mais agrupadas erroneamente.
+- **Data Real do Último Pedido**: Card de "Última Compra" aponta para o pedido mais recente baseado na cronologia de entrada.
+
+### ⚡ Rede, Desktop & Polimentos
+- **Timeout & Cancelamento no Desktop**: Implementação de `AbortController` no adapter Tauri com tradução para `AxiosError.ECONNABORTED` / `ERR_NETWORK`.
+- **Idempotência de IPC**: `setAuthToken` só aciona `syncAuthAndConfig` se o token realmente tiver mudado, evitando chamadas IPC nativas redundantes a cada requisição.
+- **Sanitização de PDF**: Nomes de arquivo gerados usam data local (evitando avanço de dia no fuso UTC-3) e sanitização de caracteres inválidos no Windows.
+- **Mock de Storage Alinhado**: `localStorage` e `sessionStorage` respeitam strings vazias em testes unitários.
+
 ## v1.5.3 — 2026-10-21
 
 ### 🖨️ Correção Crítica na Ficha de Impressão de Lonas
