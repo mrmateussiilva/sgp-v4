@@ -1,5 +1,12 @@
 # Release
 
+## v1.5.5 — 2026-10-30
+
+### 🖨️ Correção de Acabamento na Ficha de Impressão de Totem
+- **Exibição de Acabamento de Totem (Sem Pé / Com Pé / Outro)**: Inclusão do acabamento de totem tanto nas especificações gerais quanto na seção de destaque de acabamento (`✓ SEM PÉ`, `✓ COM PÉ` ou acabamento customizado) do card de impressão em PDF (`OrderCard.tsx`).
+- **Hidratação e Agrupamento de Totem**: Preservação garantida de `acabamento_totem` e `acabamento_totem_outro` durante a preparação do pedido para impressão (`printOrderServiceForm.ts` e `groupOrders.ts`).
+- **Relatório de Fichas de Materiais**: Remoção do filtro que omitia o acabamento `sem_pe` na listagem e exportação de fichas (`materialAnalysisUtils.ts`).
+
 ## v1.5.4 — 2026-10-26
 
 ### 🛡️ Segurança & Prevenção de Vazamento de Credenciais

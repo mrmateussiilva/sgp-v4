@@ -40,6 +40,8 @@ const hydrateOrderForPrint = async (
         ...item,
         terceirizado: item.terceirizado ?? fullItem.terceirizado,
         acabamento_lona: item.acabamento_lona || fullItem.acabamento_lona,
+        acabamento_totem: item.acabamento_totem || fullItem.acabamento_totem,
+        acabamento_totem_outro: item.acabamento_totem_outro || fullItem.acabamento_totem_outro,
         observacao: (item.observacao && item.observacao.trim()) || fullItem.observacao,
         imagem: (item.imagem && item.imagem.trim()) || fullItem.imagem,
         legenda_imagem: (item.legenda_imagem && item.legenda_imagem.trim()) || fullItem.legenda_imagem

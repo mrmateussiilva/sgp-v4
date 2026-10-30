@@ -102,6 +102,8 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
             );
             const obsItem = item.observacao || (item as any).observacao_item || (item as any).observacoes || undefined;
             const acabLona = item.acabamento_lona || (item as any).acabamentoLona || undefined;
+            const acabTotem = item.acabamento_totem || (item as any).acabamentoTotem || undefined;
+            const acabTotemOutro = item.acabamento_totem_outro || (item as any).acabamentoTotemOutro || undefined;
 
             flattenedOrders.push({
                 ...commonInfo,
@@ -137,8 +139,8 @@ export function groupOrders(orders: OrderWithItems[]): ProductionOrder[] {
                     terceirizado: isTerceirizado,
                     acabamento_lona: acabLona,
                     tipo_adesivo: item.tipo_adesivo,
-                    acabamento_totem: item.acabamento_totem,
-                    acabamento_totem_outro: item.acabamento_totem_outro,
+                    acabamento_totem: acabTotem,
+                    acabamento_totem_outro: acabTotemOutro,
                     composicao_tecidos: item.composicao_tecidos,
                     data_impressao: (item as any).data_impressao,
                     rip_maquina: (item as any).rip_maquina,

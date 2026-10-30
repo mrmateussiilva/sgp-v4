@@ -86,6 +86,19 @@ const formatAcabamentoLonaDisplay = (acab?: string): string | undefined => {
     return acab;
 };
 
+/** Formata acabamento de totem para exibição amigável */
+const formatAcabamentoTotemDisplay = (acab?: string, acabOutro?: string): string | undefined => {
+    if (!acab) return undefined;
+    const clean = acab.toLowerCase().trim();
+    if (clean === 'com_pe' || clean === 'com pé' || clean === 'com pe') return 'Com pé';
+    if (clean === 'sem_pe' || clean === 'sem pé' || clean === 'sem pe') return 'Sem pé';
+    if (clean === 'outro') {
+        const outroTrimmed = acabOutro?.trim();
+        return outroTrimmed ? outroTrimmed : 'Outro';
+    }
+    return acab;
+};
+
 // ============================================
 // MAIN COMPONENT: 3-SECTION INDUSTRIAL V2
 // ============================================
@@ -121,10 +134,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         }
     }
 
+    const isTotem = prod.tipo_producao?.toLowerCase() === 'totem';
+    const acabamentoTotemDisplay = isTotem
+        ? formatAcabamentoTotemDisplay(prod.acabamento_totem, prod.acabamento_totem_outro)
+        : undefined;
+    if (acabamentoTotemDisplay) {
+        techItems.push(acabamentoTotemDisplay.toUpperCase());
+    }
+
     const tipoAcabamento = prod.tipo_acabamento || (prod as any).tipo_alcinha;
     const acLower = tipoAcabamento ? String(tipoAcabamento).toLowerCase().trim() : '';
     const isIlhosOuCordinha = acLower === 'ilhos' || acLower === 'cordinha' || acLower === 'alca_cordinha';
-    if (tipoAcabamento && tipoAcabamento !== 'nenhum' && !isIlhosOuCordinha && !isLona) {
+    if (tipoAcabamento && tipoAcabamento !== 'nenhum' && !isIlhosOuCordinha && !isLona && !isTotem) {
         const isMochilinha = prod.tipo_producao?.toLowerCase().includes('mochilinha') || prod.tipo_producao?.toLowerCase().includes('bolsinha');
         if (isMochilinha) {
             const alcaLabel = acLower === 'alca' ? 'ALÇA' : acLower.toUpperCase();
@@ -235,6 +256,12 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                         <SpecRow
                             label="Acabamento"
                             value={formatAcabamentoLonaDisplay(prod.acabamento_lona)}
+                        />
+                    )}
+                    {isTotem && (
+                        <SpecRow
+                            label="Acabamento"
+                            value={acabamentoTotemDisplay}
                         />
                     )}
                     {isTerceirizado && (

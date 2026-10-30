@@ -103,8 +103,16 @@ export const getItemAcabamentos = (item: any): string[] => {
   if (item.emenda && item.emenda !== 'sem-emenda' && item.emenda !== 'nenhuma') {
     list.push(`Emenda ${item.emenda}`);
   }
-  if (item.acabamento_totem && item.acabamento_totem !== 'sem_pe') {
-    list.push(item.acabamento_totem === 'com_pe' ? 'Com Pé' : item.acabamento_totem);
+  if (item.acabamento_totem) {
+    if (item.acabamento_totem === 'com_pe') {
+      list.push('Com Pé');
+    } else if (item.acabamento_totem === 'sem_pe') {
+      list.push('Sem Pé');
+    } else if (item.acabamento_totem === 'outro') {
+      list.push(item.acabamento_totem_outro?.trim() || 'Outro');
+    } else {
+      list.push(item.acabamento_totem);
+    }
   }
   if (item.acabamento_lona) {
     list.push(item.acabamento_lona);
