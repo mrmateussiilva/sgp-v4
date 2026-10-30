@@ -1,5 +1,14 @@
 # Release
 
+## v1.5.6 — 2026-10-30
+
+### ⚡ Navegação Instantânea (*Stale-While-Revalidate*) & Persistência de Estado
+- **Renderização em 0ms entre Telas**: Eliminação do recarregamento completo e de piscadas de *Skeleton* ao alternar entre Dashboard (`DashboardOverview.tsx`), Pedidos (`OrderList.tsx`), Clientes (`Clientes.tsx`), Expedição (`Expedicao.tsx`) e Análise de Materiais (`MaterialAnalysis.tsx`), mantendo dados em memória e sincronizando silenciosamente em segundo plano.
+- **Separação de Estado Dashboard vs. Lista de Pedidos (`orderStore.ts`)**: Isolamento de `dashboardOrders` e `dashboardSummary` em relação à página ativa de `orders`, impedindo que a abertura do Dashboard sobrescreva a paginação da tabela de pedidos.
+- **Preservação de Filtros, Busca e Paginação**: Manutenção automática da página atual, termo pesquisado, ordenação, filtros avançados e contadores das abas ao editar/visualizar um pedido ou trocar de rota.
+- **Cache de Catálogos com Invalidação Automática (`resources.ts` e `customers.ts`)**: Cache em memória para formas de envio, tipos de produção e clientes, com leitura síncrona inicial e limpeza automática em operações de criação, edição e exclusão.
+- **Pré-aquecimento de Rotas e Atualização Suave (`Ctrl+R`)**: Substituição do `window.location.reload()` no atalho `Ctrl+R` pelo evento global `sgp:soft-refresh` (preservando a árvore React e a conexão WebSocket) e pré-carregamento em segundo plano dos bundles principais no `Dashboard.tsx`.
+
 ## v1.5.5 — 2026-10-30
 
 ### 🖨️ Correção de Acabamento na Ficha de Impressão de Totem
