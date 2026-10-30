@@ -3,36 +3,36 @@ name: Frontend CI
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - "updater/**"
   pull_request:
     branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 10
-        run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
 
-    - name: Install Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: 'pnpm'
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Install dependencies
-      run: pnpm install
+      - name: Typecheck
+        run: npx tsc --noEmit
 
-    - name: Run Lint
-      run: pnpm run lint
+      - name: Run Tests
+        run: npx vitest run
 
-    - name: Run Tests
-      run: pnpm run test run
-
-    - name: Run Build
-      run: pnpm run build
+      - name: Run Build
+        run: npm run build

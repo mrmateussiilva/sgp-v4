@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { DashboardSummary, OrderWithItems } from '../types';
+import { revokeImageUrl } from '../utils/imageLoader';
 
 export type OrderListProductionStatusFilter = 'all' | 'pending' | 'ready' | 'delayed' | 'drafts';
 
@@ -142,19 +143,48 @@ export const useOrderStore = create<OrderState>((set) => ({
       };
     }),
   updateOrder: (order) =>
-    set((state) => ({
-      orders: state.orders.map((o) => (o.id === order.id ? order : o)),
-      dashboardOrders: state.dashboardOrders.map((o) => (o.id === order.id ? order : o)),
-      selectedOrder: state.selectedOrder?.id === order.id ? order : state.selectedOrder,
-      dashboardLastFetchTime: 0,
-      orderListCache: { ...state.orderListCache, lastFetchTime: 0 },
-    })),
+    set((state) => {
+      const previousOrder =
+        state.orders.find((o) => o.id === order.id) ||
+        state.dashboardOrders.find((o) => o.id === order.id);
+
+      if (previousOrder?.items && order?.items) {
+        const newImages = new Set(
+          order.items.map((item) => item.imagem).filter((img): img is string => Boolean(img))
+        );
+        previousOrder.items.forEach((oldItem) => {
+          if (oldItem.imagem && !newImages.has(oldItem.imagem)) {
+            revokeImageUrl(oldItem.imagem);
+          }
+        });
+      }
+
+      return {
+        orders: state.orders.map((o) => (o.id === order.id ? order : o)),
+        dashboardOrders: state.dashboardOrders.map((o) => (o.id === order.id ? order : o)),
+        selectedOrder: state.selectedOrder?.id === order.id ? order : state.selectedOrder,
+        dashboardLastFetchTime: 0,
+        orderListCache: { ...state.orderListCache, lastFetchTime: 0 },
+      };
+    }),
   removeOrder: (orderId) =>
-    set((state) => ({
-      orders: state.orders.filter((o) => o.id !== orderId),
-      dashboardOrders: state.dashboardOrders.filter((o) => o.id !== orderId),
-      selectedOrder: state.selectedOrder?.id === orderId ? null : state.selectedOrder,
-      dashboardLastFetchTime: 0,
-      orderListCache: { ...state.orderListCache, lastFetchTime: 0 },
-    })),
+    set((state) => {
+      const removedOrder =
+        state.orders.find((o) => o.id === orderId) ||
+        state.dashboardOrders.find((o) => o.id === orderId);
+
+      removedOrder?.items?.forEach((item) => {
+        if (item.imagem) {
+          revokeImageUrl(item.imagem);
+        }
+      });
+
+      return {
+        orders: state.orders.filter((o) => o.id !== orderId),
+        dashboardOrders: state.dashboardOrders.filter((o) => o.id !== orderId),
+        selectedOrder: state.selectedOrder?.id === orderId ? null : state.selectedOrder,
+        dashboardLastFetchTime: 0,
+        orderListCache: { ...state.orderListCache, lastFetchTime: 0 },
+      };
+    }),
 }));

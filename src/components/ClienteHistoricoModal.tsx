@@ -109,13 +109,18 @@ interface ClienteMetrics {
   latestOrder: OrderWithItems | null;
 }
 
+const clienteOrdersMemoryCache = new Map<string, OrderWithItems[]>();
+
 export function ClienteHistoricoModal({
   cliente,
   isOpen,
   onClose,
   defaultTab = 'resumo',
 }: ClienteHistoricoModalProps) {
-  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const cacheKey = cliente ? `${cliente.id}:${cliente.nome?.trim().toLowerCase()}` : '';
+  const [orders, setOrders] = useState<OrderWithItems[]>(() =>
+    cacheKey ? clienteOrdersMemoryCache.get(cacheKey) ?? [] : []
+  );
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'resumo' | 'pedidos' | 'cadastro'>(defaultTab);
   const [searchHistory, setSearchHistory] = useState('');
@@ -135,21 +140,54 @@ export function ClienteHistoricoModal({
     let active = true;
 
     if (isOpen && cliente?.nome) {
-      setOrders([]); // Limpar histórico do cliente anterior imediatamente
-      setLoading(true);
-      api.getOrdersPaginated(1, 100, undefined, cliente.nome)
-        .then((res) => {
-          if (active) {
-            setOrders(res.orders || []);
+      const key = `${cliente.id}:${cliente.nome.trim().toLowerCase()}`;
+      const cached = clienteOrdersMemoryCache.get(key);
+      if (cached && cached.length > 0) {
+        setOrders(cached);
+        setLoading(false);
+      } else {
+        setOrders([]);
+        setLoading(true);
+      }
+
+      (async () => {
+        try {
+          const pageSize = 100;
+          const firstPage = await api.getOrdersPaginated(1, pageSize, undefined, cliente.nome);
+          let allOrders = [...(firstPage?.orders || [])];
+
+          if (firstPage?.orders?.length === pageSize) {
+            for (let page = 2; page <= 5; page++) {
+              const nextRes = await api.getOrdersPaginated(page, pageSize, undefined, cliente.nome);
+              const nextOrders = nextRes?.orders || [];
+              if (nextOrders.length > 0) {
+                allOrders = allOrders.concat(nextOrders);
+              }
+              if (nextOrders.length < pageSize) break;
+            }
           }
-        })
-        .catch((err) => {
+
+          // Filtrar pelo nome exato normalizado caso haja correspondências parciais de substring (ex: "Ana" vs "Mariana")
+          const targetName = cliente.nome.trim().toLowerCase();
+          const exactMatches = allOrders.filter((o) => {
+            const orderClientName = (o.cliente || o.customer_name || '').trim().toLowerCase();
+            return orderClientName === targetName;
+          });
+          const finalOrders = exactMatches.length > 0 || allOrders.length === 0 ? exactMatches : allOrders;
+
+          clienteOrdersMemoryCache.set(key, finalOrders);
+          if (active) {
+            setOrders(finalOrders);
+          }
+        } catch (err) {
           logger.error('[ClienteHistoricoModal] Erro ao carregar pedidos do cliente:', err);
-          if (active) setOrders([]);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+          if (active && !cached) setOrders([]);
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
+      })();
     } else {
       setOrders([]);
     }
@@ -157,7 +195,7 @@ export function ClienteHistoricoModal({
     return () => {
       active = false;
     };
-  }, [isOpen, cliente?.nome]);
+  }, [isOpen, cliente?.id, cliente?.nome]);
 
   // Estatísticas consolidadas do cliente
   const metrics = useMemo<ClienteMetrics>(() => {

@@ -878,9 +878,25 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
     let active = true;
 
-    // Carregar pedido pelo ID
-    logger.debug('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
-    setIsLoadingOrder(true);
+    // Hidratar instantaneamente (0ms) se o pedido completo já estiver em memória no store
+    const storeState = useOrderStore.getState();
+    const cachedOrder =
+      storeState.orders.find((o) => o.id === selectedOrderId) ||
+      storeState.dashboardOrders.find((o) => o.id === selectedOrderId);
+    const hasHydratedFromCache = Boolean(
+      cachedOrder && Array.isArray(cachedOrder.items) && cachedOrder.items.length > 0
+    );
+
+    if (hasHydratedFromCache && cachedOrder) {
+      logger.debug('[CreateOrderComplete] Hidratando pedido em 0ms via cache em memória:', selectedOrderId);
+      setCurrentOrder(cachedOrder);
+      currentOrderRef.current = cachedOrder;
+      populateFormFromOrder(cachedOrder);
+      setIsLoadingOrder(false);
+    } else {
+      logger.debug('[CreateOrderComplete] Iniciando carregamento do pedido ID:', selectedOrderId);
+      setIsLoadingOrder(true);
+    }
 
     (async () => {
       try {
@@ -898,9 +914,16 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
 
         setCurrentOrder(order);
         currentOrderRef.current = order;
-        logger.debug('[CreateOrderComplete] Populando formulário...');
-        populateFormFromOrder(order);
-        logger.debug('[CreateOrderComplete] Formulário populado com sucesso');
+        const shouldRepopulate =
+          !hasHydratedFromCache ||
+          cachedOrder?.updated_at !== order.updated_at ||
+          (cachedOrder?.items?.length || 0) !== (order.items?.length || 0);
+
+        if (shouldRepopulate) {
+          logger.debug('[CreateOrderComplete] Populando formulário...');
+          populateFormFromOrder(order);
+          logger.debug('[CreateOrderComplete] Formulário populado com sucesso');
+        }
       } catch (error) {
         if (!active) {
           return;

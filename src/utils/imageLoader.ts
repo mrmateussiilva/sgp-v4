@@ -51,8 +51,7 @@ export function releaseImageUrl(imagePath: string): void {
   if (count !== undefined) {
     if (count <= 1) {
       referenceCount.delete(normalized);
-      // Seguro revogar porque ninguém mais na tela usa essa imagem
-      revokeImageUrl(normalized);
+      // Mantém o blobUrl no cache LRU (até MAX_CACHE_SIZE = 150) para renderização em 0ms ao voltar para a página
     } else {
       referenceCount.set(normalized, count - 1);
     }

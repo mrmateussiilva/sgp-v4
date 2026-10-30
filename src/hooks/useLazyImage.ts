@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { loadAuthenticatedImage, retainImageUrl, releaseImageUrl } from '@/utils/imageLoader';
+import { loadAuthenticatedImage, retainImageUrl, releaseImageUrl, getCachedImageUrl } from '@/utils/imageLoader';
 import { isValidImagePath } from '@/utils/path';
 
 interface UseLazyImageOptions {
@@ -70,7 +70,11 @@ export function useLazyImage(
     rootMargin = '50px',
   } = options;
 
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(() => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('data:image/')) return imagePath;
+    return getCachedImageUrl(imagePath);
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
   const imgRef = useRef<HTMLImageElement | HTMLDivElement>(null);
@@ -104,6 +108,18 @@ export function useLazyImage(
       setError(true);
       setIsLoading(false);
       return;
+    }
+
+    // Se já estiver no cache em memória, usar imediatamente em 0ms sem aguardar IntersectionObserver
+    const cachedBlobUrl = getCachedImageUrl(imagePath);
+    if (cachedBlobUrl) {
+      retainImageUrl(imagePath);
+      setImageSrc(cachedBlobUrl);
+      setIsLoading(false);
+      setError(false);
+      return () => {
+        releaseImageUrl(imagePath);
+      };
     }
 
     // Função para carregar a imagem

@@ -8,23 +8,35 @@ import { Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { RemoteImage } from '../components/RemoteImage';
 
+let cachedMachineDashboardData: MachineDashboardData[] | null = null;
+
 export const ProducaoMaquinas: React.FC = () => {
-    const [data, setData] = useState<MachineDashboardData[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<MachineDashboardData[]>(() => cachedMachineDashboardData ?? []);
+    const [loading, setLoading] = useState(() => cachedMachineDashboardData === null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDashboard();
+        const handleSoftRefresh = () => {
+            fetchDashboard();
+        };
+        window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+        return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
     }, []);
 
     const fetchDashboard = async () => {
         try {
-            setLoading(true);
+            if (!cachedMachineDashboardData) {
+                setLoading(true);
+            }
             const result = await maquinasApi.getDashboardOverview();
+            cachedMachineDashboardData = result;
             setData(result);
+            setError(null);
         } catch (err) {
-
-            setError("Erro ao carregar dados do dashboard.");
+            if (!cachedMachineDashboardData) {
+                setError("Erro ao carregar dados do dashboard.");
+            }
         } finally {
             setLoading(false);
         }

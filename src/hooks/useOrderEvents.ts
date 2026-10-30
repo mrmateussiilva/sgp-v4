@@ -298,7 +298,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     async (orderId: number) => {
       try {
         logger.debug('🆕 [useOrderAutoSync] Pedido criado, buscando dados:', orderId);
-        const newOrder = await api.getOrderById(orderId);
+        const newOrder = await (typeof api.getOrderByIdFresh === "function" ? api.getOrderByIdFresh(orderId) : api.getOrderById(orderId));
 
         // 1. Sempre atualizar no store global primeiro
         updateOrder(newOrder);
@@ -328,7 +328,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     async (orderId: number) => {
       try {
         logger.debug('🔄 [useOrderAutoSync] handleOrderUpdated chamado para pedido:', orderId);
-        const updatedOrder = await api.getOrderById(orderId);
+        const updatedOrder = await (typeof api.getOrderByIdFresh === "function" ? api.getOrderByIdFresh(orderId) : api.getOrderById(orderId));
 
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);
