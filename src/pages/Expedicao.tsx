@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { OrderWithItems, OrderStatus } from '../types';
 import { api } from '../services/api';
+import { usePageCacheStore } from '../store/pageCacheStore';
 import { useOrderRefresh } from '../hooks/useRealtimeNotifications';
 import { useToast } from '@/hooks/use-toast';
 import ExpedicaoCard from '../components/ExpedicaoCard';
@@ -52,23 +53,47 @@ export default function Expedicao() {
 
   const hojeLocal = useMemo(() => getLocalDateString(), []);
 
+  const expedicaoCache = usePageCacheStore((state) => state.expedicaoCache);
+  const setExpedicaoCache = usePageCacheStore((state) => state.setExpedicaoCache);
+
   // Preset padrão 'fila_hoje': traz pedidos com entrega até hoje (incluindo atrasados pendentes)
-  const [datePreset, setDatePreset] = useState<DatePreset>('fila_hoje');
-  const [dataInicio, setDataInicio] = useState<string>(() => getPastLocalDateString(60));
-  const [dataFim, setDataFim] = useState<string>(() => getLocalDateString());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>(() => expedicaoCache.datePreset);
+  const [dataInicio, setDataInicio] = useState<string>(() => expedicaoCache.dataInicio);
+  const [dataFim, setDataFim] = useState<string>(() => expedicaoCache.dataFim);
+  const [searchQuery, setSearchQuery] = useState(() => expedicaoCache.searchQuery);
   
   // Abas e sub-filtros operacionais
-  const [activeTab, setActiveTab] = useState<ViewTab>('todos');
-  const [apenasProntosProducao, setApenasProntosProducao] = useState(false);
-  const [ocultarExpedidos, setOcultarExpedidos] = useState(true);
+  const [activeTab, setActiveTab] = useState<ViewTab>(() => expedicaoCache.activeTab);
+  const [apenasProntosProducao, setApenasProntosProducao] = useState(() => expedicaoCache.apenasProntosProducao);
+  const [ocultarExpedidos, setOcultarExpedidos] = useState(() => expedicaoCache.ocultarExpedidos);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Estados dos dados e UI
-  const [orders, setOrders] = useState<OrderWithItems[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<OrderWithItems[]>(() => expedicaoCache.orders);
+  const [loading, setLoading] = useState(() => expedicaoCache.orders.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(() => expedicaoCache.orders.length === 0);
+
+  useEffect(() => {
+    setExpedicaoCache({
+      datePreset,
+      dataInicio,
+      dataFim,
+      searchQuery,
+      activeTab,
+      apenasProntosProducao,
+      ocultarExpedidos,
+    });
+  }, [
+    datePreset,
+    dataInicio,
+    dataFim,
+    searchQuery,
+    activeTab,
+    apenasProntosProducao,
+    ocultarExpedidos,
+    setExpedicaoCache,
+  ]);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [isExpeditingGroup, setIsExpeditingGroup] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -145,7 +170,13 @@ export default function Expedicao() {
           'entrega'
         );
 
-        setOrders(response.orders || []);
+        const fetchedOrders = response.orders || [];
+        setOrders(fetchedOrders);
+        setExpedicaoCache({
+          orders: fetchedOrders,
+          lastQueryKey: JSON.stringify({ dataInicio, dataFim, datePreset }),
+          lastFetchTime: Date.now(),
+        });
       } catch (err) {
         logger.error('Erro ao buscar pedidos para expedição:', err);
         // Só exibe toast de erro se a tela estiver visível e não for background imperceptível
@@ -162,7 +193,7 @@ export default function Expedicao() {
         setIsInitialLoad(false);
       }
     },
-    [dataInicio, dataFim, datePreset, toast]
+    [dataInicio, dataFim, datePreset, setExpedicaoCache, toast]
   );
 
   const loadOrdersRef = useRef(loadOrders);
@@ -170,10 +201,26 @@ export default function Expedicao() {
     loadOrdersRef.current = loadOrders;
   }, [loadOrders]);
 
-  // Carregamento inicial e reações a mudanças de filtro de datas
+  // Carregamento inicial e reações a mudanças de filtro de datas (com Stale-While-Revalidate)
   useEffect(() => {
-    loadOrders(false);
-  }, [loadOrders]);
+    const cache = usePageCacheStore.getState().expedicaoCache;
+    const queryKey = JSON.stringify({ dataInicio, dataFim, datePreset });
+    const isFresh = cache.orders.length > 0 && cache.lastQueryKey === queryKey && Date.now() - cache.lastFetchTime < 15000;
+    if (isFresh) {
+      setLoading(false);
+      return;
+    }
+    loadOrders(cache.orders.length > 0 && cache.lastQueryKey === queryKey);
+  }, [loadOrders, dataInicio, dataFim, datePreset]);
+
+  // Escutar evento global de atualização suave (Ctrl+R)
+  useEffect(() => {
+    const handleSoftRefresh = () => {
+      loadOrdersRef.current(false);
+    };
+    window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+    return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
+  }, []);
 
   // Atualizações em tempo real via WebSocket com Debounce inteligente
   // Não recarrega com tela cheia, mantém os dados visíveis e atualiza suavemente

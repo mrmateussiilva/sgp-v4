@@ -67,7 +67,7 @@ interface TimedCache<T> {
     data: T;
     timestamp: number;
 }
-const RESOURCE_CACHE_TTL_MS = 60_000;
+const RESOURCE_CACHE_TTL_MS = 120_000; // 2 minutos para catálogos estáticos
 
 const isCacheFresh = <T>(cache: TimedCache<T> | null, ttlMs: number = RESOURCE_CACHE_TTL_MS): cache is TimedCache<T> => {
     if (!cache) return false;
@@ -83,9 +83,48 @@ let materiaisCache: TimedCache<MaterialApi[]> | null = null;
 let designersCache: TimedCache<DesignerApi[]> | null = null;
 let vendedoresCache: TimedCache<Array<{ id: number; nome: string }>> | null = null;
 let tiposPagamentoCache: TimedCache<Array<{ id: number; nome: string }>> | null = null;
+let formasEnvioCache: TimedCache<Array<{ id: number; nome: string; valor: number }>> | null = null;
+let tiposProducaoCache: TimedCache<Array<{ value: string; label: string }>> | null = null;
 
 const clearMateriaisCache = () => { materiaisCache = null; };
 const clearDesignersCache = () => { designersCache = null; };
+const clearVendedoresCache = () => { vendedoresCache = null; };
+const clearTiposPagamentoCache = () => { tiposPagamentoCache = null; };
+const clearFormasEnvioCache = () => { formasEnvioCache = null; };
+const clearTiposProducaoCache = () => { tiposProducaoCache = null; };
+
+export const clearAllResourcesCache = () => {
+    clearMateriaisCache();
+    clearDesignersCache();
+    clearVendedoresCache();
+    clearTiposPagamentoCache();
+    clearFormasEnvioCache();
+    clearTiposProducaoCache();
+};
+
+const extractDesignersAtivos = (designers: DesignerApi[]): Array<{ id: number; nome: string }> => {
+    const unique = new Map<string, DesignerApi>();
+    designers.forEach((designer) => {
+        if (!designer?.ativo) return;
+        const nome = designer.nome?.trim();
+        if (!nome) return;
+        const key = nome.toLowerCase();
+        if (!unique.has(key)) {
+            unique.set(key, designer);
+        }
+    });
+    return Array.from(unique.values())
+        .map((designer) => ({ id: designer.id, nome: designer.nome.trim() }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+};
+
+export const getCachedResourcesCatalogs = () => ({
+    vendedores: vendedoresCache?.data ?? null,
+    designers: designersCache ? extractDesignersAtivos(designersCache.data) : null,
+    formasEnvio: formasEnvioCache?.data ?? null,
+    tiposProducao: tiposProducaoCache?.data ?? null,
+    formasPagamento: tiposPagamentoCache?.data ?? null,
+});
 
 const requireSessionToken = (): string => {
     const token = useAuthStore.getState().sessionToken;
@@ -187,19 +226,7 @@ export const resourcesApi = {
 
     getDesignersAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
         const designers = await fetchDesignersRaw();
-        const unique = new Map<string, DesignerApi>();
-        designers.forEach((designer) => {
-            if (!designer?.ativo) return;
-            const nome = designer.nome?.trim();
-            if (!nome) return;
-            const key = nome.toLowerCase();
-            if (!unique.has(key)) {
-                unique.set(key, designer);
-            }
-        });
-        return Array.from(unique.values())
-            .map((designer) => ({ id: designer.id, nome: designer.nome.trim() }))
-            .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        return extractDesignersAtivos(designers);
     },
 
     createDesigner: async (request: DesignerPayload): Promise<DesignerEntity> => {
@@ -254,6 +281,7 @@ export const resourcesApi = {
         requireSessionToken();
         const payload = buildVendedorCreatePayload(request);
         const response = await apiClient.post<VendedorApi>('/vendedores', payload);
+        clearVendedoresCache();
         return mapVendedorFromApi(response.data);
     },
 
@@ -262,12 +290,14 @@ export const resourcesApi = {
         const { id, ...rest } = request;
         const payload = buildVendedorUpdatePayload(rest);
         const response = await apiClient.patch<VendedorApi>(`/vendedores/${id}`, payload);
+        clearVendedoresCache();
         return mapVendedorFromApi(response.data);
     },
 
     deleteVendedor: async (vendedorId: number): Promise<boolean> => {
         requireSessionToken();
         await apiClient.delete(`/vendedores/${vendedorId}`);
+        clearVendedoresCache();
         return true;
     },
 
@@ -280,8 +310,11 @@ export const resourcesApi = {
 
     getFormasEnvioAtivas: async (): Promise<Array<{ id: number; nome: string; valor: number }>> => {
         requireSessionToken();
+        if (isCacheFresh(formasEnvioCache)) {
+            return formasEnvioCache.data;
+        }
         const response = await apiClient.get<FormaEnvioApi[]>('/tipos-envios/ativos');
-        return (response.data ?? [])
+        const result = (response.data ?? [])
             .filter((forma) => Boolean(forma?.nome))
             .map((forma) => ({
                 id: forma.id,
@@ -289,12 +322,16 @@ export const resourcesApi = {
                 valor: Number(forma.valor ?? 0),
             }))
             .filter((forma) => forma.nome.length > 0);
+
+        formasEnvioCache = createCacheEntry(result);
+        return result;
     },
 
     createFormaEnvio: async (request: FormaEnvioPayload): Promise<FormaEnvioEntity> => {
         requireSessionToken();
         const payload = buildFormaEnvioCreatePayload(request);
         const response = await apiClient.post<FormaEnvioApi>('/tipos-envios', payload);
+        clearFormasEnvioCache();
         return mapFormaEnvioFromApi(response.data);
     },
 
@@ -303,12 +340,14 @@ export const resourcesApi = {
         const { id, ...rest } = request;
         const payload = buildFormaEnvioUpdatePayload(rest);
         const response = await apiClient.patch<FormaEnvioApi>(`/tipos-envios/${id}`, payload);
+        clearFormasEnvioCache();
         return mapFormaEnvioFromApi(response.data);
     },
 
     deleteFormaEnvio: async (formaId: number): Promise<boolean> => {
         requireSessionToken();
         await apiClient.delete(`/tipos-envios/${formaId}`);
+        clearFormasEnvioCache();
         return true;
     },
 
@@ -337,6 +376,7 @@ export const resourcesApi = {
         requireSessionToken();
         const payload = buildFormaPagamentoCreatePayload(request);
         const response = await apiClient.post<FormaPagamentoApi>('/tipos-pagamentos', payload);
+        clearTiposPagamentoCache();
         return mapFormaPagamentoFromApi(response.data);
     },
 
@@ -345,12 +385,14 @@ export const resourcesApi = {
         const { id, ...rest } = request;
         const payload = buildFormaPagamentoUpdatePayload(rest);
         const response = await apiClient.patch<FormaPagamentoApi>(`/tipos-pagamentos/${id}`, payload);
+        clearTiposPagamentoCache();
         return mapFormaPagamentoFromApi(response.data);
     },
 
     deleteFormaPagamento: async (formaId: number): Promise<boolean> => {
         requireSessionToken();
         await apiClient.delete(`/tipos-pagamentos/${formaId}`);
+        clearTiposPagamentoCache();
         return true;
     },
 
@@ -402,6 +444,9 @@ export const resourcesApi = {
     },
 
     getTiposProducaoAtivos: async (): Promise<Array<{ value: string; label: string }>> => {
+        if (isCacheFresh(tiposProducaoCache)) {
+            return tiposProducaoCache.data;
+        }
         try {
             // Tenta buscar de /producoes/ativos primeiro
             type TipoProducaoAtivoApi = {
@@ -421,7 +466,7 @@ export const resourcesApi = {
             }
 
             const data = response.data ?? [];
-            return data
+            const result = data
                 .filter(tipo => {
                     // Aceita active ou ativo (backend pode variar)
                     const isActive = tipo.active !== undefined ? tipo.active : tipo.ativo;
@@ -436,9 +481,12 @@ export const resourcesApi = {
                     };
                 })
                 .filter(item => item.value.length > 0);
+
+            tiposProducaoCache = createCacheEntry(result);
+            return result;
         } catch (error) {
             logger.error('Erro ao buscar tipos de produção ativos:', error);
-            return [];
+            return tiposProducaoCache?.data ?? [];
         }
     },
 
@@ -446,6 +494,7 @@ export const resourcesApi = {
         requireSessionToken();
         const payload = buildTipoProducaoCreatePayload(request);
         const response = await apiClient.post<TipoProducaoApi>('/producoes', payload);
+        clearTiposProducaoCache();
         return mapTipoProducaoFromApi(response.data);
     },
 
@@ -454,12 +503,14 @@ export const resourcesApi = {
         const { id, ...rest } = request;
         const payload = buildTipoProducaoUpdatePayload(rest);
         const response = await apiClient.patch<TipoProducaoApi>(`/producoes/${id}`, payload);
+        clearTiposProducaoCache();
         return mapTipoProducaoFromApi(response.data);
     },
 
     deleteTipoProducao: async (tipoId: number): Promise<boolean> => {
         requireSessionToken();
         await apiClient.delete(`/producoes/${tipoId}`);
+        clearTiposProducaoCache();
         return true;
     },
 

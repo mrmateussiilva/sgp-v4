@@ -53,6 +53,8 @@ import { useDesignerNotifications } from '@/hooks/useDesignerNotifications';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
+import { clearAllResourcesCache } from '@/api/endpoints/resources';
+import { clearClientesCache } from '@/api/endpoints/customers';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
 // Lazy load de todas as rotas para code-splitting com retry automático
@@ -210,14 +212,45 @@ export default function Dashboard() {
       {
         key: 'r',
         ctrl: true,
-        action: () => window.location.reload(),
-        description: 'Atualizar sistema',
+        action: () => {
+          clearAllResourcesCache();
+          clearClientesCache();
+          window.dispatchEvent(new CustomEvent('sgp:soft-refresh'));
+          toast({
+            title: 'Sincronizando dados...',
+            description: 'Atualizando informações da tela em segundo plano.',
+          });
+        },
+        description: 'Atualizar dados da tela',
       },
     ],
     [navigate, setSidebarExpanded]
   );
 
   useKeyboardShortcuts(dashboardShortcuts);
+
+  // Pré-aquecer catálogos estáticos e chunks principais em segundo plano após montagem do Dashboard
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Pré-carregar catálogos em memória
+      Promise.allSettled([
+        api.getVendedoresAtivos(),
+        api.getDesignersAtivos(),
+        api.getFormasEnvioAtivas(),
+        api.getFormasPagamentoAtivas(),
+        api.getClientes(),
+      ]);
+      // Pré-carregar bundles JS das telas mais acessadas para evitar Suspense Spinner na 1ª visita
+      import('../components/OrderList').catch(() => {});
+      import('./DashboardOverview').catch(() => {});
+      import('./Clientes').catch(() => {});
+      import('./Expedicao').catch(() => {});
+      import('../views/PedidoCreateView').catch(() => {});
+      import('../views/PedidoEditView').catch(() => {});
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   interface MenuItem {
     icon: any;

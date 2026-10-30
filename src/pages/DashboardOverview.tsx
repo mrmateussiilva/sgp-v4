@@ -12,7 +12,7 @@ import {
 import { useOrderStore } from '../store/orderStore';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
-import { OrderWithItems, DashboardSummary } from '../types';
+import { OrderWithItems } from '../types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,21 +29,27 @@ import {
   ProcessedOrder
 } from '@/utils/dashboardStats';
 
+const DASHBOARD_FRESH_TTL_MS = 20_000;
+
 export default function DashboardOverview() {
   const navigate = useNavigate();
   const isPwa = !isTauri();
-  const { orders, setOrders } = useOrderStore();
+  const dashboardOrders = useOrderStore((state) => state.dashboardOrders);
+  const dashboardSummary = useOrderStore((state) => state.dashboardSummary);
+  const dashboardLastUpdate = useOrderStore((state) => state.dashboardLastUpdate);
+  const dashboardLastFetchTime = useOrderStore((state) => state.dashboardLastFetchTime);
+  const setDashboardData = useOrderStore((state) => state.setDashboardData);
   const { username, logout } = useAuthStore();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
+  const hasCachedData = dashboardOrders.length > 0 || dashboardSummary !== null;
+
+  const [loading, setLoading] = useState(!hasCachedData);
   const [searchTerm, setSearchTerm] = useState('');
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
 
-  const lastFetchTimeRef = useRef<number>(Date.now());
+  const lastFetchTimeRef = useRef<number>(dashboardLastFetchTime || 0);
 
   // Saudação de acordo com o horário do dia
   const greeting = useMemo(() => {
@@ -82,8 +88,6 @@ export default function DashboardOverview() {
         api.getOrdersPaginated(1, pageSize),
       ]);
 
-      setSummary(summaryResult);
-
       let allOrders = [...(initialOrdersResult?.orders || [])];
 
       // Se a primeira página veio cheia (pageSize), buscar páginas subsequentes até esgotar ou bater o teto
@@ -101,8 +105,7 @@ export default function DashboardOverview() {
         }
       }
 
-      setOrders(allOrders);
-      setLastUpdate(new Date());
+      setDashboardData(allOrders, summaryResult);
       lastFetchTimeRef.current = Date.now();
 
       if (showToast) {
@@ -141,11 +144,30 @@ export default function DashboardOverview() {
       setIsRefreshing(false);
       setLoading(false);
     }
-  }, [setOrders, toast, logout, navigate]);
+  }, [setDashboardData, toast, logout, navigate]);
 
-  // Carregar pedidos ao montar o componente
+  // Carregar pedidos ao montar o componente (com Stale-While-Revalidate)
   useEffect(() => {
-    loadOrdersFromServer();
+    const state = useOrderStore.getState();
+    const isFresh =
+      (state.dashboardOrders.length > 0 || state.dashboardSummary !== null) &&
+      Date.now() - state.dashboardLastFetchTime < DASHBOARD_FRESH_TTL_MS;
+
+    if (isFresh) {
+      setLoading(false);
+      return;
+    }
+
+    loadOrdersFromServer(false);
+  }, [loadOrdersFromServer]);
+
+  // Escutar evento global de atualização suave (Ctrl+R)
+  useEffect(() => {
+    const handleSoftRefresh = () => {
+      loadOrdersFromServer(true);
+    };
+    window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+    return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
   }, [loadOrdersFromServer]);
 
   // Polling automático inteligente de 30 segundos (pausa quando a aba estiver em segundo plano)
@@ -177,13 +199,13 @@ export default function DashboardOverview() {
 
   // Garantir array válido
   const validOrders = useMemo(() => {
-    return Array.isArray(orders) ? orders : [];
-  }, [orders]);
+    return Array.isArray(dashboardOrders) ? dashboardOrders : [];
+  }, [dashboardOrders]);
 
   // Estatísticas analíticas calculadas com funções utilitárias puras
   const stats = useMemo(() => {
-    return calculateDashboardStats(validOrders, summary);
-  }, [validOrders, summary]);
+    return calculateDashboardStats(validOrders, dashboardSummary);
+  }, [validOrders, dashboardSummary]);
 
   // Formatação de dias
   const formatDays = useCallback((days: number): string => {
@@ -266,7 +288,8 @@ export default function DashboardOverview() {
     loadOrdersFromServer(true);
   }, [loadOrdersFromServer]);
 
-  const formatLastUpdate = useCallback((date: Date): string => {
+  const formatLastUpdate = useCallback((date: Date | null): string => {
+    if (!date) return 'agora';
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
     if (diff < 60) return 'agora';
@@ -341,7 +364,6 @@ export default function DashboardOverview() {
           ))}
         </div>
 
-
         {/* Listas Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card className="border shadow-xs">
@@ -387,7 +409,7 @@ export default function DashboardOverview() {
             <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
             <span className="inline-flex items-center gap-1.5">
               <span>Última sincronização:</span>
-              <strong className="text-foreground font-semibold">{formatLastUpdate(lastUpdate)}</strong>
+              <strong className="text-foreground font-semibold">{formatLastUpdate(dashboardLastUpdate)}</strong>
             </span>
           </div>
         </div>

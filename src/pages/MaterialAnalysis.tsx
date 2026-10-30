@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Package,
   Settings2,
@@ -34,7 +34,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
-import { resourcesApi } from '@/api/endpoints/resources';
+import { resourcesApi, getCachedResourcesCatalogs } from '@/api/endpoints/resources';
+import { usePageCacheStore } from '@/store/pageCacheStore';
 import { MaterialStatsResponse, RankingItem, MaterialEvolutionResponse } from '@/api/types';
 import { logger } from '@/utils/logger';
 import { toast } from '@/hooks/use-toast';
@@ -63,19 +64,20 @@ export { calculateSmartLinearMeters, getConsumo };
 export type { MaterialConfig, MaterialConfigMap };
 
 export default function MaterialAnalysis() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<MaterialStatsResponse | null>(null);
-  const [evolution, setEvolution] = useState<MaterialEvolutionResponse | null>(null);
+  const materialCache = usePageCacheStore((state) => state.materialAnalysisCache);
+  const setMaterialAnalysisCache = usePageCacheStore((state) => state.setMaterialAnalysisCache);
 
-  // Filtros
-  const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const [loading, setLoading] = useState(() => !materialCache.stats);
+  const [stats, setStats] = useState<MaterialStatsResponse | null>(() => materialCache.stats);
+  const [evolution, setEvolution] = useState<MaterialEvolutionResponse | null>(() => materialCache.evolution);
 
-  const [dataInicio, setDataInicio] = useState(thirtyDaysAgo.toISOString().split('T')[0]);
-  const [dataFim, setDataFim] = useState(today.toISOString().split('T')[0]);
-  const [tipoProducao, setTipoProducao] = useState<string>('all');
-  const [tiposProducaoList, setTiposProducaoList] = useState<{ value: string; label: string }[]>([]);
+  const [dataInicio, setDataInicio] = useState(() => materialCache.dataInicio);
+  const [dataFim, setDataFim] = useState(() => materialCache.dataFim);
+  const [tipoProducao, setTipoProducao] = useState<string>(() => materialCache.tipoProducao);
+  const [tiposProducaoList, setTiposProducaoList] = useState<{ value: string; label: string }[]>(() => {
+    const cachedCatalog = getCachedResourcesCatalogs().tiposProducao;
+    return cachedCatalog ?? materialCache.tiposProducao;
+  });
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
 
   const [materialConfigs, setMaterialConfigs] = useState<MaterialConfigMap>(() => {
@@ -175,8 +177,29 @@ export default function MaterialAnalysis() {
     return 'custom';
   }, [dataInicio, dataFim]);
 
-  const fetchStats = async () => {
-    setLoading(true);
+  const lastQueryKeyRef = useRef(materialCache.lastQueryKey);
+  const isFirstMountRef = useRef(true);
+
+  useEffect(() => {
+    setMaterialAnalysisCache({ dataInicio, dataFim, tipoProducao });
+  }, [dataInicio, dataFim, tipoProducao, setMaterialAnalysisCache]);
+
+  const fetchStats = async (forceRefresh = false) => {
+    const queryKey = JSON.stringify({ dataInicio, dataFim, tipoProducao });
+    const currentCache = usePageCacheStore.getState().materialAnalysisCache;
+    const isSameQuery = queryKey === lastQueryKeyRef.current && Boolean(currentCache.stats);
+    const isFresh = Date.now() - currentCache.lastFetchTime < 30000;
+
+    if (!forceRefresh && isSameQuery && isFresh) {
+      setLoading(false);
+      return;
+    }
+
+    if (!currentCache.stats || queryKey !== lastQueryKeyRef.current) {
+      setLoading(true);
+    }
+    lastQueryKeyRef.current = queryKey;
+
     try {
       const params = {
         data_inicio: dataInicio,
@@ -191,6 +214,12 @@ export default function MaterialAnalysis() {
 
       setStats(statsData);
       setEvolution(evolutionData);
+      setMaterialAnalysisCache({
+        stats: statsData,
+        evolution: evolutionData,
+        lastQueryKey: queryKey,
+        lastFetchTime: Date.now(),
+      });
     } catch (error) {
       logger.error('Erro ao buscar estatísticas de materiais:', error);
       toast({
@@ -207,20 +236,31 @@ export default function MaterialAnalysis() {
     try {
       const tipos = await resourcesApi.getTiposProducaoAtivos();
       setTiposProducaoList(tipos);
+      setMaterialAnalysisCache({ tiposProducao: tipos });
     } catch (error) {
       logger.error('Erro ao buscar tipos de produção:', error);
     }
   };
 
   useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      fetchStats(false);
+      return;
+    }
     const timeout = setTimeout(() => {
-      fetchStats();
-    }, 500);
+      fetchStats(false);
+    }, 300);
     return () => clearTimeout(timeout);
   }, [dataInicio, dataFim, tipoProducao]);
 
   useEffect(() => {
     fetchTiposProducao();
+    const handleSoftRefresh = () => {
+      fetchStats(true);
+    };
+    window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+    return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
   }, []);
 
   const insights = useMemo(() => {

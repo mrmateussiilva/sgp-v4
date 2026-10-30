@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, ChangeEvent } from 'react';
 import { Plus, Search, Pencil, Trash2, Eye, Upload, Users, ShoppingBag } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { api } from '../services/api';
+import { usePageCacheStore } from '../store/pageCacheStore';
 import { ClienteHistoricoModal } from '@/components/ClienteHistoricoModal';
 
 // Lazy load de papaparse
@@ -43,9 +44,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Clientes() {
   const { toast } = useToast();
   
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const clientesCache = usePageCacheStore((state) => state.clientesCache);
+  const setClientesCache = usePageCacheStore((state) => state.setClientesCache);
+
+  const [clientes, setClientes] = useState<Cliente[]>(() => clientesCache.clientes);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => clientesCache.searchTerm);
   
   // Modal de criar/editar
   const [showModal, setShowModal] = useState(false);
@@ -88,8 +92,12 @@ export default function Clientes() {
   const [importSummary, setImportSummary] = useState<BulkClienteImportResult | null>(null);
   
   // Paginação
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => clientesCache.currentPage);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    setClientesCache({ searchTerm, currentPage });
+  }, [searchTerm, currentPage, setClientesCache]);
 
   const nomeInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,11 +118,26 @@ export default function Clientes() {
     carregarClientes();
   }, []);
 
-  const carregarClientes = async () => {
-    setLoading(true);
+  useEffect(() => {
+    const handleSoftRefresh = () => {
+      carregarClientes(true);
+    };
+    window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+    return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
+  }, []);
+
+  const carregarClientes = async (forceRefresh = false) => {
+    const cached = usePageCacheStore.getState().clientesCache;
+    if (cached.clientes.length === 0) {
+      setLoading(true);
+    }
     try {
-      const clientes = await api.getClientes();
-      setClientes(clientes);
+      const lista = await api.getClientes(forceRefresh);
+      setClientes(lista);
+      setClientesCache({
+        clientes: lista,
+        lastFetchTime: Date.now(),
+      });
     } catch (error) {
       toast({
         title: "Erro",

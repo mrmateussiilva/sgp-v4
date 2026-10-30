@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { api } from '../services/api';
+import { getCachedResourcesCatalogs } from '../api/endpoints/resources';
 import { logger } from '@/utils/logger';
 import { useOrderStore } from '../store/orderStore';
 import { useModalStore } from '@/store/useModalStore';
@@ -158,6 +159,8 @@ export default function OrderList() {
   const removeOrder = useOrderStore((state) => state.removeOrder);
   const setSelectedOrder = useOrderStore((state) => state.setSelectedOrder);
   const updateOrder = useOrderStore((state) => state.updateOrder);
+  const orderListCache = useOrderStore((state) => state.orderListCache);
+  const setOrderListCache = useOrderStore((state) => state.setOrderListCache);
   const logout = useAuthStore((state) => state.logout);
   const { isAdmin, setor } = useUser();
   const isImpressaoUser = setor === 'impressao';
@@ -167,10 +170,21 @@ export default function OrderList() {
   const canToggleImpressao = isAdmin || setor === 'admin' || setor === 'financeiro' || setor === 'impressao';
 
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeSearchTerm, setActiveSearchTerm] = useState(''); // Termo de busca ativo (após clicar em buscar)
+  const [searchTerm, setSearchTerm] = useState(() => orderListCache.searchTerm);
+  const [activeSearchTerm, setActiveSearchTerm] = useState(() => orderListCache.activeSearchTerm);
   const [productionStatusFilter, setProductionStatusFilter] = useState<'all' | 'pending' | 'ready' | 'delayed' | 'drafts'>(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('overdue') === 'true') return 'delayed';
+        const urlStatus = params.get('status');
+        if (urlStatus === 'pending' || urlStatus === 'ready' || urlStatus === 'all' || urlStatus === 'delayed' || urlStatus === 'drafts') {
+          return urlStatus;
+        }
+      }
+      if (orderListCache.productionStatusFilter) {
+        return orderListCache.productionStatusFilter;
+      }
       const saved = sessionStorage.getItem('sgp_production_status_filter');
       if (saved === 'all' || saved === 'pending' || saved === 'ready' || saved === 'delayed' || saved === 'drafts') {
         return saved;
@@ -188,32 +202,31 @@ export default function OrderList() {
       // ignore
     }
   }, [productionStatusFilter]);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => orderListCache.dateFrom);
+  const [dateTo, setDateTo] = useState(() => orderListCache.dateTo);
 
   // Estados para ordenação
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>(() => orderListCache.sortColumn);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(() => orderListCache.sortDirection);
 
   // Estados para filtros avançados
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedVendedor, setSelectedVendedor] = useState<string>('');
-  const [selectedDesigner, setSelectedDesigner] = useState<string>('');
-  const [selectedCidade, setSelectedCidade] = useState<string>('');
-  const [selectedFormaEnvio, setSelectedFormaEnvio] = useState<string>('');
-  const [selectedTipoProducao, setSelectedTipoProducao] = useState<string>('');
-  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => orderListCache.selectedStatuses);
+  const [selectedVendedor, setSelectedVendedor] = useState<string>(() => orderListCache.selectedVendedor);
+  const [selectedDesigner, setSelectedDesigner] = useState<string>(() => orderListCache.selectedDesigner);
+  const [selectedCidade, setSelectedCidade] = useState<string>(() => orderListCache.selectedCidade);
+  const [selectedFormaEnvio, setSelectedFormaEnvio] = useState<string>(() => orderListCache.selectedFormaEnvio);
+  const [selectedTipoProducao, setSelectedTipoProducao] = useState<string>(() => orderListCache.selectedTipoProducao);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(() => orderListCache.advancedFiltersOpen);
 
-  // Força re-render da tabela quando hr. liberação é gravada/removida (localStorage)
-
-  // Dados para filtros
-  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>([]);
-  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>([]);
+  // Dados para filtros inicializados sincronicamente do cache em memória se disponíveis
+  const initialCatalogs = useMemo(() => getCachedResourcesCatalogs(), []);
+  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }>>(() => initialCatalogs.vendedores ?? []);
+  const [designers, setDesigners] = useState<Array<{ id: number; nome: string }>>(() => initialCatalogs.designers ?? []);
   const [cidades, setCidades] = useState<string[]>([]);
   const [formasEnvio, setFormasEnvio] = useState<
     Array<{ id: number; nome: string; valor: number }>
-  >([]);
-  const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>([]);
+  >(() => initialCatalogs.formasEnvio ?? []);
+  const [tiposProducao, setTiposProducao] = useState<Array<{ value: string; label: string }>>(() => initialCatalogs.tiposProducao ?? []);
 
   const uniqueVendedores = useMemo(() => {
     const seen = new Set<string>();
@@ -246,10 +259,10 @@ export default function OrderList() {
   }, [formasEnvio]);
   const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal } = useModalStore();
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalOrders, setTotalOrders] = useState(0);
+  const [page, setPage] = useState(() => orderListCache.page);
+  const [rowsPerPage, setRowsPerPage] = useState(() => orderListCache.rowsPerPage);
+  const [totalPages, setTotalPages] = useState(() => orderListCache.totalPages);
+  const [totalOrders, setTotalOrders] = useState(() => orderListCache.totalOrders);
   // Alternância entre tabela e pipeline de produção (persistido no sessionStorage)
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>(() => {
     try {
@@ -280,15 +293,65 @@ export default function OrderList() {
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const selectedOrder = useOrderStore((state) => state.selectedOrder);
-  const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(new Set());
-  const [draftsCount, setDraftsCount] = useState<number | null>(null);
+  const [printedOrderIds, setPrintedOrderIds] = useState<Set<number>>(() => new Set(orderListCache.printedOrderIds));
+  const [draftsCount, setDraftsCount] = useState<number | null>(() => orderListCache.draftsCount);
   const [tabTotals, setTabTotals] = useState<{
     pending?: number;
     ready?: number;
     all?: number;
     delayed?: number;
     drafts?: number;
-  }>({});
+  }>(() => orderListCache.tabTotals);
+
+  // Persistir estado de filtros, paginação e totais na store em memória para navegação instantânea
+  useEffect(() => {
+    setOrderListCache({
+      searchTerm,
+      activeSearchTerm,
+      productionStatusFilter,
+      dateFrom,
+      dateTo,
+      sortColumn,
+      sortDirection,
+      selectedStatuses,
+      selectedVendedor,
+      selectedDesigner,
+      selectedCidade,
+      selectedFormaEnvio,
+      selectedTipoProducao,
+      advancedFiltersOpen,
+      page,
+      rowsPerPage,
+      totalPages,
+      totalOrders,
+      tabTotals,
+      draftsCount,
+      printedOrderIds: Array.from(printedOrderIds),
+    });
+  }, [
+    searchTerm,
+    activeSearchTerm,
+    productionStatusFilter,
+    dateFrom,
+    dateTo,
+    sortColumn,
+    sortDirection,
+    selectedStatuses,
+    selectedVendedor,
+    selectedDesigner,
+    selectedCidade,
+    selectedFormaEnvio,
+    selectedTipoProducao,
+    advancedFiltersOpen,
+    page,
+    rowsPerPage,
+    totalPages,
+    totalOrders,
+    tabTotals,
+    draftsCount,
+    printedOrderIds,
+    setOrderListCache,
+  ]);
 
   // Carrega contagens iniciais em segundo plano (Rascunhos, Prontos e Pendentes)
   useEffect(() => {
@@ -465,7 +528,7 @@ export default function OrderList() {
   };
 
   const prevFilterRef = useRef(productionStatusFilter);
-  const prevServerQueryKeyRef = useRef<string>('');
+  const prevServerQueryKeyRef = useRef<string>(orderListCache.lastServerQueryKey);
 
   const loadOrders = useCallback(async (forceRefresh: boolean = false) => {
     const hasSearch = Boolean(activeSearchTerm && activeSearchTerm.trim().length > 0);
@@ -494,9 +557,14 @@ export default function OrderList() {
       rowsPerPage: isFrontendPaginated ? undefined : rowsPerPage,
     });
 
-    // Se a query pro backend for EXATAMENTE a mesma e já temos dados, não faz nova requisição (exceto se forceRefresh for true)
-    if (!forceRefresh && serverQueryKey === prevServerQueryKeyRef.current && orders.length > 0) {
-      logger.debug('[OrderList] Evitando requisição de rede desnecessária (filtros apenas locais)');
+    const currentStoreState = useOrderStore.getState();
+    const currentOrders = currentStoreState.orders;
+    const isSameQuery = serverQueryKey === prevServerQueryKeyRef.current && currentOrders.length > 0;
+    const isCacheFresh = Date.now() - currentStoreState.orderListCache.lastFetchTime < 15000;
+
+    // Se a query pro backend for EXATAMENTE a mesma, já temos dados e o cache é recente (< 15s), evita requisição
+    if (!forceRefresh && isSameQuery && isCacheFresh) {
+      logger.debug('[OrderList] Renderização 0ms via cache em memória (dados recentes)');
       return;
     }
     prevServerQueryKeyRef.current = serverQueryKey;
@@ -505,7 +573,7 @@ export default function OrderList() {
     if (isChangingTab) {
       setLoading(true);
       prevFilterRef.current = productionStatusFilter;
-    } else if (orders.length === 0) {
+    } else if (currentOrders.length === 0) {
       setLoading(true);
     }
     try {
@@ -643,6 +711,11 @@ export default function OrderList() {
         setTotalOrders(draftsMarked.length);
       }
 
+      setOrderListCache({
+        lastServerQueryKey: serverQueryKey,
+        lastFetchTime: Date.now(),
+      });
+
       // Carregar logs de impressão em segundo plano para badges (não bloqueia a renderização)
       api.getAllLogs(200).then((logs) => {
         const printedIds = new Set(logs.map((log) => log.pedido_id));
@@ -685,6 +758,7 @@ export default function OrderList() {
     selectedCidade,
     selectedFormaEnvio,
     selectedTipoProducao,
+    setOrderListCache,
     toast,
     logout,
     navigate,
@@ -699,31 +773,42 @@ export default function OrderList() {
     loadOrders,
   });
 
-  // Auto-refresh suave (fallback) a cada 15s.
+  // Auto-refresh suave (fallback) a cada 30s.
   // Não executa enquanto modais estiverem abertos para evitar qualquer sensação de "piscada".
   useAutoRefresh(async () => {
     if (isAnyDialogOpen) {
       return;
     }
-    await loadOrders();
+    await loadOrders(true);
   }, 30000);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  // Recarregar pedidos quando o modal de visualização for fechado
+  // Escutar evento global de atualização suave (Ctrl+R)
   useEffect(() => {
-    if (!useModalStore.getState().viewModalOpen) {
-      // Pequeno delay para garantir que o modal foi completamente fechado
-      const timeoutId = setTimeout(() => {
-        logger.debug('[OrderList] Modal fechado, recarregando pedidos...');
-        loadOrders();
-      }, 100);
+    const handleSoftRefresh = () => {
+      loadOrders(true);
+    };
+    window.addEventListener('sgp:soft-refresh', handleSoftRefresh);
+    return () => window.removeEventListener('sgp:soft-refresh', handleSoftRefresh);
+  }, [loadOrders]);
 
+  // Recarregar pedidos APENAS quando o modal de visualização transicionar de aberto para fechado
+  const viewModalOpen = useModalStore((state) => state.viewModalOpen);
+  const wasViewModalOpenRef = useRef(viewModalOpen);
+  useEffect(() => {
+    if (wasViewModalOpenRef.current && !viewModalOpen) {
+      const timeoutId = setTimeout(() => {
+        logger.debug('[OrderList] Modal fechado, revalidando pedidos silenciosamente...');
+        loadOrders(true);
+      }, 100);
+      wasViewModalOpenRef.current = viewModalOpen;
       return () => clearTimeout(timeoutId);
     }
-  }, [loadOrders]);
+    wasViewModalOpenRef.current = viewModalOpen;
+  }, [viewModalOpen, loadOrders]);
 
   // Revalidar pedidos silenciosamente quando a aba/janela ganha foco
   useEffect(() => {
@@ -735,7 +820,13 @@ export default function OrderList() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [loadOrders]);
 
+  // Resetar para página 0 apenas quando filtros mudarem após a montagem inicial (preserva página restaurada do cache)
+  const hasMountedFilterEffectRef = useRef(false);
   useEffect(() => {
+    if (!hasMountedFilterEffectRef.current) {
+      hasMountedFilterEffectRef.current = true;
+      return;
+    }
     setPage(0);
   }, [
     productionStatusFilter,
