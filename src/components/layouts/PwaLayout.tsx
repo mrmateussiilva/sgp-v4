@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 interface PwaLayoutProps {
@@ -49,7 +50,8 @@ const NAV_ITEMS: Array<{
 export function PwaLayout({ children }: PwaLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { username, isAdmin } = useAuthStore();
+  const username = useAuthStore((state) => state.username);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const tauri = isTauri();
 
   const filteredNavItems = NAV_ITEMS.filter((item) => {
@@ -154,6 +156,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
 
         {/* User + Notifications + Logout */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <NotificationBell />
           <span className="hidden md:inline text-sm text-muted-foreground truncate max-w-[120px]">
             {username}

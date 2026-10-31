@@ -28,7 +28,7 @@ export default function SelectDesigner({
     <div className="space-y-2">
       <Label htmlFor={triggerId} className="text-base font-medium">{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={triggerId} aria-label={label} className="bg-white h-12 text-base">
+        <SelectTrigger id={triggerId} aria-label={label} className="bg-background h-12 text-base">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

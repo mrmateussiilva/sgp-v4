@@ -49,7 +49,7 @@ export function DashboardInsights({ insights, loading, periodMetadata }: Dashboa
 
     return (
         <Card className="border-slate-100 shadow-none bg-slate-50/50">
-            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between border-b border-white/50">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between border-b border-border/50">
                 <CardTitle className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     <Lightbulb className="h-3 w-3 text-amber-500" />
                     Insights Estratégicos

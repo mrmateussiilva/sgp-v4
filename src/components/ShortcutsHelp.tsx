@@ -27,6 +27,7 @@ export function ShortcutsHelp({
     { key: '3', ctrl: true, description: 'Novo Pedido', action: () => { } },
     { key: '4', ctrl: true, description: 'Ir para Clientes', action: () => { } },
     { key: 'b', ctrl: true, description: 'Recolher/Expandir menu', action: () => { } },
+    { key: 'l', ctrl: true, shift: true, description: 'Alternar Modo Claro/Escuro', action: () => { } },
     { key: 'r', ctrl: true, description: 'Atualizar sistema', action: () => { } },
   ];
 

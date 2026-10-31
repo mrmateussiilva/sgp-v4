@@ -48,6 +48,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DashboardMenuItem } from '@/components/DashboardMenuItem';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useTheme } from '@/components/ThemeProvider';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useDesignerNotifications } from '@/hooks/useDesignerNotifications';
 import { cn } from '@/lib/utils';
@@ -101,8 +103,11 @@ export default function Dashboard() {
   const [appVersion, setAppVersion] = useState<string>('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { username, isAdmin, setor } = useAuthStore();
+  const username = useAuthStore((state) => state.username);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const setor = useAuthStore((state) => state.setor);
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
+  const { resolvedTheme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const { toast } = useToast();
 
@@ -210,6 +215,13 @@ export default function Dashboard() {
         description: 'Recolher/Expandir menu lateral',
       },
       {
+        key: 'l',
+        ctrl: true,
+        shift: true,
+        action: () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'),
+        description: 'Alternar Modo Claro/Escuro',
+      },
+      {
         key: 'r',
         ctrl: true,
         action: () => {
@@ -224,7 +236,7 @@ export default function Dashboard() {
         description: 'Atualizar dados da tela',
       },
     ],
-    [navigate, setSidebarExpanded]
+    [navigate, setSidebarExpanded, resolvedTheme, setTheme, toast]
   );
 
   useKeyboardShortcuts(dashboardShortcuts);
@@ -510,12 +522,15 @@ export default function Dashboard() {
               sidebarExpanded ? 'md:w-64' : 'md:w-20'
             )}
           >
-            <div className={cn('p-6 flex items-center', !sidebarExpanded && 'justify-center p-4')}>
+            <div className={cn('p-6 flex items-center justify-between', !sidebarExpanded && 'justify-center p-4')}>
               {sidebarExpanded ? (
-                <div className="flex flex-col">
-                  <h1 className="text-4xl font-bold text-primary italic tracking-tighter">SGP</h1>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest -mt-1">v{appVersion}</span>
-                </div>
+                <>
+                  <div className="flex flex-col">
+                    <h1 className="text-4xl font-bold text-primary italic tracking-tighter">SGP</h1>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest -mt-1">v{appVersion}</span>
+                  </div>
+                  <ThemeToggle variant="outline" />
+                </>
               ) : (
                 <h1 className="text-2xl font-bold text-primary">S</h1>
               )}
@@ -587,10 +602,13 @@ export default function Dashboard() {
 
             <div className="p-4">
             {sidebarExpanded && (
-              <div className="mb-3 px-3">
+              <div className="mb-3 px-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-700">Usuário: <span className="font-normal text-muted-foreground">{username}</span></p>
-                  <NotificationBell />
+                  <p className="text-sm font-bold text-foreground">Usuário: <span className="font-normal text-muted-foreground">{username}</span></p>
+                  <div className="flex items-center gap-1">
+                    <ThemeToggle />
+                    <NotificationBell />
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowChangePassword(true)}
@@ -603,6 +621,7 @@ export default function Dashboard() {
             )}
               {!sidebarExpanded ? (
                 <div className="flex flex-col items-center gap-2">
+                  <ThemeToggle />
                   <NotificationBell />
                   <Tooltip>
                     <TooltipTrigger asChild>

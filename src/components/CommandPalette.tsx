@@ -21,15 +21,21 @@ import {
     BarChart,
     Truck,
     LogOut,
+    Sun,
+    Moon,
+    Monitor,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useTheme } from '@/components/ThemeProvider';
 import { isTauri } from '@/utils/isTauri';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export function CommandPalette() {
     const [open, setOpen] = useState(false);
     const navigate = useNavigate();
-    const { isAdmin, logout } = useAuthStore();
+    const isAdmin = useAuthStore((state) => state.isAdmin);
+    const logout = useAuthStore((state) => state.logout);
+    const { resolvedTheme, setTheme } = useTheme();
 
     // Atalho global Ctrl+K para abrir a palette
     useKeyboardShortcuts([
@@ -105,6 +111,32 @@ export function CommandPalette() {
                         <RefreshCw className="mr-2 h-4 w-4" />
                         <span>Atualizar Sistema</span>
                         <CommandShortcut>Ctrl+R</CommandShortcut>
+                    </CommandItem>
+                </CommandGroup>
+
+                <CommandSeparator />
+
+                <CommandGroup heading="Aparência">
+                    <CommandItem onSelect={() => runCommand(() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'))}>
+                        {resolvedTheme === 'dark' ? (
+                            <Sun className="mr-2 h-4 w-4 text-amber-500" />
+                        ) : (
+                            <Moon className="mr-2 h-4 w-4 text-blue-400" />
+                        )}
+                        <span>Alternar Modo Claro / Escuro</span>
+                        <CommandShortcut>Ctrl+Shift+L</CommandShortcut>
+                    </CommandItem>
+                    <CommandItem onSelect={() => runCommand(() => setTheme('light'))}>
+                        <Sun className="mr-2 h-4 w-4 text-amber-500" />
+                        <span>Tema Claro</span>
+                    </CommandItem>
+                    <CommandItem onSelect={() => runCommand(() => setTheme('dark'))}>
+                        <Moon className="mr-2 h-4 w-4 text-blue-400" />
+                        <span>Tema Escuro</span>
+                    </CommandItem>
+                    <CommandItem onSelect={() => runCommand(() => setTheme('system'))}>
+                        <Monitor className="mr-2 h-4 w-4" />
+                        <span>Tema do Sistema</span>
                     </CommandItem>
                 </CommandGroup>
 

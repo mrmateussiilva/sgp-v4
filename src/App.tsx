@@ -33,10 +33,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-        <p className="text-slate-700">Carregando...</p>
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+        <p className="text-foreground">Carregando...</p>
       </div>
     </div>
   );
@@ -308,78 +308,76 @@ function App() {
   // Notificação de nova versão agora é gerenciada pelo componente UpdateBanner
   // para ser mais persistente e visível em todo o sistema.
 
-  if (isCheckingConnection) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-          <p className="text-slate-700">Verificando conexão...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <ThemeProvider defaultTheme="light" storageKey="sgp-ui-theme">
-      <AlertProvider>
-        <ConfirmProvider>
-          <Suspense fallback={<LoadingFallback />}>
-            {showFallback || !apiUrl ? (
-              <div className="bg-background text-foreground min-h-screen">
-                <ConfigApi
-                  reason={fallbackReason}
-                  onConfigured={(url: string) => {
-                    const normalizedUrl = normalizeApiUrl(url);
-                    applyApiUrl(normalizedUrl);
-                    setApiUrl(normalizedUrl);
-                    setShowFallback(false);
-                  }}
-                />
-                <Toaster />
-              </div>
-            ) : (
-              <HashRouter>
-                <div className="flex flex-col h-screen overflow-hidden">
-                  <UpdateBanner />
-                  <CommandPalette />
-                  <div className="flex-1 flex flex-col relative">
-                    <Routes>
-                      <Route path="/login" element={<Login />} />
-                      <Route
-                        path="/dashboard/*"
-                        element={
-                          <PrivateRoute>
-                            <Dashboard />
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route
-                        path="/update-status"
-                        element={
-                          <PrivateRoute>
-                            <UpdateStatus />
-                          </PrivateRoute>
-                        }
-                      />
-                      <Route path="/" element={<Navigate to="/dashboard" />} />
-                    </Routes>
-                  </div>
+      {isCheckingConnection ? (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-foreground">Verificando conexão...</p>
+          </div>
+        </div>
+      ) : (
+        <AlertProvider>
+          <ConfirmProvider>
+            <Suspense fallback={<LoadingFallback />}>
+              {showFallback || !apiUrl ? (
+                <div className="bg-background text-foreground min-h-screen">
+                  <ConfigApi
+                    reason={fallbackReason}
+                    onConfigured={(url: string) => {
+                      const normalizedUrl = normalizeApiUrl(url);
+                      applyApiUrl(normalizedUrl);
+                      setApiUrl(normalizedUrl);
+                      setShowFallback(false);
+                    }}
+                  />
+                  <Toaster />
                 </div>
-                <Toaster />
-              </HashRouter>
-            )}
-          </Suspense>
+              ) : (
+                <HashRouter>
+                  <div className="flex flex-col h-screen overflow-hidden">
+                    <UpdateBanner />
+                    <CommandPalette />
+                    <div className="flex-1 flex flex-col relative">
+                      <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route
+                          path="/dashboard/*"
+                          element={
+                            <PrivateRoute>
+                              <Dashboard />
+                            </PrivateRoute>
+                          }
+                        />
+                        <Route
+                          path="/update-status"
+                          element={
+                            <PrivateRoute>
+                              <UpdateStatus />
+                            </PrivateRoute>
+                          }
+                        />
+                        <Route path="/" element={<Navigate to="/dashboard" />} />
+                      </Routes>
+                    </div>
+                  </div>
+                  <Toaster />
+                </HashRouter>
+              )}
+            </Suspense>
 
-          {/* Modal de Changelog após atualização */}
-          {showChangelog && (
-            <ChangelogModal
-              version={updateVersion}
-              isOpen={showChangelog}
-              onClose={() => setShowChangelog(false)}
-            />
-          )}
-        </ConfirmProvider>
-      </AlertProvider>
+            {/* Modal de Changelog após atualização */}
+            {showChangelog && (
+              <ChangelogModal
+                version={updateVersion}
+                isOpen={showChangelog}
+                onClose={() => setShowChangelog(false)}
+              />
+            )}
+          </ConfirmProvider>
+        </AlertProvider>
+      )}
     </ThemeProvider>
   );
 }

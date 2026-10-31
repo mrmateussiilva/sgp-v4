@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getErrorMessage } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -71,17 +72,20 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-4">
-      <Card className="w-full max-w-[400px] shadow-2xl border-slate-200/50 bg-white/90 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 p-4 relative">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle variant="outline" />
+      </div>
+      <Card className="w-full max-w-[400px] shadow-2xl border-slate-200/50 dark:border-neutral-800 bg-white/90 dark:bg-card/95 backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-500">
         <CardHeader className="space-y-3 text-center pb-6 pt-8">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-1 transform transition-all hover:scale-110 hover:rotate-3 duration-300 shadow-inner">
             <Lock className="w-7 h-7 text-primary drop-shadow-sm" />
           </div>
           <div className="space-y-1.5">
-            <CardTitle className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">
+            <CardTitle className="text-2xl font-black text-foreground tracking-tighter uppercase italic">
               SGP • FinderBit
             </CardTitle>
-            <CardDescription className="text-slate-500 font-bold text-sm">
+            <CardDescription className="text-muted-foreground font-bold text-sm">
               Entre com suas credenciais para acessar o sistema.
             </CardDescription>
           </div>
@@ -119,7 +123,7 @@ export default function Login() {
                 }}
                 required
                 className={cn(
-                  "h-12 bg-slate-50/50 transition-all duration-300 border-slate-200 focus:bg-white focus:ring-primary/10",
+                  "h-12 bg-slate-50/50 dark:bg-neutral-900/60 transition-all duration-300 border-slate-200 dark:border-neutral-800 focus:bg-white dark:focus:bg-neutral-900 focus:ring-primary/10",
                   errorStatus && "border-red-400 focus:border-red-500 focus:ring-red-100"
                 )}
                 autoComplete="username"
@@ -144,7 +148,7 @@ export default function Login() {
                   }}
                   required
                   className={cn(
-                    "h-12 pr-12 bg-slate-50/50 transition-all duration-300 border-slate-200 focus:bg-white focus:ring-primary/10",
+                    "h-12 pr-12 bg-slate-50/50 dark:bg-neutral-900/60 transition-all duration-300 border-slate-200 dark:border-neutral-800 focus:bg-white dark:focus:bg-neutral-900 focus:ring-primary/10",
                     errorStatus && "border-red-400 focus:border-red-500 focus:ring-red-100"
                   )}
                   autoComplete="current-password"

@@ -19,6 +19,22 @@
   <link rel="apple-touch-icon" href="/pwa-192x192.png" />
 
   <title>SGP - Sistema de Gerenciamento de Pedidos</title>
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('sgp-ui-theme');
+        var isDark =
+          stored === 'dark' ||
+          (stored === 'system' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var root = document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(isDark ? 'dark' : 'light');
+        root.style.colorScheme = isDark ? 'dark' : 'light';
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

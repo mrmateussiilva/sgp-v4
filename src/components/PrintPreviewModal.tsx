@@ -73,7 +73,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex-1 min-h-0 bg-gray-100 rounded-md border overflow-hidden relative">
+                <div className="flex-1 min-h-0 bg-muted rounded-md border overflow-hidden relative">
                     {pdfUrl ? (
                         <iframe
                             src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
@@ -83,12 +83,12 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                     ) : (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                             <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-                            <p className="text-gray-500 font-medium">Gerando pré-visualização...</p>
+                            <p className="text-muted-foreground font-medium">Gerando pré-visualização...</p>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="pt-4 flex justify-between items-center bg-white border-t mt-2">
+                <DialogFooter className="pt-4 flex justify-between items-center bg-card border-t border-border mt-2">
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
@@ -101,7 +101,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                         </Button>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="ghost" onClick={onClose} className="gap-2 text-gray-500">
+                        <Button variant="ghost" onClick={onClose} className="gap-2 text-muted-foreground">
                             Fechar
                         </Button>
                         <Button

@@ -93,8 +93,8 @@ export function MedidasCalculator({
         </div>
         
         {/* Separador visual */}
-        <div className="flex items-center justify-center px-1 bg-gray-100 border-y border-gray-300">
-          <span className="text-gray-500 font-medium text-sm">×</span>
+        <div className="flex items-center justify-center px-1 bg-muted border-y border-input">
+          <span className="text-muted-foreground font-medium text-sm">×</span>
         </div>
         
         {/* Altura */}
@@ -126,8 +126,8 @@ export function MedidasCalculator({
         </div>
         
         {/* Separador visual */}
-        <div className="flex items-center justify-center px-1 bg-gray-100 border-y border-gray-300">
-          <span className="text-gray-500 font-medium text-sm">=</span>
+        <div className="flex items-center justify-center px-1 bg-muted border-y border-input">
+          <span className="text-muted-foreground font-medium text-sm">=</span>
         </div>
         
         {/* Área */}
@@ -135,7 +135,7 @@ export function MedidasCalculator({
           <Input
             value={area}
             disabled
-            className="h-10 text-sm bg-purple-100 font-bold text-purple-800 rounded-l-none focus:z-10"
+            className="h-10 text-sm bg-purple-100 dark:bg-purple-950/60 font-bold text-purple-800 dark:text-purple-300 rounded-l-none focus:z-10"
           />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle, Loader2, WifiOff, RefreshCw, HelpCircle } fro
 import { loadConfig, saveConfig } from '@/utils/config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { normalizeApiUrl, verifyApiConnection } from '@/api/client';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export type FallbackReason = 'no_config' | 'connection_lost';
 
@@ -202,17 +203,20 @@ export default function ConfigApi({ onConfigured, reason = 'no_config' }: Config
   const hasUrl = apiUrl.trim().length > 0;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle variant="outline" />
+      </div>
       <div className="w-full max-w-md space-y-4 animate-in fade-in duration-500">
-        <Card className="shadow-lg border-red-100 overflow-hidden">
+        <Card className="shadow-lg border-red-100 dark:border-red-900/50 overflow-hidden">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <WifiOff className="h-8 w-8 text-red-600" />
+            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/60 flex items-center justify-center mb-4">
+              <WifiOff className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
-            <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight">
+            <CardTitle className="text-2xl font-bold text-foreground tracking-tight">
               {title}
             </CardTitle>
-            <CardDescription className="text-slate-500 mt-1">
+            <CardDescription className="text-muted-foreground mt-1">
               {subtitle}
             </CardDescription>
           </CardHeader>

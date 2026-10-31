@@ -107,18 +107,18 @@ export function ClienteAutocomplete({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id={id}
               value={searchTerm}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Digite o nome do cliente..."
               autoComplete="off"
-              className="pl-10 h-12 text-base w-full"
+              className="pl-10 h-12 text-base w-full bg-background"
             />
             {loading && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
               </div>
             )}
           </div>
@@ -131,16 +131,16 @@ export function ClienteAutocomplete({
         >
           <div className="max-h-80 overflow-auto">
             {clientesFiltrados.length === 0 && !loading && searchTerm.length >= 2 && (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-muted-foreground">
                 Nenhum cliente encontrado para "{searchTerm}"
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-muted-foreground/70 mt-1">
                   Total de clientes: {todosClientes.length}
                 </div>
               </div>
             )}
             {clientesFiltrados.length === 0 && loading && (
               <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 <span className="ml-2">Buscando...</span>
               </div>
             )}
@@ -150,11 +150,11 @@ export function ClienteAutocomplete({
                   <div
                     key={cliente.id}
                     onClick={() => handleSelect(cliente)}
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 group"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent transition-colors border-b border-border last:border-b-0 group"
                   >
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="font-medium text-gray-900 group-hover:text-blue-900 truncate">{cliente.nome}</span>
-                      <span className="text-sm text-gray-500 group-hover:text-blue-600">
+                      <span className="font-medium text-foreground group-hover:text-primary truncate">{cliente.nome}</span>
+                      <span className="text-sm text-muted-foreground group-hover:text-foreground/80">
                         {(() => {
                           const infoParts: string[] = [];
                           if (cliente.telefone && cliente.telefone.trim()) {

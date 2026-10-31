@@ -92,7 +92,7 @@ export class ErrorBoundary extends Component<Props, State> {
         errorMsg.includes('loading chunk');
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -109,16 +109,16 @@ export class ErrorBoundary extends Component<Props, State> {
             </CardHeader>
             <CardContent className="space-y-4">
               {import.meta.env.DEV && this.state.error && (
-                <div className="bg-slate-100 p-4 rounded-md">
-                  <p className="font-mono text-sm text-slate-800 break-all">
+                <div className="bg-muted p-4 rounded-md">
+                  <p className="font-mono text-sm text-foreground break-all">
                     {this.state.error.toString()}
                   </p>
                   {this.state.errorInfo && (
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-sm text-slate-600">
+                      <summary className="cursor-pointer text-sm text-muted-foreground">
                         Detalhes técnicos
                       </summary>
-                      <pre className="mt-2 text-xs text-slate-700 overflow-auto max-h-64">
+                      <pre className="mt-2 text-xs text-muted-foreground overflow-auto max-h-64">
                         {this.state.errorInfo.componentStack}
                       </pre>
                     </details>

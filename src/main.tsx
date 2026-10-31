@@ -4,6 +4,7 @@ import App from './App';
 import './index.css';
 import { enableDevtoolsShortcuts } from './utils/devtools';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { logger } from './utils/logger';
 
 // Desregistra os service workers e limpa os caches no desktop (Tauri)
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -16,7 +17,7 @@ async function clearCachesAndWorkers() {
       const registrations = await navigator.serviceWorker.getRegistrations();
       for (const registration of registrations) {
         await registration.unregister();
-        console.log('ServiceWorker unregistered successfully in Tauri.');
+        logger.debug('ServiceWorker unregistered successfully in Tauri.');
       }
     }
 
@@ -24,11 +25,11 @@ async function clearCachesAndWorkers() {
       const names = await caches.keys();
       for (const name of names) {
         await caches.delete(name);
-        console.log(`Cache '${name}' cleared in Tauri.`);
+        logger.debug(`Cache '${name}' cleared in Tauri.`);
       }
     }
   } catch (err) {
-    console.error('Error clearing caches/workers:', err);
+    logger.error('Error clearing caches/workers:', err);
   }
 }
 

@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/isTauri';
 import { DashboardV1 } from '../components/dashboard/DashboardV1';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   calculateDashboardStats,
   isDateOverdue,
@@ -416,6 +417,7 @@ export default function DashboardOverview() {
 
         {/* Ações do Header */}
         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+          <ThemeToggle variant="outline" />
           <Button
             onClick={handleRefresh}
             variant="outline"
