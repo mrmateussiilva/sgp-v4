@@ -74,8 +74,9 @@ export default defineConfig(({ mode }) => {
     ],
     base,
     define: {
-      // Injetar versão do package.json para build web (quando VITE_APP_VERSION não está no .env)
-      'import.meta.env.VITE_APP_VERSION': JSON.stringify(env.VITE_APP_VERSION || getAppVersion()),
+      // Versão sincronizada automaticamente com o package.json (Web e PWA / Mobile)
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(getAppVersion()),
+      '__APP_VERSION__': JSON.stringify(getAppVersion()),
     },
     clearScreen: false,
     server: {

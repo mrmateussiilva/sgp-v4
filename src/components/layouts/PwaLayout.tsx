@@ -87,10 +87,13 @@ export function PwaLayout({ children }: PwaLayoutProps) {
         {/* Logo */}
         <Link
           to="/dashboard"
-          className="flex items-center gap-2 font-bold text-primary text-lg hover:opacity-90 transition-opacity min-h-[44px] items-center"
+          className="flex items-center gap-2 font-bold text-primary text-lg hover:opacity-90 transition-opacity min-h-[44px]"
           aria-label="SGP - Início"
         >
-          SGP
+          <span>SGP</span>
+          <span className="text-[10px] font-semibold text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
+            v{import.meta.env.VITE_APP_VERSION}
+          </span>
         </Link>
 
         {/* Nav - desktop: linha, mobile: hamburger */}
