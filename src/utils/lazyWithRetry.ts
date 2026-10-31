@@ -12,12 +12,16 @@ export function lazyWithRetry<T extends ComponentType<any>>(
   interval = 800
 ): LazyExoticComponent<T> {
   return lazy(async () => {
+    const getRouteKey = () =>
+      typeof window !== 'undefined'
+        ? `lazy_retry_reload_${window.location.hash || window.location.pathname}`
+        : 'lazy_retry_reload';
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const module = await componentImport();
         if (typeof window !== 'undefined') {
-          const sessionKey = `lazy_retry_reload_${window.location.pathname}`;
-          window.sessionStorage.removeItem(sessionKey);
+          window.sessionStorage.removeItem(getRouteKey());
         }
         return module;
       } catch (error: unknown) {
@@ -37,7 +41,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
         // Se falhou todas as tentativas e é erro de módulo desatualizado/não encontrado,
         // força o recarregamento da página UMA única vez para evitar loop infinito.
         if (isDynamicImportError && typeof window !== 'undefined') {
-          const sessionKey = `lazy_retry_reload_${window.location.pathname}`;
+          const sessionKey = getRouteKey();
           const alreadyReloaded = window.sessionStorage.getItem(sessionKey);
 
           if (!alreadyReloaded) {

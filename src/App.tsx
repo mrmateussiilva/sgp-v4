@@ -158,12 +158,15 @@ function App() {
 
         if (config?.api_url) {
           const normalizedUrl = normalizeApiUrl(config.api_url);
+          // Boot otimista: aplica a URL imediatamente e libera a UI sem bloquear no /health
+          applyApiUrl(normalizedUrl);
+          setApiUrl(normalizedUrl);
+          setShowFallback(false);
+          setIsCheckingConnection(false);
+
           try {
             await verifyApiConnection(normalizedUrl);
             clearTimeout(safetyTimeoutId);
-            applyApiUrl(normalizedUrl);
-            setApiUrl(normalizedUrl);
-            setShowFallback(false);
           } catch (error) {
             clearTimeout(safetyTimeoutId);
             logger.error('API inacessível ao iniciar:', error);
@@ -336,7 +339,7 @@ function App() {
                 </div>
               ) : (
                 <HashRouter>
-                  <div className="flex flex-col h-screen overflow-hidden">
+                  <div className="flex flex-col h-[100dvh] overflow-hidden">
                     <UpdateBanner />
                     <CommandPalette />
                     <div className="flex-1 flex flex-col relative">

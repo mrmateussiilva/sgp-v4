@@ -75,7 +75,7 @@ export function PwaLayout({ children }: PwaLayoutProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-background overflow-hidden">
       {/* Header fixo no topo */}
       <header
         className={cn(

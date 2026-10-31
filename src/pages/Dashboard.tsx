@@ -257,12 +257,15 @@ export default function Dashboard() {
       import('./DashboardOverview').catch(() => {});
       import('./Clientes').catch(() => {});
       import('./Expedicao').catch(() => {});
-      import('../views/PedidoCreateView').catch(() => {});
-      import('../views/PedidoEditView').catch(() => {});
+      // Formulários completos de criação/edição só são pré-carregados no Desktop
+      if (!isMobile) {
+        import('../views/PedidoCreateView').catch(() => {});
+        import('../views/PedidoEditView').catch(() => {});
+      }
     }, 350);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isMobile]);
 
   interface MenuItem {
     icon: any;
@@ -502,6 +505,23 @@ export default function Dashboard() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="painel-designers" element={<TelaPainelDesigners />} />
+              <Route
+                path="print-logs"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <PrintLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin"
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>
@@ -514,7 +534,7 @@ export default function Dashboard() {
   return (
     <>
       <TooltipProvider delayDuration={300}>
-        <div className="flex h-screen bg-background overflow-hidden">
+        <div className="flex h-[100dvh] bg-background overflow-hidden">
           {/* Sidebar Desktop */}
           <aside
             className={cn(

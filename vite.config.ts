@@ -59,6 +59,15 @@ export default defineConfig(({ mode }) => {
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,svg}'],
+          // Chunks pesados de PDF/Canvas/Gráficos/Formulário Desktop são cacheados sob demanda em runtime no sw.js
+          globIgnores: [
+            '**/vendor-react-pdf-*.js',
+            '**/vendor-pdfmake-*.js',
+            '**/vendor-pdf-*.js',
+            '**/vendor-canvas-*.js',
+            '**/vendor-charts-*.js',
+            '**/CreateOrderComplete-*.js',
+          ],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
       })] : []),
@@ -100,7 +109,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
+      target: isTauri
+        ? process.env.TAURI_PLATFORM == 'windows'
+          ? 'chrome105'
+          : 'safari13'
+        : 'es2020',
       minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
       sourcemap: !!process.env.TAURI_DEBUG,
       rollupOptions: {

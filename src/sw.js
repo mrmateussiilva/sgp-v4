@@ -1,28 +1,31 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
 // Precache de assets do build (injetado pelo Vite PWA)
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
-// Cache de API com timeout para falhar rápido se o backend estiver offline
+// Cache sob demanda para chunks JS/CSS carregados dinamicamente (ex: PDF, gráficos) que ficam fora do precache inicial
 registerRoute(
-  ({ url }) => url.pathname.includes('/api/'),
+  ({ request, url }) =>
+    request.method === 'GET' &&
+    url.origin === self.location.origin &&
+    url.pathname.startsWith('/assets/'),
+  new StaleWhileRevalidate({
+    cacheName: 'static-assets-runtime',
+  })
+);
+
+// Cache de API (apenas GET e fora de rotas de autenticação) com timeout para falhar rápido se o backend estiver offline
+registerRoute(
+  ({ url, request }) =>
+    request.method === 'GET' &&
+    url.pathname.includes('/api/') &&
+    !url.pathname.includes('/auth/'),
   new NetworkFirst({
     cacheName: 'api-cache',
     networkTimeoutSeconds: 3, // Se não responder em 3s, usa cache (evita hang infinito)
-    plugins: [
-      {
-        cacheKeyWillBeUsed: async ({ request }) => {
-          // Não cachear chamadas de login ou multipart (uploads)
-          if (request.url.includes('/auth/login') || request.method === 'POST') {
-            return null;
-          }
-          return request;
-        }
-      }
-    ]
   })
 );
 
@@ -58,6 +61,11 @@ self.addEventListener('activate', (event) => {
 // Escutar mensagens enviadas pelo app via postMessage
 self.addEventListener('message', (event) => {
   if (!event.data) return;
+
+  if (event.data.type === 'SGP_CLEAR_API_CACHE') {
+    event.waitUntil(caches.delete('api-cache'));
+    return;
+  }
 
   if (event.data.type === 'SGP_NOTIFICATION') {
     const { title, body, icon, tag } = event.data;

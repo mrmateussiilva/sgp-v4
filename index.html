@@ -32,6 +32,10 @@
         root.classList.remove('light', 'dark');
         root.classList.add(isDark ? 'dark' : 'light');
         root.style.colorScheme = isDark ? 'dark' : 'light';
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) {
+          metaTheme.setAttribute('content', isDark ? '#09090b' : '#ffffff');
+        }
       } catch (e) {}
     })();
   </script>

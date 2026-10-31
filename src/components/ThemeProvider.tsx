@@ -59,6 +59,14 @@ export function ThemeProvider({
       root.classList.add(effectiveTheme)
       root.style.colorScheme = effectiveTheme
       setResolvedTheme(effectiveTheme)
+
+      const themeColorMeta = window.document.querySelector('meta[name="theme-color"]')
+      if (themeColorMeta) {
+        themeColorMeta.setAttribute(
+          "content",
+          effectiveTheme === "dark" ? "#09090b" : "#ffffff"
+        )
+      }
     }
 
     applyTheme()

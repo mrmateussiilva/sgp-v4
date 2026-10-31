@@ -51,7 +51,21 @@ export const useAuthStore = create<AuthState>()(
           sessionExpiresAt: Date.now() + ttlMs,
         });
       },
-      logout: () => set(createInitialState()),
+      logout: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            if ('caches' in window) {
+              caches.delete('api-cache').catch(() => {});
+            }
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({ type: 'SGP_CLEAR_API_CACHE' });
+            }
+          } catch {
+            // Ignore cache cleanup errors on logout
+          }
+        }
+        set(createInitialState());
+      },
     }),
     {
       name: 'auth-storage',
