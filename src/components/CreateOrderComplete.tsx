@@ -2880,7 +2880,37 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
             </div>
 
             <div className="space-y-2">
-              <Label className="text-base font-medium">Data Entrega *</Label>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-base font-medium">Data Entrega *</Label>
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: 'Hoje', days: 0 },
+                    { label: 'Amanhã', days: 1 },
+                    { label: '+3d', days: 3 },
+                    { label: '+7d', days: 7 },
+                  ].map((preset) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + preset.days);
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const isActive = formData.data_entrega === iso;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => handleChange('data_entrega', iso)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition-colors ${
+                          isActive
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-purple-50 hover:border-purple-300'
+                        }`}
+                        title={`Definir entrega para ${preset.label}`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <Input
                 type="date"
                 value={formData.data_entrega}
@@ -2936,7 +2966,12 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
       <Card className={`border-l-4 border-l-green-500 bg-green-50/30 ${errors.items ? 'border-l-red-500 bg-red-50/30' : ''}`}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <Label className="text-lg font-semibold">Itens do Pedido</Label>
+            <div className="flex items-center gap-2">
+              <Label className="text-lg font-semibold">Itens do Pedido</Label>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-300">
+                {tabs.length} {tabs.length === 1 ? 'item' : 'itens'}
+              </span>
+            </div>
             <div className="flex gap-2">
               {/* Botão Duplicar - só aparece se tiver um item selecionado com dados */}
               {activeTab && tabsData[activeTab] && tabsData[activeTab].tipo_producao && (
@@ -2975,8 +3010,14 @@ export default function CreateOrderComplete({ mode }: CreateOrderCompleteProps) 
                 {tabs.map((tabId, index) => (
                   <div key={tabId} className="flex items-center">
                     <TabsTrigger value={tabId} className="text-base h-9 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span>Item {index + 1}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold">Item {index + 1}</span>
+                        {tabsData[tabId]?.tipo_producao && (
+                          <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0 rounded capitalize">
+                            {tiposProducao.find((t) => t.value === tabsData[tabId]?.tipo_producao)?.label ||
+                              tabsData[tabId]?.tipo_producao}
+                          </span>
+                        )}
                       </div>
                       {tabs.length > 1 && (
                         <span

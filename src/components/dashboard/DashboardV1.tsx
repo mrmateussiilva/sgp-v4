@@ -204,13 +204,13 @@ export function DashboardV1({
       {/* 3. Operação em Foco: Pedidos Urgentes & Pedidos Recentes */}
       <div className={cn("grid gap-4 lg:grid-cols-2", isPwa && "gap-4")}>
         {/* Pedidos Urgentes */}
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <Card className="border border-slate-200/90 dark:border-slate-800 shadow-2xs bg-white dark:bg-card flex flex-col justify-between">
           <div>
-            <CardHeader className="pb-3 border-b bg-muted/10">
+            <CardHeader className="pb-3 border-b border-slate-200/80 dark:border-border bg-slate-50/70 dark:bg-muted/10">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">Pedidos Urgentes</CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardTitle className="text-sm font-bold text-slate-900 dark:text-foreground">Pedidos Urgentes</CardTitle>
+                  <CardDescription className="text-xs text-slate-600 dark:text-muted-foreground">
                     Pedidos com prioridade alta na fila
                   </CardDescription>
                 </div>
@@ -227,32 +227,47 @@ export function DashboardV1({
                   <p className="text-xs text-muted-foreground">Nenhum pedido com prioridade alta na fila.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/60">
+                <div className="divide-y divide-slate-200/80 dark:divide-border/60">
                   {urgentOrders.map((order) => (
                     <div
                       key={order.id}
                       onClick={() => handleViewOrder(order)}
-                      className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 transition-colors cursor-pointer rounded-sm"
+                      className="flex items-center justify-between py-2.5 px-1.5 hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors cursor-pointer rounded-md"
                     >
                       <div className="flex-1 min-w-0 pr-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs text-foreground">
+                          <span className="font-bold font-mono text-xs text-slate-900 dark:text-foreground">
                             #{order.numero || order.id}
                           </span>
                           {/* Destaque de Prioridade ALTA em Âmbar */}
                           <Badge className="bg-amber-500 text-white font-extrabold text-[10px] px-1.5 py-0 h-4 border-transparent shadow-2xs">
                             ALTA
                           </Badge>
+                          {order.isOverdue && (
+                            <span className="px-1.5 py-0 rounded text-[9px] font-bold bg-red-100 text-red-800 border border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800">
+                              Atrasado
+                            </span>
+                          )}
+                          {!order.isOverdue && order.daysUntilDelivery === 0 && (
+                            <span className="px-1.5 py-0 rounded text-[9px] font-bold bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800">
+                              Hoje
+                            </span>
+                          )}
+                          {!order.isOverdue && order.daysUntilDelivery === 1 && (
+                            <span className="px-1.5 py-0 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
+                              Amanhã
+                            </span>
+                          )}
                           {order.forma_envio && (
-                            <span className="text-[11px] text-muted-foreground truncate">
+                            <span className="text-[11px] text-slate-600 dark:text-muted-foreground truncate">
                               • {order.forma_envio}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs font-medium text-foreground truncate mt-0.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-foreground truncate mt-0.5">
                           {order.cliente || order.customer_name || 'Cliente não identificado'}
                         </p>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                        <div className="text-[11px] text-slate-600 dark:text-muted-foreground mt-0.5 font-medium">
                           Entrega: {formatDateForDisplay(order.data_entrega, '-')}
                         </div>
                       </div>
@@ -268,26 +283,26 @@ export function DashboardV1({
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-accent"
+                              className="h-7 w-7 p-0 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-accent"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleViewOrder(order);
                               }}
                               aria-label="Visualizar pedido"
                             >
-                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-accent"
+                              className="h-7 w-7 p-0 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-accent"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditOrder(order);
                               }}
                               aria-label="Editar pedido"
                             >
-                              <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Edit className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         )}
@@ -303,7 +318,7 @@ export function DashboardV1({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-xs font-medium justify-between text-muted-foreground hover:text-foreground"
+              className="w-full text-xs font-semibold justify-between text-slate-700 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-accent"
               onClick={() => handleCardClick('urgent')}
             >
               <span>Ver todos os urgentes</span>
@@ -313,13 +328,13 @@ export function DashboardV1({
         </Card>
 
         {/* Pedidos Recentes */}
-        <Card className="border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <Card className="border border-slate-200/90 dark:border-slate-800 shadow-2xs bg-white dark:bg-card flex flex-col justify-between">
           <div>
-            <CardHeader className="pb-3 border-b bg-muted/10">
+            <CardHeader className="pb-3 border-b border-slate-200/80 dark:border-border bg-slate-50/70 dark:bg-muted/10">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">Pedidos Recentes</CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardTitle className="text-sm font-bold text-slate-900 dark:text-foreground">Pedidos Recentes</CardTitle>
+                  <CardDescription className="text-xs text-slate-600 dark:text-muted-foreground">
                     Últimas entradas registradas
                   </CardDescription>
                 </div>
@@ -331,16 +346,16 @@ export function DashboardV1({
                   <p className="text-xs text-muted-foreground">Nenhum pedido recente registrado.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/60">
+                <div className="divide-y divide-slate-200/80 dark:divide-border/60">
                   {recentOrders.map((order) => (
                     <div
                       key={order.id}
                       onClick={() => handleViewOrder(order)}
-                      className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 transition-colors cursor-pointer rounded-sm"
+                      className="flex items-center justify-between py-2.5 px-1.5 hover:bg-slate-50 dark:hover:bg-muted/40 transition-colors cursor-pointer rounded-md"
                     >
                       <div className="flex-1 min-w-0 pr-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-xs text-foreground">
+                          <span className="font-bold font-mono text-xs text-slate-900 dark:text-foreground">
                             #{order.numero || order.id}
                           </span>
                           {/* Destaque se for ALTA */}
@@ -350,10 +365,10 @@ export function DashboardV1({
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs font-medium text-foreground truncate mt-0.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-foreground truncate mt-0.5">
                           {order.cliente || order.customer_name || 'Cliente não identificado'}
                         </p>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                        <div className="text-[11px] text-slate-600 dark:text-muted-foreground mt-0.5 font-medium">
                           Entrada: {formatDateForDisplay(order.data_entrada || order.created_at, '-')}
                         </div>
                       </div>
@@ -369,26 +384,26 @@ export function DashboardV1({
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-accent"
+                              className="h-7 w-7 p-0 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-accent"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleViewOrder(order);
                               }}
                               aria-label="Visualizar pedido"
                             >
-                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 hover:bg-accent"
+                              className="h-7 w-7 p-0 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-accent"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditOrder(order);
                               }}
                               aria-label="Editar pedido"
                             >
-                              <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Edit className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         )}
@@ -404,7 +419,7 @@ export function DashboardV1({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-xs font-medium justify-between text-muted-foreground hover:text-foreground"
+              className="w-full text-xs font-semibold justify-between text-slate-700 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground hover:bg-slate-100/80 dark:hover:bg-accent"
               onClick={() => handleCardClick('all')}
             >
               <span>Ver todos os pedidos</span>
@@ -417,12 +432,12 @@ export function DashboardV1({
       </div>
 
       {/* 5. Ações Rápidas */}
-      <Card className="border border-slate-200 dark:border-slate-800 shadow-2xs">
-        <CardHeader className="pb-3 border-b bg-muted/10">
-          <CardTitle className="text-sm font-semibold">
+      <Card className="border border-slate-200/90 dark:border-slate-800 shadow-2xs bg-white dark:bg-card">
+        <CardHeader className="pb-3 border-b border-slate-200/80 dark:border-border bg-slate-50/70 dark:bg-muted/10">
+          <CardTitle className="text-sm font-bold text-slate-900 dark:text-foreground">
             Acessos Rápidos
           </CardTitle>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-xs text-slate-600 dark:text-muted-foreground">
             Atalhos para as rotinas operacionais
           </CardDescription>
         </CardHeader>
@@ -431,52 +446,52 @@ export function DashboardV1({
             {!isPwa && (
               <Button
                 variant="outline"
-                className="h-14 flex items-center justify-start gap-3 px-4 hover:bg-muted/50 border-slate-200 dark:border-slate-800"
+                className="h-14 flex items-center justify-start gap-3 px-4 bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted/50 border-slate-200 dark:border-slate-800"
                 onClick={() => navigate('/dashboard/pedido/novo')}
               >
                 <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                 <div className="text-left">
-                  <div className="font-semibold text-xs text-foreground">Novo Pedido</div>
-                  <div className="text-[10px] text-muted-foreground">Cadastrar ficha</div>
+                  <div className="font-bold text-xs text-slate-900 dark:text-foreground">Novo Pedido</div>
+                  <div className="text-[10px] text-slate-600 dark:text-muted-foreground">Cadastrar ficha</div>
                 </div>
               </Button>
             )}
 
             <Button
               variant="outline"
-              className="h-14 flex items-center justify-start gap-3 px-4 hover:bg-muted/50 border-slate-200 dark:border-slate-800"
+              className="h-14 flex items-center justify-start gap-3 px-4 bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted/50 border-slate-200 dark:border-slate-800"
               onClick={() => navigate('/dashboard/orders')}
             >
-              <ShoppingCart className="h-4 w-4 text-slate-500 shrink-0" />
+              <ShoppingCart className="h-4 w-4 text-slate-700 dark:text-slate-400 shrink-0" />
               <div className="text-left">
-                <div className="font-semibold text-xs text-foreground">Pedidos</div>
-                <div className="text-[10px] text-muted-foreground">Gerenciar fila</div>
+                <div className="font-bold text-xs text-slate-900 dark:text-foreground">Pedidos</div>
+                <div className="text-[10px] text-slate-600 dark:text-muted-foreground">Gerenciar fila</div>
               </div>
             </Button>
 
             {!isPwa && (
               <Button
                 variant="outline"
-                className="h-14 flex items-center justify-start gap-3 px-4 hover:bg-muted/50 border-slate-200 dark:border-slate-800"
+                className="h-14 flex items-center justify-start gap-3 px-4 bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted/50 border-slate-200 dark:border-slate-800"
                 onClick={() => navigate('/dashboard/clientes')}
               >
-                <Users className="h-4 w-4 text-slate-500 shrink-0" />
+                <Users className="h-4 w-4 text-slate-700 dark:text-slate-400 shrink-0" />
                 <div className="text-left">
-                  <div className="font-semibold text-xs text-foreground">Clientes</div>
-                  <div className="text-[10px] text-muted-foreground">Base cadastral</div>
+                  <div className="font-bold text-xs text-slate-900 dark:text-foreground">Clientes</div>
+                  <div className="text-[10px] text-slate-600 dark:text-muted-foreground">Base cadastral</div>
                 </div>
               </Button>
             )}
 
             <Button
               variant="outline"
-              className="h-14 flex items-center justify-start gap-3 px-4 hover:bg-muted/50 border-slate-200 dark:border-slate-800"
+              className="h-14 flex items-center justify-start gap-3 px-4 bg-white dark:bg-card hover:bg-slate-50 dark:hover:bg-muted/50 border-slate-200 dark:border-slate-800"
               onClick={() => navigate('/dashboard/relatorios-envios')}
             >
-              <Truck className="h-4 w-4 text-slate-500 shrink-0" />
+              <Truck className="h-4 w-4 text-slate-700 dark:text-slate-400 shrink-0" />
               <div className="text-left">
-                <div className="font-semibold text-xs text-foreground">Envios</div>
-                <div className="text-[10px] text-muted-foreground">Relatórios logísticos</div>
+                <div className="font-bold text-xs text-slate-900 dark:text-foreground">Envios</div>
+                <div className="text-[10px] text-slate-600 dark:text-muted-foreground">Relatórios logísticos</div>
               </div>
             </Button>
           </div>

@@ -96,8 +96,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { isTauri } from '@/utils/isTauri';
 import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
-import { loadAuthenticatedImage } from '@/utils/imageLoader';
-import { isValidImagePath } from '@/utils/path';
 
 import { cn } from '@/lib/utils';
 
@@ -866,243 +864,6 @@ export default function OrderList() {
     openReplacementModal(order);
   };
 
-  const handleQuickShare = async (order: OrderWithItems) => {
-    try {
-      // Buscar pedido completo se não tiver itens carregados
-      let orderWithItems = order;
-      if (!order.items || order.items.length === 0) {
-        orderWithItems = await api.getOrderById(order.id);
-      }
-
-      if (!orderWithItems.items || orderWithItems.items.length === 0) {
-        toast({
-          title: 'Aviso',
-          description: 'Este pedido não possui itens para compartilhar.',
-          variant: 'warning',
-        });
-        return;
-      }
-
-      // Criar div temporário off-screen
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
-      tempDiv.style.width = '600px';
-      tempDiv.style.backgroundColor = 'white';
-      tempDiv.style.padding = '20px';
-      tempDiv.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-      tempDiv.style.color = '#000';
-
-      // Título do pedido
-      const titleDiv = document.createElement('div');
-      titleDiv.style.marginBottom = '20px';
-      titleDiv.style.fontSize = '18px';
-      titleDiv.style.fontWeight = 'bold';
-      titleDiv.textContent = `Pedido #${formatOrderNumber(orderWithItems.numero, orderWithItems.id)} - ${orderWithItems.cliente || orderWithItems.customer_name || 'Cliente'}`;
-      tempDiv.appendChild(titleDiv);
-
-      // Container para itens
-      const itemsContainer = document.createElement('div');
-      itemsContainer.style.display = 'flex';
-      itemsContainer.style.flexDirection = 'column';
-      itemsContainer.style.gap = '30px';
-
-      // Carregar e renderizar cada item
-      for (const item of orderWithItems.items) {
-        const itemDiv = document.createElement('div');
-        itemDiv.style.display = 'flex';
-        itemDiv.style.flexDirection = 'column';
-        itemDiv.style.gap = '10px';
-        itemDiv.style.borderBottom = '1px solid #e5e5e5';
-        itemDiv.style.paddingBottom = '20px';
-
-        // Nome do item
-        if (item.item_name) {
-          const itemNameDiv = document.createElement('div');
-          itemNameDiv.style.fontSize = '16px';
-          itemNameDiv.style.fontWeight = '600';
-          itemNameDiv.textContent = item.item_name;
-          itemDiv.appendChild(itemNameDiv);
-        }
-
-        // Imagem do item (se existir)
-        if (item.imagem && isValidImagePath(item.imagem)) {
-          try {
-            const imageUrl = await loadAuthenticatedImage(item.imagem);
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.style.maxWidth = '100%';
-            img.style.height = 'auto';
-            img.style.borderRadius = '8px';
-            img.style.marginTop = '10px';
-            img.style.marginBottom = '10px';
-
-            // Aguardar carregamento da imagem
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-              // Timeout de segurança
-              setTimeout(() => {
-                if (!img.complete) {
-                  reject(new Error('Timeout ao carregar imagem'));
-                }
-              }, 10000);
-            });
-
-            itemDiv.appendChild(img);
-          } catch (error) {
-            logger.error('Erro ao carregar imagem do item:', error);
-            // Continuar mesmo se a imagem falhar
-          }
-        }
-
-        // Legenda/Observação
-        const caption = item.legenda_imagem || item.observacao;
-        if (caption) {
-          const captionDiv = document.createElement('div');
-          captionDiv.style.fontSize = '14px';
-          captionDiv.style.color = '#333';
-          captionDiv.style.lineHeight = '1.5';
-          captionDiv.style.whiteSpace = 'pre-wrap';
-          captionDiv.textContent = caption;
-          itemDiv.appendChild(captionDiv);
-        }
-
-        itemsContainer.appendChild(itemDiv);
-      }
-
-      tempDiv.appendChild(itemsContainer);
-      document.body.appendChild(tempDiv);
-
-      // Aguardar um pouco para garantir que tudo foi renderizado
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Capturar screenshot (import dinâmico para não pesar no bundle inicial)
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(tempDiv, {
-        backgroundColor: '#ffffff',
-        scale: 2, // Melhor qualidade
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-      });
-
-      // Converter canvas para blob
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/png');
-      });
-
-      if (!blob) {
-        throw new Error('Não foi possível gerar a imagem');
-      }
-
-      // Tentar copiar para clipboard usando Tauri (se disponível) ou fallback para download
-      if (isTauri()) {
-        try {
-          // Usar plugin de clipboard do Tauri
-          const { writeImage } = await import('@tauri-apps/plugin-clipboard-manager');
-
-          // Converter blob para Uint8Array (bytes do arquivo PNG)
-          const arrayBuffer = await blob.arrayBuffer();
-          const imageBytes = new Uint8Array(arrayBuffer);
-
-          await writeImage(imageBytes);
-
-          toast({
-            title: 'Copiado!',
-            description: 'Cole no WhatsApp',
-            variant: 'success',
-          });
-        } catch (tauriError) {
-          logger.error('Erro ao copiar via Tauri:', tauriError);
-          // Fallback para download
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `pedido-${formatOrderNumber(orderWithItems.numero, orderWithItems.id)}.png`;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-
-          setTimeout(() => {
-            if (document.body.contains(a)) {
-              document.body.removeChild(a);
-            }
-            URL.revokeObjectURL(url);
-          }, 100);
-
-          toast({
-            title: 'Imagem salva',
-            description: 'A imagem foi baixada. Anexe ao WhatsApp.',
-            variant: 'info',
-          });
-        }
-      } else {
-        // Ambiente web: tentar clipboard do navegador primeiro
-        let copied = false;
-        try {
-          if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-            const item = new ClipboardItem({ 'image/png': blob });
-            await navigator.clipboard.write([item]);
-            copied = true;
-          }
-        } catch (clipboardError) {
-          logger.warn('Erro ao copiar para clipboard:', clipboardError);
-        }
-
-        if (copied) {
-          toast({
-            title: 'Copiado!',
-            description: 'Cole no WhatsApp',
-            variant: 'success',
-          });
-        } else {
-          // Fallback para download
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `pedido-${formatOrderNumber(orderWithItems.numero, orderWithItems.id)}.png`;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-
-          setTimeout(() => {
-            if (document.body.contains(a)) {
-              document.body.removeChild(a);
-            }
-            URL.revokeObjectURL(url);
-          }, 100);
-
-          toast({
-            title: 'Imagem salva',
-            description: 'A imagem foi baixada. Anexe ao WhatsApp.',
-            variant: 'info',
-          });
-        }
-      }
-
-      // Limpar div temporário
-      if (document.body.contains(tempDiv)) {
-        document.body.removeChild(tempDiv);
-      }
-    } catch (error) {
-      logger.error('Erro ao gerar screenshot:', error);
-
-      // Limpar div temporário se ainda existir
-      const tempDiv = document.querySelector('div[style*="-9999px"]');
-      if (tempDiv && document.body.contains(tempDiv)) {
-        document.body.removeChild(tempDiv);
-      }
-
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível gerar a imagem. Tente novamente.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   // Função para lidar com ordenação
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -1756,6 +1517,120 @@ export default function OrderList() {
 
   useKeyboardShortcuts(shortcuts);
 
+  const toggleStageHeaderFilter = useCallback((statusValue: string) => {
+    setSelectedStatuses((prev) =>
+      prev.includes(statusValue)
+        ? prev.filter((s) => s !== statusValue)
+        : [...prev, statusValue]
+    );
+    setPage(0);
+  }, []);
+
+  const getLocalIsoDate = useCallback((offsetDays = 0): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const applyQuickDateRange = useCallback(
+    (preset: 'today' | 'tomorrow' | 'week') => {
+      const todayIso = getLocalIsoDate(0);
+      const tomorrowIso = getLocalIsoDate(1);
+      const weekIso = getLocalIsoDate(7);
+
+      const targetFrom = preset === 'tomorrow' ? tomorrowIso : todayIso;
+      const targetTo =
+        preset === 'today' ? todayIso : preset === 'tomorrow' ? tomorrowIso : weekIso;
+
+      if (dateFrom === targetFrom && dateTo === targetTo) {
+        setDateFrom('');
+        setDateTo('');
+      } else {
+        setDateFrom(targetFrom);
+        setDateTo(targetTo);
+      }
+      setPage(0);
+    },
+    [dateFrom, dateTo, getLocalIsoDate]
+  );
+
+  const [isBulkUpdatingStatus, setIsBulkUpdatingStatus] = useState(false);
+
+  const handleBulkStageUpdate = useCallback(
+    async (
+      field: 'financeiro' | 'conferencia' | 'sublimacao' | 'costura' | 'expedicao',
+      label: string
+    ) => {
+      if (field === 'financeiro' && !isAdmin) {
+        toast({
+          title: 'Acesso negado',
+          description: 'Somente administradores podem liberar o Financeiro.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const targetOrders = paginatedOrders.filter((o) =>
+        selectedOrderIdsForPrint.includes(o.id)
+      );
+      if (targetOrders.length === 0) return;
+
+      const eligibleOrders = targetOrders.filter((o) => {
+        if (Boolean(o[field])) return false; // Já concluído
+        if (field !== 'financeiro' && !o.financeiro) return false; // Requer liberação financeira
+        return true;
+      });
+
+      if (eligibleOrders.length === 0) {
+        toast({
+          title: 'Nenhum pedido elegível',
+          description:
+            field !== 'financeiro'
+              ? `Os pedidos selecionados já estão com ${label} concluído ou aguardam liberação do Financeiro.`
+              : `Todos os pedidos selecionados já estão com ${label} liberado.`,
+        });
+        return;
+      }
+
+      setIsBulkUpdatingStatus(true);
+      try {
+        const results = await Promise.allSettled(
+          eligibleOrders.map(async (order) => {
+            const payload = buildStatusUpdatePayload(order, field, true);
+            const updated = await api.updateOrderStatus(payload);
+            updateOrder(updated);
+            return updated;
+          })
+        );
+
+        const successCount = results.filter((r) => r.status === 'fulfilled').length;
+        const failCount = results.length - successCount;
+
+        if (successCount > 0) {
+          toast({
+            title: `${label} atualizado em lote`,
+            description: `${successCount} pedido(s) marcado(s) como concluído(s) em ${label}${
+              failCount > 0 ? ` (${failCount} falha(s))` : '.'
+            }`,
+            variant: 'success',
+          });
+        } else {
+          toast({
+            title: 'Erro ao atualizar em lote',
+            description: 'Não foi possível atualizar os pedidos selecionados.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        setIsBulkUpdatingStatus(false);
+      }
+    },
+    [isAdmin, paginatedOrders, selectedOrderIdsForPrint, toast, updateOrder]
+  );
+
   const handleStatusClick = (pedidoId: number, campo: string, valorAtual: boolean, nomeSetor: string) => {
     if (campo === 'financeiro' && !isAdmin) {
       toast({ title: 'Acesso negado', description: 'Somente administradores podem executar esta ação.', variant: 'destructive' });
@@ -2397,7 +2272,7 @@ export default function OrderList() {
                       <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         <Input
-                          placeholder="Buscar por cliente, ID ou nº do pedido... (Pressione / para focar)"
+                          placeholder="Buscar por cliente, ID ou nº do pedido..."
                           ref={searchInputRef}
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
@@ -2406,9 +2281,9 @@ export default function OrderList() {
                               handleSearch();
                             }
                           }}
-                          className={cn('pl-9 pr-9 h-10', isPwa && 'min-h-[44px]')}
+                          className={cn('pl-9 pr-12 h-10', isPwa && 'min-h-[44px]')}
                         />
-                        {searchTerm && (
+                        {searchTerm ? (
                           <button
                             type="button"
                             onClick={() => {
@@ -2422,10 +2297,43 @@ export default function OrderList() {
                           >
                             <X className="h-4 w-4" />
                           </button>
+                        ) : (
+                          <kbd
+                            title="Pressione / para focar na busca"
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-border bg-muted/70 px-1.5 font-mono text-[10px] font-semibold text-muted-foreground"
+                          >
+                            /
+                          </kbd>
                         )}
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <div className="hidden xl:flex items-center gap-1 bg-slate-100/80 dark:bg-muted/40 p-1 rounded-lg border border-slate-200 dark:border-border/60 shrink-0">
+                          {([
+                            { id: 'today', label: 'Hoje', from: getLocalIsoDate(0), to: getLocalIsoDate(0) },
+                            { id: 'tomorrow', label: 'Amanhã', from: getLocalIsoDate(1), to: getLocalIsoDate(1) },
+                            { id: 'week', label: '7 dias', from: getLocalIsoDate(0), to: getLocalIsoDate(7) },
+                          ] as const).map((preset) => {
+                            const isActive = dateFrom === preset.from && dateTo === preset.to;
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => applyQuickDateRange(preset.id)}
+                                className={cn(
+                                  'px-2 py-1 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap',
+                                  isActive
+                                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                                    : 'text-slate-600 dark:text-muted-foreground hover:text-slate-900 dark:hover:text-foreground hover:bg-white/80 dark:hover:bg-background/60'
+                                )}
+                                title={`Filtrar entregas: ${preset.label}`}
+                              >
+                                {preset.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
                         <div className="w-36 sm:w-40 relative">
                           <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                           <Input
@@ -2651,26 +2559,72 @@ export default function OrderList() {
               </div>
             )}
 
-            {/* Barra de Seleção de Pedidos para Impressão */}
+            {/* Barra de Seleção de Pedidos para Ações em Lote */}
             {
               selectedOrderIdsForPrint.length > 0 && (
-                <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-blue-50/90 dark:bg-primary/10 border border-blue-200 dark:border-primary/30 rounded-lg shadow-2xs animate-in fade-in slide-in-from-top-1 duration-200">
                   <div className="flex items-center gap-2">
                     <CheckSquare className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-bold text-slate-900 dark:text-foreground">
                       {selectedOrderIdsForPrint.length} pedido(s) selecionado(s)
                     </span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedOrderIdsForPrint([])}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Limpar
-                    </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={isBulkUpdatingStatus}
+                          className="gap-1.5 font-semibold border border-slate-300 dark:border-border bg-white dark:bg-secondary hover:bg-slate-100"
+                        >
+                          <ClipboardCheck className="h-4 w-4 text-primary" />
+                          {isBulkUpdatingStatus ? 'Atualizando...' : 'Concluir Etapa'}
+                          <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {isAdmin && (
+                          <DropdownMenuItem
+                            onClick={() => handleBulkStageUpdate('financeiro', 'Financeiro')}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <DollarSign className="h-4 w-4 text-emerald-600" />
+                            <span>Liberar Financeiro</span>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => handleBulkStageUpdate('conferencia', 'Conferência')}
+                          className="gap-2 cursor-pointer font-medium"
+                        >
+                          <ClipboardCheck className="h-4 w-4 text-orange-500" />
+                          <span>Concluir Conferência</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleBulkStageUpdate('sublimacao', 'Impressão')}
+                          className="gap-2 cursor-pointer font-medium"
+                        >
+                          <Printer className="h-4 w-4 text-purple-600" />
+                          <span>Concluir Impressão</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleBulkStageUpdate('costura', 'Costura')}
+                          className="gap-2 cursor-pointer font-medium"
+                        >
+                          <Scissors className="h-4 w-4 text-blue-600" />
+                          <span>Concluir Costura</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleBulkStageUpdate('expedicao', 'Expedição')}
+                          className="gap-2 cursor-pointer font-medium"
+                        >
+                          <Truck className="h-4 w-4 text-amber-600" />
+                          <span>Concluir Expedição</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <Button
                       type="button"
                       variant="default"
@@ -2682,6 +2636,16 @@ export default function OrderList() {
                         className={`h-4 w-4 mr-1 ${isBulkGenerating ? 'animate-pulse' : ''}`}
                       />
                       {isBulkGenerating ? 'Gerando...' : 'Imprimir Selecionados'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedOrderIdsForPrint([])}
+                      className="bg-white dark:bg-background"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Limpar
                     </Button>
                   </div>
                 </div>
@@ -2918,9 +2882,9 @@ export default function OrderList() {
                   ) : (
                     <SmoothTableWrapper isRefreshing={loading}>
                       <Table className="w-full">
-                        <TableHeader className="bg-muted">
-                          <TableRow className="hover:bg-transparent text-foreground">
-                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky top-0 left-0 z-40 bg-muted border-r px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                        <TableHeader className="bg-slate-100/95 dark:bg-muted border-b border-slate-200 dark:border-border">
+                          <TableRow className="hover:bg-transparent text-slate-800 dark:text-foreground border-b border-slate-200 dark:border-border">
+                            <TableHead className="w-[35px] min-w-[35px] lg:w-[40px] lg:min-w-[40px] xl:w-[45px] xl:min-w-[45px] sticky top-0 left-0 z-40 bg-slate-100 dark:bg-muted border-r border-slate-200 dark:border-border px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                               <Checkbox
                                 checked={
                                   selectedOrderIdsForPrint.length > 0 &&
@@ -2936,131 +2900,171 @@ export default function OrderList() {
                               />
                             </TableHead>
                             <TableHead
-                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky top-0 left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-40 bg-muted border-r cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                              className="w-[50px] min-w-[50px] lg:w-[65px] lg:min-w-[65px] xl:w-[75px] xl:min-w-[75px] hd:w-[90px] hd:min-w-[90px] sticky top-0 left-[35px] lg:left-[40px] xl:left-[45px] hd:left-[45px] z-40 bg-slate-100 dark:bg-muted border-r border-slate-200 dark:border-border cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-1 lg:px-2 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('id')}
                             >
-                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
                                 ID
                                 {getSortIcon('id')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="min-w-[80px] max-w-[150px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-2 lg:px-3 xl:px-4 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                              className="min-w-[80px] max-w-[160px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-2 lg:px-3 xl:px-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('cliente')}
                             >
-                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
                                 Cliente
                                 {getSortIcon('cliente')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[105px] lg:max-w-[125px] xl:min-w-[115px] xl:max-w-[135px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('data_entrega')}
                             >
-                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
+                                <Calendar className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
                                 Entrega
                                 {getSortIcon('data_entrega')}
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden hd:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] sticky top-0 z-30 bg-muted cursor-pointer hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                              className="hidden hd:table-cell min-w-[70px] max-w-[85px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('prioridade')}
                             >
-                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground">
-                                <Zap className="h-3.5 w-3.5" />
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
+                                <Zap className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
                                 Prior.
                                 {getSortIcon('prioridade')}
                               </div>
                             </TableHead>
-                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
-                              <div className="flex items-center justify-center gap-1 font-bold text-foreground">
+                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                              <div className="flex items-center justify-center gap-1 font-bold text-slate-800 dark:text-foreground">
                                 Cidade/UF
                                 {getSortIcon('cidade')}
                               </div>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead
+                              onClick={() => toggleStageHeaderFilter('financeiro')}
+                              className={cn(
+                                'text-center whitespace-nowrap sticky top-0 z-30 min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer transition-colors select-none',
+                                selectedStatuses.includes('financeiro')
+                                  ? 'bg-emerald-100/90 dark:bg-emerald-950/70 ring-1 ring-inset ring-emerald-400/60'
+                                  : 'bg-slate-100 dark:bg-muted hover:bg-slate-200/70 dark:hover:bg-muted/80'
+                              )}
+                            >
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <DollarSign className="h-3.5 w-3.5 text-green-600" />
-                                      <span className="text-[10px] uppercase font-bold">Fin.</span>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <DollarSign className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Fin.</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Financeiro</TooltipContent>
+                                  <TooltipContent>Financeiro (clique para filtrar)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted min-w-[45px] w-[50px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <Clock className="h-3.5 w-3.5 text-blue-600" />
-                                      <span className="text-[10px] uppercase font-bold">Lib.</span>
+                                      <Clock className="h-3.5 w-3.5 text-blue-700 dark:text-blue-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Lib.</span>
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>Hora liberação</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead
+                              onClick={() => toggleStageHeaderFilter('conferencia')}
+                              className={cn(
+                                'text-center whitespace-nowrap sticky top-0 z-30 min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer transition-colors select-none',
+                                selectedStatuses.includes('conferencia')
+                                  ? 'bg-orange-100/90 dark:bg-orange-950/70 ring-1 ring-inset ring-orange-400/60'
+                                  : 'bg-slate-100 dark:bg-muted hover:bg-slate-200/70 dark:hover:bg-muted/80'
+                              )}
+                            >
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <ClipboardCheck className="h-3.5 w-3.5 text-orange-600" />
-                                      <span className="text-[10px] uppercase font-bold">Conf.</span>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <ClipboardCheck className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Conf.</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Conferência</TooltipContent>
+                                  <TooltipContent>Conferência (clique para filtrar)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead
+                              onClick={() => toggleStageHeaderFilter('sublimacao')}
+                              className={cn(
+                                'text-center whitespace-nowrap sticky top-0 z-30 min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer transition-colors select-none',
+                                selectedStatuses.includes('sublimacao')
+                                  ? 'bg-purple-100/90 dark:bg-purple-950/70 ring-1 ring-inset ring-purple-400/60'
+                                  : 'bg-slate-100 dark:bg-muted hover:bg-slate-200/70 dark:hover:bg-muted/80'
+                              )}
+                            >
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <Printer className="h-3.5 w-3.5 text-purple-600" />
-                                      <span className="text-[10px] uppercase font-bold">Imp.</span>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Printer className="h-3.5 w-3.5 text-purple-700 dark:text-purple-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Imp.</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Impressão</TooltipContent>
+                                  <TooltipContent>Impressão (clique para filtrar)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead
+                              onClick={() => toggleStageHeaderFilter('costura')}
+                              className={cn(
+                                'text-center whitespace-nowrap sticky top-0 z-30 min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer transition-colors select-none',
+                                selectedStatuses.includes('costura')
+                                  ? 'bg-blue-100/90 dark:bg-blue-950/70 ring-1 ring-inset ring-blue-400/60'
+                                  : 'bg-slate-100 dark:bg-muted hover:bg-slate-200/70 dark:hover:bg-muted/80'
+                              )}
+                            >
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <Scissors className="h-3.5 w-3.5 text-blue-500" />
-                                      <span className="text-[10px] uppercase font-bold">Cost.</span>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Scissors className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Cost.</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Costura</TooltipContent>
+                                  <TooltipContent>Costura (clique para filtrar)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead
+                              onClick={() => toggleStageHeaderFilter('expedicao')}
+                              className={cn(
+                                'text-center whitespace-nowrap sticky top-0 z-30 min-w-[40px] w-[45px] lg:min-w-[45px] lg:w-[45px] xl:min-w-[45px] xl:w-[45px] px-0 lg:px-1 xl:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer transition-colors select-none',
+                                selectedStatuses.includes('expedicao')
+                                  ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-1 ring-inset ring-amber-400/60'
+                                  : 'bg-slate-100 dark:bg-muted hover:bg-slate-200/70 dark:hover:bg-muted/80'
+                              )}
+                            >
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="flex items-center justify-center gap-1 cursor-default">
-                                      <Truck className="h-3.5 w-3.5 text-amber-600" />
-                                      <span className="text-[10px] uppercase font-bold">Exp.</span>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Truck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                      <span className="text-[10px] uppercase font-bold text-slate-700 dark:text-slate-200">Exp.</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent>Expedição</TooltipContent>
+                                  <TooltipContent>Expedição (clique para filtrar)</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             </TableHead>
-                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-muted min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead className="hidden sm:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                               Status
                             </TableHead>
-                            <TableHead className="text-right whitespace-nowrap sticky top-0 right-0 z-40 bg-muted border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-foreground opacity-100 shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
+                            <TableHead className="text-right whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted border-l border-slate-200 dark:border-border min-w-[90px] w-[100px] lg:min-w-[100px] lg:w-[110px] px-1 lg:px-2 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground opacity-100 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                               Ações
                             </TableHead>
                           </TableRow>
@@ -3109,8 +3113,8 @@ export default function OrderList() {
                                   <TableCell className="hidden sm:table-cell text-center whitespace-nowrap min-w-[80px] max-w-[100px] lg:min-w-[90px] lg:max-w-[110px] xl:min-w-[100px] xl:max-w-[120px] hd:min-w-[120px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4">
                                     <Skeleton className="h-5 w-20 mx-auto" />
                                   </TableCell>
-                                  <TableCell className="text-right sticky right-0 z-20 bg-background border-l min-w-[100px] max-w-[120px] lg:min-w-[110px] lg:max-w-[130px] xl:min-w-[120px] xl:max-w-[140px] hd:min-w-[160px] px-1 lg:px-2 xl:px-3 py-3 lg:py-4 opacity-100">
-                                    <div className="flex justify-end gap-2">
+                                  <TableCell className="text-right bg-background border-l min-w-[90px] w-[100px] lg:min-w-[100px] lg:w-[110px] px-1 lg:px-2 py-3 lg:py-4 opacity-100">
+                                    <div className="flex justify-end gap-1">
                                       <Skeleton className="h-8 w-8" />
                                       <Skeleton className="h-8 w-8" />
                                       <Skeleton className="h-8 w-8" />
@@ -3178,7 +3182,6 @@ export default function OrderList() {
                                   handleCreateReplacementClick={handleCreateReplacementClick}
                                   handleDeleteClick={handleDeleteClick}
                                   handleStatusClick={handleStatusClick}
-                                  handleQuickShare={handleQuickShare}
                                   setSelectedOrder={setSelectedOrder}
                                   setSelectedOrderIndex={setSelectedOrderIndex}
                                 />
@@ -3210,7 +3213,7 @@ export default function OrderList() {
                           setPage(0); // Resetar para primeira página ao mudar tamanho
                         }}
                       >
-                        <SelectTrigger className="h-9 w-[140px]">
+                        <SelectTrigger className="h-9 w-[155px] shrink-0">
                           <SelectValue placeholder="Itens por página" />
                         </SelectTrigger>
                         <SelectContent>

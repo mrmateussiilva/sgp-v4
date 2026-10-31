@@ -3,8 +3,9 @@ import { OrderWithItems } from '../types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Clock, MapPin, Package, RefreshCw, ChevronRight } from 'lucide-react';
+import { Edit, Trash2, Clock, MapPin, Package, RefreshCw, ChevronRight, Zap } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { logger } from '@/utils/logger';
 import { EditingIndicator } from './EditingIndicator';
 
 interface OrderProductionPipelineProps {
@@ -30,44 +31,44 @@ const PIPELINE_STEPS: Step[] = [
     {
         id: 'financeiro',
         label: 'Financeiro',
-        color: 'text-slate-500',
-        borderColor: 'border-slate-200',
-        activeColor: 'bg-slate-500',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        borderColor: 'border-emerald-200 dark:border-emerald-900',
+        activeColor: 'bg-emerald-600',
     },
     {
         id: 'conferencia',
         label: 'Conferência',
-        color: 'text-amber-500',
-        borderColor: 'border-amber-200',
-        activeColor: 'bg-amber-500',
+        color: 'text-orange-500 dark:text-orange-400',
+        borderColor: 'border-orange-200 dark:border-orange-900',
+        activeColor: 'bg-orange-500',
     },
     {
         id: 'sublimacao',
-        label: 'Sublimação',
-        color: 'text-orange-500',
-        borderColor: 'border-orange-200',
-        activeColor: 'bg-orange-500',
+        label: 'Impressão',
+        color: 'text-purple-600 dark:text-purple-400',
+        borderColor: 'border-purple-200 dark:border-purple-900',
+        activeColor: 'bg-purple-600',
     },
     {
         id: 'costura',
         label: 'Costura',
-        color: 'text-fuchsia-500',
-        borderColor: 'border-fuchsia-200',
-        activeColor: 'bg-fuchsia-500',
+        color: 'text-blue-600 dark:text-blue-400',
+        borderColor: 'border-blue-200 dark:border-blue-900',
+        activeColor: 'bg-blue-600',
     },
     {
         id: 'expedicao',
         label: 'Expedição',
-        color: 'text-indigo-500',
-        borderColor: 'border-indigo-200',
-        activeColor: 'bg-indigo-500',
+        color: 'text-amber-600 dark:text-amber-400',
+        borderColor: 'border-amber-200 dark:border-amber-900',
+        activeColor: 'bg-amber-600',
     },
     {
         id: 'pronto',
         label: 'Pronto',
-        color: 'text-emerald-500',
-        borderColor: 'border-emerald-200',
-        activeColor: 'bg-emerald-500',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        borderColor: 'border-emerald-200 dark:border-emerald-900',
+        activeColor: 'bg-emerald-600',
     },
 ];
 
@@ -84,9 +85,9 @@ export function OrderProductionPipeline({
     const getOrderUrgency = (dataEntrega: string | null | undefined) => {
         if (!dataEntrega) return {
             type: 'no-date',
-            color: 'border-l-slate-200',
-            text: 'text-muted-foreground',
-            bg: 'bg-slate-50',
+            color: 'border-l-slate-300 dark:border-l-slate-700',
+            text: 'text-slate-600 dark:text-slate-300',
+            bg: 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
             label: 'A combinar'
         };
 
@@ -112,40 +113,40 @@ export function OrderProductionPipeline({
             return {
                 type: 'overdue',
                 color: 'border-l-red-500',
-                text: 'text-red-700',
-                bg: 'bg-red-50',
-                label: 'Atrasado'
+                text: 'text-red-800 dark:text-red-300',
+                bg: 'bg-red-100 border-red-300 dark:bg-red-950/60 dark:border-red-800',
+                label: `Atrasado (${diffDays}d)`
             };
         } else if (diffDays === 0) {
             return {
                 type: 'today',
                 color: 'border-l-orange-500',
-                text: 'text-orange-700',
-                bg: 'bg-orange-50',
+                text: 'text-orange-800 dark:text-orange-300',
+                bg: 'bg-orange-100 border-orange-300 dark:bg-orange-950/60 dark:border-orange-800',
                 label: 'Hoje'
             };
         } else if (diffDays === 1) {
             return {
                 type: 'tomorrow',
                 color: 'border-l-amber-500',
-                text: 'text-amber-700',
-                bg: 'bg-amber-50',
+                text: 'text-amber-800 dark:text-amber-300',
+                bg: 'bg-amber-100 border-amber-300 dark:bg-amber-950/60 dark:border-amber-800',
                 label: 'Amanhã'
             };
         } else if (diffDays <= 3) {
             return {
                 type: 'soon',
                 color: 'border-l-blue-500',
-                text: 'text-blue-700',
-                bg: 'bg-blue-50',
-                label: `Em ${diffDays} dias`
+                text: 'text-blue-800 dark:text-blue-300',
+                bg: 'bg-blue-100 border-blue-300 dark:bg-blue-950/60 dark:border-blue-800',
+                label: `Em ${diffDays}d`
             };
         } else {
             return {
                 type: 'ok',
                 color: 'border-l-emerald-500',
-                text: 'text-emerald-700',
-                bg: 'bg-emerald-50',
+                text: 'text-emerald-800 dark:text-emerald-300',
+                bg: 'bg-emerald-100 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-800',
                 label: 'No prazo'
             };
         }
@@ -190,7 +191,7 @@ export function OrderProductionPipeline({
     const [draggingOrderId, setDraggingOrderId] = useState<number | null>(null);
 
     const handleDragStart = (e: DragEvent, orderId: number) => {
-        console.log(`[DnD] Iniciando drag do pedido: ${orderId}`);
+        logger.debug(`[DnD] Iniciando drag do pedido: ${orderId}`);
         e.dataTransfer.setData('orderId', orderId.toString());
         e.dataTransfer.effectAllowed = 'move';
         // setTimeout garante que o browser captura o ghost image ANTES de reduzir a opacidade
@@ -198,7 +199,7 @@ export function OrderProductionPipeline({
     };
 
     const handleDragEnd = () => {
-        console.log('[DnD] Drag finalizado');
+        logger.debug('[DnD] Drag finalizado');
         setDraggingOrderId(null);
         setDragOverStepId(null);
     };
@@ -216,7 +217,7 @@ export function OrderProductionPipeline({
         if (relatedTarget && e.currentTarget instanceof HTMLElement && e.currentTarget.contains(relatedTarget)) {
             return;
         }
-        console.log('[DnD] Drag saindo da coluna');
+        logger.debug('[DnD] Drag saindo da coluna');
         setDragOverStepId(null);
     };
 
@@ -224,7 +225,7 @@ export function OrderProductionPipeline({
     const handleDrop = (e: DragEvent, stepId: string) => {
         e.preventDefault();
         const orderId = parseInt(e.dataTransfer.getData('orderId'));
-        console.log(`[DnD] Drop detectado na etapa: ${stepId}, Pedido: ${orderId}`);
+        logger.debug(`[DnD] Drop detectado na etapa: ${stepId}, Pedido: ${orderId}`);
         setDragOverStepId(null);
         setDraggingOrderId(null);
         if (!isNaN(orderId)) {
@@ -264,16 +265,16 @@ export function OrderProductionPipeline({
     }
 
     return (
-        <div className="flex flex-row h-full w-full overflow-x-auto overflow-y-hidden pb-4 gap-0 border-t border-border/40 select-none">
+        <div className="flex flex-row h-full w-full overflow-x-auto overflow-y-hidden pb-4 gap-0 border-t border-slate-200 dark:border-border/60 select-none">
             {PIPELINE_STEPS.map((step) => {
                 const stepOrders = ordersByStep[step.id] || [];
 
                 return (
-                    <div key={step.id} className="flex flex-col h-full min-w-[280px] max-w-[320px] flex-1 border-r border-border/40 last:border-r-0 bg-slate-50/30">
+                    <div key={step.id} className="flex flex-col h-full min-w-[280px] max-w-[320px] flex-1 border-r border-slate-200/80 dark:border-border/50 last:border-r-0 bg-slate-50/70 dark:bg-card/20">
                         {/* Step Header */}
                         <div
                             className={cn(
-                                "px-4 py-4 shrink-0 border-t-4 bg-background relative transition-all duration-300 shadow-sm z-10",
+                                "px-4 py-4 shrink-0 border-t-4 bg-white dark:bg-background relative transition-all duration-300 shadow-2xs border-b border-slate-200/80 dark:border-border/50 z-10",
                                 step.activeColor.replace('bg-', 'border-')
                             )}
                             onDragOver={(e) => handleDragOver(e, step.id)}
@@ -282,12 +283,12 @@ export function OrderProductionPipeline({
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className={cn("w-2 h-2 rounded-full", step.activeColor)} />
-                                    <h3 className="text-xs font-bold text-foreground tracking-tight uppercase">
+                                    <div className={cn("w-2.5 h-2.5 rounded-full", step.activeColor)} />
+                                    <h3 className="text-xs font-bold text-slate-900 dark:text-foreground tracking-tight uppercase">
                                         {step.label}
                                     </h3>
                                 </div>
-                                <Badge variant="secondary" className="h-5 px-2 text-[10px] font-black bg-muted/60 text-muted-foreground border-none rounded-full">
+                                <Badge variant="secondary" className="h-5 px-2 text-[10px] font-black bg-slate-200/80 text-slate-800 dark:bg-muted dark:text-foreground border border-slate-300/60 dark:border-border rounded-full">
                                     {stepOrders.length}
                                 </Badge>
                             </div>
@@ -324,26 +325,34 @@ export function OrderProductionPipeline({
                                         onDragStart={(e) => handleDragStart(e, order.id)}
                                         onDragEnd={handleDragEnd}
                                         className={cn(
-                                            "group border-border/50 hover:border-primary/30 transition-all duration-200 shadow-sm hover:shadow-md bg-background relative border-l-4 overflow-hidden",
+                                            "group border-slate-200 dark:border-border/70 hover:border-primary/40 transition-all duration-200 shadow-xs hover:shadow-md bg-white dark:bg-card relative border-l-4 overflow-hidden cursor-pointer",
                                             urgency.color,
                                             isDragging ? 'opacity-20 saturate-0 scale-95 shadow-none' : ''
                                         )}
                                         onClick={() => onViewOrder(order)}
                                     >
                                         <CardContent className="p-3">
-                                            <div className="flex flex-col gap-3">
-                                                {/* Linha Superior: ID e Data/Urgência */}
-                                                <div className="flex items-center justify-between">
-                                                    <span className="font-mono text-[9px] font-black text-white bg-slate-800 px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter shadow-sm">
-                                                        #{order.numero || order.id}
-                                                    </span>
+                                            <div className="flex flex-col gap-2.5">
+                                                {/* Linha Superior: ID, Prioridade e Data/Urgência */}
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-mono text-[10px] font-black text-white bg-slate-800 dark:bg-slate-700 px-1.5 py-0.5 rounded leading-none uppercase tracking-tighter shadow-2xs">
+                                                            #{order.numero || order.id}
+                                                        </span>
+                                                        {order.prioridade === 'ALTA' && (
+                                                            <Badge variant="destructive" className="h-4 px-1.5 py-0 text-[9px] font-extrabold gap-0.5">
+                                                                <Zap className="h-2.5 w-2.5" />
+                                                                ALTA
+                                                            </Badge>
+                                                        )}
+                                                    </div>
 
                                                     <div className="flex items-center gap-1.5">
                                                         <EditingIndicator orderId={order.id} />
                                                         <Badge
                                                             variant="outline"
                                                             className={cn(
-                                                                "h-5 px-2 text-[9px] font-bold uppercase tracking-tight border-none shadow-sm",
+                                                                "h-5 px-2 text-[9px] font-bold uppercase tracking-tight border shadow-2xs",
                                                                 urgency.bg, urgency.text
                                                             )}
                                                         >
@@ -353,14 +362,14 @@ export function OrderProductionPipeline({
                                                     </div>
                                                 </div>
 
-                                                {/* Nome do Cliente - Centralizado e Elegante */}
+                                                {/* Nome do Cliente */}
                                                 <div>
-                                                    <h4 className="text-[14px] font-bold text-slate-800 leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                                                    <h4 className="text-[14px] font-bold text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 group-hover:text-primary transition-colors">
                                                         {order.cliente || order.customer_name || 'Sem nome'}
                                                     </h4>
                                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                                                         {order.cidade_cliente && (
-                                                            <div className="flex items-center gap-1 text-muted-foreground/60 text-[10px] font-medium uppercase italic">
+                                                            <div className="flex items-center gap-1 text-slate-600 dark:text-muted-foreground text-[10px] font-semibold uppercase">
                                                                 <MapPin className="h-2.5 w-2.5" />
                                                                 {order.cidade_cliente}
                                                             </div>
@@ -378,7 +387,7 @@ export function OrderProductionPipeline({
                                                                             key={type}
                                                                             variant="secondary"
                                                                             className={cn(
-                                                                                "h-3.5 px-1.5 text-[8px] font-black uppercase tracking-wider border-none text-white shadow-sm",
+                                                                                "h-4 px-1.5 text-[8px] font-black uppercase tracking-wider border-none text-white shadow-2xs",
                                                                                 getAvatarColor(type)
                                                                             )}
                                                                         >
@@ -386,7 +395,7 @@ export function OrderProductionPipeline({
                                                                         </Badge>
                                                                     ))}
                                                                     {productionTypes.length > 2 && (
-                                                                        <Badge variant="outline" className="h-3.5 px-1 text-[8px] font-bold border-slate-200 text-slate-400">
+                                                                        <Badge variant="outline" className="h-4 px-1 text-[8px] font-bold border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300">
                                                                             +{productionTypes.length - 2}
                                                                         </Badge>
                                                                     )}
@@ -397,7 +406,7 @@ export function OrderProductionPipeline({
                                                 </div>
 
                                                 {/* Divider sutil */}
-                                                <div className="h-[1px] bg-slate-100" />
+                                                <div className="h-[1px] bg-slate-200/80 dark:bg-border/60" />
 
                                                 {/* Info e Ações */}
                                                 <div className="flex items-center justify-between">
@@ -405,35 +414,36 @@ export function OrderProductionPipeline({
                                                     <div className="flex items-center gap-2">
                                                         {firstVendedor ? (
                                                             <div className="flex items-center gap-1.5">
-                                                                <div className={cn("h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm ring-1 ring-white", getAvatarColor(firstVendedor))}>
+                                                                <div className={cn("h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-2xs ring-1 ring-white dark:ring-slate-800", getAvatarColor(firstVendedor))}>
                                                                     {getInitials(firstVendedor)}
                                                                 </div>
-                                                                <span className="text-[10px] font-semibold text-slate-600 truncate max-w-[80px]">
+                                                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[80px]">
                                                                     {firstVendedor.split(' ')[0]}
                                                                 </span>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 opacity-40">
-                                                                <div className="h-6 w-6 rounded-full bg-slate-200" />
-                                                                <span className="text-[10px] font-medium">---</span>
+                                                            <div className="flex items-center gap-1.5 opacity-60">
+                                                                <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-800" />
+                                                                <span className="text-[10px] font-medium text-slate-500">---</span>
                                                             </div>
                                                         )}
 
-                                                        <div className="w-px h-3 bg-slate-200" />
+                                                        <div className="w-px h-3 bg-slate-300 dark:bg-slate-700" />
 
-                                                        <div className="flex items-center gap-1 text-slate-500 font-bold text-[10px]">
+                                                        <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-bold text-[10px]" title={`${itemCount} item(ns)`}>
                                                             <Package className="h-3 w-3" />
                                                             <span>{itemCount}</span>
                                                         </div>
                                                     </div>
 
-                                                    {/* Ações - Aparecem no Hover */}
-                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
+                                                    {/* Ações */}
+                                                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-all duration-200">
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-7 w-7 rounded-full hover:bg-primary/10 hover:text-primary"
+                                                            className="h-7 w-7 rounded-full text-slate-700 dark:text-slate-300 hover:bg-primary/10 hover:text-primary"
                                                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(order); }}
+                                                            title="Editar pedido"
                                                         >
                                                             <Edit className="h-3.5 w-3.5" />
                                                         </Button>
@@ -442,8 +452,9 @@ export function OrderProductionPipeline({
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-7 w-7 rounded-full hover:text-destructive hover:bg-destructive/10"
+                                                                className="h-7 w-7 rounded-full text-slate-700 dark:text-slate-300 hover:text-destructive hover:bg-destructive/10"
                                                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(order.id); }}
+                                                                title="Excluir pedido"
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
@@ -472,11 +483,11 @@ export function OrderProductionPipeline({
                             )}
 
                             {stepOrders.length === 0 && !dragOverStepId && (
-                                <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-200/50 rounded-xl">
-                                    <div className="bg-slate-100 rounded-full p-2 mb-2">
-                                        <Package className="h-5 w-5 text-slate-300" />
+                                <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-300/70 dark:border-slate-800 rounded-xl">
+                                    <div className="bg-slate-200/70 dark:bg-slate-800 rounded-full p-2 mb-2">
+                                        <Package className="h-5 w-5 text-slate-500 dark:text-slate-400" />
                                     </div>
-                                    <span className="text-[10px] uppercase font-bold text-slate-300 tracking-wider">Coluna vazia</span>
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">Coluna vazia</span>
                                 </div>
                             )}
                         </div>

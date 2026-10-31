@@ -246,13 +246,13 @@ export default function DashboardOverview() {
   }, []);
 
   const getProductionStatusColor = useCallback((order: OrderWithItems): string => {
-    if (order.pronto) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
-    if (order.expedicao) return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
-    if (order.costura) return 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300';
-    if (order.sublimacao) return 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300';
-    if (order.conferencia) return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
-    if (order.financeiro) return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300';
-    return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300';
+    if (order.pronto) return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800';
+    if (order.expedicao) return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800';
+    if (order.costura) return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800';
+    if (order.sublimacao) return 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/70 dark:text-purple-300 dark:border-purple-800';
+    if (order.conferencia) return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-800';
+    if (order.financeiro) return 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800';
+    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800';
   }, []);
 
   // Filtro de busca rápido
