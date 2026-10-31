@@ -69,6 +69,24 @@ interface TimedCache<T> {
 }
 const RESOURCE_CACHE_TTL_MS = 120_000; // 2 minutos para catálogos estáticos
 
+function safeResourceArray<T>(data: unknown): T[] {
+    if (!data) return [];
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch {
+            return [];
+        }
+    }
+    if (Array.isArray(data)) return data as T[];
+    if (data && typeof data === 'object') {
+        const obj = data as Record<string, unknown>;
+        if (Array.isArray(obj.data)) return obj.data as T[];
+        if (Array.isArray(obj.items)) return obj.items as T[];
+    }
+    return [];
+}
+
 const isCacheFresh = <T>(cache: TimedCache<T> | null, ttlMs: number = RESOURCE_CACHE_TTL_MS): cache is TimedCache<T> => {
     if (!cache) return false;
     return Date.now() - cache.timestamp < ttlMs;
@@ -259,7 +277,7 @@ export const resourcesApi = {
     getVendedores: async (): Promise<VendedorEntity[]> => {
         requireSessionToken();
         const response = await apiClient.get<VendedorApi[]>('/vendedores');
-        return (response.data ?? []).map(mapVendedorFromApi);
+        return safeResourceArray<VendedorApi>(response.data).map(mapVendedorFromApi);
     },
 
     getVendedoresAtivos: async (): Promise<Array<{ id: number; nome: string }>> => {
@@ -268,7 +286,7 @@ export const resourcesApi = {
             return vendedoresCache.data;
         }
         const response = await apiClient.get<VendedorApi[]>('/vendedores/ativos');
-        const result = (response.data ?? [])
+        const result = safeResourceArray<VendedorApi>(response.data)
             .filter((vendedor) => Boolean(vendedor?.nome))
             .map((vendedor) => ({ id: vendedor.id, nome: vendedor.nome.trim() }))
             .filter((vendedor) => vendedor.nome.length > 0);
@@ -305,7 +323,7 @@ export const resourcesApi = {
     getFormasEnvio: async (): Promise<FormaEnvioEntity[]> => {
         requireSessionToken();
         const response = await apiClient.get<FormaEnvioApi[]>('/tipos-envios');
-        return (response.data ?? []).map(mapFormaEnvioFromApi);
+        return safeResourceArray<FormaEnvioApi>(response.data).map(mapFormaEnvioFromApi);
     },
 
     getFormasEnvioAtivas: async (): Promise<Array<{ id: number; nome: string; valor: number }>> => {
@@ -314,7 +332,7 @@ export const resourcesApi = {
             return formasEnvioCache.data;
         }
         const response = await apiClient.get<FormaEnvioApi[]>('/tipos-envios/ativos');
-        const result = (response.data ?? [])
+        const result = safeResourceArray<FormaEnvioApi>(response.data)
             .filter((forma) => Boolean(forma?.nome))
             .map((forma) => ({
                 id: forma.id,
@@ -355,7 +373,7 @@ export const resourcesApi = {
     getFormasPagamento: async (): Promise<FormaPagamentoEntity[]> => {
         requireSessionToken();
         const response = await apiClient.get<FormaPagamentoApi[]>('/tipos-pagamentos');
-        return (response.data ?? []).map(mapFormaPagamentoFromApi);
+        return safeResourceArray<FormaPagamentoApi>(response.data).map(mapFormaPagamentoFromApi);
     },
 
     getFormasPagamentoAtivas: async (): Promise<Array<{ id: number; nome: string }>> => {
@@ -364,7 +382,7 @@ export const resourcesApi = {
             return tiposPagamentoCache.data;
         }
         const response = await apiClient.get<FormaPagamentoApi[]>('/tipos-pagamentos/ativos');
-        const result = (response.data ?? [])
+        const result = safeResourceArray<FormaPagamentoApi>(response.data)
             .filter((forma) => Boolean(forma?.nome))
             .map((forma) => ({ id: forma.id, nome: forma.nome }));
 
@@ -400,7 +418,7 @@ export const resourcesApi = {
     getUsers: async (): Promise<UserEntity[]> => {
         requireSessionToken();
         const response = await apiClient.get<UserApi[]>('/users');
-        return (response.data ?? []).map(mapUserFromApi);
+        return safeResourceArray<UserApi>(response.data).map(mapUserFromApi);
     },
 
     createUser: async (request: UserCreatePayload): Promise<UserEntity> => {
@@ -440,7 +458,7 @@ export const resourcesApi = {
     getTiposProducao: async (): Promise<TipoProducaoEntity[]> => {
         requireSessionToken();
         const response = await apiClient.get<TipoProducaoApi[]>('/producoes');
-        return (response.data ?? []).map(mapTipoProducaoFromApi);
+        return safeResourceArray<TipoProducaoApi>(response.data).map(mapTipoProducaoFromApi);
     },
 
     getTiposProducaoAtivos: async (): Promise<Array<{ value: string; label: string }>> => {
@@ -465,7 +483,7 @@ export const resourcesApi = {
                 response = await apiClient.get<TipoProducaoAtivoApi[]>('/producoes');
             }
 
-            const data = response.data ?? [];
+            const data = safeResourceArray<TipoProducaoAtivoApi>(response.data);
             const result = data
                 .filter(tipo => {
                     // Aceita active ou ativo (backend pode variar)

@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { isTauri } from '@/utils/isTauri';
+import { logger } from '@/utils/logger';
 import { DashboardV1 } from '../components/dashboard/DashboardV1';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import {
@@ -84,13 +85,20 @@ export default function DashboardOverview() {
       const pageSize = 100;
       const MAX_PAGES = 10; // Teto de segurança: até 1000 pedidos para análise local
 
-      // Carregar o resumo estatístico e a 1ª página em paralelo
-      const [summaryResult, initialOrdersResult] = await Promise.all([
+      // Carregar o resumo estatístico e a 1ª página em paralelo de forma resiliente
+      const [summarySettled, initialOrdersSettled] = await Promise.allSettled([
         api.getDashboardSummary(),
         api.getOrdersPaginated(1, pageSize),
       ]);
 
-      let allOrders = [...(initialOrdersResult?.orders || [])];
+      if (summarySettled.status === 'rejected' && initialOrdersSettled.status === 'rejected') {
+        throw summarySettled.reason || initialOrdersSettled.reason;
+      }
+
+      const summaryResult = summarySettled.status === 'fulfilled' ? summarySettled.value : dashboardSummary;
+      const initialOrdersResult = initialOrdersSettled.status === 'fulfilled' ? initialOrdersSettled.value : null;
+
+      let allOrders = [...(initialOrdersResult?.orders || dashboardOrders)];
 
       // Atualiza imediatamente a UI com o resumo e a 1ª página (evita bloquear renderização em waterfall)
       setDashboardData(allOrders, summaryResult);
@@ -108,19 +116,24 @@ export default function DashboardOverview() {
             pagesToFetch.push(p);
           }
 
-          const batchResults = await Promise.all(
-            pagesToFetch.map((p) => api.getOrdersPaginated(p, pageSize))
-          );
+          try {
+            const batchResults = await Promise.all(
+              pagesToFetch.map((p) => api.getOrdersPaginated(p, pageSize))
+            );
 
-          for (const pageRes of batchResults) {
-            const pageOrders = pageRes?.orders || [];
-            if (pageOrders.length > 0) {
-              allOrders = allOrders.concat(pageOrders);
+            for (const pageRes of batchResults) {
+              const pageOrders = pageRes?.orders || [];
+              if (pageOrders.length > 0) {
+                allOrders = allOrders.concat(pageOrders);
+              }
+              if (pageOrders.length < pageSize) {
+                reachedEnd = true;
+                break;
+              }
             }
-            if (pageOrders.length < pageSize) {
-              reachedEnd = true;
-              break;
-            }
+          } catch (batchErr) {
+            logger.warn('[DashboardOverview] Falha ao carregar lote adicional de pedidos:', batchErr);
+            break;
           }
         }
 

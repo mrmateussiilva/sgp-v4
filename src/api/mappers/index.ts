@@ -194,7 +194,16 @@ export const mapItemFromApi = (item: ApiPedidoItem, orderId: number, index: numb
 };
 
 export const mapPedidoFromApi = (pedido: ApiPedido): OrderWithItems => {
-    const items = (pedido.items ?? []).map((item, index) => mapItemFromApi(item, pedido.id, index));
+    let rawItems: unknown = pedido?.items ?? (pedido as unknown as { itens?: unknown })?.itens;
+    if (typeof rawItems === 'string') {
+        try {
+            rawItems = JSON.parse(rawItems);
+        } catch {
+            rawItems = [];
+        }
+    }
+    const safeItems = Array.isArray(rawItems) ? (rawItems as ApiPedidoItem[]) : [];
+    const items = safeItems.map((item, index) => mapItemFromApi(item, pedido?.id ?? 0, index));
     const valorFrete = parseDecimal(pedido.valor_frete);
     const valorItens = parseDecimal(pedido.valor_itens ?? pedido.valor_total);
     const totalValue = valorItens || items.reduce((sum, item) => sum + item.subtotal, 0);

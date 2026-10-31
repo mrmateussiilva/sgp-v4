@@ -134,6 +134,28 @@ const fetchOrderByIdDeduped = (orderId: number): Promise<OrderWithItems> => {
     return promise;
 };
 
+function extractOrdersArray(data: unknown): ApiPedido[] {
+    if (!data) return [];
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch {
+            return [];
+        }
+    }
+    if (Array.isArray(data)) {
+        return data as ApiPedido[];
+    }
+    if (typeof data === 'object') {
+        const obj = data as Record<string, unknown>;
+        if (Array.isArray(obj.pedidos)) return obj.pedidos as ApiPedido[];
+        if (Array.isArray(obj.items)) return obj.items as ApiPedido[];
+        if (Array.isArray(obj.orders)) return obj.orders as ApiPedido[];
+        if (Array.isArray(obj.data)) return obj.data as ApiPedido[];
+    }
+    return [];
+}
+
 const fetchOrdersPaginated = async (
     page: number = 1,
     pageSize: number = DEFAULT_PAGE_SIZE,
@@ -184,8 +206,8 @@ const fetchOrdersPaginated = async (
 
     const promise = (async () => {
         try {
-            const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
-            const allData = (response.data ?? []).map(mapPedidoFromApi);
+            const response = await apiClient.get<unknown>('/pedidos/', { params });
+            const allData = extractOrdersArray(response.data).map(mapPedidoFromApi);
 
             // Verifica se há mais páginas
             const hasNextPage = allData.length > pageSize;
@@ -194,7 +216,11 @@ const fetchOrdersPaginated = async (
             let total: number;
             let totalPages: number;
 
-            if (!hasNextPage) {
+            const rawObj = (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) ? (response.data as Record<string, unknown>) : null;
+            if (rawObj && typeof rawObj.total === 'number') {
+                total = rawObj.total;
+                totalPages = Math.max(1, Math.ceil(total / pageSize));
+            } else if (!hasNextPage) {
                 total = skip + paginatedData.length;
                 totalPages = Math.max(1, Math.ceil(total / pageSize));
             } else {
@@ -222,8 +248,8 @@ const fetchOrdersPaginated = async (
 export const ordersApi = {
     getOrders: async (): Promise<OrderWithItems[]> => {
         requireSessionToken();
-        const response = await apiClient.get<ApiPedido[]>('/pedidos/');
-        return (response.data ?? []).map(mapPedidoFromApi);
+        const response = await apiClient.get<unknown>('/pedidos/');
+        return extractOrdersArray(response.data).map(mapPedidoFromApi);
     },
 
     getOrdersPaginated: async (
@@ -268,8 +294,8 @@ export const ordersApi = {
             limit: 1000, // Limite razoável para relatórios
         };
 
-        const response = await apiClient.get<ApiPedido[]>('/pedidos/', { params });
-        return (response.data ?? []).map(mapPedidoFromApi);
+        const response = await apiClient.get<unknown>('/pedidos/', { params });
+        return extractOrdersArray(response.data).map(mapPedidoFromApi);
     },
 
     createOrder: async (request: CreateOrderRequest): Promise<OrderWithItems> => {
@@ -673,8 +699,8 @@ export const ordersApi = {
      */
     listarRascunhos: async (): Promise<OrderWithItems[]> => {
         requireSessionToken();
-        const response = await apiClient.get<ApiPedido[]>('/pedidos/rascunhos');
-        return (response.data ?? []).map(mapPedidoFromApi);
+        const response = await apiClient.get<unknown>('/pedidos/rascunhos');
+        return extractOrdersArray(response.data).map(mapPedidoFromApi);
     },
 
     promoverRascunho: async (id: number): Promise<OrderWithItems> => {
