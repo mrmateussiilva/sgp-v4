@@ -74,12 +74,18 @@ export const clearAllOrderCache = (): void => {
     logger.debug('[clearAllOrderCache] Todo cache de pedidos invalidado');
 };
 
+let lastAppliedToken: string | null = null;
+
 const requireSessionToken = (): string => {
     const token = useAuthStore.getState().sessionToken;
     if (!token) {
+        lastAppliedToken = null;
         throw new Error('Sessão expirada. Faça login novamente.');
     }
-    setAuthToken(token);
+    if (token !== lastAppliedToken) {
+        setAuthToken(token);
+        lastAppliedToken = token;
+    }
     return token;
 };
 
@@ -104,6 +110,29 @@ interface FetchOrdersParams {
 }
 
 const inFlightRequests = new Map<string, Promise<PaginatedOrders>>();
+const inFlightOrderById = new Map<number, Promise<OrderWithItems>>();
+
+const fetchOrderByIdDeduped = (orderId: number): Promise<OrderWithItems> => {
+    const existing = inFlightOrderById.get(orderId);
+    if (existing) {
+        logger.debug(`[getOrderById] Reaproveitando requisição em andamento para pedido ${orderId}`);
+        return existing;
+    }
+
+    const promise = (async () => {
+        try {
+            const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
+            const mappedOrder = mapPedidoFromApi(response.data);
+            setCacheWithLimit(orderId, mappedOrder);
+            return mappedOrder;
+        } finally {
+            inFlightOrderById.delete(orderId);
+        }
+    })();
+
+    inFlightOrderById.set(orderId, promise);
+    return promise;
+};
 
 const fetchOrdersPaginated = async (
     page: number = 1,
@@ -220,15 +249,11 @@ export const ordersApi = {
             return cached.data;
         }
 
-        const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
-        const mappedOrder = mapPedidoFromApi(response.data);
-        setCacheWithLimit(orderId, mappedOrder);
-        return mappedOrder;
+        return fetchOrderByIdDeduped(orderId);
     },
     getOrderByIdFresh: async (orderId: number): Promise<OrderWithItems> => {
         requireSessionToken();
-        const response = await apiClient.get<ApiPedido>(`/pedidos/${orderId}`);
-        return mapPedidoFromApi(response.data);
+        return fetchOrderByIdDeduped(orderId);
     },
 
     getOrdersByDeliveryDateRange: async (
@@ -251,9 +276,11 @@ export const ordersApi = {
         requireSessionToken();
         const payload = buildPedidoCreatePayload(request);
 
-        // Log detalhado para diagnóstico de erro 422
-        logger.debug('[api.createOrder] Payload completo:', JSON.stringify(payload, null, 2));
-        logger.debug('[api.createOrder] Request original:', JSON.stringify(request, null, 2));
+        // Log detalhado para diagnóstico de erro 422 (apenas em DEV para evitar JSON.stringify síncrono em produção)
+        if (import.meta.env.DEV) {
+            logger.debug('[api.createOrder] Payload completo:', JSON.stringify(payload, null, 2));
+            logger.debug('[api.createOrder] Request original:', JSON.stringify(request, null, 2));
+        }
 
         const response = await apiClient.post<ApiPedido>('/pedidos/', payload);
         const order = mapPedidoFromApi(response.data);
@@ -269,9 +296,11 @@ export const ordersApi = {
         requireSessionToken();
         const payload = buildPedidoUpdatePayload(request);
 
-        // Log detalhado para diagnóstico de erro 422
-        logger.debug('[api.updateOrder] Payload completo:', JSON.stringify(payload, null, 2));
-        logger.debug('[api.updateOrder] Request original:', JSON.stringify(request, null, 2));
+        // Log detalhado para diagnóstico de erro 422 (apenas em DEV para evitar JSON.stringify síncrono em produção)
+        if (import.meta.env.DEV) {
+            logger.debug('[api.updateOrder] Payload completo:', JSON.stringify(payload, null, 2));
+            logger.debug('[api.updateOrder] Request original:', JSON.stringify(request, null, 2));
+        }
 
         const response = await apiClient.patch<ApiPedido>(`/pedidos/${request.id}`, payload);
         const order = mapPedidoFromApi(response.data);

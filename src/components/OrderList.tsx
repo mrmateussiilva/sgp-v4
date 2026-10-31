@@ -33,8 +33,8 @@ import {
   Eye,
   MapPin,
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { api } from '../services/api';
+import { ordersSocket } from '@/lib/realtimeOrders';
 import { getCachedResourcesCatalogs } from '../api/endpoints/resources';
 import { logger } from '@/utils/logger';
 import { useOrderStore } from '../store/orderStore';
@@ -257,7 +257,11 @@ export default function OrderList() {
       return true;
     });
   }, [formasEnvio]);
-  const { openDeleteModal, openDuplicateModal, openReplacementModal, openStatusConfirmModal, openViewModal } = useModalStore();
+  const openDeleteModal = useModalStore((state) => state.openDeleteModal);
+  const openDuplicateModal = useModalStore((state) => state.openDuplicateModal);
+  const openReplacementModal = useModalStore((state) => state.openReplacementModal);
+  const openStatusConfirmModal = useModalStore((state) => state.openStatusConfirmModal);
+  const openViewModal = useModalStore((state) => state.openViewModal);
   const [selectedOrderIdsForPrint, setSelectedOrderIdsForPrint] = useState<number[]>([]);
   const [page, setPage] = useState(() => orderListCache.page);
   const [rowsPerPage, setRowsPerPage] = useState(() => orderListCache.rowsPerPage);
@@ -773,10 +777,10 @@ export default function OrderList() {
     loadOrders,
   });
 
-  // Auto-refresh suave (fallback) a cada 30s.
+  // Auto-refresh suave (fallback) a cada 30s apenas quando o WebSocket não estiver conectado.
   // Não executa enquanto modais estiverem abertos para evitar qualquer sensação de "piscada".
   useAutoRefresh(async () => {
-    if (isAnyDialogOpen) {
+    if (isAnyDialogOpen || ordersSocket.getCurrentStatus().isConnected) {
       return;
     }
     await loadOrders(true);
@@ -974,7 +978,8 @@ export default function OrderList() {
       // Aguardar um pouco para garantir que tudo foi renderizado
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Capturar screenshot
+      // Capturar screenshot (import dinâmico para não pesar no bundle inicial)
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(tempDiv, {
         backgroundColor: '#ffffff',
         scale: 2, // Melhor qualidade

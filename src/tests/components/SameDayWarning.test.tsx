@@ -36,14 +36,14 @@ describe('SameDayWarningBanner Component', () => {
   });
 
   it('renders alert and next day button when delivery date is today', () => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Usa uma quarta-feira fixa para dataEntrega === dataEntrada, pois em finais de semana o WeekendWarningBanner assume prioridade
+    const weekdaySameDay = '2026-10-28';
     const handleApply = vi.fn();
 
     render(
       <SameDayWarningBanner
-        dataEntrega={today}
-        dataEntrada={today}
+        dataEntrega={weekdaySameDay}
+        dataEntrada={weekdaySameDay}
         formaEnvio="Transportadora"
         onApplyNextDate={handleApply}
       />

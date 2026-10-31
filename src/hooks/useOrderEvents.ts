@@ -83,25 +83,20 @@ class OrderEventsManager {
     this.handlers.forEach((handlers) => {
       const { onOrderCreated, onOrderUpdated, onOrderDeleted, onOrderStatusUpdated } = handlers;
 
-      // Processar eventos na ordem correta para evitar conflitos
+      // Processar eventos na ordem correta para evitar chamadas HTTP duplicadas
       if (type === 'order_created' && orderId) {
         if (onOrderCreated) {
           onOrderCreated(orderId);
-        }
-        // order_created também dispara onOrderUpdated
-        if (onOrderUpdated) {
+        } else if (onOrderUpdated) {
           onOrderUpdated(orderId);
         }
       } else if (type === 'order_status_updated' && orderId) {
-        // order_status_updated tem prioridade e dispara ambos os handlers
         if (onOrderStatusUpdated) {
           if (import.meta.env.DEV) {
             logger.debug('🔄 [OrderEventsManager] Chamando onOrderStatusUpdated para pedido:', orderId);
           }
           onOrderStatusUpdated(orderId);
-        }
-        // Também disparar onOrderUpdated para garantir atualização
-        if (onOrderUpdated) {
+        } else if (onOrderUpdated) {
           if (import.meta.env.DEV) {
             logger.debug('🔄 [OrderEventsManager] Chamando onOrderUpdated para pedido:', orderId);
           }
@@ -385,7 +380,7 @@ export const useOrderAutoSync = ({ orders, setOrders, removeOrder, updateOrder, 
     async (orderId: number) => {
       try {
         logger.debug('🔄 [useOrderAutoSync] handleOrderStatusUpdated chamado para pedido:', orderId);
-        const updatedOrder = await api.getOrderById(orderId);
+        const updatedOrder = await (typeof api.getOrderByIdFresh === "function" ? api.getOrderByIdFresh(orderId) : api.getOrderById(orderId));
 
         // 1. SEMPRE atualizar no store global primeiro (independente de estar na lista)
         updateOrder(updatedOrder);

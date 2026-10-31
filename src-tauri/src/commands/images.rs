@@ -1,12 +1,22 @@
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::DefaultHasher;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 use tauri::{command, AppHandle, Manager};
 use tracing::{debug, error, info};
 use uuid::Uuid;
+
+/// Gera um hash FNV-1a 64-bit determinístico entre execuções do processo
+fn deterministic_url_hash(input: &str) -> String {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+    let mut hash = FNV_OFFSET_BASIS;
+    for byte in input.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    format!("{:016x}", hash)
+}
 
 // Estrutura para armazenar metadados de imagem
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -215,10 +225,8 @@ pub async fn cache_image_from_url(
         image_data.len()
     );
 
-    // Gerar hash da URL para usar como identificador
-    let mut hasher = DefaultHasher::new();
-    image_url.hash(&mut hasher);
-    let url_hash = format!("{:016x}", hasher.finish());
+    // Gerar hash determinístico da URL para usar como identificador persistente entre sessões
+    let url_hash = deterministic_url_hash(&image_url);
 
     let images_dir = get_images_dir(&app)?;
     fs::create_dir_all(&images_dir)

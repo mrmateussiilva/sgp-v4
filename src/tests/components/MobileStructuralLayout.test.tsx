@@ -3,12 +3,15 @@ import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PwaLayout } from '@/components/layouts/PwaLayout';
 
-// Mock do auth store
+// Mock do auth store (suporta chamada direta ou com seletor)
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: () => ({
-    username: 'operador_test',
-    isAdmin: true,
-  }),
+  useAuthStore: (selector?: (state: { username: string; isAdmin: boolean }) => unknown) => {
+    const state = {
+      username: 'operador_test',
+      isAdmin: true,
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
 }));
 
 // Mock do service api

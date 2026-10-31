@@ -108,7 +108,15 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             // Separar bibliotecas pesadas em chunks próprios
             if (id.includes('node_modules')) {
-              // Bibliotecas de PDF e exportação
+              // @react-pdf e dependências (carregado apenas ao gerar/visualizar PDF)
+              if (id.includes('@react-pdf') || id.includes('fontkit') || id.includes('yoga-layout')) {
+                return 'vendor-react-pdf';
+              }
+              // pdfmake (carregado apenas em relatórios/exportações PDF)
+              if (id.includes('pdfmake')) {
+                return 'vendor-pdfmake';
+              }
+              // Bibliotecas de PDF e exportação (jsPDF)
               if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
                 return 'vendor-pdf';
               }
@@ -121,7 +129,7 @@ export default defineConfig(({ mode }) => {
                 return 'vendor-csv';
               }
               // recharts (gráficos)
-              if (id.includes('recharts')) {
+              if (id.includes('recharts') || id.includes('d3-')) {
                 return 'vendor-charts';
               }
               // Todas as outras node_modules

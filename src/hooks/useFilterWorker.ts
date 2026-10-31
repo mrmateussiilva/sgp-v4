@@ -5,6 +5,7 @@ export function useFilterWorker(orders: OrderWithItems[], filters: any) {
     const [filteredOrders, setFilteredOrders] = useState<OrderWithItems[]>([]);
     const [isFiltering, setIsFiltering] = useState(false);
     const workerRef = useRef<Worker | null>(null);
+    const isFirstDispatchRef = useRef(true);
 
     useEffect(() => {
         // Inicializa o instanciamento do Worker uma unica vez por componente montado
@@ -22,15 +23,29 @@ export function useFilterWorker(orders: OrderWithItems[], filters: any) {
         };
     }, []);
 
-    // Aciona a repassagem de dados de forma assincrona quando as condicoes mudam
+    // Aciona a repassagem de dados: imediata na montagem inicial e com debounce em mudanças subsequentes
     useEffect(() => {
-        if (workerRef.current) {
-            setIsFiltering(true);
+        if (!workerRef.current) return;
+
+        setIsFiltering(true);
+
+        if (isFirstDispatchRef.current) {
+            isFirstDispatchRef.current = false;
             workerRef.current.postMessage({
                 orders,
                 filters
             });
+            return;
         }
+
+        const timerId = setTimeout(() => {
+            workerRef.current?.postMessage({
+                orders,
+                filters
+            });
+        }, 80);
+
+        return () => clearTimeout(timerId);
     }, [orders, filters]);
 
     return { filteredOrders, isFiltering };

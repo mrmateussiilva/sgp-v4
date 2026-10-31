@@ -40,7 +40,8 @@ export default function DashboardOverview() {
   const dashboardLastUpdate = useOrderStore((state) => state.dashboardLastUpdate);
   const dashboardLastFetchTime = useOrderStore((state) => state.dashboardLastFetchTime);
   const setDashboardData = useOrderStore((state) => state.setDashboardData);
-  const { username, logout } = useAuthStore();
+  const username = useAuthStore((state) => state.username);
+  const logout = useAuthStore((state) => state.logout);
   const { toast } = useToast();
 
   const hasCachedData = dashboardOrders.length > 0 || dashboardSummary !== null;
@@ -91,23 +92,41 @@ export default function DashboardOverview() {
 
       let allOrders = [...(initialOrdersResult?.orders || [])];
 
-      // Se a primeira página veio cheia (pageSize), buscar páginas subsequentes até esgotar ou bater o teto
-      if (initialOrdersResult?.orders?.length === pageSize) {
-        for (let p = 2; p <= MAX_PAGES; p++) {
-          const pageRes = await api.getOrdersPaginated(p, pageSize);
-          const pageOrders = pageRes?.orders || [];
-          if (pageOrders.length > 0) {
-            allOrders = allOrders.concat(pageOrders);
-          }
-          // Se retornou menos que o tamanho da página, chegamos ao final
-          if (pageOrders.length < pageSize) {
-            break;
-          }
-        }
-      }
-
+      // Atualiza imediatamente a UI com o resumo e a 1ª página (evita bloquear renderização em waterfall)
       setDashboardData(allOrders, summaryResult);
       lastFetchTimeRef.current = Date.now();
+      setLoading(false);
+
+      // Se a primeira página veio cheia (pageSize), buscar páginas subsequentes em lotes paralelos
+      if (initialOrdersResult?.orders?.length === pageSize) {
+        const BATCH_SIZE = 3;
+        let reachedEnd = false;
+
+        for (let startPage = 2; startPage <= MAX_PAGES && !reachedEnd; startPage += BATCH_SIZE) {
+          const pagesToFetch: number[] = [];
+          for (let p = startPage; p < startPage + BATCH_SIZE && p <= MAX_PAGES; p++) {
+            pagesToFetch.push(p);
+          }
+
+          const batchResults = await Promise.all(
+            pagesToFetch.map((p) => api.getOrdersPaginated(p, pageSize))
+          );
+
+          for (const pageRes of batchResults) {
+            const pageOrders = pageRes?.orders || [];
+            if (pageOrders.length > 0) {
+              allOrders = allOrders.concat(pageOrders);
+            }
+            if (pageOrders.length < pageSize) {
+              reachedEnd = true;
+              break;
+            }
+          }
+        }
+
+        setDashboardData(allOrders, summaryResult);
+        lastFetchTimeRef.current = Date.now();
+      }
 
       if (showToast) {
         toast({

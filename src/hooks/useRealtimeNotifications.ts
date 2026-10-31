@@ -14,13 +14,15 @@ export { NotificationType, type OrderNotification };
 // ========================================
 
 export const useRealtimeNotifications = () => {
-  const { sessionToken, userId } = useAuthStore();
-  const { removeOrder } = useOrderStore();
+  const sessionToken = useAuthStore((state) => state.sessionToken);
+  const userId = useAuthStore((state) => state.userId);
+  const removeOrder = useOrderStore((state) => state.removeOrder);
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const subscriptionRef = useRef<(() => void) | null>(null);
   const statusSubscriptionRef = useRef<(() => void) | null>(null);
+  const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Gerenciador inteligente de notificações
   const notificationManagerRef = useRef<NotificationManager | null>(null);
@@ -36,6 +38,10 @@ export const useRealtimeNotifications = () => {
     notificationManagerRef.current = new NotificationManager(toastRef.current);
     return () => {
       notificationManagerRef.current?.clear();
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current);
+        refreshDebounceRef.current = null;
+      }
     };
   }, []); // manager usa ref interna do toast
 
@@ -195,19 +201,27 @@ export const useRealtimeNotifications = () => {
     setSubscriberCount(ordersSocket.getListenerCount());
   }, []);
 
-  // Recarregar lista de pedidos
-  const refreshOrders = async () => {
-    try {
-      logger.debug('🔄 Disparando evento de refresh de pedidos...');
-
-      // Disparar evento customizado para que os componentes escutem
-      window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
-        detail: { timestamp: Date.now() }
-      }));
-    } catch (error) {
-      logger.error('Erro ao recarregar pedidos:', error);
+  // Recarregar lista de pedidos (com debounce para evitar cascata em rajadas de eventos)
+  const refreshOrders = useCallback(() => {
+    if (refreshDebounceRef.current) {
+      clearTimeout(refreshDebounceRef.current);
     }
-  };
+
+    refreshDebounceRef.current = setTimeout(() => {
+      try {
+        logger.debug('🔄 Disparando evento de refresh de pedidos...');
+
+        // Disparar evento customizado para que os componentes escutem
+        window.dispatchEvent(new CustomEvent('orders-refresh-requested', {
+          detail: { timestamp: Date.now() }
+        }));
+      } catch (error) {
+        logger.error('Erro ao recarregar pedidos:', error);
+      } finally {
+        refreshDebounceRef.current = null;
+      }
+    }, 300);
+  }, []);
 
   // Conectar automaticamente quando o token de sessão estiver disponível
   // IMPORTANTE: não depender de isConnected aqui, senão ao conectar (isConnected=true)

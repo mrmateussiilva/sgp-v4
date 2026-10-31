@@ -6,12 +6,16 @@ import { BottomNavBar } from '@/components/layouts/BottomNavBar';
 import ExpedicaoCard from '@/components/ExpedicaoCard';
 import type { OrderWithItems } from '@/types';
 
-// Mock do hook useAuthStore
+// Mock do hook useAuthStore (suporta chamada direta ou com seletor)
 vi.mock('@/store/authStore', () => ({
-  useAuthStore: () => ({
-    username: 'operador_mobile',
-    isAdmin: false,
-  }),
+  useAuthStore: (selector?: (state: { userId: number; username: string; isAdmin: boolean }) => unknown) => {
+    const state = {
+      userId: 1,
+      username: 'operador_mobile',
+      isAdmin: false,
+    };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
 }));
 
 // Mock do service api
