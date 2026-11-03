@@ -1,4 +1,5 @@
 import { isTauri } from './isTauri';
+import { useNotificationSettingsStore } from '@/store/notificationSettingsStore';
 
 export interface NativeNotificationOptions {
   title: string;
@@ -64,6 +65,11 @@ async function getSwRegistration(): Promise<ServiceWorkerRegistration | null> {
  * No Tauri: usa o plugin nativo de notificação.
  */
 export async function sendNativeNotification(options: NativeNotificationOptions): Promise<void> {
+  // Verificar se o usuário desativou notificações globalmente ou pop-ups desktop
+  const { enabled, nativeDesktop } = useNotificationSettingsStore.getState();
+  if (!enabled || !nativeDesktop) {
+    return;
+  }
   const { title, body, icon, tag } = options;
 
   if (isTauri()) {

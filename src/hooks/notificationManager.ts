@@ -1,5 +1,6 @@
 import { useToast } from './use-toast';
 import { sendNativeNotification } from '@/utils/notifications';
+import { useNotificationSettingsStore } from '@/store/notificationSettingsStore';
 
 // ========================================
 // TIPOS DE NOTIFICAÇÃO (compartilhados)
@@ -88,6 +89,10 @@ export class NotificationManager {
    * Processa uma notificação usando o sistema inteligente
    */
   processNotification(notification: OrderNotification): boolean {
+    const { enabled, orderEvents, inAppToasts, nativeDesktop } = useNotificationSettingsStore.getState();
+    if (!enabled || !orderEvents || (!inAppToasts && !nativeDesktop)) {
+      return false;
+    }
     const priority = PRIORITY_MAP[notification.notification_type];
 
     // Notificações LOW (Updated) nunca mostram toast

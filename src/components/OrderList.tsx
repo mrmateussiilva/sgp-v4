@@ -2909,7 +2909,7 @@ export default function OrderList() {
                               </div>
                             </TableHead>
                             <TableHead
-                              className="min-w-[80px] max-w-[160px] lg:min-w-[120px] lg:max-w-[200px] xl:min-w-[140px] xl:max-w-[220px] hd:min-w-[160px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-2 lg:px-3 xl:px-4 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                              className="min-w-[140px] max-w-[240px] lg:min-w-[180px] lg:max-w-[320px] xl:min-w-[220px] xl:max-w-[380px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-2 lg:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('cliente')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
@@ -2918,7 +2918,7 @@ export default function OrderList() {
                               </div>
                             </TableHead>
                             <TableHead
-                              className="hidden lg:table-cell min-w-[85px] max-w-[100px] lg:min-w-[105px] lg:max-w-[125px] xl:min-w-[115px] xl:max-w-[135px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-1 lg:px-2 xl:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                              className="hidden md:table-cell min-w-[90px] max-w-[110px] lg:min-w-[100px] lg:max-w-[120px] sticky top-0 z-30 bg-slate-100 dark:bg-muted cursor-pointer hover:bg-slate-200/70 dark:hover:bg-muted/80 transition-colors px-2 lg:px-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                               onClick={() => handleSort('data_entrega')}
                             >
                               <div className="flex items-center gap-1 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground">
@@ -2937,7 +2937,7 @@ export default function OrderList() {
                                 {getSortIcon('prioridade')}
                               </div>
                             </TableHead>
-                            <TableHead className="hidden 2xl:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted px-1 lg:px-2 xl:px-3 text-[10px] sm:text-xs lg:text-sm xl:text-base font-bold text-slate-800 dark:text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                            <TableHead className="hidden md:table-cell text-center whitespace-nowrap sticky top-0 z-30 bg-slate-100 dark:bg-muted min-w-[90px] max-w-[140px] lg:min-w-[110px] lg:max-w-[160px] px-2 lg:px-3 text-[10px] sm:text-xs lg:text-sm font-bold text-slate-800 dark:text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
                               <div className="flex items-center justify-center gap-1 font-bold text-slate-800 dark:text-foreground">
                                 Cidade/UF
                                 {getSortIcon('cidade')}

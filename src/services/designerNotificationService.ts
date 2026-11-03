@@ -23,6 +23,7 @@ import type {
 } from '@/types/designerNotification';
 import { getApiUrl } from '@/api/client';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificationSettingsStore } from '@/store/notificationSettingsStore';
 
 // Chave de sessão para deduplicação persistida entre renders
 const SEEN_KEY = 'sgp_designer_notif_seen';
@@ -108,6 +109,8 @@ class DesignerNotificationService {
   };
 
   private sendNative(notification: DesignerNotificationItem): void {
+    const { enabled, designerEvents, nativeDesktop } = useNotificationSettingsStore.getState();
+    if (!enabled || !designerEvents || !nativeDesktop) return;
     sendNativeNotification({
       title: notification.title,
       body: notification.message,
