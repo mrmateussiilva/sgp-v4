@@ -10,9 +10,8 @@ import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { processAndSaveImage } from '@/utils/localImageManager';
+import { handleImageUpload } from '@/utils/imageUploadValidator';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
-import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
 
 interface FormPainelCompletoProps {
@@ -432,63 +431,26 @@ export function FormPainelCompleto({
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-
-                // Se estiver em Tauri, salvar localmente
-                if (isTauri()) {
-                  try {
-                    setImageLoading(true);
-
-                    // Converter File para Uint8Array
-                    const arrayBuffer = await file.arrayBuffer();
-                    const imageData = new Uint8Array(arrayBuffer);
-
-                    // Processar e salvar localmente (redimensiona se necessário)
-                    const metadata = await processAndSaveImage(
-                      imageData,
-                      5000, // maxWidth
-                      400, // maxHeight
-                      85    // quality
-                    );
-
-                    // Armazenar local_path no estado (NÃO base64!)
-                    onDataChange('imagem', metadata.local_path);
-                    onDataChange('_image_metadata', metadata); // Metadados para upload posterior
-
-                    // Carregar preview temporário para exibição
-                    const preview = await getImagePreviewUrl(metadata.local_path);
-                    setImagePreviewUrl(preview);
-
-                    toast({
-                      title: 'Imagem salva',
-                      description: 'Imagem salva localmente com sucesso.',
-                    });
-                  } catch (_e) {
-
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível salvar a imagem localmente.',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setImageLoading(false);
+                try {
+                  setImageLoading(true);
+                  const result = await handleImageUpload(file);
+                  onDataChange('imagem', result.localPathOrBase64);
+                  if (result.metadata) {
+                    onDataChange('_image_metadata', result.metadata);
                   }
-                } else {
-                  // Fallback para ambiente web (não Tauri): usar base64 temporariamente
-                  // Isso mantém compatibilidade durante desenvolvimento
-                  try {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      onDataChange('imagem', reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  } catch (_e) {
-
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível ler o arquivo.',
-                      variant: 'destructive',
-                    });
-                  }
+                  setImagePreviewUrl(result.previewUrl);
+                  toast({
+                    title: 'Imagem carregada',
+                    description: 'Imagem processada e validada com sucesso.',
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: 'Erro na imagem',
+                    description: err?.message || 'Não foi possível carregar a imagem.',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setImageLoading(false);
                 }
               }}
               className="hidden"
@@ -508,63 +470,27 @@ export function FormPainelCompleto({
                 e.preventDefault();
                 e.stopPropagation();
                 const file = e.dataTransfer.files?.[0];
-                if (!file || !file.type.startsWith('image/')) return;
-
-                // Se estiver em Tauri, salvar localmente
-                if (isTauri()) {
-                  try {
-                    setImageLoading(true);
-
-                    // Converter File para Uint8Array
-                    const arrayBuffer = await file.arrayBuffer();
-                    const imageData = new Uint8Array(arrayBuffer);
-
-                    // Processar e salvar localmente
-                    const metadata = await processAndSaveImage(
-                      imageData,
-                      5000, // maxWidth
-                      400, // maxHeight
-                      85    // quality
-                    );
-
-                    // Armazenar local_path no estado
-                    onDataChange('imagem', metadata.local_path);
-                    onDataChange('_image_metadata', metadata);
-
-                    // Carregar preview temporário
-                    const preview = await getImagePreviewUrl(metadata.local_path);
-                    setImagePreviewUrl(preview);
-
-                    toast({
-                      title: 'Imagem salva',
-                      description: 'Imagem salva localmente com sucesso.',
-                    });
-                  } catch (_e) {
-
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível salvar a imagem localmente.',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setImageLoading(false);
+                if (!file) return;
+                try {
+                  setImageLoading(true);
+                  const result = await handleImageUpload(file);
+                  onDataChange('imagem', result.localPathOrBase64);
+                  if (result.metadata) {
+                    onDataChange('_image_metadata', result.metadata);
                   }
-                } else {
-                  // Fallback para ambiente web
-                  try {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      onDataChange('imagem', reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  } catch (_e) {
-
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível ler o arquivo.',
-                      variant: 'destructive',
-                    });
-                  }
+                  setImagePreviewUrl(result.previewUrl);
+                  toast({
+                    title: 'Imagem carregada',
+                    description: 'Imagem processada e validada com sucesso.',
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: 'Erro na imagem',
+                    description: err?.message || 'Não foi possível carregar a imagem.',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setImageLoading(false);
                 }
               }}
               className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"

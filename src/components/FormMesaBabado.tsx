@@ -9,9 +9,8 @@ import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { processAndSaveImage } from '@/utils/localImageManager';
+import { handleImageUpload } from '@/utils/imageUploadValidator';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
-import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
 
 interface FabricComposition {
@@ -319,24 +318,52 @@ export function FormMesaBabado({
                             onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-                                if (isTauri()) {
-                                    try {
-                                        setImageLoading(true);
-                                        const arrayBuffer = await file.arrayBuffer();
-                                        const metadata = await processAndSaveImage(new Uint8Array(arrayBuffer), 5000, 400, 85);
-                                        onDataChange('imagem', metadata.local_path);
-                                        const preview = await getImagePreviewUrl(metadata.local_path);
-                                        setImagePreviewUrl(preview);
-                                    } catch (_e) {
-                                        toast({ title: 'Erro', description: 'Falha ao salvar imagem', variant: 'destructive' });
-                                    } finally {
-                                        setImageLoading(false);
+                                try {
+                                    setImageLoading(true);
+                                    const result = await handleImageUpload(file);
+                                    onDataChange('imagem', result.localPathOrBase64);
+                                    if (result.metadata) {
+                                        onDataChange('_image_metadata', result.metadata);
                                     }
+                                    setImagePreviewUrl(result.previewUrl);
+                                    toast({ title: 'Imagem carregada', description: 'Imagem processada com sucesso.' });
+                                } catch (err: any) {
+                                    toast({ title: 'Erro na imagem', description: err?.message || 'Falha ao salvar imagem', variant: 'destructive' });
+                                } finally {
+                                    setImageLoading(false);
                                 }
                             }}
                         />
                         <label
                             htmlFor={`upload-imagem-${tabId}`}
+                            onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }}
+                            onDragEnter={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }}
+                            onDrop={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const file = e.dataTransfer.files?.[0];
+                                if (!file) return;
+                                try {
+                                    setImageLoading(true);
+                                    const result = await handleImageUpload(file);
+                                    onDataChange('imagem', result.localPathOrBase64);
+                                    if (result.metadata) {
+                                        onDataChange('_image_metadata', result.metadata);
+                                    }
+                                    setImagePreviewUrl(result.previewUrl);
+                                    toast({ title: 'Imagem carregada', description: 'Imagem processada com sucesso.' });
+                                } catch (err: any) {
+                                    toast({ title: 'Erro na imagem', description: err?.message || 'Falha ao salvar imagem', variant: 'destructive' });
+                                } finally {
+                                    setImageLoading(false);
+                                }
+                            }}
                             className="flex flex-col items-center justify-center h-full border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors bg-white"
                         >
                             {imageLoading ? (

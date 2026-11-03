@@ -10,9 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { MedidasCalculator } from '@/components/MedidasCalculator';
 import SelectVendedor from '@/components/SelectVendedor';
 import SelectDesigner from '@/components/SelectDesigner';
-import { processAndSaveImage } from '@/utils/localImageManager';
+import { handleImageUpload } from '@/utils/imageUploadValidator';
 import { getImagePreviewUrl } from '@/utils/imagePreview';
-import { isTauri } from '@/utils/isTauri';
 import { useToast } from '@/hooks/use-toast';
 
 const normalizeDecimal = (value: string | number): string => {
@@ -226,42 +225,26 @@ export function FormImpressao3D({
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-
-                if (isTauri()) {
-                  try {
-                    setImageLoading(true);
-                    const arrayBuffer = await file.arrayBuffer();
-                    const imageData = new Uint8Array(arrayBuffer);
-                    const metadata = await processAndSaveImage(
-                      imageData,
-                      5000,
-                      400,
-                      85
-                    );
-                    onDataChange('imagem', metadata.local_path);
-                    onDataChange('_image_metadata', metadata);
-                    const preview = await getImagePreviewUrl(metadata.local_path);
-                    setImagePreviewUrl(preview);
-                    toast({
-                      title: 'Imagem salva',
-                      description: 'Imagem salva localmente com sucesso.',
-                    });
-                  } catch (_e) {
-
-                    toast({
-                      title: 'Erro',
-                      description: 'Não foi possível salvar a imagem localmente.',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setImageLoading(false);
+                try {
+                  setImageLoading(true);
+                  const result = await handleImageUpload(file);
+                  onDataChange('imagem', result.localPathOrBase64);
+                  if (result.metadata) {
+                    onDataChange('_image_metadata', result.metadata);
                   }
-                } else {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    onDataChange('imagem', reader.result as string);
-                  };
-                  reader.readAsDataURL(file);
+                  setImagePreviewUrl(result.previewUrl);
+                  toast({
+                    title: 'Imagem carregada',
+                    description: 'Imagem processada e validada com sucesso.',
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: 'Erro na imagem',
+                    description: err?.message || 'Não foi possível carregar a imagem.',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setImageLoading(false);
                 }
               }}
               className="hidden"
@@ -269,6 +252,41 @@ export function FormImpressao3D({
             />
             <label
               htmlFor={`upload-imagem-impressao3d-${tabId}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const file = e.dataTransfer.files?.[0];
+                if (!file) return;
+                try {
+                  setImageLoading(true);
+                  const result = await handleImageUpload(file);
+                  onDataChange('imagem', result.localPathOrBase64);
+                  if (result.metadata) {
+                    onDataChange('_image_metadata', result.metadata);
+                  }
+                  setImagePreviewUrl(result.previewUrl);
+                  toast({
+                    title: 'Imagem carregada',
+                    description: 'Imagem processada e validada com sucesso.',
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: 'Erro na imagem',
+                    description: err?.message || 'Não foi possível carregar a imagem.',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setImageLoading(false);
+                }
+              }}
               className="flex flex-col items-center justify-center h-full border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all bg-white overflow-hidden"
             >
               {imageLoading ? (
