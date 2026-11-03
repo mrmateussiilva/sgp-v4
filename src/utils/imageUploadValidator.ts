@@ -172,3 +172,4 @@ export async function handleImageUpload(file: File): Promise<ProcessedImageResul
     };
   }
 }
+
