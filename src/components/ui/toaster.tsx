@@ -6,11 +6,11 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
-import { useToast } from "@/hooks/use-toast"
+import { useToastState } from "@/hooks/use-toast"
 import { CheckCircle2, AlertCircle, Info, AlertTriangle } from "lucide-react"
 
 export function Toaster() {
-  const { toasts } = useToast()
+  const { toasts } = useToastState()
 
   const getIcon = (variant?: string | null) => {
     switch (variant) {

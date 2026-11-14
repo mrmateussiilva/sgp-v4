@@ -1,4 +1,4 @@
-import { Package, Palette, Users, Truck, CreditCard, Settings, FileText, Monitor } from 'lucide-react';
+import { Package, Palette, Users, Truck, CreditCard, Settings, FileText, Monitor, Zap } from 'lucide-react';
 import { AdminStatusBanner } from '@/components/admin/AdminStatusBanner';
 import { AdminModuleSection } from '@/components/admin/AdminModuleSection';
 import { AdminModule } from '@/components/admin/AdminModuleCard';
@@ -78,6 +78,14 @@ export default function Admin() {
   ];
 
   const systemModules: AdminModule[] = [
+    {
+      title: 'Actions (Beta)',
+      icon: Zap,
+      path: '/dashboard/actions',
+      color: 'text-amber-500',
+      stats: 'Gatilhos ativos',
+      status: 'ok',
+    },
     {
       title: 'Modelos de Relatórios',
       icon: FileText,

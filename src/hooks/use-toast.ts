@@ -171,7 +171,26 @@ function toast({ duration, ...props }: Toast & { duration?: number }) {
   }
 }
 
+const dismissToast = (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId })
+
+const stableToastApi = {
+  toasts: [] as ToasterToast[],
+  toast,
+  dismiss: dismissToast,
+}
+
+/**
+ * Hook leve para disparar toasts sem inscrever o componente chamador
+ * em re-renderizações globais a cada aparição/remoção de toast.
+ */
 function useToast() {
+  return stableToastApi
+}
+
+/**
+ * Hook exclusivo para o componente <Toaster /> observar a lista de toasts ativos.
+ */
+function useToastState() {
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
@@ -182,14 +201,14 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: dismissToast,
   }
 }
 
-export { useToast, toast }
+export { useToast, useToastState, toast }
 

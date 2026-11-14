@@ -170,7 +170,10 @@ class DesignerNotificationService {
       }));
 
       const store = useDesignerNotificationStore.getState();
-      store.setNotifications(items);
+      const localActionItems = store.notifications.filter((n) =>
+        n.notification_id.startsWith('action-')
+      );
+      store.setNotifications([...localActionItems, ...items]);
 
       return items.filter((n) => !n.read).length;
     } catch (err) {
@@ -183,11 +186,16 @@ class DesignerNotificationService {
    * Marca uma notificação como lida no backend e no store local.
    */
   async markAsRead(notificationId: string): Promise<void> {
-    const apiUrl = getApiUrl();
-    const token = useAuthStore.getState().sessionToken;
-
     // Otimista: atualizar store imediatamente
     useDesignerNotificationStore.getState().markAsRead(notificationId);
+
+    // Notificações geradas pelo motor de Actions são 100% locais no frontend
+    if (notificationId.startsWith('action-')) {
+      return;
+    }
+
+    const apiUrl = getApiUrl();
+    const token = useAuthStore.getState().sessionToken;
 
     if (!apiUrl || !token) return;
 

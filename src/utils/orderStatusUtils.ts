@@ -18,6 +18,8 @@ export const buildStatusUpdatePayload = (
         sublimacao: campo === 'sublimacao' ? novoValor : order.sublimacao === true,
         costura: campo === 'costura' ? novoValor : order.costura === true,
         expedicao: campo === 'expedicao' ? novoValor : order.expedicao === true,
+        _changedStage: campo,
+        _changedValue: novoValor,
     };
 
     // Incluir financeiro APENAS se está sendo explicitamente alterado

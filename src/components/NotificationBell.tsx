@@ -8,6 +8,7 @@ import {
   Package,
   Settings,
   ChevronLeft,
+  Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDesignerNotificationStore } from '@/store/designerNotificationStore';
@@ -46,6 +47,8 @@ function NotificationItem({
   notification: DesignerNotificationItem;
   onRead: (id: string, orderId: number) => void;
 }) {
+  const isActionNotif = notification.notification_id.startsWith('action-');
+
   return (
     <button
       type="button"
@@ -63,23 +66,32 @@ function NotificationItem({
           'mt-0.5 flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center',
           notification.read
             ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+            : isActionNotif
+            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-300'
             : 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300',
         )}
       >
-        <Package className="w-4 h-4" />
+        {isActionNotif ? <Zap className="w-4 h-4" /> : <Package className="w-4 h-4" />}
       </div>
 
       {/* Conteúdo */}
       <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            'text-sm leading-tight truncate',
-            notification.read ? 'text-slate-600 dark:text-slate-400' : 'font-semibold text-slate-900 dark:text-slate-100',
+        <div className="flex items-center gap-1.5">
+          {isActionNotif && (
+            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300">
+              Action
+            </span>
           )}
-        >
-          {notification.title}
-        </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{notification.message}</p>
+          <p
+            className={cn(
+              'text-sm leading-tight truncate',
+              notification.read ? 'text-slate-600 dark:text-slate-400' : 'font-semibold text-slate-900 dark:text-slate-100',
+            )}
+          >
+            {notification.title}
+          </p>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notification.message}</p>
         <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{formatRelative(notification.created_at)}</p>
       </div>
 
@@ -121,7 +133,13 @@ export function NotificationBell() {
     (notificationId: string, orderId: number) => {
       designerNotificationService.markAsRead(notificationId);
       setOpen(false);
-      navigate(`/dashboard?pedido=${orderId}`);
+      // Não navegar para IDs fictícios gerados pelo simulador de Actions (>= 9000)
+      if (notificationId.startsWith('action-') && orderId >= 9000) {
+        return;
+      }
+      if (orderId > 0) {
+        navigate(`/dashboard?pedido=${orderId}`);
+      }
     },
     [navigate],
   );
@@ -240,7 +258,7 @@ export function NotificationBell() {
                       ) : (
                         <Bell className="w-5 h-5 text-blue-600" />
                       )}
-                      Notificações de Artes
+                      Central de Notificações
                     </>
                   )}
                 </DialogTitle>

@@ -34,6 +34,7 @@ import {
   Palette,
   Lock,
   Package,
+  Zap,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUpdaterStore } from '../store/updaterStore';
@@ -53,11 +54,14 @@ import { useTheme } from '@/components/ThemeProvider';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useDesignerNotifications } from '@/hooks/useDesignerNotifications';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { authApi } from '@/api/endpoints/auth';
 import { clearAllResourcesCache } from '@/api/endpoints/resources';
 import { clearClientesCache } from '@/api/endpoints/customers';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { PrintPreviewModal } from '@/components/PrintPreviewModal';
+import { generateMultipleOrdersPdfBlob } from '@/utils/printOrderServiceForm';
+import { OrderWithItems } from '@/types';
 
 // Lazy load de todas as rotas para code-splitting com retry automático
 const OrderList = lazyWithRetry(() => import('../components/OrderList'));
@@ -87,6 +91,64 @@ const Expedicao = lazyWithRetry(() => import('./Expedicao'));
 // Temporarily disabled - template editing via UI is disabled
 // const GestaoTemplateFicha = lazy(() => import('./admin/GestaoTemplateFicha'));
 const GestaoTemplateRelatorios = lazyWithRetry(() => import('./admin/GestaoTemplateRelatorios'));
+const ActionsPage = lazyWithRetry(() => import('./ActionsPage'));
+
+// Componente isolado para abrir o modal de impressão disparado por Actions sem re-renderizar o Dashboard inteiro
+const ActionPrintPreviewHost = () => {
+  const [actionPrintOpen, setActionPrintOpen] = useState(false);
+  const [actionPrintBlob, setActionPrintBlob] = useState<Blob | null>(null);
+  const [actionPrintFilename, setActionPrintFilename] = useState('Ficha.pdf');
+  const [actionPrintTitle, setActionPrintTitle] = useState('Ficha de Produção');
+
+  useEffect(() => {
+    const handleActionPrint = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ order?: OrderWithItems }>;
+      const order = customEvent.detail?.order;
+      if (!order) return;
+
+      const numero = order.numero || order.id;
+
+      // Gera o PDF primeiro em segundo plano antes de abrir o Dialog para evitar congelamento/piscada na animação do modal
+      try {
+        const { blob, filename } = await generateMultipleOrdersPdfBlob([order]);
+        setActionPrintTitle(`Ficha de Produção — Pedido #${numero}`);
+        setActionPrintFilename(filename);
+        setActionPrintBlob(blob);
+        setActionPrintOpen(true);
+      } catch (err) {
+        setActionPrintOpen(false);
+        toast({
+          title: 'Erro ao gerar PDF da Ficha',
+          description: err instanceof Error ? err.message : 'Não foi possível preparar a impressão.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    window.addEventListener('sgp:action-print-order', handleActionPrint);
+    return () => window.removeEventListener('sgp:action-print-order', handleActionPrint);
+  }, []);
+
+  if (!actionPrintOpen) return null;
+
+  return (
+    <PrintPreviewModal
+      isOpen={actionPrintOpen}
+      onClose={() => {
+        setActionPrintOpen(false);
+        setActionPrintBlob(null);
+        setTimeout(() => {
+          if (typeof document !== 'undefined') {
+            document.body.style.pointerEvents = '';
+          }
+        }, 150);
+      }}
+      pdfBlob={actionPrintBlob}
+      filename={actionPrintFilename}
+      title={actionPrintTitle}
+    />
+  );
+};
 
 // Componente de loading para rotas lazy
 const RouteLoadingFallback = () => (
@@ -109,7 +171,6 @@ export default function Dashboard() {
   const isUpdateAvailable = useUpdaterStore((state) => state.isUpdateAvailable);
   const { resolvedTheme, setTheme } = useTheme();
   const isMobile = useIsMobile();
-  const { toast } = useToast();
 
   // Redirecionar designer para o painel de designers se acessar a raiz do dashboard
   useEffect(() => {
@@ -378,6 +439,14 @@ export default function Dashboard() {
         section: 'GESTÃO',
       },
       {
+        icon: Zap,
+        label: 'Actions (Beta)',
+        path: '/dashboard/actions',
+        adminOnly: false,
+        section: 'SISTEMA',
+        blockedSetores: ['designer'],
+      },
+      {
         icon: Settings,
         label: 'Admin',
         path: '/dashboard/admin',
@@ -511,6 +580,14 @@ export default function Dashboard() {
                 element={
                   <ProtectedRoute blockedSetores={['designer']}>
                     <PrintLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="actions"
+                element={
+                  <ProtectedRoute blockedSetores={['designer']}>
+                    <ActionsPage />
                   </ProtectedRoute>
                 }
               />
@@ -869,6 +946,14 @@ export default function Dashboard() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="actions"
+                    element={
+                      <ProtectedRoute blockedSetores={['designer']}>
+                        <ActionsPage />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </Suspense>
             </main>
@@ -906,6 +991,9 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Global de Pré-visualização de Impressão disparado por Actions */}
+      <ActionPrintPreviewHost />
     </>
   );
 }

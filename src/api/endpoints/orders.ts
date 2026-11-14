@@ -27,6 +27,12 @@ import { ordersSocket } from '../../lib/realtimeOrders';
 import { useAuthStore } from '../../store/authStore';
 import { setAuthToken } from '../client';
 import { toCurrencyString } from '../utils';
+import {
+    scheduleOrderEvent,
+    cancelScheduledStageEvent,
+    cancelAllScheduledOrderEvents,
+} from '../../services/actionEngine';
+import { ProductionStageKey } from '../../types/actions';
 
 // Cache constants
 const ORDER_BY_ID_CACHE_TTL_MS = 2_000;
@@ -315,6 +321,11 @@ export const ordersApi = {
         setCacheWithLimit(order.id, order);
         inFlightRequests.clear();
 
+        scheduleOrderEvent({
+            trigger: 'order_created',
+            order,
+        });
+
         return order;
     },
 
@@ -334,6 +345,11 @@ export const ordersApi = {
         clearOrderCache(order.id);
         setCacheWithLimit(order.id, order);
         inFlightRequests.clear();
+
+        scheduleOrderEvent({
+            trigger: 'order_updated',
+            order,
+        });
 
         return order;
     },
@@ -369,12 +385,57 @@ export const ordersApi = {
         setCacheWithLimit(updatedOrder.id, updatedOrder);
         inFlightRequests.clear();
 
+        const stageKeys: ProductionStageKey[] = [
+            'financeiro',
+            'conferencia',
+            'sublimacao',
+            'costura',
+            'expedicao',
+            'pronto',
+        ];
+
+        let changedStages: ProductionStageKey[] = [];
+        if (request._changedStage !== undefined) {
+            // Quando vem do clique de uma etapa específica na tabela/modal, dispara APENAS se foi marcada (true)
+            if (request._changedValue === true) {
+                const clickedStage = request._changedStage as ProductionStageKey;
+                if (stageKeys.includes(clickedStage)) {
+                    changedStages.push(clickedStage);
+                }
+                if (clickedStage !== 'pronto' && request.pronto === true) {
+                    changedStages.push('pronto');
+                }
+            } else if (request._changedValue === false) {
+                // Se desmarcou a etapa antes do delay de 6s terminar, cancela o timer pendente imediatamente
+                cancelScheduledStageEvent(updatedOrder.id, request._changedStage);
+                if (request.pronto === false) {
+                    cancelScheduledStageEvent(updatedOrder.id, 'pronto');
+                }
+            }
+        } else {
+            changedStages = stageKeys.filter((k) => request[k] === true);
+        }
+
+        if (changedStages.length > 0) {
+            scheduleOrderEvent({
+                trigger: 'stage_changed',
+                order: updatedOrder,
+                changedStages,
+            });
+        } else if (request._changedStage === undefined && request.status !== undefined) {
+            scheduleOrderEvent({
+                trigger: 'status_changed',
+                order: updatedOrder,
+            });
+        }
+
         return updatedOrder;
     },
 
 
     deleteOrder: async (orderId: number): Promise<boolean> => {
         requireSessionToken();
+        cancelAllScheduledOrderEvents(orderId);
         await apiClient.delete(`/pedidos/${orderId}`);
 
         clearOrderCache(orderId);
@@ -710,6 +771,11 @@ export const ordersApi = {
         clearOrderCache(id);
         setCacheWithLimit(id, order);
         inFlightRequests.clear();
+
+        scheduleOrderEvent({
+            trigger: 'order_created',
+            order,
+        });
 
         return order;
     },

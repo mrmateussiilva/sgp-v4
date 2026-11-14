@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useDesignerNotificationStore } from '@/store/designerNotificationStore';
 import { designerNotificationService } from '@/services/designerNotificationService';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logger';
@@ -13,9 +12,9 @@ import { logger } from '@/utils/logger';
  *  4. Expor estado e ações do store para componentes
  */
 export function useDesignerNotifications() {
-  const { sessionToken, userId } = useAuthStore();
+  const sessionToken = useAuthStore((s) => s.sessionToken);
+  const userId = useAuthStore((s) => s.userId);
   const { toast } = useToast();
-  const { notifications, unreadCount } = useDesignerNotificationStore();
 
   // Iniciar / parar serviço de WebSocket conforme autenticação
   useEffect(() => {
@@ -71,8 +70,6 @@ export function useDesignerNotifications() {
   }, []);
 
   return {
-    notifications,
-    unreadCount,
     markAsRead: handleMarkAsRead,
     markAllAsRead: handleMarkAllAsRead,
   };

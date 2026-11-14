@@ -283,6 +283,8 @@ export interface UpdateOrderStatusRequest {
   pronto?: boolean;
   data_conclusao?: string | null;
   _isFinanceiroUpdate?: boolean;
+  _changedStage?: string;
+  _changedValue?: boolean;
 }
 
 export interface LoginRequest {
